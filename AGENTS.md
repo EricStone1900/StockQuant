@@ -4,9 +4,9 @@
 
 StockQuant is a personal A-share/US-stock quantitative trading platform. The initial repository baseline is documentation-first; inspect the actual files, scripts, lockfiles and Git status before assuming implementation exists or is missing. Update repository guidance when scaffolding changes this baseline. Preserve unrelated user changes and untracked files.
 
-Start with [the PRD entry](docs/prd/README.md) and [the three-version delivery rules](docs/prd/05-three-version-delivery.md), then read the product requirements, architecture and market contracts. Read the current version's `00-version-plan.md`, assigned stage file, `90-test-plan.md` and `99-acceptance.md` before implementation. Keep requirements, contracts, `01-feature-traceability.md`, tests and acceptance records aligned when requirements change.
+Start with [the PRD entry](docs/prd/README.md) and [the three-version delivery rules](docs/prd/05-three-version-delivery.md), then read the product requirements, architecture and market contracts. Before cross-service or environment changes, also read [the ADR index](docs/decisions/README.md), [the open-decision register](docs/decisions/open-decisions.md) and [the security/configuration design](architecture/05-security-and-configuration.md). Read the current version's `00-version-plan.md`, assigned stage file, `90-test-plan.md` and `99-acceptance.md` before implementation. Keep requirements, contracts, ADRs, `01-feature-traceability.md`, tests and acceptance records aligned when requirements change.
 
-The planned monorepo places the console in `apps/web/`, domain services in `services/`, generated contracts in `packages/contracts/`, infrastructure in `infra/`, shared tests in `tests/`, and deterministic inputs in `fixtures/`. Organize services into `domain/application/ports/adapters/bootstrap`; keep framework and broker SDK dependencies outside domain code.
+The monorepo baseline places the console in `apps/web/`, domain services in `services/`, canonical schemas and generated contracts in `packages/contracts/`, infrastructure in `infra/`, shared tests in `tests/`, and deterministic inputs in `fixtures/`. Organize services into `domain/application/ports/adapters/bootstrap`; keep framework and broker SDK dependencies outside domain code. Do not scaffold all services at once: create only the current vertical slice and record missing capabilities honestly.
 
 ## Current Delivery Scope
 
@@ -41,6 +41,8 @@ Inject a run-scoped Clock into business logic; do not read wall-clock time direc
 Reuse deterministic risk, authorization, execution and ledger rules across backtesting and Paper. Keep Qlib in the quant adapter and RD-Agent in the existing research-automation service with isolated execution. Candidate promotion requires independent recomputation and the user's approval of the exact version; research cannot activate strategies itself.
 
 Start with frozen small datasets sufficient for lookback and training/validation/test windows. Clearly label Fixtures, recorded responses and real components; when claiming Qlib/RD-Agent/DB/NATS/Temporal validation, run that component. Small-data success does not prove full-scale capacity or strategy profitability.
+
+Follow [the Fixture specification](fixtures/README.md). Every evidence-bearing dataset needs a versioned manifest, provenance/license, SHA-256, exact semantics and expected assertions. Changing a frozen input creates a new fixture version rather than overwriting evidence.
 
 Online monitoring is limited to 100 unique securities, prioritizing holdings and in-flight orders. Default snapshot collection is every 30 minutes, configurable to 20; collection, daily-bar completion, strategy evaluation and execution windows are separate. Verify free-source capabilities before adoption, retain provenance/timestamps/revisions, and never fabricate minute OHLCV from sparse snapshots. Historical research universes remain independent of today's online watchlist. Keep SNAPSHOT, DAILY_BAR and MINUTE_BAR results distinct.
 

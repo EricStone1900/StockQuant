@@ -8,13 +8,16 @@
 2. [跨服务契约与数据](./02-contracts-and-data.md)：身份、事务、幂等、时间、存储与迁移。
 3. [部署与运维](./03-deployment-and-operations.md)：Mac M1、Docker、Ubuntu、隔离与恢复。
 4. [历史回放](./04-historical-replay.md)：虚拟时钟、分钟撮合、屏障与检查点。
-5. 对应服务文件及[Web/验收中心](./components/web-and-acceptance-center.md)、[FakeBroker](./components/fake-broker.md)。
+5. [安全边界与配置](./05-security-and-configuration.md)：身份、信任区、秘密、网络和测试隔离。
+6. 对应服务文件及[Web/验收中心](./components/web-and-acceptance-center.md)、[FakeBroker](./components/fake-broker.md)。
 
 ## 文档关系
 
 范围依据[PRD入口](../docs/prd/README.md)和[三版共同规则](../docs/prd/05-three-version-delivery.md)，业务语义依据[市场契约](../docs/prd/03-market-rules-and-contracts.md)。本目录细化[原总体架构](../docs/prd/02-system-architecture.md)，不是另一套产品要求，也不替代生成Schema。
 
 原PRD保留原位及相对链接，docs/prd包仍可独立复制；本目录相对引用该包。若修改服务边界/协议，必须同步PRD、契约、阶段、追踪和测试/验收。出现矛盾时按已确认本轮范围和业务不变量核实并修正文档，不自行扩大到真实券商。
+
+跨服务技术选择及尚待冻结的参数分别登记在[ADR索引](../docs/decisions/README.md)和[未决事项](../docs/decisions/open-decisions.md)。
 
 ## 12个领域服务
 

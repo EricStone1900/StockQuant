@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../packages/contracts/schemas/common/account-initialization.schema.json",
+  "fixtureVersion": "v1.1-accounts-1",
+  "dataMode": "FIXTURE",
+  "simulationOnly": true,
+  "accounts": [
+    {
+      "fixtureAccountRef": "cn-paper-empty-10000-cny",
+      "ownerRef": "acceptance-owner-1",
+      "market": "CN_A",
+      "baseCurrency": "CNY",
+      "environmentMode": "PAPER",
+      "brokerMode": "FAKE",
+      "initialCash": { "amount": "10000.00", "currency": "CNY" },
+      "initialPositions": [],
+      "expected": {
+        "initializationLedgerEntries": 1,
+        "cashAfterInitialization": { "amount": "10000.00", "currency": "CNY" },
+        "positionsAfterInitialization": 0
+      }
+    },
+    {
+      "fixtureAccountRef": "us-paper-empty-10000-usd",
+      "ownerRef": "acceptance-owner-1",
+      "market": "US_EQUITY",
+      "baseCurrency": "USD",
+      "environmentMode": "PAPER",
+      "brokerMode": "FAKE",
+      "initialCash": { "amount": "10000.00", "currency": "USD" },
+      "initialPositions": [],
+      "expected": {
+        "initializationLedgerEntries": 1,
+        "cashAfterInitialization": { "amount": "10000.00", "currency": "USD" },
+        "positionsAfterInitialization": 0
+      }
+    }
+  ]
+}

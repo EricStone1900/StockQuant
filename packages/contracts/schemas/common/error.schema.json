@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/error.schema.json",
+  "title": "ErrorResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message", "category", "retryable", "correlationId"],
+  "properties": {
+    "code": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "category": {
+      "enum": ["AUTHENTICATION", "AUTHORIZATION", "VALIDATION", "CONFLICT", "DEPENDENCY", "INTERNAL"]
+    },
+    "retryable": { "type": "boolean" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "details": { "type": "object" },
+    "acceptanceStatus": { "enum": ["KNOWN", "UNKNOWN"] }
+  }
+}

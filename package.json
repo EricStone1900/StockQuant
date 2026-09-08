@@ -1,0 +1,16 @@
+{
+  "name": "stockquant",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Personal dual-market quantitative research and simulated trading platform",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": "24.1.0"
+  },
+  "scripts": {
+    "baseline:check": "pnpm docs:check && pnpm contracts:check && pnpm fixtures:check",
+    "contracts:check": "node scripts/validate-json.mjs packages/contracts fixtures",
+    "docs:check": "node scripts/check-markdown-links.mjs",
+    "fixtures:check": "node scripts/verify-fixture-hashes.mjs"
+  }
+}

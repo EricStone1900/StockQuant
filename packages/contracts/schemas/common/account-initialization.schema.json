@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/account-initialization.schema.json",
+  "title": "AccountInitializationFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixtureVersion", "dataMode", "simulationOnly", "accounts"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "fixtureVersion": { "type": "string", "minLength": 1 },
+    "dataMode": { "const": "FIXTURE" },
+    "simulationOnly": { "const": true },
+    "accounts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixtureAccountRef",
+          "ownerRef",
+          "market",
+          "baseCurrency",
+          "environmentMode",
+          "brokerMode",
+          "initialCash",
+          "initialPositions",
+          "expected"
+        ],
+        "properties": {
+          "fixtureAccountRef": { "type": "string", "minLength": 1 },
+          "ownerRef": { "type": "string", "minLength": 1 },
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "baseCurrency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "environmentMode": { "const": "PAPER" },
+          "brokerMode": { "const": "FAKE" },
+          "initialCash": { "$ref": "money.schema.json" },
+          "initialPositions": { "type": "array", "maxItems": 0 },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["initializationLedgerEntries", "cashAfterInitialization", "positionsAfterInitialization"],
+            "properties": {
+              "initializationLedgerEntries": { "const": 1 },
+              "cashAfterInitialization": { "$ref": "money.schema.json" },
+              "positionsAfterInitialization": { "const": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

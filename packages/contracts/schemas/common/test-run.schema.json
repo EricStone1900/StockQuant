@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/test-run.schema.json",
+  "title": "TestRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "testRunId",
+    "stageId",
+    "scenarioId",
+    "scenarioVersion",
+    "namespace",
+    "environmentMode",
+    "brokerMode",
+    "dataMode",
+    "clock",
+    "status",
+    "seed",
+    "createdAt"
+  ],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "type": "string", "pattern": "^V[1-3]\\.[1-5]$" },
+    "scenarioId": { "type": "string", "minLength": 1 },
+    "scenarioVersion": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "accountId": { "type": ["string", "null"], "format": "uuid" },
+    "market": { "enum": ["CN_A", "US_EQUITY", "MULTI"] },
+    "environmentMode": { "enum": ["BACKTEST", "PAPER", "SHADOW"] },
+    "brokerMode": { "const": "FAKE" },
+    "dataMode": { "enum": ["FIXTURE", "RECORDED", "REAL"] },
+    "executionModel": { "enum": ["NONE", "DAILY_BAR", "MINUTE_BAR", "SNAPSHOT"] },
+    "clock": { "$ref": "clock-context.schema.json" },
+    "status": {
+      "enum": ["QUEUED", "RUNNING", "WAITING", "CANCELLING", "COMPLETED", "FAILED", "CANCELLED"]
+    },
+    "seed": { "type": "integer", "minimum": 0 },
+    "faultPlan": { "type": "array", "items": { "type": "object" } },
+    "actualFaultSequence": { "type": "array", "items": { "type": "object" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" },
+    "artifactRefs": { "type": "array", "items": { "type": "object" } }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.1-account-initialization",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V1.1",
+  "status": "DRAFT",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Deterministic empty CN and US simulated account templates created by the project",
+    "license": "Project fixture; no external market data",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-08T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v1/v1.1/accounts.json",
+      "sha256": "575d2cb5e674bacbf951d9ca485c7e5c8e49e9d15bbb4623a71fd0c08c3685f4",
+      "mediaType": "application/json",
+      "schemaRef": "packages/contracts/schemas/common/account-initialization.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.1-ACCOUNT-INIT-001",
+      "description": "Each isolated account has exactly one initialization ledger entry"
+    },
+    {
+      "assertionId": "V1.1-ACCOUNT-IDEMPOTENCY-001",
+      "description": "Ten identical retries preserve the original cash and ledger entry count"
+    },
+    {
+      "assertionId": "V1.1-ACCOUNT-CONFLICT-001",
+      "description": "Reusing the idempotency key with a different amount is rejected without side effects"
+    },
+    {
+      "assertionId": "V1.1-RUN-ISOLATION-001",
+      "description": "CN and US accounts and separate TestRuns cannot read or mutate one another"
+    }
+  ]
+}

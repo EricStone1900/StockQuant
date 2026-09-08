@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/clock-context.schema.json",
+  "title": "ClockContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["clockMode", "asOf"],
+  "properties": {
+    "clockMode": { "enum": ["SYSTEM", "SIMULATION", "FIXED"] },
+    "asOf": { "type": "string", "format": "date-time" },
+    "runId": { "type": ["string", "null"], "format": "uuid" },
+    "calendarVersion": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "clockMode": { "const": "SYSTEM" } },
+        "required": ["clockMode"]
+      },
+      "else": {
+        "required": ["runId"],
+        "properties": {
+          "runId": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  ]
+}
