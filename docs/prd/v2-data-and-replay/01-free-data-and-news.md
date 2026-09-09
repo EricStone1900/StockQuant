@@ -1,6 +1,6 @@
 # V2.1 免费行情、新闻聚合与在线股票池
 
-状态：IMPLEMENTED，待人工验收。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（用户人工验收及复验通过，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 

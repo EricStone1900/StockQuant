@@ -10,6 +10,7 @@
 - 采样规则：`GET/PUT /api/v1/acceptance/v2/v2.1/sampling` 支持 20/30 分钟，固定返回 09:30–11:30、13:00–15:00 交易窗口和午休区间，不触发下单。
 - 熔断恢复：统一场景 `recovery` PASS，Tencent 来源状态按 `HEALTHY → OPEN → HEALTHY` 恢复。
 - 统一 TestRun：normal `3f5ff2ef-138a-4c33-b3b5-25fd25a46d7f`、rejection `c06b2e74-b7c4-4960-a01f-a8a169a4c1fa`、recovery `20d58d69-9e20-4b7e-9821-d72a78a26230`，三个运行均 `COMPLETED` 且断言 PASS。
+- 人工验收复验（2026-09-09）：normal `dd1792f9-4947-472d-bd9c-2a0399224068`、rejection `9a0d9bb5-7106-4b95-b113-bea633aab576`、recovery `7419dbd9-d635-4ccb-993f-9d66e5f11865`；构建、单测、Web E2E（6 passed）均 PASS。
 - Web：V2.1 验收页面已提供来源、股票池、行情快照、新闻预览和 101 只拒绝操作。
 - 自动验证：全仓 TypeScript typecheck PASS；Docker market-data/platform-api/web build PASS；来源烟测结果为 `PARTIAL`（Sina 超时）。
 

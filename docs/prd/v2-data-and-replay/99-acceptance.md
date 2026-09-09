@@ -6,7 +6,7 @@
 
 | 阶段 | 后端/自动检查 | Web人工验收 | 证据/testRunId | 已知限制 | 签署/日期 |
 |---|---|---|---|---|---|
-| [V2.1 免费行情、新闻聚合与在线股票池](./01-free-data-and-news.md) | PASS（代码、Docker、统一场景） | 待用户确认 | `docs/evidence-v2.1.md`；normal `3f5ff2ef-138a-4c33-b3b5-25fd25a46d7f`；rejection `c06b2e74-b7c4-4960-a01f-a8a169a4c1fa`；recovery `20d58d69-9e20-4b7e-9821-d72a78a26230` | Sina 行情源超时；来源许可、长期观察待补充 | NOT_RUN |
+| [V2.1 免费行情、新闻聚合与在线股票池](./01-free-data-and-news.md) | PASS（代码、Docker、统一场景） | PASS（用户确认并完成复验，2026-09-09） | `docs/evidence-v2.1.md`；复验 normal `dd1792f9-4947-472d-bd9c-2a0399224068`；rejection `9a0d9bb5-7106-4b95-b113-bea633aab576`；recovery `7419dbd9-d635-4ccb-993f-9d66e5f11865` | Sina 行情源超时；来源许可、长期观察待补充 | 用户确认（本会话） / 2026-09-09 |
 | [V2.2 历史分钟数据导入与校验](./02-minute-data-import.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V2.3 日频决策、分钟撮合与历史事件回放](./03-historical-minute-replay.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V2.4 真实时钟下持续模拟交易](./04-continuous-paper-trading.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
