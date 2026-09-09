@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../fixtures/manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.2-market-data",
+  "fixtureVersion": "v1.2-market-data-1",
+  "stageId": "V1.2",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {"kind": "SYNTHETIC", "description": "Synthetic deterministic daily bars for local V1.2 pipeline validation", "license": "Internal synthetic fixture", "retrievedAt": null},
+  "createdAt": "2026-09-09T00:00:00Z",
+  "files": [
+    {"path": "fixtures/v1/v1.2/cn_daily.csv", "sha256": "2d799e0fc18dbb8d312c394ad61afbe009570bc4a5e9cec0b43231d669a66f78", "mediaType": "text/csv", "schemaRef": "daily-bar-v1"},
+    {"path": "fixtures/v1/v1.2/cn_daily_bad_future.csv", "sha256": "d59c69bca23366c562902c028e6aab87ba2782cef6c274ffd41d784b4df824aa", "mediaType": "text/csv", "schemaRef": "daily-bar-v1"}
+  ],
+  "expectedAssertions": [
+    {"assertionId": "V1.2-DATA-NORMAL-001", "description": "normal fixture has 6 bars, 2 securities and no quality errors"},
+    {"assertionId": "V1.2-DATA-PIT-001", "description": "future fixture is rejected for asOf 2024-12-31"}
+  ]
+}

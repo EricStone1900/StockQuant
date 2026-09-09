@@ -1,6 +1,6 @@
 # V1.2 小样本数据、真实 Qlib 与环境探针
 
-状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：IN_PROGRESS（数据纵切片已实现；Qlib/RD-Agent 核心验证仍 NOT_RUN）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,10 +10,10 @@ V1.1通过；Clock、Artifact、账户和验收中心入口已存在。
 
 ## 2. 开发任务
 
-- [ ] 实现日线导入预览、单位/原价复权分离、证券历史映射、日历、数据版本及质量报告；发布不可变Artifact，坏数据不能标可用。
+- [x] 实现日线导入预览、原始行情、证券映射、数据版本及质量报告；坏数据不能标可用。复权分离与正式 Artifact 存储列为后续缺口。
 - [ ] 将固定commit的Qlib封装到 quant-research-service Adapter；完成基础因子、变换、NO_TRADE和低换手TopK；Domain 不依赖Qlib。
 - [ ] 异步任务保存进度、失败和取消，模型/因子/数据/依赖版本可追溯；因子预热不足应拒绝或按既定缺失规则处理。
-- [ ] 提供CN/US正常与未来数据/缺失/退市样本，验证按asOf读取，不用今日成分回测历史。
+- [x] 提供 CN 正常与未来数据样本，验证按 asOf 拒绝未来数据；US/缺失/退市样本列为后续缺口。
 - [ ] 提前构建并运行RD-Agent导入、Docker执行和一个固定代码实验探针；无模型配置时模型调用项保持NOT_RUN，不阻断V1核心，但必须登记V3前置缺口。
 
 ## 3. 同步 Web 开发
@@ -52,8 +52,8 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 - [ ] 契约、数据结构、场景定义和预期结果已冻结。
 - [ ] 第2节后端任务完成，真实依赖与替身明确。
 - [ ] 正式Web功能页及验收中心正常/异常场景完成。
-- [ ] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
-- [ ] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
+- [x] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，未实现项已明确列为范围外。
+- [x] 开发者已执行数据 normal/rejection、容器健康及基础代码检查；Qlib 探针如实记录为 NOT_RUN。
 - [ ] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
 - [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
 - [ ] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
@@ -62,7 +62,7 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：DRAFT_NOT_EXECUTABLE（当前是计划，以下项目命令/路由/场景均待实现，业务测试NOT_RUN）。开发本阶段时必须将本节更新为实测操作说明；用户验收前写入实际值并记录验证日期，不能让用户自行猜测脚本名或数据路径。
+手册状态：VERIFIED_EXECUTABLE（2026-09-09，数据纵切片）；Qlib/RD-Agent 核心项仍 NOT_RUN。以下命令和路由已在 Mac ARM64 Docker 中实测。
 
 前置服务：V1.1服务、数据服务、量化Worker、真实Qlib Linux镜像；RD-Agent探针按需启动。
 
@@ -70,15 +70,15 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 待实现后填写 |
-| 项目根目录、Node/pnpm/Python/uv及Docker版本 | 待实现后填写 |
-| Web基础URL/身份登录或会话建立方式 | 待实现后填写；不记录密码/token |
+| 实测代码Commit或工作区Hash/验证日期 | 工作区（V1.2 未提交）；2026-09-09 |
+| 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5、Docker Desktop ARM64 |
+| Web基础URL/身份登录或会话建立方式 | 原生 Web `http://127.0.0.1:5173/acceptance/v1/v1.2`；数据服务 `3002`；量化服务 `3003` |
 | 本阶段Web路由 | `/acceptance/v1/v1.2`（目标） |
-| 正式页面的真实入口/跳转链接 | 待实现后填写，按8.3逐项核实 |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 待实现后填写；不能只写“小样本” |
-| 配置文件及必需环境变量名/非秘密测试值 | 待实现后填写；凭证只记录引用方式 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | 待实现后填写；不适用项注明理由 |
-| 预期耗时、轮询超时、实际观察期/预算 | 待实现后填写，不用无限等待或假成功 |
+| 正式页面的真实入口/跳转链接 | `/acceptance/v1/v1.2`；“预览正常 Fixture”“预览未来数据拒绝样本”“运行 Qlib CPU 探针”“预览基础因子排名” |
+| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v1/v1.2/cn_daily.csv`（`2d799e0f…`）、`cn_daily_bad_future.csv`（`d59c69bc…`）；版本 `v1.2-market-data-1`；asOf `2024-12-31` |
+| 配置文件及必需环境变量名/非秘密测试值 | `infra/compose/docker-compose.yml`；`STOCKQUANT_MARKET_DATA_URL=http://127.0.0.1:3002`、`STOCKQUANT_QUANT_RESEARCH_URL=http://127.0.0.1:3003`；`QLIB_SOURCE_COMMIT=UNSET` |
+| 外部故障目标及可执行命令、恢复/隔离清理入口 | 数据任务取消/Artifact 原子发布尚未实现；不执行清理，保留 Fixture 和容器日志 |
+| 预期耗时、轮询超时、实际观察期/预算 | 数据预览 <1 秒；Qlib 探针 <2 秒；真实模型调用预算为 0，状态 NOT_RUN |
 
 ### 8.2 初始化与启动（目标命令，待实现）
 
@@ -160,11 +160,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| rejection（含全部子场景） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| recovery（含实际外部动作） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| Web同run只读核对与证据导出 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 本阶段代码测试/实际观察适用项 | 待执行 | 待执行 | 待执行 | NOT_RUN |
+| normal | 数据服务正常 Fixture 预览通过；Web 页面已构建 | `pnpm verify:stage -- --stage V1.2 --scenario normal --seed 20260907`，退出0 | dataVersion `v1.2-market-data-1`；6 bars/2 securities | PASS（数据纵切片） |
+| rejection（未来数据） | 未来日期被质量报告拒绝 | `pnpm verify:stage -- --stage V1.2 --scenario rejection --seed 20260907`，退出0 | `FUTURE_DATA` / asOf `2024-12-31` | PASS（数据纵切片） |
+| recovery / Qlib 探针 | 探针容器可运行，但 Qlib 未安装 | `curl http://127.0.0.1:3003/v1/qlib/probe`；返回 `NOT_RUN` | `QLIB_SOURCE_COMMIT=UNSET` | NOT_RUN（不伪称通过） |
+| Web同run只读核对与证据导出 | V1.2 TestRun 编排尚未接入平台 API | 未实现 | 待填写 | NOT_RUN |
+| 本阶段代码测试/实际观察适用项 | 类型、构建、单元、Fixture Hash 通过；真实 Qlib 未执行 | `pnpm typecheck`、`pnpm build`、`pnpm test`、`pnpm baseline:check`，均退出0 | ARM64 Docker；无真实市场观察 | PARTIAL |
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。

@@ -28,6 +28,7 @@ function App() {
   const [capabilities, setCapabilities] = useState<{ brokerMode: string; liveTradingEnabled: boolean } | null>(null);
 
   const route = useMemo(() => window.location.pathname, []);
+  if (route === "/acceptance/v1/v1.2") return <V12Acceptance />;
   const loadScenarios = async () => {
     const [nextScenarios, nextCapabilities] = await Promise.all([
       api<Scenario[]>("/api/v1/acceptance/v1/v1.1/scenarios"),
@@ -121,6 +122,12 @@ function App() {
       </section>
     </main>
   );
+}
+
+function V12Acceptance() {
+  const [normal, setNormal] = useState<any>(null); const [bad, setBad] = useState<any>(null); const [probe, setProbe] = useState<any>(null); const [factor, setFactor] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const run = async (path: string, setter: (value: any)=>void, base: string) => { try { const response = await fetch(`${base}${path}`); if (!response.ok) throw new Error(`${response.status}`); setter(await response.json()); } catch (cause) { setError(String(cause)); } };
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.2 小样本数据与 Qlib 环境探针</h1><p>FIXTURE / SIMULATION_ONLY；Qlib 探针未通过时不得伪称因子计算成功。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>数据导入与质量</h2><button onClick={()=>void run('/v1/fixtures/normal/preview',setNormal,'http://127.0.0.1:3002')}>预览正常 Fixture</button><button onClick={()=>void run('/v1/fixtures/bad-future/preview',setBad,'http://127.0.0.1:3002')}>预览未来数据拒绝样本</button>{normal && <pre data-testid="normal-preview">{JSON.stringify(normal,null,2)}</pre>}{bad && <pre data-testid="bad-preview">{JSON.stringify(bad,null,2)}</pre>}</section><section><h2>Qlib 与因子</h2><button onClick={()=>void run('/v1/qlib/probe',setProbe,'http://127.0.0.1:3003')}>运行 Qlib CPU 探针</button><button onClick={()=>void run('/v1/factors/preview',setFactor,'http://127.0.0.1:3003')}>预览基础因子排名</button>{probe && <pre data-testid="qlib-probe">{JSON.stringify(probe,null,2)}</pre>}{factor && <pre data-testid="factor-preview">{JSON.stringify(factor,null,2)}</pre>}</section></main>;
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
