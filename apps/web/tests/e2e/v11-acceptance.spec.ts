@@ -70,3 +70,13 @@ test("V2.2 minute import page shows preview and quality rejection", async ({ pag
   await page.getByRole("button", { name: "运行质量拒绝" }).click();
   await expect(page.getByTestId("v22-evidence")).toContainText("OHLC_INVALID");
 });
+
+test("V2.3 replay page shows deterministic matching and recovery evidence", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.3");
+  await expect(page.getByRole("heading", { name: "V2.3 日频决策、分钟撮合与历史事件回放" })).toBeVisible();
+  await page.getByRole("button", { name: "预览回放数据" }).click();
+  await expect(page.getByTestId("v23-evidence")).toContainText("v2.3-replay-bars-1");
+  await page.getByRole("button", { name: "运行检查点恢复" }).click();
+  await expect(page.getByTestId("v23-evidence")).toContainText("V2.3-RECOVERY-001");
+  await expect(page.getByTestId("v23-evidence")).toContainText('"status": "PASS"');
+});

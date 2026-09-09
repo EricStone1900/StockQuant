@@ -10,6 +10,7 @@ import { V14_SCENARIOS, V14BacktestEngine, type V14Scenario } from "../applicati
 import { V15_SCENARIOS, V15OrchestrationEngine, type V15Scenario } from "../application/v15-orchestration.js";
 import { runRealNatsProbe } from "../integration/real-nats-probe.js";
 import { runTemporalProbe } from "../integration/temporal-runtime.js";
+import { V23_SCENARIOS, V23ReplayEngine, type V23Scenario } from "../application/v23-replay.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -215,6 +216,16 @@ export class V22AcceptanceController {
   @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("V2.2 run was not found"); return run; }
 }
 
+@Controller("api/v1/acceptance/v2/v2.3")
+export class V23AcceptanceController {
+  private readonly runs = new Map<string, ReturnType<V23ReplayEngine["run"]>>();
+  private readonly engine = new V23ReplayEngine();
+  @Get("scenarios") scenarios() { return V23_SCENARIOS; }
+  @Get("preview") preview() { return { fixtureVersion: "v2.3-replay-bars-1", barType: "MINUTE_BAR", barCount: 4, securities: ["600000.SH", "000001.SZ"], dates: ["2024-01-02", "2024-01-03"], mode: "BACKTEST" }; }
+  @Post("runs") @HttpCode(202) run(@Body() body: { scenarioId?: V23Scenario; seed?: number }) { const scenarioId = body.scenarioId ?? "normal"; if (!V23_SCENARIOS.some((s) => s.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.3"); const result = this.engine.run(scenarioId, body.seed ?? 20260907); this.runs.set(result.testRunId, result); return { accepted: true, testRunId: result.testRunId, status: result.status }; }
+  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("V2.3 run was not found"); return run; }
+}
+
 @Controller("api/v1/integration")
 export class RealIntegrationController {
   @Get("nats/probe")
@@ -223,5 +234,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}
