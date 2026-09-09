@@ -1,6 +1,6 @@
 # V1.2 小样本数据、真实 Qlib 与环境探针
 
-状态：IN_PROGRESS（Qlib CPU 烟测和数据/平台纵切片已通过；RD-Agent 为无模型凭证的兼容探针，人工验收仍 NOT_RUN）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（自动验证通过，用户人工验收已确认，2026-09-09）。Qlib 使用 `linux/amd64` 仿真 worker；RD-Agent 为无模型凭证的兼容探针。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -53,10 +53,10 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 - [x] 第2节后端任务完成，真实依赖与替身明确。
 - [x] 正式Web功能页及验收中心正常/异常场景完成。
 - [x] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，未实现项已明确列为范围外。
-- [x] 开发者已执行数据 normal/rejection、容器健康及基础代码检查；Qlib 探针如实记录为 NOT_RUN。
+- [x] 开发者已执行数据 normal/rejection、容器健康、Qlib 0.9.6 CPU 烟测及基础代码检查。
 - [x] 重复/取消/探针恢复及适用观察期验证完成，未覆盖项如实记录。
-- [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
-- [ ] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
+- [x] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
+- [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
 
 ## 8. 阶段验收操作手册
 
@@ -160,12 +160,12 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 数据服务正常 Fixture 预览通过；Web 页面已构建 | `pnpm verify:stage -- --stage V1.2 --scenario normal --seed 20260907`，退出0 | dataVersion `v1.2-market-data-1`；6 bars/2 securities | PASS（数据纵切片） |
-| rejection（未来数据） | 未来日期被质量报告拒绝 | `pnpm verify:stage -- --stage V1.2 --scenario rejection --seed 20260907`，退出0 | `FUTURE_DATA` / asOf `2024-12-31` | PASS（数据纵切片） |
+| normal | 数据服务正常 Fixture 预览通过；Web 页面已构建 | `pnpm verify:stage -- --stage V1.2 --scenario normal --seed 20260907`，退出0 | dataVersion `v1.2-market-data-1`；6 bars/2 securities | PASS（自动+人工确认） |
+| rejection（未来数据） | 未来日期被质量报告拒绝 | `pnpm verify:stage -- --stage V1.2 --scenario rejection --seed 20260907`，退出0 | `FUTURE_DATA` / asOf `2024-12-31` | PASS（自动+人工确认） |
 | recovery / Qlib 探针 | Qlib 0.9.6 CPU import smoke 与 RD-Agent 固定代码探针通过，模型调用保持 NOT_RUN | `curl http://127.0.0.1:3003/v1/qlib/probe`、`curl http://127.0.0.1:3003/v1/rdagent/probe` | `QLIB_SOURCE_COMMIT=qlib-0.9.6`；`linux/amd64` 仿真 | PASS（仿真探针） |
-| Artifact 发布/取消 | 发布 Hash 与取消状态均可核对；取消不发布半成品 | POST `/v1/artifacts/normal/publish`、POST `/v1/artifacts/tasks/<taskId>/cancel` | task `artifact-task-1788951998902` | PASS（本地容器） |
-| Web同run平台 TestRun | 平台创建/查询 normal run，2 个断言 PASS | POST `/api/v1/acceptance/v1/v1.2/runs`、GET 同 run | `5998252f-f60c-409d-9940-9ce4846e90fc` | PASS（本地容器） |
+| Artifact 发布/取消 | 发布 Hash 与取消状态均可核对；取消不发布半成品 | POST `/v1/artifacts/normal/publish`、POST `/v1/artifacts/tasks/<taskId>/cancel` | task `artifact-task-1788953766848` | PASS（自动+人工确认） |
+| Web同run平台 TestRun | 平台创建/查询 normal run，2 个断言 PASS | POST `/api/v1/acceptance/v1/v1.2/runs`、GET 同 run | `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4` | PASS（自动+人工确认） |
 | 本阶段代码测试/实际观察适用项 | 类型、构建、单元、Fixture Hash、Qlib、Artifact、平台 API、Web E2E 通过；无真实市场观察 | `pnpm typecheck`、`pnpm build`、`pnpm test`、`pnpm baseline:check`、`pnpm test:e2e -- --stage V1.2`，均退出0 | Mac ARM64；Qlib worker 为 linux/amd64 仿真 | PASS（开发者自动验证） |
-| 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
+| 用户人工验收 | Web 数据、Qlib、RD-Agent 探针、平台 TestRun、Artifact 取消和 CLI 已确认 | 不由脚本代签 | 用户确认（本会话） / 2026-09-09 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
