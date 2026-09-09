@@ -56,7 +56,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 - [x] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
 - [x] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
 - [x] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
-- [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
+- [x] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，复验通过）。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
 
 ## 8. 阶段验收操作手册
@@ -161,11 +161,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| rejection（含全部子场景） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| recovery（含实际外部动作） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| Web同run只读核对与证据导出 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 本阶段代码测试/实际观察适用项 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
+| normal | Web 页面与 API 复验通过 | POST/GET API，断言全部 PASS | `5386f25e-378b-4537-9f5b-34276d659102` | PASS |
+| rejection（含全部子场景） | Web 页面与 API 复验通过 | POST/GET API，FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `0f0fca6f-3a62-4c0f-86c0-02d86e834d31` | PASS |
+| recovery（含实际外部动作） | Web 页面与 API 复验通过 | POST/GET API，检查点恢复无重复 Fill | `a461ad2a-adc9-4762-95ff-8ab641a40525` | PASS |
+| Web同run只读核对与证据导出 | Web E2E 8/8 通过；V2.3 同run GET 通过 | `pnpm --filter @stockquant/web test:e2e`，退出码 0 | 见 `docs/evidence-v2.3.md` | PASS |
+| 本阶段代码测试/实际观察适用项 | 构建、单元测试、Compose 健康检查通过 | `pnpm build`、`pnpm test`，均退出码 0 | 见 `docs/evidence-v2.3.md` | PASS |
+| 用户人工验收 | 用户明确确认通过；2026-09-09 复验一致 | 不由脚本代签 | 本会话确认 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
