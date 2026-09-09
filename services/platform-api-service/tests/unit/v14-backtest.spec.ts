@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { V14BacktestEngine } from "../../src/application/v14-backtest.js";
+describe("V1.4 backtest", () => { const e = new V14BacktestEngine(); it("executes next bar with fees", () => { const r = e.run("normal"); expect(r.status).toBe("COMPLETED"); expect(r.evidence.metrics).toMatchObject({ fees: 5 }); }); it("rejects future execution", () => { const r = e.run("rejection"); expect(r.status).toBe("COMPLETED"); expect(r.evidence.reportPublished).toBe(false); }); it("replays deterministically and cancels report", () => { const r = e.run("recovery"); expect(r.status).toBe("COMPLETED"); expect(r.evidence.replay).toMatchObject({ sameResult: true }); }); });

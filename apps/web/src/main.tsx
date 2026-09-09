@@ -30,6 +30,7 @@ function App() {
   const route = useMemo(() => window.location.pathname, []);
   if (route === "/acceptance/v1/v1.2") return <V12Acceptance />;
   if (route === "/acceptance/v1/v1.3") return <V13Acceptance />;
+  if (route === "/acceptance/v1/v1.4") return <V14Acceptance />;
   const loadScenarios = async () => {
     const [nextScenarios, nextCapabilities] = await Promise.all([
       api<Scenario[]>("/api/v1/acceptance/v1/v1.1/scenarios"),
@@ -136,6 +137,12 @@ function V13Acceptance() {
   const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null);
   const start = async () => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v1/v1.3/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.3/runs/${accepted.testRunId}`)); } catch (cause) { setError(String(cause)); } };
   return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.3 治理、风控与模拟券商交易链路</h1><p>仅 PAPER + FAKE；所有订单、成交、余额和故障均由隔离模拟环境生成。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>场景</h2><select aria-label="验收场景" value={scenario} onChange={(event)=>setScenario(event.target.value)}><option value="normal">全成与不可变账本</option><option value="rejection">治理与风控拒绝</option><option value="recovery">UNKNOWN与重复成交恢复</option></select><button onClick={()=>void start()}>运行 V1.3 场景</button></section>{run && <section><h2>业务时间线与后端证据</h2><dl><dt>testRunId</dt><dd data-testid="v13-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v13-run-status">{run.status}</dd><dt>账户</dt><dd>{run.evidence.accountId}</dd></dl><pre data-testid="v13-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th><th>预期</th><th>实际</th></tr></thead><tbody>{run.assertions.map((item:any)=><tr key={item.assertionId}><td>{item.assertionId}</td><td>{item.status}</td><td><code>{JSON.stringify(item.expected)}</code></td><td><code>{JSON.stringify(item.actual)}</code></td></tr>)}</tbody></table></section>}</main>;
+}
+
+function V14Acceptance() {
+  const [scenario, setScenario] = useState("normal"); const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const start = async () => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v1/v1.4/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`)); } catch (cause) { setError(String(cause)); } };
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.4 日线历史回测与可核对报告</h1><p>DAILY_BAR / BACKTEST / FAKE；收盘信号最早下一交易时点成交。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>回测场景</h2><select aria-label="回测场景" value={scenario} onChange={(e)=>setScenario(e.target.value)}><option value="normal">日线回测与净值</option><option value="rejection">未来成交与公司行动拒绝</option><option value="recovery">取消与固定输入复跑</option></select><button onClick={()=>void start()}>运行回测</button></section>{run && <section><h2>回测报告</h2><dl><dt>testRunId</dt><dd data-testid="v14-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v14-run-status">{run.status}</dd></dl><pre data-testid="v14-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th></tr></thead><tbody>{run.assertions.map((a:any)=><tr key={a.assertionId}><td>{a.assertionId}</td><td>{a.status}</td></tr>)}</tbody></table></section>}</main>;
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

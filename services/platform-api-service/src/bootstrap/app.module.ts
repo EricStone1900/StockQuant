@@ -6,6 +6,7 @@ import { ScenarioRunner } from "../application/scenario-runner.js";
 import { isV11Scenario, V11_SCENARIOS } from "../application/v11-scenarios.js";
 import type { ScenarioId } from "../domain/test-run.js";
 import { V13_SCENARIOS, V13TradingEngine, type V13Scenario } from "../application/v13-trading.js";
+import { V14_SCENARIOS, V14BacktestEngine, type V14Scenario } from "../application/v14-backtest.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -167,5 +168,13 @@ export class V13AcceptanceController {
   @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("test run was not found"); return run; }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController], providers: [PlatformContainer] })
+@Controller("api/v1/acceptance/v1/v1.4")
+export class V14AcceptanceController {
+  private readonly runs = new Map<string, ReturnType<V14BacktestEngine["run"]>>(); private readonly engine = new V14BacktestEngine();
+  @Get("scenarios") scenarios() { return V14_SCENARIOS; }
+  @Post("runs") @HttpCode(202) create(@Body() body: { scenarioId?: V14Scenario; seed?: number }) { if (!V14_SCENARIOS.some((s) => s.scenarioId === body.scenarioId)) throw new ForbiddenException("scenario is not available for V1.4"); const run = this.engine.run(body.scenarioId as V14Scenario, body.seed ?? 20260907); this.runs.set(run.testRunId, run); return { accepted: true, testRunId: run.testRunId, status: run.status }; }
+  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("backtest run was not found"); return run; }
+}
+
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController], providers: [PlatformContainer] })
 export class AppModule {}

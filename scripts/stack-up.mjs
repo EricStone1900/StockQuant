@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const stage = args[args.indexOf("--stage") + 1];
-if (!['V1.1','V1.2','V1.3'].includes(stage)) {
-  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3");
+if (!['V1.1','V1.2','V1.3','V1.4'].includes(stage)) {
+  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3|V1.4");
   process.exit(2);
 }
 

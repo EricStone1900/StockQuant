@@ -32,3 +32,12 @@ test("V1.3 FakeBroker trading page verifies recovery evidence", async ({ page })
   await expect(page.getByTestId("v13-evidence")).toContainText("ACCEPT_RESPONSE_LOST");
   await expect(page.getByText("V1.3-LEDGER-IDEMPOTENCY-001")).toBeVisible();
 });
+
+test("V1.4 daily backtest page shows report evidence", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.4");
+  await expect(page.getByRole("heading", { name: "V1.4 日线历史回测与可核对报告" })).toBeVisible();
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-evidence")).toContainText("DAILY_BAR");
+  await expect(page.getByText("V1.4-BT-NEXT-BAR-001")).toBeVisible();
+});
