@@ -1,6 +1,14 @@
 name: stockquant-v12
 
 services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "127.0.0.1:4222:4222"
+      - "127.0.0.1:8222:8222"
+    networks: [internal]
+
   postgres:
     image: postgres:16.9-alpine
     environment:
@@ -53,11 +61,15 @@ services:
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
+      STOCKQUANT_NATS_URL: nats://nats:4222
+      STOCKQUANT_NATS_SUBJECT: stockquant.v1.5.events
     depends_on:
       postgres:
         condition: service_healthy
       portfolio-risk-service:
         condition: service_healthy
+      nats:
+        condition: service_started
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
