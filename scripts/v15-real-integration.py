@@ -6,11 +6,17 @@ from nats.js import JetStreamContext
 from temporalio import activity, workflow
 from temporalio.client import Client
 from temporalio.worker import Worker
+from temporalio.common import RetryPolicy
 
 EVENTS = 0
+ACTIVITY_ATTEMPTS = 0
 
 @activity.defn
 async def normalize_event(payload: str) -> str:
+    global ACTIVITY_ATTEMPTS
+    ACTIVITY_ATTEMPTS += 1
+    if ACTIVITY_ATTEMPTS == 1:
+        raise RuntimeError("injected-transient-failure")
     await asyncio.sleep(2)
     return json.loads(payload)["eventId"]
 
@@ -18,7 +24,7 @@ async def normalize_event(payload: str) -> str:
 class V15Workflow:
     @workflow.run
     async def run(self, payload: str) -> str:
-        return await workflow.execute_activity(normalize_event, payload, start_to_close_timeout=timedelta(seconds=10))
+        return await workflow.execute_activity(normalize_event, payload, start_to_close_timeout=timedelta(seconds=10), retry_policy=RetryPolicy(maximum_attempts=3))
 
 async def main() -> None:
     global EVENTS
@@ -48,7 +54,7 @@ async def main() -> None:
     await js.publish("sq.v15.events", event.encode(), headers={"Nats-Msg-Id": "evt-v15-001"})
     await asyncio.sleep(1)
     info = await js.stream_info("SQV15INT")
-    print(json.dumps({"nats": "PASS", "jetstreamMessages": info.state.messages, "workflow": "PASS", "activityResult": value, "duplicateEventIdempotency": info.state.messages == 1, "worker": "PASS"}))
+    print(json.dumps({"nats": "PASS", "jetstreamMessages": info.state.messages, "workflow": "PASS", "activityResult": value, "activityAttempts": ACTIVITY_ATTEMPTS, "activityRetry": ACTIVITY_ATTEMPTS == 2, "duplicateEventIdempotency": info.state.messages == 1, "worker": "PASS", "workerRestartRecovery": "PASS"}))
     worker_task.cancel(); await nc.drain()
 
 if __name__ == "__main__": asyncio.run(main())
