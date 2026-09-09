@@ -6,7 +6,7 @@
 
 | 阶段 | 后端/自动检查 | Web人工验收 | 证据/testRunId | 已知限制 | 签署/日期 |
 |---|---|---|---|---|---|
-| [V1.1 环境、账户初始化与 Web 验收中心](./01-environment-and-web-center.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
+| [V1.1 环境、账户初始化与 Web 验收中心](./01-environment-and-web-center.md) | PASS（开发者自动验证） | NOT_RUN | normal `0fd42515-43c3-452c-b271-17e5ed3cf551`；rejection `3dd2949a-16d4-4e25-99e3-ec48b3dad59a`；recovery `877b182d-79c6-4e8e-8bdb-33019b7efce8` | 仅本地 ARM64；Artifact 存储、TS/Python 契约生成、正式账户详情页及人工验收仍待完成 | 待用户确认 |
 | [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V1.4 日线历史回测与可核对报告](./04-daily-backtest.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |

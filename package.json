@@ -11,6 +11,18 @@
     "baseline:check": "pnpm docs:check && pnpm contracts:check && pnpm fixtures:check",
     "contracts:check": "node scripts/validate-json.mjs packages/contracts fixtures",
     "docs:check": "node scripts/check-markdown-links.mjs",
-    "fixtures:check": "node scripts/verify-fixture-hashes.mjs"
+    "fixtures:check": "node scripts/verify-fixture-hashes.mjs",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "node scripts/integration-v11.mjs",
+    "test:contract": "pnpm contracts:check && pnpm fixtures:check",
+    "test:e2e": "pnpm --filter @stockquant/web test:e2e",
+    "stack:up": "node scripts/stack-up.mjs",
+    "stack:down": "node scripts/stack-down.mjs",
+    "dev:web": "pnpm --filter @stockquant/web dev",
+    "verify:stage": "node scripts/verify-stage.mjs",
+    "evidence:export": "node scripts/evidence-export.mjs"
   }
 }
