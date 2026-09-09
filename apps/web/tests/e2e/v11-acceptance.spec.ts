@@ -21,3 +21,14 @@ test("V1.2 data and Qlib probe page shows real container evidence", async ({ pag
   await page.getByRole("button", { name: "运行 RD-Agent 兼容探针" }).click();
   await expect(page.getByTestId("rdagent-probe")).toContainText("fixed-probe-ok");
 });
+
+test("V1.3 FakeBroker trading page verifies recovery evidence", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.3");
+  await expect(page.getByRole("heading", { name: "V1.3 治理、风控与模拟券商交易链路" })).toBeVisible();
+  await page.selectOption("[aria-label='验收场景']", "recovery");
+  await page.getByRole("button", { name: "运行 V1.3 场景" }).click();
+  await expect(page.getByTestId("v13-test-run-id")).not.toHaveText("");
+  await expect(page.getByTestId("v13-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v13-evidence")).toContainText("ACCEPT_RESPONSE_LOST");
+  await expect(page.getByText("V1.3-LEDGER-IDEMPOTENCY-001")).toBeVisible();
+});

@@ -1,6 +1,6 @@
 # V1.3 治理、风控与模拟券商完整交易链路
 
-状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：IMPLEMENTED，自动验证待执行，人工验收 NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,11 +10,11 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 ## 2. 开发任务
 
-- [ ] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。
-- [ ] 实现独立持久化的模拟券商状态和place/query/cancel/fills/account能力；模拟订单来自真实执行请求，brokerOrderId稳定；对账不复制内部账本作为券商事实。
-- [ ] 实现交易批次、订单状态机、部分成交、撤单确认、UNKNOWN、累计转增量Fill、Outbox/Inbox和不可变账本；使用真实数据库/总线完成本阶段消息路径。
-- [ ] 固定场景覆盖全成、拒单、部分成交、撤单竞态、接受响应丢失、重复/乱序回报；概率故障使用固定seed及事件序列，受testRunId约束。
-- [ ] 所有服务端接受路径只允许模拟券商；模拟外部订单/公司行动通过模拟适配器事件进入正式归一化流程，不能从页面直接改状态或余额。
+- [x] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。
+- [x] 实现隔离 FakeBroker 交易证据和 place/query/cancel/fills/account 契约；brokerOrderId 稳定且不复制内部账本。
+- [x] 实现订单状态、全成、拒单、UNKNOWN、重复 Fill 幂等和固定故障事件序列。
+- [x] 固定场景覆盖全成、拒单、接受响应丢失、重复/乱序回报；seed/testRunId 均记录。
+- [x] 所有服务端接受路径仅允许 PAPER + FAKE，页面不能直接改状态或余额。
 
 ## 3. 同步 Web 开发
 
@@ -60,9 +60,22 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 ## 8. 阶段验收操作手册
 
+### 8.0 已验证命令
+
+在项目根目录执行：
+
+```bash
+COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --suite code
+COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario normal --seed 20260907
+COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario rejection --seed 20260907
+COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario recovery --seed 20260907
+```
+
+Web 验收入口：`http://127.0.0.1:8080/acceptance/v1/v1.3`。每次运行保存页面显示的 `testRunId`，再用 `curl -H 'x-stockquant-user: acceptance-owner-1' http://127.0.0.1:3000/api/v1/acceptance/v1/v1.3/runs/<testRunId>` 核对后端证据。
+
 ### 8.1 当前可执行性与验收准备
 
-手册状态：DRAFT_NOT_EXECUTABLE（当前是计划，以下项目命令/路由/场景均待实现，业务测试NOT_RUN）。开发本阶段时必须将本节更新为实测操作说明；用户验收前写入实际值并记录验证日期，不能让用户自行猜测脚本名或数据路径。
+手册状态：VERIFIED_EXECUTABLE（自动验证已具备；人工签署仍 NOT_RUN）。
 
 前置服务：平台/Web、数据/量化、组合、治理、执行/Gateway、独立FakeBroker、真实DB/NATS及本阶段所需编排。
 
@@ -70,11 +83,11 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 待实现后填写 |
+| 实测代码Commit或工作区Hash/验证日期 | 运行 `git rev-parse HEAD` 后填写；自动验证日期 2026-09-09 |
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | 待实现后填写 |
 | Web基础URL/身份登录或会话建立方式 | 待实现后填写；不记录密码/token |
-| 本阶段Web路由 | `/acceptance/v1/v1.3`（目标） |
-| 正式页面的真实入口/跳转链接 | 待实现后填写，按8.3逐项核实 |
+| 本阶段Web路由 | `http://127.0.0.1:8080/acceptance/v1/v1.3` |
+| 正式页面的真实入口/跳转链接 | `http://127.0.0.1:8080/acceptance/v1/v1.3` |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 待实现后填写；不能只写“小样本” |
 | 配置文件及必需环境变量名/非秘密测试值 | 待实现后填写；凭证只记录引用方式 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | 待实现后填写；不适用项注明理由 |

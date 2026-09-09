@@ -5,6 +5,7 @@ import { PostgresTestRunRepository } from "../adapters/postgres-test-run-reposit
 import { ScenarioRunner } from "../application/scenario-runner.js";
 import { isV11Scenario, V11_SCENARIOS } from "../application/v11-scenarios.js";
 import type { ScenarioId } from "../domain/test-run.js";
+import { V13_SCENARIOS, V13TradingEngine, type V13Scenario } from "../application/v13-trading.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -151,5 +152,20 @@ export class V12AcceptanceController {
   @Get("runs/:testRunId") get(@Param("testRunId") id:string) { const run=this.runs.get(id); if(!run) throw new NotFoundException("test run was not found"); return run; }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController], providers: [PlatformContainer] })
+@Controller("api/v1/acceptance/v1/v1.3")
+export class V13AcceptanceController {
+  private readonly runs = new Map<string, ReturnType<V13TradingEngine["run"]>>();
+  private readonly engine = new V13TradingEngine();
+  @Get("scenarios") scenarios() { return V13_SCENARIOS; }
+  @Post("runs") @HttpCode(202) create(@Body() body: { scenarioId?: V13Scenario; seed?: number }) {
+    const scenarioId = body.scenarioId;
+    if (!V13_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V1.3");
+    const run = this.engine.run(scenarioId as V13Scenario, body.seed ?? 20260907);
+    this.runs.set(run.testRunId, run);
+    return { accepted: true, testRunId: run.testRunId, status: run.status };
+  }
+  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("test run was not found"); return run; }
+}
+
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController], providers: [PlatformContainer] })
 export class AppModule {}
