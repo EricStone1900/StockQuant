@@ -8,7 +8,9 @@
 - Temporal Worker：PASS，真实 Worker 执行 `V15Workflow`
 - Activity：PASS，`normalize_event` 返回 `evt-v15-001`
 - 端到端链路：PASS，JetStream 事件被消费后启动 Workflow 并完成 Activity
-- Worker 重启后继续执行：NOT_RUN
+- Worker 重启后继续执行：PASS，Activity 执行期间停止 Worker，再启动新 Worker 后 Workflow 完成
 - 业务服务正式进程接入：NOT_RUN（本次使用独立真实 SDK 集成验证器）
+- V1 全量代码回归：PASS（baseline、build、typecheck、unit tests）
+- V1 Web E2E：PASS，5 tests
 
 临时 NATS/Temporal 容器已清理，未删除 StockQuant 数据库和业务卷。

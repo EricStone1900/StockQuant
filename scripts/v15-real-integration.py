@@ -11,6 +11,7 @@ EVENTS = 0
 
 @activity.defn
 async def normalize_event(payload: str) -> str:
+    await asyncio.sleep(2)
     return json.loads(payload)["eventId"]
 
 @workflow.defn
@@ -36,6 +37,12 @@ async def main() -> None:
     await js.publish("sq.v15.events", event.encode(), headers={"Nats-Msg-Id": "evt-v15-001"})
     msg = await asyncio.wait_for(sub.next_msg(), timeout=5); EVENTS += 1
     result = await temporal.start_workflow(V15Workflow.run, msg.data.decode(), id="sq-v15-workflow-001", task_queue="sq-v15")
+    await asyncio.sleep(0.3)
+    worker_task.cancel()
+    try: await worker_task
+    except asyncio.CancelledError: pass
+    worker = Worker(temporal, task_queue="sq-v15", workflows=[V15Workflow], activities=[normalize_event])
+    worker_task = asyncio.create_task(worker.run())
     value = await result.result()
     await msg.ack()
     await js.publish("sq.v15.events", event.encode(), headers={"Nats-Msg-Id": "evt-v15-001"})

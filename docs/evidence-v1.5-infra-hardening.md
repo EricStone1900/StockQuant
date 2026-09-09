@@ -14,7 +14,7 @@
 
 - 真实 Temporal Server：`1.31.2`
 - 集群健康、Namespace、重启持久性：已在 [Temporal 证据](./evidence-v1.5-real-temporal.md) 记录并通过
-- SDK Worker、业务 Workflow/Activity、重试恢复：NOT_RUN
+- SDK Worker、业务 Workflow/Activity：PASS（详见集成证据）；Activity 重试：NOT_RUN
 
 ## Ubuntu 烟测
 
