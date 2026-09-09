@@ -7,6 +7,6 @@ if (!['V1.1','V1.2'].includes(stage)) {
   process.exit(2);
 }
 
-const services = stage === 'V1.2' ? ["postgres", "portfolio-risk-service", "platform-api-service", "market-data-service", "quant-research-service"] : ["postgres", "portfolio-risk-service", "platform-api-service"];
+const services = stage === 'V1.2' ? ["postgres", "portfolio-risk-service", "platform-api-service", "market-data-service", "qlib-worker", "quant-research-service"] : ["postgres", "portfolio-risk-service", "platform-api-service"];
 const result = spawnSync("docker", ["compose", "-f", "infra/compose/docker-compose.yml", "up", "--build", "-d", ...services], { stdio: "inherit" });
 process.exit(result.status ?? 1);

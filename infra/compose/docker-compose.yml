@@ -47,6 +47,8 @@ services:
       STOCKQUANT_PORT: 3000
       STOCKQUANT_DATABASE_URL: postgresql://platform_api@postgres:5432/platform_api
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
+      STOCKQUANT_MARKET_DATA_URL: http://market-data-service:3002
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
@@ -92,10 +94,13 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3003
-      QLIB_SOURCE_COMMIT: UNSET
+      QLIB_SOURCE_COMMIT: qlib-0.9.6
       QLIB_IMAGE: stockquant-v12-qlib-probe
+      QLIB_WORKER_URL: http://qlib-worker:3004
     depends_on:
       market-data-service:
+        condition: service_healthy
+      qlib-worker:
         condition: service_healthy
     ports:
       - "127.0.0.1:3003:3003"
@@ -103,6 +108,21 @@ services:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3003/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
       timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  qlib-worker:
+    platform: linux/amd64
+    build:
+      context: ../../services/quant-research-service
+      dockerfile: qlib-worker.Dockerfile
+    environment:
+      QLIB_BIND_HOST: 0.0.0.0
+      QLIB_PORT: 3004
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3004/probe')\""]
+      interval: 10s
+      timeout: 5s
       retries: 20
     networks: [internal]
 

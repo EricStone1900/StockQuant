@@ -9,3 +9,15 @@ test("V1.1 normal scenario creates an isolated run with backend assertions", asy
   await expect(page.getByText("V1.1-ACCOUNT-INIT-001")).toBeVisible();
   await expect(page.getByText("PASS").first()).toBeVisible();
 });
+
+test("V1.2 data and Qlib probe page shows real container evidence", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.2");
+  await page.getByRole("button", { name: "预览正常 Fixture" }).click();
+  await expect(page.getByTestId("normal-preview")).toContainText("v1.2-market-data-1");
+  await page.getByRole("button", { name: "预览未来数据拒绝样本" }).click();
+  await expect(page.getByTestId("bad-preview")).toContainText("FUTURE_DATA");
+  await page.getByRole("button", { name: "运行 Qlib CPU 探针" }).click();
+  await expect(page.getByTestId("qlib-probe")).toContainText("READY");
+  await page.getByRole("button", { name: "运行 RD-Agent 兼容探针" }).click();
+  await expect(page.getByTestId("rdagent-probe")).toContainText("fixed-probe-ok");
+});

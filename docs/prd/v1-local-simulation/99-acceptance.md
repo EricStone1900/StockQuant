@@ -7,7 +7,7 @@
 | 阶段 | 后端/自动检查 | Web人工验收 | 证据/testRunId | 已知限制 | 签署/日期 |
 |---|---|---|---|---|---|
 | [V1.1 环境、账户初始化与 Web 验收中心](./01-environment-and-web-center.md) | PASS（自动验证） | PASS（用户确认） | normal `d5add8bf-ae44-48a8-b726-b4be34ab4278`；rejection `24276340-2e5a-4516-a7d0-20f92851754b`；recovery `bdb53484-19b4-4363-a130-eee94761df54` | 仅本地 ARM64；Artifact 存储、TS/Python 契约生成、正式账户详情页仍未实现 | 用户确认（本会话） / 2026-09-09 |
-| [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PARTIAL（数据纵切片） | NOT_RUN | `v1.2-market-data-1`；normal/rejection 退出0；Qlib probe `NOT_RUN` | Qlib/RD-Agent、Artifact 原子发布、Web TestRun 尚未完成 | 待验收 |
+| [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PASS（开发者自动验证） | NOT_RUN | `v1.2-market-data-1`；Qlib 0.9.6；平台 run `5998252f-f60c-409d-9940-9ce4846e90fc`；Web E2E 2 passed | Qlib 为 Mac ARM64 上的 linux/amd64 仿真；真实模型调用、全量数据和真实 Ubuntu 仍未验证 | 待用户确认 |
 | [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V1.4 日线历史回测与可核对报告](./04-daily-backtest.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |

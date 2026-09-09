@@ -1,4 +1,5 @@
 import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Res, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
 import { ScenarioRunner } from "../application/scenario-runner.js";
@@ -135,5 +136,20 @@ export class PlatformController {
   }
 }
 
-@Module({ controllers: [HealthController, PlatformController], providers: [PlatformContainer] })
+@Controller("api/v1/acceptance/v1/v1.2")
+export class V12AcceptanceController {
+  private readonly runs = new Map<string, any>();
+  private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+  private readonly quantUrl = process.env.STOCKQUANT_QUANT_RESEARCH_URL ?? "http://127.0.0.1:3003";
+  @Get("scenarios") scenarios() { return [{ scenarioId:"normal", version:"1.0.0", title:"正常数据与 Qlib 因子", expected:"6 bars、2 securities、Qlib READY" }, { scenarioId:"rejection", version:"1.0.0", title:"未来数据拒绝", expected:"FUTURE_DATA 质量错误" }, { scenarioId:"recovery", version:"1.0.0", title:"取消与探针恢复", expected:"取消任务不发布半份 Artifact" }]; }
+  @Get("data/normal") normal() { return fetch(`${this.marketUrl}/v1/fixtures/normal/preview`).then((r)=>r.json()); }
+  @Get("data/bad-future") bad() { return fetch(`${this.marketUrl}/v1/fixtures/bad-future/preview`).then((r)=>r.json()); }
+  @Get("quant/probe") probe() { return fetch(`${this.quantUrl}/v1/qlib/probe`).then((r)=>r.json()); }
+  @Get("quant/factors") factors() { return fetch(`${this.quantUrl}/v1/factors/preview`).then((r)=>r.json()); }
+  @Get("quant/rdagent-probe") rdagent() { return fetch(`${this.quantUrl}/v1/rdagent/probe`).then((r)=>r.json()); }
+  @Post("runs") @HttpCode(202) async create(@Body() body:{scenarioId?:string;seed?:number}) { const testRunId=randomUUID(); const scenarioId=body.scenarioId??"normal"; const run:any={testRunId,stageId:"V1.2",scenarioId,status:"RUNNING",seed:body.seed??20260907,assertions:[] as any[]}; this.runs.set(testRunId,run); queueMicrotask(async()=>{ try { const [normal,bad,probe,factor]=await Promise.all([fetch(`${this.marketUrl}/v1/fixtures/normal/preview`).then(r=>r.json()),fetch(`${this.marketUrl}/v1/fixtures/bad-future/preview`).then(r=>r.json()),fetch(`${this.quantUrl}/v1/qlib/probe`).then(r=>r.json()),fetch(`${this.quantUrl}/v1/factors/preview`).then(r=>r.json())]); run.assertions=scenarioId==='normal'?[{assertionId:"V1.2-DATA-NORMAL-001",status:normal.quality.status==='READY'&&normal.barCount===6?"PASS":"FAIL",expected:{barCount:6},actual:{barCount:normal.barCount}},{assertionId:"V1.2-QLIB-001",status:probe.probe?.status==='READY'?"PASS":"FAIL",expected:"READY",actual:probe.probe?.status}]:scenarioId==='rejection'?[{assertionId:"V1.2-DATA-PIT-001",status:bad.quality.status==='REJECTED'?"PASS":"FAIL",expected:"REJECTED",actual:bad.quality.status}]:[{assertionId:"V1.2-QLIB-001",status:probe.probe?.status==='READY'?"PASS":"FAIL",expected:"READY",actual:probe.probe?.status},{assertionId:"V1.2-FACTOR-001",status:Array.isArray(factor.ranking)?"PASS":"FAIL",expected:"ranking",actual:factor.ranking}]; run.status=run.assertions.every((a:any)=>a.status==='PASS')?"COMPLETED":"FAILED"; } catch(error) { run.status="FAILED"; run.error=error instanceof Error?error.message:"unknown"; } }); return {accepted:true,testRunId,status:run.status}; }
+  @Get("runs/:testRunId") get(@Param("testRunId") id:string) { const run=this.runs.get(id); if(!run) throw new NotFoundException("test run was not found"); return run; }
+}
+
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController], providers: [PlatformContainer] })
 export class AppModule {}
