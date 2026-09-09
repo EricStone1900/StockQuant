@@ -9,6 +9,14 @@ services:
       - "127.0.0.1:8222:8222"
     networks: [internal]
 
+  temporal:
+    image: temporalio/temporal:latest
+    command: ["server", "start-dev", "--ip", "0.0.0.0"]
+    ports:
+      - "127.0.0.1:7233:7233"
+      - "127.0.0.1:8233:8233"
+    networks: [internal]
+
   postgres:
     image: postgres:16.9-alpine
     environment:
@@ -63,12 +71,17 @@ services:
       STOCKQUANT_BROKER_MODE: FAKE
       STOCKQUANT_NATS_URL: nats://nats:4222
       STOCKQUANT_NATS_SUBJECT: stockquant.v1.5.events
+      STOCKQUANT_TEMPORAL_ADDRESS: temporal:7233
+      STOCKQUANT_TEMPORAL_TASK_QUEUE: stockquant-v1-5
+      STOCKQUANT_TEMPORAL_INJECT_FAILURE: "true"
     depends_on:
       postgres:
         condition: service_healthy
       portfolio-risk-service:
         condition: service_healthy
       nats:
+        condition: service_started
+      temporal:
         condition: service_started
     ports:
       - "127.0.0.1:3000:3000"

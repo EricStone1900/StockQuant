@@ -9,6 +9,7 @@ import { V13_SCENARIOS, V13TradingEngine, type V13Scenario } from "../applicatio
 import { V14_SCENARIOS, V14BacktestEngine, type V14Scenario } from "../application/v14-backtest.js";
 import { V15_SCENARIOS, V15OrchestrationEngine, type V15Scenario } from "../application/v15-orchestration.js";
 import { runRealNatsProbe } from "../integration/real-nats-probe.js";
+import { runTemporalProbe } from "../integration/temporal-runtime.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -185,6 +186,8 @@ export class V15AcceptanceController { private readonly runs = new Map<string, R
 export class RealIntegrationController {
   @Get("nats/probe")
   async natsProbe() { return runRealNatsProbe(); }
+  @Get("temporal/probe")
+  async temporalProbe() { return runTemporalProbe(); }
 }
 
 @Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
