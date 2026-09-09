@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|
 | [V1.1 环境、账户初始化与 Web 验收中心](./01-environment-and-web-center.md) | PASS（自动验证） | PASS（用户确认） | normal `d5add8bf-ae44-48a8-b726-b4be34ab4278`；rejection `24276340-2e5a-4516-a7d0-20f92851754b`；recovery `bdb53484-19b4-4363-a130-eee94761df54` | 仅本地 ARM64；Artifact 存储、TS/Python 契约生成、正式账户详情页仍未实现 | 用户确认（本会话） / 2026-09-09 |
 | [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PASS（自动验证） | PASS（用户确认） | `v1.2-market-data-1`；Qlib 0.9.6；平台 run `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`；Artifact task `artifact-task-1788953766848`；Web E2E 2 passed | Qlib 为 Mac ARM64 上的 linux/amd64 仿真；真实模型调用、全量数据和真实 Ubuntu 仍未验证 | 用户确认（本会话） / 2026-09-09 |
-| [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | PASS（代码/容器场景） | NOT_RUN（待用户 Web 验收） | `b5d80ac4-0609-4bf9-a0c9-d76f076ca2cd`、`e37bd544-2408-465e-b17d-d93a4ca00414`、`ac3b723f-934f-4945-aa29-a7499abfc8dc` | `pnpm verify:stage -- --stage V1.3 --suite code`；三场景均 COMPLETED | FakeBroker 为隔离模拟；真实券商、持久化跨重启和真实 NATS 未在本切片验证 |
+| [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 验收，2026-09-09） | `39c9b7c0-080d-45d7-83cf-b8865f6a4b42`、`d1540cb1-d085-40bf-860d-43031951bd55`、`5a817c7f-64c0-4c8d-a979-97b44fc9f6ed` | 重建 Docker 栈；`pnpm verify:stage -- --stage V1.3 --suite code`；三场景及 `check-only` 均 PASS；`pnpm test:e2e`：3 passed | FakeBroker 为隔离模拟；真实券商、持久化跨重启和真实 NATS 未在本切片验证 |
 | [V1.4 日线历史回测与可核对报告](./04-daily-backtest.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 
