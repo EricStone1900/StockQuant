@@ -1,6 +1,6 @@
 # V1.1 环境、账户初始化与 Web 验收中心
 
-状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（用户人工验收已确认，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -55,8 +55,8 @@
 - [ ] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
 - [x] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
 - [x] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
-- [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
-- [ ] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
+- [x] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
+- [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
 
 ## 8. 阶段验收操作手册
 
@@ -70,7 +70,7 @@
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 基线 `5b26377` 加未提交 V1.1 工作区；2026-09-08 |
+| 实测代码Commit或工作区Hash/验证日期 | `2c1d352`；2026-09-09 |
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5、Python 3.9.6、uv 0.12.7、Docker 28.0.4、Compose 2.34.0-desktop.1；host `arm64` |
 | Web基础URL/身份登录或会话建立方式 | 原生开发 Web `http://127.0.0.1:5173/acceptance/v1/v1.1`；容器化 Web `http://127.0.0.1:8080/acceptance/v1/v1.1`；首次加载由本地开发会话端点设置 HttpOnly `sq_session`，仅 `acceptance-owner-1`；CLI 使用仅本地测试身份头 |
 | 本阶段Web路由 | `/acceptance/v1/v1.1`（目标） |
@@ -160,11 +160,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | Playwright 通过；Web 创建与展示断言 | `pnpm verify:stage -- --stage V1.1 --scenario normal --seed 20260907`，退出0 | `0fd42515-43c3-452c-b271-17e5ed3cf551` / `6eab4836-9a3f-4fd5-86ed-a6a218e5b7e1` | PASS（开发者自动验证） |
-| rejection（含全部子场景） | API/后端证据通过；Web可操作待人工复核 | `pnpm verify:stage -- --stage V1.1 --scenario rejection --seed 20260907`，退出0 | `3dd2949a-16d4-4e25-99e3-ec48b3dad59a` / `b5eaf7d3-1721-4ed4-9eb3-1881b5a9157f` | PASS（开发者自动验证） |
-| recovery（含实际外部动作） | API/后端证据通过；Web等待/继续控件待人工复核 | `pnpm verify:stage -- --stage V1.1 --scenario recovery --seed 20260907`，退出0 | `877b182d-79c6-4e8e-8bdb-33019b7efce8` / `f2182aa4-15bd-44f4-813c-443d64e7834e` | PASS（开发者自动验证） |
-| Web同run只读核对与证据导出 | 同一 normal run 已只读查询；导出脱敏 JSON | `pnpm verify:stage -- --stage V1.1 --run 0fd42515-43c3-452c-b271-17e5ed3cf551 --check-only`、`pnpm evidence:export -- --run 0fd42515-43c3-452c-b271-17e5ed3cf551`，退出0 | Manifest `1b5c5f020a67283edc7418f8fd894bf66305fa75aef16453e5a23484835508d4` | PASS（开发者自动验证） |
+| normal | Playwright 通过；Web 创建与展示断言 | `pnpm test:integration`，退出0 | `d5add8bf-ae44-48a8-b726-b4be34ab4278` / `83e6d24e-69f4-400e-85cf-c7cb39e162d8` | PASS（自动+人工确认） |
+| rejection（含全部子场景） | API/后端证据通过；Web人工确认通过 | `pnpm test:integration`，退出0 | `24276340-2e5a-4516-a7d0-20f92851754b` / `a5140049-0423-4c50-833f-0dcd250b2db5` | PASS（自动+人工确认） |
+| recovery（含实际外部动作） | API/后端证据通过；Web重启后继续确认通过 | `pnpm test:integration`，退出0 | `bdb53484-19b4-4363-a130-eee94761df54` / `fe720260-6ece-428f-854c-5f51b8b70556` | PASS（自动+人工确认） |
+| Web同run只读核对与证据导出 | 同一 normal run 已只读查询；导出脱敏 JSON | `pnpm verify:stage -- --stage V1.1 --run d5add8bf-ae44-48a8-b726-b4be34ab4278 --check-only`、`pnpm evidence:export -- --run d5add8bf-ae44-48a8-b726-b4be34ab4278`，退出0 | Manifest `fe6eb9e97d27f99f9ffaa8eae22beea9d13f8e53495ecb9207a927204509748b` | PASS（自动+人工确认） |
 | 本阶段代码测试/实际观察适用项 | 单元、类型、构建、JSON/Hash、真实PG/重启、Playwright均通过；无实际市场观察 | `pnpm baseline:check`、`pnpm test`、`pnpm typecheck`、`pnpm build`、`pnpm test:e2e -- --stage V1.1`，均退出0 | 镜像：Postgres `9e976447…`，API `82366a5…`，组合 `cfba97fb…`，Web `31cfa0f…` | PASS（开发者自动验证） |
-| 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
+| 用户人工验收 | Web normal/rejection/recovery、刷新、重启恢复及 CLI 核对已完成 | 不由脚本代签 | 用户确认（本会话） / 2026-09-09 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
