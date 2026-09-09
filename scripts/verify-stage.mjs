@@ -9,8 +9,8 @@ const runId = value("--run");
 const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
 const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
 
-if (!['V1.1','V1.2','V1.3','V1.4'].includes(stage)) {
-  console.error("only V1.1, V1.2, V1.3 and V1.4 are implemented");
+if (!['V1.1','V1.2','V1.3','V1.4','V1.5'].includes(stage)) {
+  console.error("only V1.1 through V1.5 are implemented");
   process.exit(2);
 }
 
@@ -36,6 +36,12 @@ function runCommand(command, commandArgs) {
 }
 
 async function main() {
+  if (stage === 'V1.5') {
+    if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
+    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }
+    if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
+    const accepted = await request('/api/v1/acceptance/v1/v1.5/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 1);
+  }
   if (stage === 'V1.4') {
     if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
     if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }

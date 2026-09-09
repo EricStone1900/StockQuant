@@ -20,7 +20,7 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 | [V1.2](./02-small-data-and-qlib.md) | 小样本数据、真实 Qlib 与环境探针 | V1.1；详细依赖见阶段文件 | PASS（自动+人工确认；amd64 仿真） |
 | [V1.3](./03-fake-broker-trading-loop.md) | 治理、风控与模拟券商完整交易链路 | V1.2；详细依赖见阶段文件 | PASS（自动+人工确认；2026-09-09） |
 | [V1.4](./04-daily-backtest.md) | 日线历史回测与可核对报告 | V1.3；详细依赖见阶段文件 | PASS（自动+人工确认；2026-09-09） |
-| [V1.5](./05-scheduling-and-recovery.md) | 无人逐笔操作、故障恢复与 V1 验收 | V1.4；详细依赖见阶段文件 | NOT_RUN |
+| [V1.5](./05-scheduling-and-recovery.md) | 无人逐笔操作、故障恢复与 V1 验收 | V1.4；详细依赖见阶段文件 | IMPLEMENTED；人工验收 NOT_RUN |
 
 以功能纵向切片交付；服务内部仍采用S0～S6生命周期。每阶段先冻结场景和预期，再同时开发后端与Web，执行自动检查后人工验收。后续独立工作可推进，但未通过的依赖不能被假成功替代。
 

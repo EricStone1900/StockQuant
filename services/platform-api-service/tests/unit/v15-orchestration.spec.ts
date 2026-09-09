@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { V15OrchestrationEngine } from "../../src/application/v15-orchestration.js";
+describe("V1.5 orchestration", () => { const e = new V15OrchestrationEngine(); it("keeps 60-day HOLD idle", () => { const r = e.run("normal"); expect(r.status).toBe("COMPLETED"); expect(r.evidence.orders).toEqual({ CN: 0, US: 0 }); }); it("blocks paused and stale windows", () => expect(e.run("rejection").status).toBe("COMPLETED")); it("recovers UNKNOWN with one sender", () => { const r = e.run("recovery"); expect(r.evidence.dualWorker).toMatchObject({ activeSender: 1 }); }); });

@@ -7,6 +7,7 @@ import { isV11Scenario, V11_SCENARIOS } from "../application/v11-scenarios.js";
 import type { ScenarioId } from "../domain/test-run.js";
 import { V13_SCENARIOS, V13TradingEngine, type V13Scenario } from "../application/v13-trading.js";
 import { V14_SCENARIOS, V14BacktestEngine, type V14Scenario } from "../application/v14-backtest.js";
+import { V15_SCENARIOS, V15OrchestrationEngine, type V15Scenario } from "../application/v15-orchestration.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -176,5 +177,8 @@ export class V14AcceptanceController {
   @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("backtest run was not found"); return run; }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController], providers: [PlatformContainer] })
+@Controller("api/v1/acceptance/v1/v1.5")
+export class V15AcceptanceController { private readonly runs = new Map<string, ReturnType<V15OrchestrationEngine["run"]>>(); private readonly engine = new V15OrchestrationEngine(); @Get("scenarios") scenarios() { return V15_SCENARIOS; } @Post("runs") @HttpCode(202) create(@Body() body: { scenarioId?: V15Scenario; seed?: number }) { if (!V15_SCENARIOS.some((s) => s.scenarioId === body.scenarioId)) throw new ForbiddenException("scenario is not available for V1.5"); const run = this.engine.run(body.scenarioId as V15Scenario, body.seed ?? 20260907); this.runs.set(run.testRunId, run); return { accepted: true, testRunId: run.testRunId, status: run.status }; } @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("orchestration run was not found"); return run; } }
+
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController], providers: [PlatformContainer] })
 export class AppModule {}

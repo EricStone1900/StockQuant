@@ -10,7 +10,7 @@
 | [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PASS（自动验证） | PASS（用户确认） | `v1.2-market-data-1`；Qlib 0.9.6；平台 run `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`；Artifact task `artifact-task-1788953766848`；Web E2E 2 passed | Qlib 为 Mac ARM64 上的 linux/amd64 仿真；真实模型调用、全量数据和真实 Ubuntu 仍未验证 | 用户确认（本会话） / 2026-09-09 |
 | [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 验收，2026-09-09） | `39c9b7c0-080d-45d7-83cf-b8865f6a4b42`、`d1540cb1-d085-40bf-860d-43031951bd55`、`5a817c7f-64c0-4c8d-a979-97b44fc9f6ed` | 重建 Docker 栈；`pnpm verify:stage -- --stage V1.3 --suite code`；三场景及 `check-only` 均 PASS；`pnpm test:e2e`：3 passed | FakeBroker 为隔离模拟；真实券商、持久化跨重启和真实 NATS 未在本切片验证 |
 | [V1.4 日线历史回测与可核对报告](./04-daily-backtest.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 验收，2026-09-09） | `78a5c084-abdb-4e50-b451-9787d85b0c1c`、`82b1d78a-00f1-4f61-b069-29b94e7aab95`、`538be4e9-1ece-4c95-a8d3-c5c45e3947c4` | 重建 Docker 栈；代码套件 PASS；三场景及 `check-only` 均 PASS；`pnpm test:e2e`：4 passed | 当前为小样本合成日线 Fixture；真实全量 A 股数据、真实券商和跨重启回测持久化未验证 |
-| [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
+| [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | PASS（代码/容器场景） | NOT_RUN（待用户 Web 验收） | `fe836695-0f65-4dd1-98c5-fc573a647df5`、`b5512938-9988-442c-a856-452c8250788b`、`ab6bcda1-8cbc-47bc-bde0-0910a6b86ce0` | `verify:stage --suite code`；三场景和 check-only PASS；`pnpm test:e2e`：5 passed | 当前为可重复的调度/恢复模拟；真实 NATS、Temporal、Ubuntu 烟测和长周期观察未验证 |
 
 ## 2. 版本门禁
 

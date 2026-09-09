@@ -41,3 +41,12 @@ test("V1.4 daily backtest page shows report evidence", async ({ page }) => {
   await expect(page.getByTestId("v14-evidence")).toContainText("DAILY_BAR");
   await expect(page.getByText("V1.4-BT-NEXT-BAR-001")).toBeVisible();
 });
+
+test("V1.5 orchestration page shows recovery evidence", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.5");
+  await expect(page.getByRole("heading", { name: "V1.5 无人调度、故障恢复与 V1 验收" })).toBeVisible();
+  await page.selectOption("[aria-label='调度场景']", "recovery");
+  await page.getByRole("button", { name: "运行 V1.5 场景" }).click();
+  await expect(page.getByTestId("v15-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v15-evidence")).toContainText("BACKUP_RESTORE");
+});
