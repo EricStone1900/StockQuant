@@ -1,6 +1,6 @@
 # V1.5 无人逐笔操作、故障恢复与 V1 验收
 
-状态：PASS（自动验证与用户人工验收均完成，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（模拟切片自动验证与用户人工验收完成，2026-09-09）；真实 NATS 基础连通性已单独验证，业务接入/JetStream 仍未验证。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
