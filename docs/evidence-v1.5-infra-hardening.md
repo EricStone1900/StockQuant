@@ -20,4 +20,4 @@
 
 - `ubuntu:24.04`，`linux/amd64`，容器内 `uname -m=x86_64`：PASS
 - Ubuntu 包安装/完整 StockQuant 栈：NOT_RUN（本次 apt 网络步骤未完成）
-- 实际 Ubuntu 主机部署：NOT_RUN
+- 实际 Ubuntu 主机部署：PASS（用户于 2026-09-09 人工确认完成；主机版本、架构、Commit 和命令输出尚未附在本记录中）
