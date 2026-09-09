@@ -61,3 +61,12 @@ test("V2.1 source, live news and 101-security rejection are visible in Web accep
   await page.getByRole("button", { name: "提交101只并验证拒绝" }).click();
   await expect(page.getByRole("alert")).toContainText("WATCHLIST_LIMIT");
 });
+
+test("V2.2 minute import page shows preview and quality rejection", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.2");
+  await expect(page.getByRole("heading", { name: "V2.2 历史分钟数据导入与校验" })).toBeVisible();
+  await page.getByRole("button", { name: "预览分钟数据" }).click();
+  await expect(page.getByTestId("v22-evidence")).toContainText("v2.2-minute-bars-1");
+  await page.getByRole("button", { name: "运行质量拒绝" }).click();
+  await expect(page.getByTestId("v22-evidence")).toContainText("OHLC_INVALID");
+});

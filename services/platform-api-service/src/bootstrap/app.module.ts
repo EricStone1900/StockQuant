@@ -204,6 +204,17 @@ export class V21AcceptanceController {
   @Put("watchlist") @HttpCode(200) update(@Body() body: { securities?: string[] }) { return fetch(`${this.marketUrl}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => { if (!r.ok) throw new UnprocessableEntityException(await r.text()); return r.json(); }); }
 }
 
+@Controller("api/v1/acceptance/v2/v2.2")
+export class V22AcceptanceController {
+  private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+  private readonly runs = new Map<string, any>();
+  @Get("scenarios") scenarios() { return [{ scenarioId: "normal", title: "分钟文件导入", expected: "6 valid bars、2 securities、PUBLISHED" }, { scenarioId: "rejection", title: "坏行质量拒绝", expected: "OHLC_INVALID、DUPLICATE_CONFLICT、NON_TRADING_SESSION" }, { scenarioId: "recovery", title: "重复导入幂等", expected: "same SHA returns idempotent=true" }]; }
+  @Get("preview") preview() { return fetch(`${this.marketUrl}/v2/minute/preview`).then((r) => r.json()); }
+  @Post("import") import(@Body() body: { fixture?: string }) { return fetch(`${this.marketUrl}/v2/minute/import`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()); }
+  @Post("runs") @HttpCode(202) async run(@Body() body: { scenarioId?: string; seed?: number }) { const testRunId = randomUUID(); const scenarioId = body.scenarioId ?? "normal"; const run: any = { testRunId, stageId: "V2.2", scenarioId, status: "COMPLETED", seed: body.seed ?? 20260907, assertions: [] }; if (scenarioId === "normal") { const result: any = await this.import({ fixture: "normal" }); run.assertions = [{ assertionId: "V2.2-MINUTE-NORMAL-001", status: result.status === "PUBLISHED" && result.accepted === 6 ? "PASS" : "FAIL", expected: { accepted: 6, status: "PUBLISHED" }, actual: result }]; } else if (scenarioId === "rejection") { const result: any = await this.import({ fixture: "bad" }); run.assertions = [{ assertionId: "V2.2-MINUTE-QUALITY-001", status: result.status === "REJECTED" && result.errors?.length >= 3 ? "PASS" : "FAIL", expected: "three quality errors", actual: result }]; } else { const first: any = await this.import({ fixture: "normal" }); const second: any = await this.import({ fixture: "normal" }); run.assertions = [{ assertionId: "V2.2-MINUTE-IDEMPOTENCY-001", status: second.idempotent === true && second.sha256 === first.sha256 ? "PASS" : "FAIL", expected: "idempotent duplicate", actual: { first, second } }]; } this.runs.set(testRunId, run); return { accepted: true, testRunId, status: run.status }; }
+  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("V2.2 run was not found"); return run; }
+}
+
 @Controller("api/v1/integration")
 export class RealIntegrationController {
   @Get("nats/probe")
@@ -212,5 +223,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}
