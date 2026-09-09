@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
@@ -195,7 +195,8 @@ export class V21AcceptanceController {
   @Get("watchlist") watchlist() { return fetch(`${this.marketUrl}/v2/watchlist`).then((r) => r.json()); }
   @Get("quotes") quotes() { return fetch(`${this.marketUrl}/v2/quote/preview`).then((r) => r.json()); }
   @Get("news") news() { return fetch(`${this.marketUrl}/v2/news/preview`).then((r) => r.json()); }
-  @Put("watchlist") @HttpCode(200) update(@Body() body: { securities?: string[] }) { return fetch(`${this.marketUrl}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => { if (!r.ok) throw new ForbiddenException(await r.text()); return r.json(); }); }
+  @Get("news/live") liveNews() { return fetch(`${this.marketUrl}/v2/news/live`).then((r) => r.json()); }
+  @Put("watchlist") @HttpCode(200) update(@Body() body: { securities?: string[] }) { return fetch(`${this.marketUrl}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => { if (!r.ok) throw new UnprocessableEntityException(await r.text()); return r.json(); }); }
 }
 
 @Controller("api/v1/integration")

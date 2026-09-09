@@ -50,3 +50,14 @@ test("V1.5 orchestration page shows recovery evidence", async ({ page }) => {
   await expect(page.getByTestId("v15-run-status")).toHaveText("COMPLETED");
   await expect(page.getByTestId("v15-evidence")).toContainText("BACKUP_RESTORE");
 });
+
+test("V2.1 source, live news and 101-security rejection are visible in Web acceptance", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.1");
+  await expect(page.getByRole("heading", { name: "V2.1 免费行情、新闻聚合与在线股票池" })).toBeVisible();
+  await page.getByRole("button", { name: "检查来源能力" }).click();
+  await expect(page.getByTestId("v21-evidence")).toContainText("tencent-quote");
+  await page.getByRole("button", { name: "抓取实时新闻" }).click();
+  await expect(page.getByTestId("v21-evidence")).toContainText("eastmoney-news");
+  await page.getByRole("button", { name: "提交101只并验证拒绝" }).click();
+  await expect(page.getByRole("alert")).toContainText("WATCHLIST_LIMIT");
+});

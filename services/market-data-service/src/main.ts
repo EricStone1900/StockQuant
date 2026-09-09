@@ -51,6 +51,16 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       try { const response = await fetch(`https://qt.gtimg.cn/q=${codes}`, { signal: AbortSignal.timeout(5000) }); const text = await response.text(); const securities = symbols.map((symbol) => { const code = `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`; const match = text.match(new RegExp(`v_${code}="([^\"]*)`)); const fields = match?.[1]?.split("~") ?? []; return { symbol, price: Number(fields[3] ?? 0), name: fields[1] ?? null, observedAt: new Date().toISOString(), status: match ? "LIVE_SOURCE" : "MISSING" }; }); return json(res, { sourceId: "tencent-quote", securities, count: securities.length }); } catch (error) { return json(res, { sourceId: "tencent-quote", status: "STALE", securities: symbols, error: error instanceof Error ? error.message : "unknown" }); }
     }
     if (req.url === "/v2/news/preview" && req.method === "GET") return json(res, { items: [{ newsId: "v2-news-001", sourceId: "eastmoney-rss", title: "示例公告（验收样本）", publishedAt: "2026-09-09T00:00:00Z", revision: 1, symbols: ["600000.SH"] }], deduplicated: true, sourceStatus: "CONFIGURED" });
+    if (req.url === "/v2/news/live" && req.method === "GET") {
+      const observedAt = new Date().toISOString();
+      const results = await Promise.all([
+        liveNews("eastmoney-news", "https://finance.eastmoney.com/", observedAt),
+        liveNews("cls-news", "https://www.cls.cn/", observedAt)
+      ]);
+      const items = results.filter((item): item is NonNullable<typeof item> => item !== null);
+      const deduplicated = [...new Map(items.map((item) => [`${item.title}|${item.sourceId}`, item])).values()];
+      return json(res, { observedAt, items: deduplicated, sourceCount: 2, deduplicated: deduplicated.length === items.length, status: deduplicated.length === 2 ? "PASS" : "PARTIAL" });
+    }
     if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
     if (req.url === "/v1/fixtures/bad-future/preview") { const bars = await parse(badFixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", quality: quality(bars, "2024-12-31"), bars }); }
     if (req.url === "/v1/artifacts/normal/publish" && req.method === "POST") { const content = await readFile(fixture); return json(res, { artifactId: "artifact-v1.2-cn-daily-1", status: "PUBLISHED", immutable: true, sha256: createHash("sha256").update(content).digest("hex"), fixtureVersion: "v1.2-market-data-1" }); }
@@ -64,4 +74,5 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 });
 function readBody(req: IncomingMessage): Promise<string> { return new Promise((resolveBody, reject) => { let value = ""; req.on("data", (chunk) => { value += chunk; if (value.length > 1_000_000) reject(new Error("body too large")); }); req.on("end", () => resolveBody(value)); req.on("error", reject); }); }
 async function sourceCheck(sourceId: string, url: string) { try { const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { "user-agent": "StockQuant-V2.1" } }); const text = await response.text(); return { sourceId, status: response.ok && text.length > 0 ? "PASS" : "FAIL", httpStatus: response.status, bytes: text.length }; } catch (error) { return { sourceId, status: "FAIL", error: error instanceof Error ? error.message : "unknown" }; } }
+async function liveNews(sourceId: string, url: string, observedAt: string) { try { const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { "user-agent": "StockQuant-V2.1" } }); const html = await response.text(); const match = html.match(/<title[^>]*>\s*([^<]{3,200})\s*<\/title>/i); if (!response.ok || !match) return null; const title = match[1].replace(/\s+/g, " ").trim(); return { newsId: createHash("sha256").update(`${sourceId}:${title}`).digest("hex").slice(0, 24), sourceId, title, publishedAt: null, observedAt, ingestedAt: observedAt, availableAt: observedAt, revision: 1, symbols: [] as string[] }; } catch { return null; } }
 server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
