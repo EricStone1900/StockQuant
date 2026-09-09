@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Res, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
@@ -182,6 +182,22 @@ export class V14AcceptanceController {
 @Controller("api/v1/acceptance/v1/v1.5")
 export class V15AcceptanceController { private readonly runs = new Map<string, ReturnType<V15OrchestrationEngine["run"]>>(); private readonly engine = new V15OrchestrationEngine(); @Get("scenarios") scenarios() { return V15_SCENARIOS; } @Post("runs") @HttpCode(202) create(@Body() body: { scenarioId?: V15Scenario; seed?: number }) { if (!V15_SCENARIOS.some((s) => s.scenarioId === body.scenarioId)) throw new ForbiddenException("scenario is not available for V1.5"); const run = this.engine.run(body.scenarioId as V15Scenario, body.seed ?? 20260907); this.runs.set(run.testRunId, run); return { accepted: true, testRunId: run.testRunId, status: run.status }; } @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("orchestration run was not found"); return run; } }
 
+@Controller("api/v1/acceptance/v2/v2.1")
+export class V21AcceptanceController {
+  private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+  @Get("scenarios") scenarios() { return [
+    { scenarioId: "normal", version: "1.0.0", title: "来源能力与小股票池", expected: "4 sources configured、≤100 securities" },
+    { scenarioId: "capacity", version: "1.0.0", title: "101只容量拒绝", expected: "WATCHLIST_LIMIT" },
+    { scenarioId: "stale", version: "1.0.0", title: "陈旧快照与新闻去重", expected: "陈旧提示、重复新闻只保留一条" }
+  ]; }
+  @Get("sources") sources() { return fetch(`${this.marketUrl}/v2/sources`).then((r) => r.json()); }
+  @Get("sources/smoke") sourceSmoke() { return fetch(`${this.marketUrl}/v2/sources/smoke`).then((r) => r.json()); }
+  @Get("watchlist") watchlist() { return fetch(`${this.marketUrl}/v2/watchlist`).then((r) => r.json()); }
+  @Get("quotes") quotes() { return fetch(`${this.marketUrl}/v2/quote/preview`).then((r) => r.json()); }
+  @Get("news") news() { return fetch(`${this.marketUrl}/v2/news/preview`).then((r) => r.json()); }
+  @Put("watchlist") @HttpCode(200) update(@Body() body: { securities?: string[] }) { return fetch(`${this.marketUrl}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => { if (!r.ok) throw new ForbiddenException(await r.text()); return r.json(); }); }
+}
+
 @Controller("api/v1/integration")
 export class RealIntegrationController {
   @Get("nats/probe")
@@ -190,5 +206,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}

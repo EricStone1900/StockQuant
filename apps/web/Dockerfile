@@ -4,7 +4,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
 COPY apps/web/package.json apps/web/package.json
 COPY services/platform-api-service/package.json services/platform-api-service/package.json
 COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
-RUN corepack enable && pnpm install --frozen-lockfile
+COPY services/market-data-service/package.json services/market-data-service/package.json
+COPY services/quant-research-service/package.json services/quant-research-service/package.json
+RUN corepack enable && pnpm install --frozen-lockfile --prod=false --shamefully-hoist
 COPY apps/web apps/web
 RUN pnpm --filter @stockquant/web build
 
