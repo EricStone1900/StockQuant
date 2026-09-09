@@ -1,6 +1,6 @@
 # V1.5 无人逐笔操作、故障恢复与 V1 验收
 
-状态：PASS（模拟切片、真实 NATS/JetStream、platform-api 正式进程 NATS 接入、Temporal 正式进程 Worker/Workflow、Worker 重启恢复、Activity 重试和用户人工验收完成，2026-09-09）。真实 Ubuntu 主机烟测已由用户人工确认，环境明细待补充。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（模拟切片、真实 NATS/JetStream、platform-api 正式进程 NATS 接入、Temporal 正式进程 Worker/Workflow、Worker 重启恢复、Activity 重试、真实 Ubuntu 主机完整 Compose 烟测和用户人工验收完成，2026-09-09）。Ubuntu 主机详细环境明细待补充。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
