@@ -1,6 +1,6 @@
 # V2.1 免费行情、新闻聚合与在线股票池
 
-状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：IMPLEMENTED，待人工验收。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -62,7 +62,9 @@ V1通过；数据/时间/质量契约可用。
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：DRAFT_NOT_EXECUTABLE（当前是计划，以下项目命令/路由/场景均待实现，业务测试NOT_RUN）。开发本阶段时必须将本节更新为实测操作说明；用户验收前写入实际值并记录验证日期，不能让用户自行猜测脚本名或数据路径。
+手册状态：VERIFIED_EXECUTABLE（2026-09-09；Docker Compose、API 和 Web E2E 已实测）。
+
+实测入口：`docker compose -f infra/compose/docker-compose.yml --profile web up -d market-data-service platform-api-service web`；Web `http://127.0.0.1:8080/acceptance/v2/v2.1`；来源 `GET http://127.0.0.1:3000/api/v1/acceptance/v2/v2.1/sources/smoke`；场景 `POST /api/v1/acceptance/v2/v2.1/runs`，参数 `normal|rejection|recovery`；代码 `pnpm build && pnpm test`；浏览器 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm --filter @stockquant/web test:e2e`。
 
 前置服务：核心服务、数据源Adapter、新闻服务、市场监控；至少一个实测行情和两个实测新闻源。
 

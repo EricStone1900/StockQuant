@@ -9,6 +9,9 @@ const fixture = resolve(root, "fixtures/v1/v1.2/cn_daily.csv");
 const badFixture = resolve(root, "fixtures/v1/v1.2/cn_daily_bad_future.csv");
 const artifactTasks = new Map<string, { status: "RUNNING" | "CANCELLED" | "PUBLISHED"; artifactId?: string }>();
 let watchlist: string[] = ["600000.SH", "000001.SZ", "600519.SH"];
+let samplingMinutes = 30;
+const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: number }>;
+for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
 
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
@@ -30,7 +33,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       { sourceId: "sina-quote", kind: "QUOTE", url: "https://hq.sinajs.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },
       { sourceId: "eastmoney-rss", kind: "NEWS", url: "https://finance.eastmoney.com", status: "CONFIGURED", license: "public news pages; verify terms before production" },
       { sourceId: "cls-rss", kind: "NEWS", url: "https://www.cls.cn", status: "CONFIGURED", license: "public news pages; verify terms before production" }
-    ], checkedAt: new Date().toISOString(), note: "Endpoint capability is verified by configured URL; production licensing and rate limits remain deployment checks." });
+    ].map((source) => ({ ...source, circuit: sourceState.get(source.sourceId)?.status ?? "HEALTHY" })), checkedAt: new Date().toISOString(), note: "Endpoint capability is verified by configured URL; production licensing and rate limits remain deployment checks." });
+    if (req.url === "/v2/sampling" && req.method === "GET") return json(res, { intervalMinutes: samplingMinutes, allowed: [20, 30], tradingWindows: [{ name: "morning", start: "09:30", end: "11:30" }, { name: "afternoon", start: "13:00", end: "15:00" }], lunchBreak: ["11:30", "13:00"], placeOrders: false });
+    if (req.url === "/v2/sampling" && req.method === "PUT") { const body = JSON.parse(await readBody(req)); const value = Number(body.intervalMinutes); if (![20, 30].includes(value)) return json(res, { code: "INVALID_SAMPLING_INTERVAL", allowed: [20, 30] }, 422); samplingMinutes = value; return json(res, { intervalMinutes: samplingMinutes, placeOrders: false }); }
+    const breakerMatch = req.url?.match(/^\/v2\/sources\/([^/]+)\/(fail|recover)$/);
+    if (breakerMatch && req.method === "POST") { const state = sourceState.get(breakerMatch[1]); if (!state) return json(res, { code: "SOURCE_NOT_FOUND" }, 404); if (breakerMatch[2] === "fail") { state.failures += 1; state.status = "OPEN"; } else { state.failures = 0; state.status = "HEALTHY"; } return json(res, { sourceId: breakerMatch[1], circuit: state.status, failures: state.failures }); }
     if (req.url === "/v2/sources/smoke" && req.method === "GET") {
       const checks = await Promise.all([
         sourceCheck("tencent-quote", "https://qt.gtimg.cn/q=sh600000"),
