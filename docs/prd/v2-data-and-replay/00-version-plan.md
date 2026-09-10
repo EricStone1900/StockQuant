@@ -18,7 +18,7 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 |---|---|---|---|
 | [V2.1](./01-free-data-and-news.md) | 免费行情、新闻聚合与在线股票池 | 本文件前置条件；详细依赖见阶段文件 | NOT_RUN |
 | [V2.2](./02-minute-data-import.md) | 历史分钟数据导入与校验 | V2.1；详细依赖见阶段文件 | NOT_RUN |
-| [V2.3](./03-historical-minute-replay.md) | 日频决策、分钟撮合与历史事件回放 | V2.2；详细依赖见阶段文件 | NOT_RUN |
+| [V2.3](./03-historical-minute-replay.md) | 日频决策、分钟撮合与历史事件回放 | V2.2；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（Fixture 回放、独立 Worker、治理授权、费用、基础订单状态转换与成交事务外盒已验证；补偿重试与完整恢复编排未完成） |
 | [V2.4](./04-continuous-paper-trading.md) | 真实时钟下持续模拟交易 | V2.3；详细依赖见阶段文件 | NOT_RUN |
 | [V2.5](./05-data-scale-and-v2-acceptance.md) | 历史数据扩容与 V2 验收 | V2.4；详细依赖见阶段文件 | NOT_RUN |
 

@@ -41,7 +41,7 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3001
       STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk@postgres:5432/portfolio_risk
-      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service
+      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service,trade-execution-service,historical-replay-worker
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
     depends_on:
@@ -65,6 +65,9 @@ services:
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_MARKET_DATA_URL: http://market-data-service:3002
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
+      STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
+      STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: http://historical-replay-worker:3006
+      STOCKQUANT_PROJECT_ROOT: /workspace
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
@@ -79,6 +82,10 @@ services:
         condition: service_healthy
       portfolio-risk-service:
         condition: service_healthy
+      trade-execution-service:
+        condition: service_healthy
+      historical-replay-worker:
+        condition: service_healthy
       nats:
         condition: service_started
       temporal:
@@ -87,6 +94,80 @@ services:
       - "127.0.0.1:3000:3000"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  trade-execution-service:
+    build:
+      context: ../..
+      dockerfile: services/trade-execution-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3005
+      STOCKQUANT_DATABASE_URL: postgresql://trade_execution@postgres:5432/trade_execution
+      STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
+      STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
+      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service
+      STOCKQUANT_LIVE_TRADING_ENABLED: "false"
+      STOCKQUANT_BROKER_MODE: FAKE
+    depends_on:
+      postgres:
+        condition: service_healthy
+      portfolio-risk-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  decision-governance-service:
+    build:
+      context: ../..
+      dockerfile: services/decision-governance-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3007
+      STOCKQUANT_DATABASE_URL: postgresql://decision_governance@postgres:5432/decision_governance
+      STOCKQUANT_ALLOWED_SERVICE_ID: historical-replay-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3007/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  historical-replay-worker:
+    build:
+      context: ../..
+      dockerfile: services/historical-replay-worker/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3006
+      STOCKQUANT_DATABASE_URL: postgresql://historical_replay@postgres:5432/historical_replay
+      STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
+      STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
+      STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
+      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      portfolio-risk-service:
+        condition: service_healthy
+      trade-execution-service:
+        condition: service_healthy
+      decision-governance-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
       timeout: 3s
       retries: 20

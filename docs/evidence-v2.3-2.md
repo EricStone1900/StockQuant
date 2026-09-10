@@ -1,0 +1,23 @@
+# V2.3-2 技术复核证据
+
+验证日期：2026-09-10（Asia/Shanghai）。范围为 Fixture 驱动的确定性 `MINUTE_BAR` 回放切片，以及独立 FakeBroker 执行服务到组合账本的最小闭环；不替代尚未实现的独立量化 Worker、治理服务和跨域持久检查点。
+
+- Fixture：`fixtures/v2/v2.3/replay_bars.csv`，版本 `v2.3-replay-bars-1`，SHA-256 由 `pnpm fixtures:check` 验证。
+- 本轮场景：normal `345b55c6-3e93-4a2c-b512-8d0170b0e3ca`、rejection `c2d75a02-9e42-460e-b4c6-901a411029cc`、recovery `74a4ba97-8f5f-451a-82fa-183eee25fd2a`；均 `COMPLETED` 且断言全 PASS。
+- 跨服务事实：normal 在 `trade-execution-service` 创建独立 FakeBroker 订单/成交，成交 `50 @ 10.2102`、费用 `0.5105`；`portfolio-risk-service` 写入唯一外部成交号、现金为 `9488.9795`、持仓数为 `1`、账本条目为 `2`。recovery 对同一客户订单重放返回 `replayed=true`，未重复扣款。
+- Worker 恢复演练：重启 `historical-replay-worker` 后，以 recovery `f86f9e0b-8fa9-4097-944a-ab80943b6b42` 的同一 `testRunId` 再次提交，HTTP `200`、`replayedRun=true`、`ledgerEntryCount=2`；证明 Worker 运行记录在其独立数据库中恢复，未重发订单。
+- 治理链路：normal `2ab20833-49b7-4372-bf4e-4e376bcad649` 与 recovery `0542f5ac-1305-4873-9401-399b88cdf0e4` 均通过短期 BACKTEST/FAKE 授权签发、执行前校验和单次消费；无授权订单探针返回 HTTP `403`，未写入订单或账本。
+- 订单状态机容器验证：订单 `4dd9eb0f-6095-43c5-852f-36ee4b99d411` 经两次取消请求依次返回 `CANCEL_REQUESTED`、`CANCELLED`；订单 `bc426e5f-c014-4478-9f36-f4eadf88903c` 返回 `EXPIRED`；订单 `b11f25ef-55aa-49aa-b8d8-bf3c63e50a42` 返回 `UNKNOWN`，三者均可通过原订单查询接口读回并记录状态事件。
+- 事务外盒容器验证：recovery 订单 `5fa2e93a-2504-4f7d-b2f0-d56d5c523d8f` 的 `FILL_POST` 事件与成交同事务写入，随后查询为 `DELIVERED`、`attempts=1`；恢复重放仍保持账本 `ledgerEntryCount=2`。随后 normal 订单 `2d380857-fc13-4ef8-b5bf-2f75d7425c87` 在启用后台扫描后仍自动完成 `DELIVERED` 投递。
+- UNKNOWN 安全恢复验证：订单 `d37f8bc5-35e1-4d95-934f-688120605b96` 被注入 `UNKNOWN` 后，Worker 通过原订单查询确认状态仍未知，记录 `MANUAL_REVIEW_REQUIRED`，未盲目重发，组合账本仍保持 `ledgerEntryCount=2`。
+- Saga 补偿状态机：外盒连续 3 次投递失败后进入 `COMPENSATION_REQUIRED`，订单进入 `LEDGER_PENDING`；受保护的补偿接口可在账本恢复后重新排队并以外部成交号幂等完成投递，成功后回到 `DELIVERED`。本轮已完成代码、类型和服务启动验证；真实账本故障注入演练待下一轮专门的故障脚本。
+- Saga 故障注入演练：订单 `066898dc-fe4f-441b-9030-411e258a7bdf` 的外盒 `4b61fb7e-3f2d-43f4-a061-0c12f3288a8e` 在注入 3 次账本失败后为 `COMPENSATION_REQUIRED`/`LEDGER_PENDING`；清除故障并调用补偿接口后为 `DELIVERED`、`attempts=4`，最终账户现金 `9488.9795`、持仓 `1`、账本条目 `2`。
+- 多 Bar Worker 验证：三根 Bar 的 `testRunId=3c3cd9e5-3d4e-4f31-a4c1-754355c0a9e5` 逐根推进到 `cursor=3`，产生 3 笔成交，最终现金 `7661.3297`、账本条目 `4`；重复提交同一运行键返回 `replayedRun=true`，账本条目仍为 `4`。
+- 量化运行时接入验证：`testRunId=0bc6c9a5-594e-4bc9-b0f0-3a6aa4b3299a` 的多 Bar 回放调用 `quant-research-service`，返回 `status=COMPLETED`、`adapter=qlib`、`dataMode=FIXTURE`、`environmentMode=BACKTEST`、`modelCalls=NOT_RUN`，3 根 Bar/3 笔成交均被研究边界接收，Artifact SHA-256 为 `e6801008bb9ba222cfe0e70ae76bcff787e26fef999625273005ef6e894dc7a8`。
+- Web/CLI 验收：CLI `verify:stage -- --stage V2.3 --scenario normal --seed 20260910` 的 `testRunId=33e7a848-6b7d-4b26-ab04-68cc0555aa9a` 断言全 PASS；`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3` 通过 1/1，Web 页面已展示研究 Artifact 状态与哈希。
+- 持久化：重建 `platform-api-service` 后，对 normal run 执行 `pnpm verify:stage -- --stage V2.3 --run 62d779cc-7317-4653-863c-5b5c50dfd839 --check-only`，退出码 0。
+- 导出：`pnpm evidence:export -- --stage V2.3 --run 62d779cc-7317-4653-863c-5b5c50dfd839`，Manifest SHA-256：`c4d1c27436896991f858fa4096b504546a36861928ce83c6047affbdb317f619`。
+- 代码套件：`pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0。
+- 浏览器：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3`，1/1 通过。
+
+已知限制：独立 `historical-replay-worker` 已持久运行多 Bar 粗粒度推进与检查点恢复，但尚未归入完整量化研究运行时。执行服务已提供取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描及 `COMPENSATION_REQUIRED` 补偿入口；UNKNOWN 仍需人工复核。

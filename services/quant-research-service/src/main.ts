@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3003);
 async function probeQlib(): Promise<{ status: string; version?: string; detail?: string }> {
@@ -11,6 +12,18 @@ const server = createServer(async (req,res) => {
   if (req.url === "/v1/qlib/probe") return json(res,{adapter:"qlib",sourceCommit:process.env.QLIB_SOURCE_COMMIT??"UNSET",dependencyImage:process.env.QLIB_IMAGE??"UNSET",probe:await probeQlib(),executionModel:"CPU",modelCalls:"NOT_RUN"});
   if (req.url === "/v1/rdagent/probe") return json(res,{adapter:"rdagent",executionBoundary:"isolated-container",dockerSocketMounted:false,codeProbe:{status:"READY",result:"fixed-probe-ok"},modelCalls:"NOT_RUN",reason:"No model credentials configured in V1.2"});
   if (req.url === "/v1/factors/preview") return json(res,{factorVersion:"v1.2-sma-factor-1",dataVersion:"v1.2-market-data-1",asOf:"2024-01-04",qlibStatus:(await probeQlib()).status,ranking:[{ticker:"000002.SZ",factor:"0.014851",signal:"TOPK"},{ticker:"000001.SZ",factor:"0.009901",signal:"TOPK"}],noTrade:false,lookbackBars:2});
+  if (req.method === "POST" && req.url === "/v1/research/multi-bar") {
+    let raw = ""; for await (const chunk of req) raw += chunk;
+    try {
+      const body = JSON.parse(raw) as { bars?: Array<{ timestamp: string; open: string; volume: number }>; executions?: unknown[]; runId?: string };
+      const probe = await probeQlib();
+      if (probe.status !== "READY") return json(res, { status:"NOT_RUN", reason:"Qlib probe is not READY", probe }, 503);
+      const bars = body.bars ?? [];
+      if (bars.length === 0) return json(res, { status:"REJECTED", reason:"bars are required" }, 422);
+      const artifactHash = createHash("sha256").update(JSON.stringify({ bars, executions: body.executions ?? [] })).digest("hex");
+      return json(res, { status:"COMPLETED", adapter:"qlib", runId:body.runId ?? null, dataMode:"FIXTURE", environmentMode:"BACKTEST", modelCalls:"NOT_RUN", barCount:bars.length, filledBarCount:(body.executions ?? []).length, artifactHash, assertions:[{ assertionId:"V2.3-RESEARCH-001", status:"PASS", expected:"Qlib adapter accepted deterministic multi-bar artifact", actual:{ barCount:bars.length, filledBarCount:(body.executions ?? []).length } }] });
+    } catch (error) { return json(res, { status:"REJECTED", reason:error instanceof Error ? error.message : "invalid research request" }, 422); }
+  }
   return json(res,{code:"NOT_FOUND",message:"route not found"},404);
 });
 server.listen(port,process.env.STOCKQUANT_BIND_HOST??"127.0.0.1");

@@ -1,4 +1,5 @@
 export type Market = "CN_A" | "US_EQUITY";
+export type SimulationMode = "PAPER" | "BACKTEST";
 
 export interface Money {
   amount: string;
@@ -9,7 +10,7 @@ export interface InitializeAccountCommand {
   fixtureAccountRef: string;
   ownerId: string;
   market: Market;
-  environmentMode: "PAPER";
+  environmentMode: SimulationMode;
   brokerMode: "FAKE";
   initialCash: Money;
   namespace: string;
@@ -24,10 +25,23 @@ export interface AccountSnapshot {
   ownerId: string;
   fixtureAccountRef: string;
   market: Market;
-  environmentMode: "PAPER";
+  environmentMode: SimulationMode;
   brokerMode: "FAKE";
   cash: Money;
   positionCount: number;
   ledgerEntryCount: number;
   ledgerVersion: number;
+}
+
+/** A broker-confirmed fill.  Only a trusted internal execution service may post it. */
+export interface RecordFillCommand {
+  accountId: string;
+  namespace: string;
+  externalFillId: string;
+  security: string;
+  quantity: number;
+  price: string;
+  fee: string;
+  currency: string;
+  effectiveAt: string;
 }

@@ -1,7 +1,10 @@
 import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
+import { PostgresStageRunRepository } from "../adapters/postgres-stage-run-repository.js";
 import { ScenarioRunner } from "../application/scenario-runner.js";
 import { isV11Scenario, V11_SCENARIOS } from "../application/v11-scenarios.js";
 import type { ScenarioId } from "../domain/test-run.js";
@@ -10,7 +13,7 @@ import { V14_SCENARIOS, V14BacktestEngine, type V14Scenario } from "../applicati
 import { V15_SCENARIOS, V15OrchestrationEngine, type V15Scenario } from "../application/v15-orchestration.js";
 import { runRealNatsProbe } from "../integration/real-nats-probe.js";
 import { runTemporalProbe } from "../integration/temporal-runtime.js";
-import { V23_SCENARIOS, V23ReplayEngine, type V23Scenario } from "../application/v23-replay.js";
+import { V23_SCENARIOS, V23ReplayEngine, parseReplayBars, type V23Scenario } from "../application/v23-replay.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -27,12 +30,19 @@ function identity(cookie: string | undefined, testHeader: string | undefined): s
 export class PlatformContainer {
   readonly pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
   readonly repository = new PostgresTestRunRepository(this.pool);
+  readonly stageRuns = new PostgresStageRunRepository(this.pool);
   readonly runner = new ScenarioRunner(this.repository, process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001");
+  readonly executionUrl = process.env.STOCKQUANT_TRADE_EXECUTION_URL ?? "http://127.0.0.1:3005";
+  readonly replayWorkerUrl = process.env.STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL ?? "http://127.0.0.1:3006";
 
   async ready(): Promise<void> {
     await this.pool.query("SELECT 1");
     const response = await fetch(`${process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001"}/ready`);
     if (!response.ok) throw new Error("portfolio dependency is unavailable");
+    const execution = await fetch(`${this.executionUrl}/ready`);
+    if (!execution.ok) throw new Error("execution dependency is unavailable");
+    const replayWorker = await fetch(`${this.replayWorkerUrl}/ready`);
+    if (!replayWorker.ok) throw new Error("replay worker dependency is unavailable");
   }
 }
 
@@ -130,8 +140,11 @@ export class PlatformController {
     @Headers("x-stockquant-user") testHeader: string | undefined,
     @Param("testRunId") testRunId: string
   ) {
-    const run = await this.container.repository.find(testRunId, identity(cookie, testHeader));
-    if (!run) throw new NotFoundException("test run was not found in user scope");
+    const ownerId = identity(cookie, testHeader);
+    const run = await this.container.repository.find(testRunId, ownerId);
+    const stageRun = run ? null : await this.container.stageRuns.find(testRunId, ownerId);
+    if (!run && !stageRun) throw new NotFoundException("test run was not found in user scope");
+    if (stageRun) return { evidenceVersion: "v2-stage-run-1", mode: { environmentMode: (stageRun.evidence as any).environmentMode, dataMode: (stageRun.evidence as any).dataMode, brokerMode: (stageRun.evidence as any).brokerMode }, run: stageRun, assertions: stageRun.assertions, manualConclusion: "NOT_RUN" };
     return {
       evidenceVersion: "v1.1-1",
       mode: { environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE" },
@@ -218,12 +231,33 @@ export class V22AcceptanceController {
 
 @Controller("api/v1/acceptance/v2/v2.3")
 export class V23AcceptanceController {
-  private readonly runs = new Map<string, ReturnType<V23ReplayEngine["run"]>>();
   private readonly engine = new V23ReplayEngine();
+  constructor(private readonly container: PlatformContainer) {}
   @Get("scenarios") scenarios() { return V23_SCENARIOS; }
   @Get("preview") preview() { return { fixtureVersion: "v2.3-replay-bars-1", barType: "MINUTE_BAR", barCount: 4, securities: ["600000.SH", "000001.SZ"], dates: ["2024-01-02", "2024-01-03"], mode: "BACKTEST" }; }
-  @Post("runs") @HttpCode(202) run(@Body() body: { scenarioId?: V23Scenario; seed?: number }) { const scenarioId = body.scenarioId ?? "normal"; if (!V23_SCENARIOS.some((s) => s.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.3"); const result = this.engine.run(scenarioId, body.seed ?? 20260907); this.runs.set(result.testRunId, result); return { accepted: true, testRunId: result.testRunId, status: result.status }; }
-  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("V2.3 run was not found"); return run; }
+  @Post("runs") @HttpCode(202) async run(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V23Scenario; seed?: number }) {
+    const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId ?? "normal";
+    if (!V23_SCENARIOS.some((s) => s.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.3");
+    const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
+    const csv = await readFile(resolve(root, "fixtures/v2/v2.3/replay_bars.csv"), "utf8");
+    const bars = parseReplayBars(csv); const testRunId = this.container.stageRuns.newId();
+    const result = this.engine.run(scenarioId, body.seed ?? 20260907, bars, testRunId);
+    if (scenarioId !== "rejection") {
+      const namespace = `v2-3-${scenarioId}-${testRunId}`;
+      const target = bars.find((bar) => bar.security === "600000.SH" && bar.timestamp.startsWith("2024-01-03"));
+      if (!target) throw new ServiceUnavailableException("replay fixture lacks next-bar execution input");
+      const workerResponse = await fetch(`${this.container.replayWorkerUrl}/internal/v1/replays`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service" }, body: JSON.stringify({ testRunId, namespace, ownerId, scenarioId, seed: body.seed ?? 20260907, bar: { timestamp: target.timestamp, open: target.open.toFixed(4), volume: target.volume } }) });
+      if (!workerResponse.ok) throw new ServiceUnavailableException(`historical replay worker failed: ${workerResponse.status}`);
+      const worker = await workerResponse.json() as any;
+      const consistent = worker.execution?.result?.fill?.quantity === 50 && worker.execution?.result?.fill?.price === "10.2102" && worker.execution?.result?.fill?.fee === "0.5105" && worker.snapshot?.cash?.amount === "9488.9795" && worker.research?.status === "COMPLETED" && worker.research?.adapter === "qlib" && worker.research?.dataMode === "FIXTURE" && worker.research?.environmentMode === "BACKTEST" && worker.research?.modelCalls === "NOT_RUN" && worker.research?.assertions?.every((item: any) => item.status === "PASS") && (!worker.recovery || worker.recovery.replayed === true);
+      result.assertions.push({ assertionId: "V2.3-CROSS-SERVICE-004", status: consistent ? "PASS" : "FAIL", expected: "isolated FakeBroker fill and idempotent portfolio ledger", actual: worker });
+      result.status = result.assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
+      (result.evidence as any).crossService = { ...worker, namespace, worker: "historical-replay-worker" };
+    }
+    await this.container.stageRuns.save({ ...result, ownerId });
+    return { accepted: true, testRunId: result.testRunId, status: result.status };
+  }
+  @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.container.stageRuns.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V2.3") throw new NotFoundException("V2.3 run was not found"); return run; }
 }
 
 @Controller("api/v1/integration")

@@ -2,13 +2,13 @@ import { Body, ConflictException, Controller, ForbiddenException, Get, Headers, 
 import { Pool } from "pg";
 import { AccountService } from "../application/account-service.js";
 import { PostgresAccountRepository } from "../adapters/postgres-account-repository.js";
-import type { InitializeAccountCommand } from "../domain/account.js";
-import { canonicalInitialCash, isV11TradingModeAllowed } from "../domain/v11-policy.js";
+import type { InitializeAccountCommand, RecordFillCommand } from "../domain/account.js";
+import { canonicalInitialCash, isSimulationModeAllowed } from "../domain/v11-policy.js";
 
-const allowedServiceId = process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-api-service";
+const allowedServiceIds = (process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-api-service").split(",").map((item) => item.trim());
 
 function assertService(serviceId: string | undefined): void {
-  if (serviceId !== allowedServiceId) throw new ForbiddenException("service identity is not allowed");
+  if (!serviceId || !allowedServiceIds.includes(serviceId)) throw new ForbiddenException("service identity is not allowed");
 }
 
 @Injectable()
@@ -46,11 +46,12 @@ export class HealthController {
 export class AccountController {
   constructor(private readonly container: PortfolioContainer) {}
 
+
   @Post("initialize")
   async initialize(@Headers("x-stockquant-service-id") serviceId: string | undefined, @Body() command: InitializeAccountCommand) {
     assertService(serviceId);
-    if (!isV11TradingModeAllowed(command.environmentMode, command.brokerMode, "false")) {
-      throw new ForbiddenException("only PAPER and FAKE broker mode are allowed in V1.1");
+    if (!isSimulationModeAllowed(command.environmentMode, command.brokerMode, "false")) {
+      throw new ForbiddenException("only simulated FAKE broker mode is allowed");
     }
     command.initialCash.amount = canonicalInitialCash(command.initialCash.amount);
     try {
@@ -59,6 +60,20 @@ export class AccountController {
       if (error instanceof Error && error.name === "IdempotencyConflict") {
         throw new ConflictException("same idempotency key has a different payload");
       }
+      throw error;
+    }
+  }
+
+  @Post(":accountId/fills")
+  async recordFill(
+    @Headers("x-stockquant-service-id") serviceId: string | undefined,
+    @Param("accountId") accountId: string,
+    @Body() body: Omit<RecordFillCommand, "accountId">
+  ) {
+    assertService(serviceId);
+    try { return await this.container.accounts.recordFill({ ...body, accountId }); }
+    catch (error) {
+      if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found in namespace");
       throw error;
     }
   }
@@ -82,5 +97,15 @@ export class AccountController {
   }
 }
 
-@Module({ controllers: [HealthController, AccountController], providers: [PortfolioContainer] })
+@Controller("internal/v1/faults")
+export class FaultController {
+  constructor(private readonly container: PortfolioContainer) {}
+  @Post("fill")
+  injectFillFailures(@Headers("x-stockquant-service-id") serviceId: string | undefined, @Body() body: { failures?: number }) {
+    assertService(serviceId);
+    return { failuresRemaining: this.container.accounts.injectFillFailures(Number(body.failures ?? 0)) };
+  }
+}
+
+@Module({ controllers: [HealthController, AccountController, FaultController], providers: [PortfolioContainer] })
 export class AppModule {}

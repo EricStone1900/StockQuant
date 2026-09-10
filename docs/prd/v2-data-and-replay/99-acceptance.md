@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|
 | [V2.1 免费行情、新闻聚合与在线股票池](./01-free-data-and-news.md) | PASS（代码、Docker、统一场景） | PASS（用户确认并完成复验，2026-09-09） | `docs/evidence-v2.1.md`；复验 normal `dd1792f9-4947-472d-bd9c-2a0399224068`；rejection `9a0d9bb5-7106-4b95-b113-bea633aab576`；recovery `7419dbd9-d635-4ccb-993f-9d66e5f11865` | Sina 行情源超时；来源许可、长期观察待补充 | 用户确认（本会话） / 2026-09-09 |
 | [V2.2 历史分钟数据导入与校验](./02-minute-data-import.md) | PASS（代码、Docker、统一场景） | PASS（用户确认并完成复验，2026-09-09） | `docs/evidence-v2.2.md`；复验 normal `2d236506-042b-4e6c-a386-dfbb6553622f`；rejection `55417112-6ee9-4eeb-b252-1e0306048a0e`；recovery `d8c9540e-0ed2-4978-93f9-daaef6dc1e6f` | Parquet、持久化分区和真实用户文件导入未覆盖 | 用户确认（本会话） / 2026-09-09 |
-| [V2.3 日频决策、分钟撮合与历史事件回放](./03-historical-minute-replay.md) | PASS（复验通过） | PASS（用户确认并完成复验，2026-09-09） | `docs/evidence-v2.3.md`；复验 normal `5386f25e-378b-4537-9f5b-34276d659102`；rejection `0f0fca6f-3a62-4c0f-86c0-02d86e834d31`；recovery `a461ad2a-adc9-4762-95ff-8ab641a40525` | 小样本、进程内检查点、FakeBroker；全量与生产持久化待补 | 用户确认（本会话） / 2026-09-09 |
+| [V2.3 日频决策、分钟撮合与历史事件回放](./03-historical-minute-replay.md) | PARTIALLY_IMPLEMENTED（Fixture 回放、持久 TestRun、独立 Worker、多 Bar 检查点、量化研究边界、治理授权、费用、基础订单状态转换、成交事务外盒、后台重试扫描、UNKNOWN 安全恢复与 Saga 状态机） | 历史人工记录保留；多 Bar、研究边界、Web/CLI 与 Saga 验收已完成 | `docs/evidence-v2.3.md`（历史证据已 supersede）；[V2.3-2 技术复核](../../../docs/evidence-v2.3-2.md) | 尚未完成完整 Qlib 训练/研究运行时接入，仅完成确定性 Fixture Artifact 边界 | 历史用户确认 / 2026-09-09；技术复核 / 2026-09-10 |
 | [V2.4 真实时钟下持续模拟交易](./04-continuous-paper-trading.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V2.5 历史数据扩容与 V2 验收](./05-data-scale-and-v2-acceptance.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 
