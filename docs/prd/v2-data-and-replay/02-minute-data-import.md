@@ -115,9 +115,9 @@ pnpm dev:web
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
 
-### 8.4 命令行复验与相同运行核对（待实现）
+### 8.4 命令行复验与相同运行核对（已实现）
 
-在项目根目录执行以下目标命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
+在项目根目录执行以下已实现命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
 
 ```bash
 pnpm verify:stage -- --stage V2.2 --scenario normal --seed 20260907
@@ -142,7 +142,7 @@ pnpm test:e2e -- --stage V2.2
 read -r acceptance_run_id
 pnpm verify:stage -- --stage V2.2 --run "$acceptance_run_id" --check-only
  echo $?
-pnpm evidence:export -- --run "$acceptance_run_id"
+pnpm evidence:export -- --stage V2.2 --run "$acceptance_run_id"
  echo $?
 ```
 

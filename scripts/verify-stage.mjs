@@ -9,8 +9,9 @@ const runId = value("--run");
 const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
 const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
 
-if (!['V1.1','V1.2','V1.3','V1.4','V1.5'].includes(stage)) {
-  console.error("only V1.1 through V1.5 are implemented");
+const implementedStages = ['V1.1', 'V1.2', 'V1.3', 'V1.4', 'V1.5', 'V2.1', 'V2.2', 'V2.3'];
+if (!implementedStages.includes(stage)) {
+  console.error("implemented stages: V1.1 through V1.5, V2.1 through V2.3; V2.4/V2.5 are not implemented");
   process.exit(2);
 }
 
@@ -35,7 +36,50 @@ function runCommand(command, commandArgs) {
   return result.status ?? 1;
 }
 
+function runCodeSuite() {
+  const commands = [
+    ["pnpm", ["baseline:check"]],
+    ["pnpm", ["build"]],
+    ["pnpm", ["lint"]],
+    ["pnpm", ["typecheck"]],
+    ["pnpm", ["test"]],
+    ["pnpm", ["test:contract"]]
+  ];
+  for (const [command, commandArgs] of commands) {
+    const exitCode = runCommand(command, commandArgs);
+    if (exitCode !== 0) process.exit(exitCode);
+  }
+}
+
+async function runV2Stage() {
+  const routes = {
+    "V2.1": "/api/v1/acceptance/v2/v2.1/runs",
+    "V2.2": "/api/v1/acceptance/v2/v2.2/runs",
+    "V2.3": "/api/v1/acceptance/v2/v2.3/runs"
+  };
+  const route = routes[stage];
+  if (value("--suite") === "code") {
+    runCodeSuite();
+    return;
+  }
+  if (runId && has("--check-only")) {
+    const run = await request(`${route}/${runId}`);
+    console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
+    process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 2);
+  }
+  if (!['normal', 'rejection', 'recovery'].includes(scenario)) {
+    console.error("specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
+    process.exit(2);
+  }
+  const accepted = await request(route, { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: Number(value("--seed") ?? 20260907) }) });
+  if (!accepted.testRunId) throw new Error("run creation returned no testRunId");
+  const run = await request(`${route}/${accepted.testRunId}`);
+  console.log(JSON.stringify(run, null, 2));
+  process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 1);
+}
+
 async function main() {
+  if (stage.startsWith("V2.")) return runV2Stage();
   if (stage === 'V1.5') {
     if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
     if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }
