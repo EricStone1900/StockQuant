@@ -80,3 +80,12 @@ test("V2.3 replay page shows deterministic matching and recovery evidence", asyn
   await expect(page.getByTestId("v23-evidence")).toContainText("V2.3-RECOVERY-001");
   await expect(page.getByTestId("v23-evidence")).toContainText('"status": "PASS"');
 });
+
+test("V2.4 continuous paper page shows stale and recovery evidence", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.4");
+  await expect(page.getByRole("heading", { name: "V2.4 真实时钟下持续模拟交易" })).toBeVisible();
+  await page.getByRole("button", { name: "运行陈旧/重复拒绝" }).click();
+  await expect(page.getByTestId("v24-evidence")).toContainText("STALE_SNAPSHOT");
+  await page.getByRole("button", { name: "运行断网恢复" }).click();
+  await expect(page.getByTestId("v24-evidence")).toContainText("SOURCE_DISCONNECTED");
+});

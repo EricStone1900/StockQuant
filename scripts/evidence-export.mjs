@@ -7,14 +7,15 @@ const runId = args[args.indexOf("--run") + 1];
 const stage = args.includes("--stage") ? args[args.indexOf("--stage") + 1] : "V1.1";
 const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
 if (!runId) {
-  console.error("usage: pnpm evidence:export -- --stage V2.1|V2.2|V2.3 --run RUN_ID");
+  console.error("usage: pnpm evidence:export -- --stage V2.1|V2.2|V2.3|V2.4 --run RUN_ID");
   process.exit(2);
 }
 
 const v2RunRoutes = {
   "V2.1": "/api/v1/acceptance/v2/v2.1/runs",
   "V2.2": "/api/v1/acceptance/v2/v2.2/runs",
-  "V2.3": "/api/v1/acceptance/v2/v2.3/runs"
+  "V2.3": "/api/v1/acceptance/v2/v2.3/runs",
+  "V2.4": "/api/v1/acceptance/v2/v2.4/runs"
 };
 if (stage.startsWith("V2.") && !v2RunRoutes[stage]) {
   console.error(`${stage} has no implemented evidence export endpoint`);

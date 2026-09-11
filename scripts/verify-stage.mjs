@@ -9,9 +9,9 @@ const runId = value("--run");
 const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
 const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
 
-const implementedStages = ['V1.1', 'V1.2', 'V1.3', 'V1.4', 'V1.5', 'V2.1', 'V2.2', 'V2.3'];
+const implementedStages = ['V1.1', 'V1.2', 'V1.3', 'V1.4', 'V1.5', 'V2.1', 'V2.2', 'V2.3', 'V2.4'];
 if (!implementedStages.includes(stage)) {
-  console.error("implemented stages: V1.1 through V1.5, V2.1 through V2.3; V2.4/V2.5 are not implemented");
+    console.error("implemented stages: V1.1 through V1.5, V2.1 through V2.4; V2.5 is not implemented");
   process.exit(2);
 }
 
@@ -55,7 +55,8 @@ async function runV2Stage() {
   const routes = {
     "V2.1": "/api/v1/acceptance/v2/v2.1/runs",
     "V2.2": "/api/v1/acceptance/v2/v2.2/runs",
-    "V2.3": "/api/v1/acceptance/v2/v2.3/runs"
+    "V2.3": "/api/v1/acceptance/v2/v2.3/runs",
+    "V2.4": "/api/v1/acceptance/v2/v2.4/runs"
   };
   const route = routes[stage];
   if (value("--suite") === "code") {
