@@ -203,7 +203,10 @@ services:
       QLIB_SOURCE_COMMIT: qlib-0.9.6
       QLIB_IMAGE: stockquant-v12-qlib-probe
       QLIB_WORKER_URL: http://qlib-worker:3004
+      STOCKQUANT_DATABASE_URL: postgresql://quant_research@postgres:5432/quant_research
     depends_on:
+      postgres:
+        condition: service_healthy
       market-data-service:
         condition: service_healthy
       qlib-worker:

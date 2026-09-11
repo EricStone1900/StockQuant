@@ -29,3 +29,4 @@
 - 容器接口验证：`POST /v1/research/candidates` 携带 `x-stockquant-user=acceptance-owner-1` 返回 HTTP 201，状态 `CANDIDATE_APPROVED`，候选 ID `candidate-e6586d`，激活状态 `DISABLED_UNTIL_MANDATE`。
 - 查询验证：`GET /v1/research/candidates/candidate-e6586d` 返回 HTTP 200，版本、算法、Hash 与审批人完全一致。
 - 防错验证：Qlib `0.9.5` 返回 HTTP 422；缺少显式审批返回 HTTP 202 `PENDING_APPROVAL`。
+- 持久化验证：使用候选 ID `candidate-persisted` 登记后重启 `quant-research-service`，再次查询返回 HTTP 200，记录仍存在且字段一致；数据存储于 `quant_research.research_candidates`。
