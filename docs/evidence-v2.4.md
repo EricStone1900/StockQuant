@@ -26,4 +26,5 @@
 - 代码套件、Web E2E（1/1）、同 Run `--check-only`、证据导出及服务重启后的 TestRun 查询均通过；重启后 normal 仍为 `V2.4/COMPLETED`。
 - 最新导出目录：`evidence/local/V2.4/755cb415-0f1d-433a-aaa4-6378d5e7f1cf`；Manifest SHA-256：`5e7bf52c19d4167846673ca581216337af3f03133a9cd1392ed1c55e140d0842`。
 - 用户已确认人工验收通过（本会话，2026-09-11）；20 个实际交易日观察仍为 `NOT_RUN`，因此阶段总体仍为 `PARTIALLY_IMPLEMENTED`。
-- 复核项目级门禁时发现仓库当前未提供 `verify:version` 和 `verify:compat` npm scripts（`pnpm` 退出码 1）；这两项不能宣称通过，保留为后续版本门禁缺口。
+- 初次复核曾发现项目级门禁脚本缺失；本次已补齐并完成实际验证，历史缺口不再作为当前脚本状态。
+- 本次已补齐项目级门禁脚本：`pnpm verify:version -- --version V2` 能正确汇总阶段并因 V2 未完成返回非零；`pnpm verify:compat -- --platform linux/amd64` 完成平台 API 镜像构建及容器 Node 探针，返回 `PASS`（`linux/x64`、Node `v24.1.0`）。
