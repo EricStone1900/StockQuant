@@ -1,6 +1,6 @@
 # V2.3-2 技术复核证据
 
-验证日期：2026-09-10（Asia/Shanghai）。范围为 Fixture 驱动的确定性 `MINUTE_BAR` 回放切片，以及独立 FakeBroker 执行服务到组合账本的最小闭环；不替代尚未实现的独立量化 Worker、治理服务和跨域持久检查点。
+验证日期：2026-09-11（Asia/Shanghai）。范围为 Fixture 驱动的确定性 `MINUTE_BAR` 回放切片、独立 `historical-replay-worker`、Qlib 训练/独立验证，以及 FakeBroker 执行服务到组合账本的最小闭环；不代表真实模型调用、LIVE 激活或全量容量验收。
 
 - Fixture：`fixtures/v2/v2.3/replay_bars.csv`，版本 `v2.3-replay-bars-1`，SHA-256 由 `pnpm fixtures:check` 验证。
 - 本轮场景：normal `345b55c6-3e93-4a2c-b512-8d0170b0e3ca`、rejection `c2d75a02-9e42-460e-b4c6-901a411029cc`、recovery `74a4ba97-8f5f-451a-82fa-183eee25fd2a`；均 `COMPLETED` 且断言全 PASS。
@@ -21,7 +21,7 @@
 - 代码套件：`pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0。
 - 浏览器：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3`，1/1 通过。
 
-已知限制：独立 `historical-replay-worker` 已持久运行多 Bar 粗粒度推进与检查点恢复，并接入确定性 Qlib 训练/独立验证边界。候选产物已支持精确版本登记和显式审批，但当前登记存储为研究服务进程内存，且 `activation=DISABLED_UNTIL_MANDATE`，未接入真实模型训练、策略完整研究运行时或任何 LIVE 激活。执行服务已提供取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描及 `COMPENSATION_REQUIRED` 补偿入口；UNKNOWN 仍需人工复核。
+已知限制：独立 `historical-replay-worker` 已持久运行多 Bar 粗粒度推进与检查点恢复，并接入确定性 Qlib 训练/独立验证边界。候选产物已支持精确版本登记、显式审批和 PostgreSQL 持久化，但 `activation=DISABLED_UNTIL_MANDATE`，未接入真实模型训练、策略完整研究运行时或任何 LIVE 激活。执行服务已提供取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描及 `COMPENSATION_REQUIRED` 补偿入口；UNKNOWN 仍需人工复核。
 
 ### 候选产物登记与晋级前校验（2026-09-11）
 
