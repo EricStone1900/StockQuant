@@ -12,6 +12,10 @@
 - 架构证据：`linux/amd64-emulated`；资源观测 384 MB / 4 秒，预算 1024 MB / 120 秒。
 - V2.4 20 个实际交易日观察仍由独立定时任务累计，当前门禁保持 `V2.4_20_TRADING_DAYS_PENDING`；V2.5 不据此宣称 V2 全部通过。
 
+Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:monitor-capacity` 依次写入并采集 50/80/100 只股票，配置数与采样数分别为 50/50、80/80、100/100，耗时 175ms、47ms、50ms，服务上限 100，全部脚本断言 PASS；原 3 只监控池已恢复。来源为 Tencent `LIVE_SOURCE`，部分代码返回 `MISSING_TIMESTAMP`，因此本结果只证明监控池容量/路径，不证明所有标的行情完整性。
+
+全市场多年数据容量验证：`NOT_RUN`。当前仓库仅有 V2.2 的 6 行分钟 Fixture 与 V2.3 的 4 行回放 Fixture，没有带版本 Manifest 的全市场多年分钟数据、许可/覆盖证明或目标 Ubuntu 实机；不能用合成扩展结果代替该门禁。
+
 最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
 
 已知限制：当前仅覆盖 S2 小规模 Fixture；全市场多年数据、Mac 50/80/100 监控池、真实 Ubuntu、真实财务/行业 PIT、长期容量和用户人工验收尚未完成。
