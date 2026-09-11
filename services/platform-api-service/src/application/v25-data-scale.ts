@@ -13,6 +13,11 @@ export class V25DataScaleEngine {
   run(scenarioId: V25Scenario, seed: number, testRunId = randomUUID()) {
     const baseHash = hash("v2.2-minute-bars-1|canonical-regression-v1");
     const expandedHash = hash(`v2.5-cn-minute-20x60-v1|${seed}`);
+    const measureStarted = performance.now();
+    const measuredRows = Array.from({ length: 1200 }, (_, index) => `${index % 20}|${Math.floor(index / 20)}|10.00|1000`);
+    hash(measuredRows.join("\n"));
+    const measuredElapsedSeconds = Number(((performance.now() - measureStarted) / 1000).toFixed(3));
+    const measuredMemoryMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
     const common = {
       testRunId, stageId: "V2.5", scenarioId, scenarioVersion: "1.0.0", seed,
       environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE",
@@ -24,9 +29,9 @@ export class V25DataScaleEngine {
         { assertionId: "V2.5-REGRESSION-002", status: "PASS", expected: baseHash, actual: baseHash },
         { assertionId: "V2.5-PIT-003", status: "PASS", expected: "train < validation < test; no future rows", actual: { train: "2024-01-02..2024-02-29", validation: "2024-03-01..2024-03-15", test: "2024-03-18..2024-03-29", futureLeakage: false } },
         { assertionId: "V2.5-CACHE-004", status: "PASS", expected: "dataVersion is part of cache key", actual: { key: `factor:v1:${expandedHash.slice(0, 16)}`, isolated: true } },
-        { assertionId: "V2.5-RESOURCE-005", status: "PASS", expected: { maxMemoryMb: 1024, maxSeconds: 120 }, actual: { maxMemoryMb: 384, elapsedSeconds: 4, architecture: "linux/amd64-emulated" } },
+        { assertionId: "V2.5-RESOURCE-005", status: measuredMemoryMb <= 1024 && measuredElapsedSeconds <= 120 ? "PASS" : "FAIL", expected: { maxMemoryMb: 1024, maxSeconds: 120 }, actual: { maxMemoryMb: measuredMemoryMb, elapsedSeconds: measuredElapsedSeconds, rowsMeasured: measuredRows.length, architecture: "linux/amd64-emulated" } },
       ];
-      return { ...common, status: "COMPLETED", namespace: `v2-5-normal-${testRunId}`, assertions, evidence: { scale: { profile: "S2", securities: 20, sessions: 60, rows: 1200, dataVersion: "v2.5-cn-minute-20x60-v1", manifestHash: expandedHash }, regression: { baselineHash: baseHash, expandedHash: baseHash, unchanged: true }, modelValidation: { walkForwardWindows: 3, pitSafe: true, testSetUsedForTuning: false, failedCandidatesRetained: 1 }, cache: { versioned: true, crossDataVersionReuse: false }, resources: { budget: { memoryMb: 1024, seconds: 120 }, observed: { memoryMb: 384, seconds: 4 }, architecture: "linux/amd64-emulated" }, observationGate: "V2.4_20_TRADING_DAYS_PENDING" } };
+      return { ...common, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", namespace: `v2-5-normal-${testRunId}`, assertions, evidence: { scale: { profile: "S2", securities: 20, sessions: 60, rows: 1200, dataVersion: "v2.5-cn-minute-20x60-v1", manifestHash: expandedHash }, regression: { baselineHash: baseHash, expandedHash: baseHash, unchanged: true }, modelValidation: { walkForwardWindows: 3, pitSafe: true, testSetUsedForTuning: false, failedCandidatesRetained: 1 }, cache: { versioned: true, crossDataVersionReuse: false }, resources: { budget: { memoryMb: 1024, seconds: 120 }, observed: { memoryMb: measuredMemoryMb, seconds: measuredElapsedSeconds, rows: measuredRows.length }, architecture: "linux/amd64-emulated" }, observationGate: "V2.4_20_TRADING_DAYS_PENDING" } };
     }
     if (scenarioId === "rejection") {
       const assertions = [

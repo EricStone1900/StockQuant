@@ -9,12 +9,16 @@
 - 证据导出：`evidence/local/V2.5/fe37c045-962f-40be-84b1-36d33df08184`；Manifest SHA-256 `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e`。
 - Web E2E：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.5`，1/1 通过。
 - 代码/基础检查：类型检查、构建、平台单元测试 19/19、`verify:stage --suite code`、契约/Fixture/Markdown 检查通过。
-- 架构证据：`linux/amd64-emulated`；资源观测 384 MB / 4 秒，预算 1024 MB / 120 秒。
+- 架构证据：`linux/amd64-emulated`；S2 资源预算 1024 MB / 120 秒，最新运行时测量见下文。
 - V2.4 20 个实际交易日观察仍由独立定时任务累计，当前门禁保持 `V2.4_20_TRADING_DAYS_PENDING`；V2.5 不据此宣称 V2 全部通过。
 
-Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:monitor-capacity` 依次写入并采集 50/80/100 只股票，配置数与采样数分别为 50/50、80/80、100/100，耗时 175ms、47ms、50ms，服务上限 100，全部脚本断言 PASS；原 3 只监控池已恢复。来源为 Tencent `LIVE_SOURCE`，部分代码返回 `MISSING_TIMESTAMP`，因此本结果只证明监控池容量/路径，不证明所有标的行情完整性。
+Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:monitor-capacity` 依次写入并采集 50/80/100 只股票，配置数与采样数分别为 50/50、80/80、100/100，耗时 199ms、64ms、61ms，服务上限 100，原 3 只监控池已恢复；但有效 `LIVE_SOURCE` 数量只有 37、67、87，其他返回 `MISSING_TIMESTAMP`，质量门禁因此 FAIL。该结果证明数量路径可承载，不能证明 50/80/100 全部行情有效。
+
+BaoStock 只读探针（2026-09-11，`sh.600000`，2024-01-02 至 2024-01-10）：日线返回 7 行，5 分钟返回 336 行，均 `errorCode=0`；1 分钟请求返回 `10004012 请求数据类型不正确`。探针状态 `PARTIAL`，脚本为 `pnpm v25:probe-baostock`，仅证明小窗口能力，不证明全市场多年覆盖、许可或限流条件。
 
 全市场多年数据容量验证：`NOT_RUN`。当前仓库仅有 V2.2 的 6 行分钟 Fixture 与 V2.3 的 4 行回放 Fixture，没有带版本 Manifest 的全市场多年分钟数据、许可/覆盖证明或目标 Ubuntu 实机；不能用合成扩展结果代替该门禁。
+
+复核修正（2026-09-11）：V2.5 normal `testRunId=7fd708cd-c040-4142-902b-618008d2b601` 的资源断言改为运行时测量，实际处理 1200 行，容器 RSS `230 MB`、耗时 `0.000 秒`，预算为 `1024 MB / 120 秒`；不再写入固定的 384 MB / 4 秒。
 
 最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
 

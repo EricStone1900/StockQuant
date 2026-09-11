@@ -17,7 +17,8 @@ try {
     const snapshot = await request("/v2/quote/preview");
     const elapsedMs = Math.round(performance.now() - started);
     const statuses = Array.isArray(snapshot.securities) ? [...new Set(snapshot.securities.map((item) => item.status))] : [];
-    results.push({ size, configuredCount: updated.count, sampledCount: snapshot.count, elapsedMs, statuses, max: updated.max, pass: updated.count === size && snapshot.count === size && updated.max === 100 });
+    const liveCount = Array.isArray(snapshot.securities) ? snapshot.securities.filter((item) => item.status === "LIVE_SOURCE").length : 0;
+    results.push({ size, configuredCount: updated.count, sampledCount: snapshot.count, liveCount, elapsedMs, statuses, max: updated.max, pass: updated.count === size && snapshot.count === size && liveCount === size && updated.max === 100 });
   }
 } finally {
   await request("/v2/watchlist", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities: original.securities }) });
