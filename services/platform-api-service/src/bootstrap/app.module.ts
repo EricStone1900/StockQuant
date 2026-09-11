@@ -15,6 +15,7 @@ import { runRealNatsProbe } from "../integration/real-nats-probe.js";
 import { runTemporalProbe } from "../integration/temporal-runtime.js";
 import { V23_SCENARIOS, V23ReplayEngine, parseReplayBars, type V23Scenario } from "../application/v23-replay.js";
 import { V24_SCENARIOS, V24ContinuousPaperEngine, type V24Scenario } from "../application/v24-continuous-paper.js";
+import { ContinuousPaperScheduler } from "../application/v24-scheduler.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -200,9 +201,14 @@ export class V15AcceptanceController { private readonly runs = new Map<string, R
 @Controller("api/v1/acceptance/v2/v2.4")
 export class V24AcceptanceController {
   private readonly engine = new V24ContinuousPaperEngine();
+  private readonly scheduler = new ContinuousPaperScheduler();
   private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
   @Get("scenarios") scenarios() { return V24_SCENARIOS; }
   @Get("preview") preview() { return { stageId: "V2.4", environmentMode: "PAPER", dataMode: "LIVE_SOURCE_SMOKE", brokerMode: "FAKE", samplingIntervalMinutes: 30, executionWindow: "09:31-09:35", observationDays: 0, liveTradingEnabled: false }; }
+  @Get("scheduler/status") schedulerStatus() { return this.scheduler.status(); }
+  @Post("scheduler/start") @HttpCode(202) schedulerStart() { return { accepted: true, scheduler: this.scheduler.start() }; }
+  @Post("scheduler/stop") schedulerStop() { return this.scheduler.stop(); }
+  @Post("scheduler/tick") schedulerTick() { return this.scheduler.tick(); }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V24Scenario; seed?: number }) { const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId; if (!V24_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.4"); const run = this.engine.run(scenarioId as V24Scenario, body.seed ?? 20260907); const source = scenarioId === "normal" ? await fetch(`${this.marketUrl}/v2/quote/preview`).then((response) => response.json()).catch(() => ({ status: "STALE" })) : null; const evidence = { ...run, source: source ? { ...(run.source ?? {}), liveProbe: source.sourceId ?? "tencent-quote", probeStatus: source.status ?? "LIVE_SOURCE_SMOKE" } : run.source }; const namespace = `v2-4-${scenarioId}-${run.testRunId}`; await this.container.stageRuns.save({ ...run, ownerId, stageId: "V2.4", scenarioVersion: "1.0.0", namespace, evidence }); return { accepted: true, testRunId: run.testRunId, status: run.status }; }
   constructor(private readonly container: PlatformContainer) {}
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.container.stageRuns.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V2.4") throw new NotFoundException("V2.4 run was not found"); return run; }
