@@ -71,17 +71,17 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 待实现后填写 |
-| 项目根目录、Node/pnpm/Python/uv及Docker版本 | 待实现后填写 |
-| Web基础URL/身份登录或会话建立方式 | 待实现后填写；不记录密码/token |
+| 实测代码Commit或工作区Hash/验证日期 | `1a461092b6afe8a9060be07d31e4b772fae2b664` 基线 + 本次复核修复，2026-09-11 |
+| 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node `v24.1.0`；pnpm `10.34.5`；Docker `28.0.4`；Compose `v2.34.0-desktop.1` |
+| Web基础URL/身份登录或会话建立方式 | `http://127.0.0.1:8080`；本地验收身份 `acceptance-owner-1`；不记录密码/token |
 | 本阶段Web路由 | `/acceptance/v2/v2.3`（目标） |
-| 正式页面的真实入口/跳转链接 | 待实现后填写，按8.3逐项核实 |
+| 正式页面的真实入口/跳转链接 | `http://127.0.0.1:8080/acceptance/v2/v2.3` |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v2/v2.3/replay_bars.csv`；`v2.3-replay-bars-1`；SHA-256 `778daf9e202b3522472a1ebe3d6a1f1e70c27ddde769df585a31ca9d5310dbf4`；参与率10%、滑点10bps |
-| 配置文件及必需环境变量名/非秘密测试值 | 待实现后填写；凭证只记录引用方式 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | 待实现后填写；不适用项注明理由 |
-| 预期耗时、轮询超时、实际观察期/预算 | 待实现后填写，不用无限等待或假成功 |
+| 配置文件及必需环境变量名/非秘密测试值 | `infra/compose/docker-compose.yml`；`STOCKQUANT_BROKER_MODE=FAKE`、`STOCKQUANT_LIVE_TRADING_ENABLED=false`、`STOCKQUANT_LOCAL_DEVELOPMENT_USER=acceptance-owner-1`；无真实凭证 |
+| 外部故障目标及可执行命令、恢复/隔离清理入口 | recovery 使用 `historical-replay-worker` 检查点/重启；旧运行和数据库卷保留，不删除共享卷 |
+| 预期耗时、轮询超时、实际观察期/预算 | 单场景通常 <60 秒；服务健康轮询 20×5 秒；本阶段无真实模型调用和观察期预算 |
 
-### 8.2 初始化与启动（目标命令，待实现）
+### 8.2 初始化与启动（已验证命令）
 
 在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。首次开发由开发者生成锁文件和脚本，验收者不负责补建环境。环境变量按上表配置；保持FAKE券商与模拟账户，真实模型仅在本阶段明确要求且预算已配置的场景调用。
 
@@ -161,11 +161,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | Web 页面与 API 复验通过 | POST/GET API，断言全部 PASS | `5386f25e-378b-4537-9f5b-34276d659102` | PASS |
-| rejection（含全部子场景） | Web 页面与 API 复验通过 | POST/GET API，FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `0f0fca6f-3a62-4c0f-86c0-02d86e834d31` | PASS |
-| recovery（含实际外部动作） | Web 页面与 API 复验通过 | POST/GET API，检查点恢复无重复 Fill | `a461ad2a-adc9-4762-95ff-8ab641a40525` | PASS |
-| Web同run只读核对与证据导出 | Web E2E 8/8 通过；V2.3 同run GET 通过 | `pnpm --filter @stockquant/web test:e2e`，退出码 0 | 见 `docs/evidence-v2.3.md` | PASS |
+| normal | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario normal --seed 20260907`，退出码 0 | `6522c574-fc20-472b-8eba-1a0b59024d9c` | PASS |
+| rejection（含全部子场景） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario rejection --seed 20260907`，退出码 0；FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `3d361eb3-e1cd-4517-9de8-5eccb88776dc` | PASS |
+| recovery（含实际外部动作） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario recovery --seed 20260907`，退出码 0；检查点恢复无重复 Fill | `49b5dc51-1a1d-40ad-9100-d290c423f386` | PASS |
+| Web同run只读核对与证据导出 | Web E2E 1/1 通过；V2.3 同run GET 通过 | `--check-only` 与 `pnpm evidence:export`，均退出码 0；Manifest `02293ca437201a36096a7e04631f5be837869a49f9bb9be490f4b64a9995002a` | `6522c574-fc20-472b-8eba-1a0b59024d9c`；`evidence/local/V2.3/6522c574-fc20-472b-8eba-1a0b59024d9c` | PASS |
 | 本阶段代码测试/实际观察适用项 | 构建、单元测试、Compose 健康检查通过 | `pnpm build`、`pnpm test`，均退出码 0 | 见 `docs/evidence-v2.3.md` | PASS |
-| 用户人工验收 | 用户明确确认通过；2026-09-09 复验一致 | 不由脚本代签 | 本会话确认 | PASS |
+| 用户人工验收 | 用户明确确认通过；2026-09-11 完整复核一致 | 不由脚本代签 | 本会话确认 / 2026-09-11 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。

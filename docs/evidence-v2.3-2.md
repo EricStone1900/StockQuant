@@ -30,3 +30,16 @@
 - 查询验证：`GET /v1/research/candidates/candidate-e6586d` 返回 HTTP 200，版本、算法、Hash 与审批人完全一致。
 - 防错验证：Qlib `0.9.5` 返回 HTTP 422；缺少显式审批返回 HTTP 202 `PENDING_APPROVAL`。
 - 持久化验证：使用候选 ID `candidate-persisted` 登记后重启 `quant-research-service`，再次查询返回 HTTP 200，记录仍存在且字段一致；数据存储于 `quant_research.research_candidates`。
+
+### 人工验收复核（2026-09-11）
+
+- 环境：Docker Compose，`BACKTEST` + `FAKE`，Fixture `v2.3-replay-bars-1`，seed `20260907`；未连接真实券商或 LIVE 账户。
+- normal：`testRunId=6522c574-fc20-472b-8eba-1a0b59024d9c`，状态 `COMPLETED`，退出码 0；成交 50 股，价格 `10.2102`，费用 `0.5105`，现金 `9488.9795`，账本条目 2。
+- rejection：`testRunId=3d361eb3-e1cd-4517-9de8-5eccb88776dc`，状态 `COMPLETED`，退出码 0；`FUTURE_DATA`、`ZERO_VOLUME`、`MISSING_BAR` 均拒绝且无 Fill。
+- recovery：`testRunId=49b5dc51-1a1d-40ad-9100-d290c423f386`，状态 `COMPLETED`，退出码 0；检查点恢复结果与参考一致，无重复 Fill。
+- 代码套件：`pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0。
+- Web E2E：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3`，1/1 通过，退出码 0。
+- 同 Run 只读核对：normal `testRunId` 使用 `--check-only`，退出码 0；未创建新订单、成交或模型调用。
+- 证据导出：目录 `evidence/local/V2.3/6522c574-fc20-472b-8eba-1a0b59024d9c`，Manifest SHA-256 `02293ca437201a36096a7e04631f5be837869a49f9bb9be490f4b64a9995002a`。
+- 候选持久化：重启服务后 `candidate-persisted` 查询 HTTP 200，状态 `CANDIDATE_APPROVED`，激活仍为 `DISABLED_UNTIL_MANDATE`。
+- 问题记录：首次复核发现量化研究验证项在单 Bar 输入下被错误标记为 FAIL，已修复为 `NOT_APPLICABLE`，重建容器后全场景复核通过；首次 Playwright 运行受 macOS 沙箱权限影响，授权重跑后通过。
