@@ -15,9 +15,17 @@
 - 多 Bar Worker 验证：三根 Bar 的 `testRunId=3c3cd9e5-3d4e-4f31-a4c1-754355c0a9e5` 逐根推进到 `cursor=3`，产生 3 笔成交，最终现金 `7661.3297`、账本条目 `4`；重复提交同一运行键返回 `replayedRun=true`，账本条目仍为 `4`。
 - 量化运行时接入验证：`testRunId=0bc6c9a5-594e-4bc9-b0f0-3a6aa4b3299a` 的多 Bar 回放调用 `quant-research-service`，返回 `status=COMPLETED`、`adapter=qlib`、`dataMode=FIXTURE`、`environmentMode=BACKTEST`、`modelCalls=NOT_RUN`，3 根 Bar/3 笔成交均被研究边界接收，Artifact SHA-256 为 `e6801008bb9ba222cfe0e70ae76bcff787e26fef999625273005ef6e894dc7a8`。
 - Web/CLI 验收：CLI `verify:stage -- --stage V2.3 --scenario normal --seed 20260910` 的 `testRunId=33e7a848-6b7d-4b26-ab04-68cc0555aa9a` 断言全 PASS；`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3` 通过 1/1，Web 页面已展示研究 Artifact 状态与哈希。
+- 独立验证容器演练：Qlib Worker `/validate` 对正确哈希返回 `PASS` 且 `independent=true`；将哈希改为 `tampered` 返回 `FAIL`，证明验证器重新计算切分与哈希并能拒绝篡改产物。
 - 持久化：重建 `platform-api-service` 后，对 normal run 执行 `pnpm verify:stage -- --stage V2.3 --run 62d779cc-7317-4653-863c-5b5c50dfd839 --check-only`，退出码 0。
 - 导出：`pnpm evidence:export -- --stage V2.3 --run 62d779cc-7317-4653-863c-5b5c50dfd839`，Manifest SHA-256：`c4d1c27436896991f858fa4096b504546a36861928ce83c6047affbdb317f619`。
 - 代码套件：`pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0。
 - 浏览器：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.3`，1/1 通过。
 
-已知限制：独立 `historical-replay-worker` 已持久运行多 Bar 粗粒度推进与检查点恢复，但尚未归入完整量化研究运行时。执行服务已提供取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描及 `COMPENSATION_REQUIRED` 补偿入口；UNKNOWN 仍需人工复核。
+已知限制：独立 `historical-replay-worker` 已持久运行多 Bar 粗粒度推进与检查点恢复，并接入确定性 Qlib 训练/独立验证边界。候选产物已支持精确版本登记和显式审批，但当前登记存储为研究服务进程内存，且 `activation=DISABLED_UNTIL_MANDATE`，未接入真实模型训练、策略完整研究运行时或任何 LIVE 激活。执行服务已提供取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描及 `COMPENSATION_REQUIRED` 补偿入口；UNKNOWN 仍需人工复核。
+
+### 候选产物登记与晋级前校验（2026-09-11）
+
+- 用户确认版本：Qlib `0.9.6`，算法 `deterministic-sma`，Artifact Hash `e6586d4135eeeed375eb521b003c346a3f16b21da5f310cdd88ed67ee21e59b7`。
+- 容器接口验证：`POST /v1/research/candidates` 携带 `x-stockquant-user=acceptance-owner-1` 返回 HTTP 201，状态 `CANDIDATE_APPROVED`，候选 ID `candidate-e6586d`，激活状态 `DISABLED_UNTIL_MANDATE`。
+- 查询验证：`GET /v1/research/candidates/candidate-e6586d` 返回 HTTP 200，版本、算法、Hash 与审批人完全一致。
+- 防错验证：Qlib `0.9.5` 返回 HTTP 422；缺少显式审批返回 HTTP 202 `PENDING_APPROVAL`。
