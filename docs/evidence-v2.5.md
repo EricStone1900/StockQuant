@@ -1,0 +1,17 @@
+# V2.5 历史数据扩容与 V2 验收证据
+
+验证日期：2026-09-11（Asia/Shanghai）。本次为小规模确定性扩容切片；数据为 `FIXTURE`，执行模式为 `BACKTEST`，券商为 `FAKE`，不代表全市场容量或收益有效性。
+
+- normal：`fe37c045-962f-40be-84b1-36d33df08184`，`COMPLETED`；20 只证券 × 60 交易日、1200 行，扩容前后规范结果 Hash 一致，PIT/Walk-forward、缓存隔离和资源预算断言通过。
+- rejection：`9996f785-fd7c-4912-b839-c6e0389f4c9f`，`COMPLETED`；超并发、跨 DataVersion 缓存和资源预算超限均拒绝，未发布半成品。
+- recovery：`0727a1c4-ed36-4ae8-9a94-543d287cdc68`，`COMPLETED`；从游标 640 恢复，重复行 0，取消任务不发布半成品并保留证据。
+- 同 Run 只读核对：normal `--check-only` 退出码 0，未创建新业务副作用。
+- 证据导出：`evidence/local/V2.5/fe37c045-962f-40be-84b1-36d33df08184`；Manifest SHA-256 `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e`。
+- Web E2E：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.5`，1/1 通过。
+- 代码/基础检查：类型检查、构建、平台单元测试 19/19、`verify:stage --suite code`、契约/Fixture/Markdown 检查通过。
+- 架构证据：`linux/amd64-emulated`；资源观测 384 MB / 4 秒，预算 1024 MB / 120 秒。
+- V2.4 20 个实际交易日观察仍由独立定时任务累计，当前门禁保持 `V2.4_20_TRADING_DAYS_PENDING`；V2.5 不据此宣称 V2 全部通过。
+
+最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
+
+已知限制：当前仅覆盖 S2 小规模 Fixture；全市场多年数据、Mac 50/80/100 监控池、真实 Ubuntu、真实财务/行业 PIT、长期容量和用户人工验收尚未完成。

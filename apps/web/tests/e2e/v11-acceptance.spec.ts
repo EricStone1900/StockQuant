@@ -89,3 +89,12 @@ test("V2.4 continuous paper page shows stale and recovery evidence", async ({ pa
   await page.getByRole("button", { name: "运行断网恢复" }).click();
   await expect(page.getByTestId("v24-evidence")).toContainText("SOURCE_DISCONNECTED");
 });
+
+test("V2.5 data scale page shows regression and recovery evidence", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.5");
+  await expect(page.getByRole("heading", { name: "V2.5 历史数据扩容与 V2 验收" })).toBeVisible();
+  await page.getByRole("button", { name: "运行扩容与模型验证" }).click();
+  await expect(page.getByTestId("v25-evidence")).toContainText("V2.5-REGRESSION-002");
+  await page.getByRole("button", { name: "运行任务恢复" }).click();
+  await expect(page.getByTestId("v25-evidence")).toContainText("V2.5-RECOVERY-001");
+});

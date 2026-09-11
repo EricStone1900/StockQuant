@@ -19,6 +19,7 @@ import { ContinuousPaperScheduler } from "../application/v24-scheduler.js";
 import { SystemClock } from "../application/v24-scheduler.js";
 import { V24LiveObservationHandler } from "../application/v24-live-observation.js";
 import { PostgresV24ObservationRepository } from "../adapters/postgres-v24-observation-repository.js";
+import { V25_SCENARIOS, V25DataScaleEngine, type V25Scenario } from "../application/v25-data-scale.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -229,6 +230,27 @@ export class V24AcceptanceController {
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.container.stageRuns.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V2.4") throw new NotFoundException("V2.4 run was not found"); return run; }
 }
 
+@Controller("api/v1/acceptance/v2/v2.5")
+export class V25AcceptanceController {
+  private readonly engine = new V25DataScaleEngine();
+  constructor(private readonly container: PlatformContainer) {}
+  @Get("scenarios") scenarios() { return V25_SCENARIOS; }
+  @Get("preview") preview() { return { stageId: "V2.5", profile: "S2", securities: 20, sessions: 60, rows: 1200, dataVersion: "v2.5-cn-minute-20x60-v1", environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE", observationGate: "V2.4_20_TRADING_DAYS_PENDING" }; }
+  @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V25Scenario; seed?: number }) {
+    const ownerId = identity(cookie, testHeader);
+    const scenarioId = body.scenarioId ?? "normal";
+    if (!V25_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.5");
+    const result = this.engine.run(scenarioId, body.seed ?? 20260907);
+    await this.container.stageRuns.save({ ...result, ownerId });
+    return { accepted: true, testRunId: result.testRunId, status: result.status };
+  }
+  @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
+    const run = await this.container.stageRuns.find(id, identity(cookie, testHeader));
+    if (!run || run.stageId !== "V2.5") throw new NotFoundException("V2.5 run was not found");
+    return run;
+  }
+}
+
 @Controller("api/v1/acceptance/v2/v2.1")
 export class V21AcceptanceController {
   private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
@@ -301,5 +323,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}
