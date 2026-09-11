@@ -1,12 +1,14 @@
-"""Small, read-only BaoStock capability probe for V2.5 evidence.
+"""Read-only BaoStock capability probe for V2.5 evidence.
 
-This intentionally samples one liquid CN symbol and a short historical window.
-It does not claim full-market coverage or permission to redistribute the data.
+The probe checks one liquid symbol's frequencies and a bounded multi-year sample
+from the published stock universe. It does not claim full-market capacity or
+permission to redistribute the data.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime
 
@@ -40,10 +42,50 @@ def run_probe() -> dict[str, object]:
             result["queries"].append(item)  # type: ignore[union-attr]
             if query.error_code != "0":
                 result["status"] = "PARTIAL"
+
+        universe_query = bs.query_all_stock(day="2024-01-05")
+        universe: list[list[str]] = []
+        while universe_query.next():
+            universe.append(universe_query.get_row_data())
+        result["universe"] = {
+            "asOf": "2024-01-05",
+            "errorCode": universe_query.error_code,
+            "message": universe_query.error_msg,
+            "rows": len(universe),
+        }
+        if universe_query.error_code != "0":
+            result["status"] = "PARTIAL"
+
+        sample_size = max(1, min(int(os.environ.get("BAOSTOCK_CAPACITY_SAMPLE", "20")), len(universe))) if universe else 0
+        capacity_queries: list[dict[str, object]] = []
+        for row in universe[:sample_size]:
+            code = row[0] if row else ""
+            if not code:
+                continue
+            capacity = bs.query_history_k_data_plus(
+                code,
+                "date,code,open,high,low,close,volume,amount",
+                start_date="2019-01-01",
+                end_date="2024-12-31",
+                frequency="d",
+                adjustflag="3",
+            )
+            rows = 0
+            first_row = None
+            last_row = None
+            while capacity.next():
+                row_data = capacity.get_row_data()
+                rows += 1
+                first_row = first_row or row_data
+                last_row = row_data
+            capacity_queries.append({"code": code, "errorCode": capacity.error_code, "rows": rows, "firstRow": first_row, "lastRow": last_row})
+            if capacity.error_code != "0":
+                result["status"] = "PARTIAL"
+        result["multiYearSample"] = {"startDate": "2019-01-01", "endDate": "2024-12-31", "sampleSize": sample_size, "queries": capacity_queries}
     finally:
         bs.logout()
     result["probedAt"] = datetime.now().astimezone().isoformat()
-    result["note"] = "Read-only capability probe; does not establish full-market years, licensing, rate limits, or redistribution rights."
+    result["note"] = "Read-only capability probe; the multi-year sample is bounded and does not establish full-market capacity, licensing, rate limits, or redistribution rights."
     return result
 
 

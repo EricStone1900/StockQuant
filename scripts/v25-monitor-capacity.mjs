@@ -7,11 +7,31 @@ const request = async (path, init) => {
   return body;
 };
 
+const candidateCodes = [
+  ["SH", 600000, 601999], ["SH", 603000, 603999], ["SH", 605000, 605999], ["SH", 688000, 688999],
+  ["SZ", 1, 3999], ["SZ", 300000, 301999]
+].flatMap(([market, first, last]) => Array.from({ length: last - first + 1 }, (_, index) => `${String(first + index).padStart(6, "0")}.${market}`));
+
+const discoverLiveUniverse = async (minimum) => {
+  const live = [];
+  for (let offset = 0; offset < candidateCodes.length && live.length < minimum; offset += 100) {
+    const securities = candidateCodes.slice(offset, offset + 100);
+    await request("/v2/watchlist", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities }) });
+    const snapshot = await request("/v2/quote/preview");
+    for (const item of snapshot.securities ?? []) {
+      if (item.status === "LIVE_SOURCE" && !live.includes(item.symbol)) live.push(item.symbol);
+    }
+  }
+  if (live.length < minimum) throw new Error(`live source universe has only ${live.length} securities; ${minimum} required`);
+  return live;
+};
+
 const original = await request("/v2/watchlist");
 const results = [];
 try {
+  const liveUniverse = await discoverLiveUniverse(100);
   for (const size of sizes) {
-    const securities = Array.from({ length: size }, (_, index) => `${String(600000 + index).padStart(6, "0")}.SH`);
+    const securities = liveUniverse.slice(0, size);
     const started = performance.now();
     const updated = await request("/v2/watchlist", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities }) });
     const snapshot = await request("/v2/quote/preview");
