@@ -2,6 +2,7 @@ name: stockquant-v12
 
 services:
   nats:
+    restart: unless-stopped
     image: nats:2.10-alpine
     command: ["-js", "-m", "8222"]
     ports:
@@ -10,6 +11,7 @@ services:
     networks: [internal]
 
   temporal:
+    restart: unless-stopped
     image: temporalio/temporal:latest
     command: ["server", "start-dev", "--ip", "0.0.0.0"]
     ports:
@@ -18,6 +20,7 @@ services:
     networks: [internal]
 
   postgres:
+    restart: unless-stopped
     image: postgres:16.9-alpine
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
@@ -34,6 +37,7 @@ services:
     networks: [internal]
 
   portfolio-risk-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/portfolio-risk-service/Dockerfile
@@ -55,6 +59,7 @@ services:
     networks: [internal]
 
   platform-api-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/platform-api-service/Dockerfile
@@ -72,6 +77,7 @@ services:
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
+      STOCKQUANT_V24_AUTO_START: "true"
       STOCKQUANT_NATS_URL: nats://nats:4222
       STOCKQUANT_NATS_SUBJECT: stockquant.v1.5.events
       STOCKQUANT_TEMPORAL_ADDRESS: temporal:7233
@@ -100,6 +106,7 @@ services:
     networks: [internal]
 
   trade-execution-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/trade-execution-service/Dockerfile
@@ -126,6 +133,7 @@ services:
     networks: [internal]
 
   decision-governance-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/decision-governance-service/Dockerfile
@@ -145,6 +153,7 @@ services:
     networks: [internal]
 
   historical-replay-worker:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/historical-replay-worker/Dockerfile
@@ -174,6 +183,7 @@ services:
     networks: [internal]
 
   market-data-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/market-data-service/Dockerfile
@@ -194,6 +204,7 @@ services:
     networks: [internal]
 
   quant-research-service:
+    restart: unless-stopped
     build:
       context: ../..
       dockerfile: services/quant-research-service/Dockerfile
@@ -221,6 +232,7 @@ services:
     networks: [internal]
 
   qlib-worker:
+    restart: unless-stopped
     platform: linux/amd64
     build:
       context: ../../services/quant-research-service
@@ -238,6 +250,7 @@ services:
     networks: [internal]
 
   web:
+    restart: unless-stopped
     profiles: [web]
     build:
       context: ../..

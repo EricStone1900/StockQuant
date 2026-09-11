@@ -47,6 +47,13 @@ export class PostgresFakeBrokerRepository {
   }
 
   async find(orderId: string) { const result = await this.pool.query<any>("SELECT order_id,status,rejection_reason FROM fake_broker_orders WHERE order_id=$1", [orderId]); return result.rows[0] ?? null; }
+  async reconciliationSummary(namespace: string) {
+    const result = await this.pool.query<any>(`SELECT count(*)::int AS order_count, count(*) FILTER (WHERE status IN ('UNKNOWN','LEDGER_PENDING'))::int AS unresolved_order_count,
+      (SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o ON o.order_id=f.order_id WHERE o.namespace=$1) AS fill_count,
+      (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1 AND x.status <> 'DELIVERED') AS pending_outbox_count
+      FROM fake_broker_orders WHERE namespace=$1`, [namespace]);
+    return { namespace, brokerMode: "FAKE", ...result.rows[0] };
+  }
   async cancel(orderId: string) { const result = await this.pool.query<any>(`UPDATE fake_broker_orders SET status=CASE WHEN status IN ('FILLED','REJECTED','CANCELLED','EXPIRED') THEN status WHEN status='CANCEL_REQUESTED' THEN 'CANCELLED' ELSE 'CANCEL_REQUESTED' END WHERE order_id=$1 RETURNING order_id,status`, [orderId]); if (result.rowCount === 1) await this.pool.query("INSERT INTO fake_broker_order_events (event_id,order_id,status) VALUES ($1,$2,$3)", [randomUUID(), orderId, result.rows[0].status]); return result.rows[0] ?? null; }
   async transition(orderId: string, status: "EXPIRED" | "UNKNOWN", reason: string) { const result = await this.pool.query<any>(`UPDATE fake_broker_orders SET status=$2 WHERE order_id=$1 AND status NOT IN ('FILLED','REJECTED','CANCELLED','EXPIRED') RETURNING order_id,status`, [orderId, status]); if (result.rowCount === 1) await this.pool.query("INSERT INTO fake_broker_order_events (event_id,order_id,status,reason) VALUES ($1,$2,$3,$4)", [randomUUID(), orderId, status, reason]); return result.rows[0] ?? null; }
   async pendingFill(orderId: string) {

@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Res, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Query, Res, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { readFile } from "node:fs/promises";
@@ -16,6 +16,9 @@ import { runTemporalProbe } from "../integration/temporal-runtime.js";
 import { V23_SCENARIOS, V23ReplayEngine, parseReplayBars, type V23Scenario } from "../application/v23-replay.js";
 import { V24_SCENARIOS, V24ContinuousPaperEngine, type V24Scenario } from "../application/v24-continuous-paper.js";
 import { ContinuousPaperScheduler } from "../application/v24-scheduler.js";
+import { SystemClock } from "../application/v24-scheduler.js";
+import { V24LiveObservationHandler } from "../application/v24-live-observation.js";
+import { PostgresV24ObservationRepository } from "../adapters/postgres-v24-observation-repository.js";
 
 const localUser = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 
@@ -36,6 +39,9 @@ export class PlatformContainer {
   readonly runner = new ScenarioRunner(this.repository, process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001");
   readonly executionUrl = process.env.STOCKQUANT_TRADE_EXECUTION_URL ?? "http://127.0.0.1:3005";
   readonly replayWorkerUrl = process.env.STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL ?? "http://127.0.0.1:3006";
+  readonly marketDataUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+  readonly v24Observation = new PostgresV24ObservationRepository(this.pool);
+  readonly scheduler = new ContinuousPaperScheduler(new SystemClock(), this.v24Observation, new V24LiveObservationHandler(this.v24Observation, this.marketDataUrl, this.executionUrl));
 
   async ready(): Promise<void> {
     await this.pool.query("SELECT 1");
@@ -45,6 +51,13 @@ export class PlatformContainer {
     if (!execution.ok) throw new Error("execution dependency is unavailable");
     const replayWorker = await fetch(`${this.replayWorkerUrl}/ready`);
     if (!replayWorker.ok) throw new Error("replay worker dependency is unavailable");
+    if (process.env.STOCKQUANT_V24_AUTO_START === "true" && this.scheduler.status().status !== "RUNNING") {
+      throw new Error("V2.4 continuous Paper scheduler is not running");
+    }
+  }
+
+  async migrateV24(): Promise<void> {
+    await this.v24Observation.migrate();
   }
 }
 
@@ -201,16 +214,18 @@ export class V15AcceptanceController { private readonly runs = new Map<string, R
 @Controller("api/v1/acceptance/v2/v2.4")
 export class V24AcceptanceController {
   private readonly engine = new V24ContinuousPaperEngine();
-  private readonly scheduler = new ContinuousPaperScheduler();
+  private readonly scheduler: ContinuousPaperScheduler;
   private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
   @Get("scenarios") scenarios() { return V24_SCENARIOS; }
   @Get("preview") preview() { return { stageId: "V2.4", environmentMode: "PAPER", dataMode: "LIVE_SOURCE_SMOKE", brokerMode: "FAKE", samplingIntervalMinutes: 30, executionWindow: "09:31-09:35", observationDays: 0, liveTradingEnabled: false }; }
   @Get("scheduler/status") schedulerStatus() { return this.scheduler.status(); }
-  @Post("scheduler/start") @HttpCode(202) schedulerStart() { return { accepted: true, scheduler: this.scheduler.start() }; }
-  @Post("scheduler/stop") schedulerStop() { return this.scheduler.stop(); }
-  @Post("scheduler/tick") schedulerTick() { return this.scheduler.tick(); }
+  @Get("observations") observations() { return this.container.v24Observation.listObservations(); }
+  @Get("observation-events") observationEvents(@Query("limit") limit?: string) { const parsed = Number(limit); return this.container.v24Observation.listEvents(Number.isFinite(parsed) && parsed > 0 ? Math.min(5000, Math.floor(parsed)) : 1000); }
+  @Post("scheduler/start") @HttpCode(202) async schedulerStart() { return { accepted: true, scheduler: await this.scheduler.start() }; }
+  @Post("scheduler/stop") async schedulerStop() { return this.scheduler.stop(); }
+  @Post("scheduler/tick") async schedulerTick() { return this.scheduler.tick(); }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V24Scenario; seed?: number }) { const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId; if (!V24_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.4"); const run = this.engine.run(scenarioId as V24Scenario, body.seed ?? 20260907); const source = scenarioId === "normal" ? await fetch(`${this.marketUrl}/v2/quote/preview`).then((response) => response.json()).catch(() => ({ status: "STALE" })) : null; const evidence = { ...run, source: source ? { ...(run.source ?? {}), liveProbe: source.sourceId ?? "tencent-quote", probeStatus: source.status ?? "LIVE_SOURCE_SMOKE" } : run.source }; const namespace = `v2-4-${scenarioId}-${run.testRunId}`; await this.container.stageRuns.save({ ...run, ownerId, stageId: "V2.4", scenarioVersion: "1.0.0", namespace, evidence }); return { accepted: true, testRunId: run.testRunId, status: run.status }; }
-  constructor(private readonly container: PlatformContainer) {}
+  constructor(private readonly container: PlatformContainer) { this.scheduler = container.scheduler; }
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.container.stageRuns.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V2.4") throw new NotFoundException("V2.4 run was not found"); return run; }
 }
 

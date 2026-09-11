@@ -20,13 +20,13 @@ describe("V2.4 continuous paper scenarios", () => {
     expect(run.status).toBe("COMPLETED");
     expect(run.recovery).toMatchObject({ missedWindowOrders: 0, reconciliationBeforeResume: true });
   });
-  it("uses an injected clock for deterministic sampling ticks", () => {
+  it("uses an injected clock for deterministic sampling ticks", async () => {
     const clock: Clock = { now: () => new Date("2026-09-11T01:00:00.000Z") };
     const scheduler = new ContinuousPaperScheduler(clock);
-    expect(scheduler.start().status).toBe("RUNNING");
+    expect((await scheduler.start()).status).toBe("RUNNING");
     expect(scheduler.status().lastSampleAt).toBe("2026-09-11T01:00:00.000Z");
     expect(scheduler.status().tickCount).toBe(1);
-    scheduler.stop();
+    await scheduler.stop();
     expect(scheduler.status().status).toBe("STOPPED");
   });
 });

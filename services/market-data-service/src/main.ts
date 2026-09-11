@@ -13,6 +13,21 @@ const artifactTasks = new Map<string, { status: "RUNNING" | "CANCELLED" | "PUBLI
 const minuteImports = new Map<string, { importId: string; version: string; status: string; accepted: number; errors: unknown[]; sha256: string }>();
 let watchlist: string[] = ["600000.SH", "000001.SZ", "600519.SH"];
 let samplingMinutes = 30;
+// Source: SSE 2026 holiday notice (上证公告〔2025〕45号).  This is a
+// versioned, deliberately small calendar for the V2.4 observation period;
+// callers receive UNKNOWN rather than silently treating dates outside its
+// authority as trading days.
+const cnAShareCalendar2026 = {
+  version: "sse-cn-a-share-2026-1",
+  source: "https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml",
+  closedRanges: [["2026-01-01", "2026-01-04"], ["2026-02-14", "2026-02-23"], ["2026-04-04", "2026-04-06"], ["2026-05-01", "2026-05-05"], ["2026-06-19", "2026-06-21"], ["2026-09-25", "2026-09-27"], ["2026-10-01", "2026-10-07"]]
+} as const;
+function cnAShareSession(date: string) {
+  if (!/^2026-\d\d-\d\d$/.test(date)) return { date, status: "UNKNOWN", calendarVersion: cnAShareCalendar2026.version, reason: "calendar coverage is limited to 2026" };
+  const day = new Date(`${date}T12:00:00+08:00`).getDay();
+  const holiday = cnAShareCalendar2026.closedRanges.some(([start, end]) => date >= start && date <= end);
+  return { date, status: day === 0 || day === 6 || holiday ? "CLOSED" : "TRADING", calendarVersion: cnAShareCalendar2026.version, source: cnAShareCalendar2026.source, sessions: [{ start: "09:30", end: "11:30" }, { start: "13:00", end: "15:00" }] };
+}
 const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: number }>;
 for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
 
@@ -30,7 +45,7 @@ async function json(res: ServerResponse, body: unknown, status = 200) { res.writ
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "FIXTURE" });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true });
     if (req.url === "/v2/sources" && req.method === "GET") return json(res, { sources: [
       { sourceId: "tencent-quote", kind: "QUOTE", url: "https://qt.gtimg.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },
       { sourceId: "sina-quote", kind: "QUOTE", url: "https://hq.sinajs.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },
@@ -38,6 +53,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       { sourceId: "cls-rss", kind: "NEWS", url: "https://www.cls.cn", status: "CONFIGURED", license: "public news pages; verify terms before production" }
     ].map((source) => ({ ...source, circuit: sourceState.get(source.sourceId)?.status ?? "HEALTHY" })), checkedAt: new Date().toISOString(), note: "Endpoint capability is verified by configured URL; production licensing and rate limits remain deployment checks." });
     if (req.url === "/v2/sampling" && req.method === "GET") return json(res, { intervalMinutes: samplingMinutes, allowed: [20, 30], tradingWindows: [{ name: "morning", start: "09:30", end: "11:30" }, { name: "afternoon", start: "13:00", end: "15:00" }], lunchBreak: ["11:30", "13:00"], placeOrders: false });
+    const calendarMatch = req.url?.match(/^\/v2\/calendar\/cn-a-share\/(\d{4}-\d{2}-\d{2})$/);
+    if (calendarMatch && req.method === "GET") return json(res, cnAShareSession(calendarMatch[1]));
     if (req.url === "/v2/sampling" && req.method === "PUT") { const body = JSON.parse(await readBody(req)); const value = Number(body.intervalMinutes); if (![20, 30].includes(value)) return json(res, { code: "INVALID_SAMPLING_INTERVAL", allowed: [20, 30] }, 422); samplingMinutes = value; return json(res, { intervalMinutes: samplingMinutes, placeOrders: false }); }
     const breakerMatch = req.url?.match(/^\/v2\/sources\/([^/]+)\/(fail|recover)$/);
     if (breakerMatch && req.method === "POST") { const state = sourceState.get(breakerMatch[1]); if (!state) return json(res, { code: "SOURCE_NOT_FOUND" }, 404); if (breakerMatch[2] === "fail") { state.failures += 1; state.status = "OPEN"; } else { state.failures = 0; state.status = "HEALTHY"; } return json(res, { sourceId: breakerMatch[1], circuit: state.status, failures: state.failures }); }
@@ -58,7 +75,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/quote/preview" && req.method === "GET") {
       const symbols = watchlist.slice(0, 100); const codes = symbols.map((symbol) => `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`).join(",");
-      try { const response = await fetch(`https://qt.gtimg.cn/q=${codes}`, { signal: AbortSignal.timeout(5000) }); const text = await response.text(); const securities = symbols.map((symbol) => { const code = `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`; const match = text.match(new RegExp(`v_${code}="([^\"]*)`)); const fields = match?.[1]?.split("~") ?? []; return { symbol, price: Number(fields[3] ?? 0), name: fields[1] ?? null, observedAt: new Date().toISOString(), status: match ? "LIVE_SOURCE" : "MISSING" }; }); return json(res, { sourceId: "tencent-quote", securities, count: securities.length }); } catch (error) { return json(res, { sourceId: "tencent-quote", status: "STALE", securities: symbols, error: error instanceof Error ? error.message : "unknown" }); }
+      try { const response = await fetch(`https://qt.gtimg.cn/q=${codes}`, { signal: AbortSignal.timeout(5000) }); const text = await response.text(); const ingestedAt = new Date().toISOString(); const securities = symbols.map((symbol) => { const code = `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`; const match = text.match(new RegExp(`v_${code}="([^\"]*)`)); const fields = match?.[1]?.split("~") ?? []; const rawTimestamp = fields[30] ?? ""; const timestampMatch = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(rawTimestamp); const observedAt = timestampMatch ? `${timestampMatch[1]}-${timestampMatch[2]}-${timestampMatch[3]}T${timestampMatch[4]}:${timestampMatch[5]}:${timestampMatch[6]}+08:00` : null; return { symbol, price: Number(fields[3] ?? 0), name: fields[1] ?? null, observedAt, ingestedAt, status: match && observedAt ? "LIVE_SOURCE" : "MISSING_TIMESTAMP" }; }); return json(res, { sourceId: "tencent-quote", securities, count: securities.length, ingestedAt }); } catch (error) { return json(res, { sourceId: "tencent-quote", status: "STALE", securities: symbols, ingestedAt: new Date().toISOString(), error: error instanceof Error ? error.message : "unknown" }); }
     }
     if (req.url === "/v2/news/preview" && req.method === "GET") return json(res, { items: [{ newsId: "v2-news-001", sourceId: "eastmoney-rss", title: "示例公告（验收样本）", publishedAt: "2026-09-09T00:00:00Z", revision: 1, symbols: ["600000.SH"] }], deduplicated: true, sourceStatus: "CONFIGURED" });
     if (req.url === "/v2/news/live" && req.method === "GET") {

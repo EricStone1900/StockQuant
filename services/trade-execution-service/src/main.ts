@@ -33,10 +33,12 @@ createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/live") return json(response, 200, { status: "live", service: "trade-execution-service", brokerMode: "FAKE" });
   if (request.method === "GET" && request.url === "/ready") { try { await pool.query("SELECT 1"); return json(response, 200, { status: "ready", service: "trade-execution-service", brokerMode: "FAKE" }); } catch { return json(response, 503, { status: "unavailable" }); } }
   const orderMatch = request.url?.match(/^\/internal\/v1\/orders\/([^/]+)$/);
+  const reconciliationMatch = request.url?.match(/^\/internal\/v1\/reconciliation\/summary\?namespace=([^&]+)$/);
   const outboxMatch = request.url?.match(/^\/internal\/v1\/orders\/([^/]+)\/outbox$/);
   const compensateMatch = request.url?.match(/^\/internal\/v1\/outbox\/([^/]+)\/compensate$/);
   const cancelMatch = request.url?.match(/^\/internal\/v1\/orders\/([^/]+)\/cancel$/);
   if (request.headers["x-stockquant-service-id"] !== allowedServiceId) return json(response, 403, { error: "service identity is not allowed" });
+  if (request.method === "GET" && reconciliationMatch) return json(response, 200, await broker.reconciliationSummary(decodeURIComponent(reconciliationMatch[1])));
   if (request.method === "GET" && orderMatch) { const order = await broker.find(orderMatch[1]); return order ? json(response, 200, order) : json(response, 404, { error:"order not found" }); }
   if (request.method === "GET" && outboxMatch) { const event = await broker.outboxStatus(outboxMatch[1]); return json(response, 200, event ?? { state: "EMPTY" }); }
   if (request.method === "POST" && compensateMatch) {

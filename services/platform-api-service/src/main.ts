@@ -15,6 +15,10 @@ async function bootstrap() {
   const container = app.get(PlatformContainer);
   await container.repository.migrate();
   await container.stageRuns.migrate();
+  await container.migrateV24();
+  if (process.env.STOCKQUANT_V24_AUTO_START === "true") {
+    await container.scheduler.start();
+  }
   await app.listen(Number(process.env.STOCKQUANT_PORT ?? 3000), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
 }
 
