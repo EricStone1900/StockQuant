@@ -55,14 +55,14 @@ Mac睡眠会形成真实采集断档；加速测试通过不能声称连续在�
 - [x] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，观察期明确列为范围外未完成项。
 - [x] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码和断言证据。
 - [x] 重复/恢复验证完成；20 个实际交易日观察仍 `NOT_RUN`。
-- [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
+- [x] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论；20 个实际交易日观察仍 `NOT_RUN`。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
 
 ## 8. 阶段验收操作手册
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（确定性场景自动检查已实现并通过；20 个实际交易日观察和人工 Web 验收仍待完成）。
+手册状态：VERIFIED_EXECUTABLE（确定性场景自动检查及实现范围人工 Web 验收已通过；20 个实际交易日观察仍待完成）。
 
 前置服务：实际来源采集、SystemClock调度、FakeBroker/核心链路、日终对账和告警。
 
@@ -162,11 +162,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 自动场景通过；Web人工待执行 | `pnpm verify:stage -- --stage V2.4 --scenario normal --seed 20260907`，退出码 0 | `260a9677-5f0f-4ed0-94f2-00174f4e9f99` | PASS（自动）/ NOT_RUN（人工） |
-| rejection（含全部子场景） | 自动场景通过；Web人工待执行 | `pnpm verify:stage -- --stage V2.4 --scenario rejection --seed 20260907`，退出码 0 | `6d432a9e-4a64-4059-b902-e824be0e92f3` | PASS（自动）/ NOT_RUN（人工） |
-| recovery（含实际外部动作） | 自动场景通过；实际交易日观察待执行 | `pnpm verify:stage -- --stage V2.4 --scenario recovery --seed 20260907`，退出码 0 | `97383867-73a3-41da-897d-a59efa84b5dc` | PASS（自动）/ NOT_RUN（观察） |
-| Web同run只读核对与证据导出 | 同 Run 核对和导出通过 | `--check-only` 与 `pnpm evidence:export`，退出码 0；Manifest `6a3e1db59f2d6e9b34e9f0e331295bb3ad4a9e5b27669895277d0bcae05d09c1` | `a947f7d0-8b55-43ac-a522-e8007fa38ff1` | PASS |
+| normal | 自动场景及人工验收通过 | `pnpm verify:stage -- --stage V2.4 --scenario normal --seed 20260907`，退出码 0 | `755cb415-0f1d-433a-aaa4-6378d5e7f1cf` | PASS |
+| rejection（含全部子场景） | 自动场景及人工验收通过 | `pnpm verify:stage -- --stage V2.4 --scenario rejection --seed 20260907`，退出码 0 | `ac6e5e4a-cdfc-4a54-9731-4f3bce0e0f52` | PASS |
+| recovery（含实际外部动作） | 自动场景通过；20日观察待执行 | `pnpm verify:stage -- --stage V2.4 --scenario recovery --seed 20260907`，退出码 0 | `8bb6606e-96c0-4ca4-8deb-9df40c0bbbb9` | PASS（自动/人工）/ NOT_RUN（观察） |
+| Web同run只读核对与证据导出 | 同 Run 核对和导出通过 | `--check-only` 与 `pnpm evidence:export`，退出码 0；Manifest `5e7bf52c19d4167846673ca581216337af3f03133a9cd1392ed1c55e140d0842` | `755cb415-0f1d-433a-aaa4-6378d5e7f1cf` | PASS |
 | 本阶段代码测试/实际观察适用项 | 代码套件和 Web E2E 通过；20 日观察未开始 | `pnpm verify:stage -- --stage V2.4 --suite code`、`pnpm test:e2e -- --stage V2.4`，均退出码 0 | 见 `docs/evidence-v2.4.md` | PASS（代码）/ NOT_RUN（观察） |
-| 用户人工验收 | 待用户实际 Web 操作确认 | 不由脚本代签 | 待填写 | NOT_RUN |
+| 用户人工验收 | 用户确认 Web 与命令证据通过（本会话） | 不由脚本代签；确认日期 2026-09-11 | `755cb415-0f1d-433a-aaa4-6378d5e7f1cf`、`ac6e5e4a-cdfc-4a54-9731-4f3bce0e0f52`、`8bb6606e-96c0-4ca4-8deb-9df40c0bbbb9` | PASS（实现范围） |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。

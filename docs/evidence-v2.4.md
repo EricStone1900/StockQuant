@@ -14,3 +14,16 @@
 - SystemClock 调度器：容器接口依次返回 `STOPPED → RUNNING → Tick → STOPPED`；启动时 `tickCount=1`，手动 Tick 后为 `2`，采样间隔 30 分钟、执行窗口 `09:31-09:35`，`mode=PAPER`、`brokerMode=FAKE`。
 
 已知限制：持续调度目前是验收用确定性切片，真实交易日观察、长期来源许可/稳定性和全量容量仍待完成；`LIVE` 激活始终关闭。
+
+## 最终完整复核（2026-09-11）
+
+在用户人工验收通过后重新执行完整验证，生成以下新证据：
+
+- normal：`755cb415-0f1d-433a-aaa4-6378d5e7f1cf`，`COMPLETED`。
+- rejection：`ac6e5e4a-cdfc-4a54-9731-4f3bce0e0f52`，`COMPLETED`。
+- recovery：`8bb6606e-96c0-4ca4-8deb-9df40c0bbbb9`，`COMPLETED`。
+- 调度器状态链路：`STOPPED → RUNNING → Tick → STOPPED`，启动自动 tick 后手动 tick，计数由 1 增至 2。
+- 代码套件、Web E2E（1/1）、同 Run `--check-only`、证据导出及服务重启后的 TestRun 查询均通过；重启后 normal 仍为 `V2.4/COMPLETED`。
+- 最新导出目录：`evidence/local/V2.4/755cb415-0f1d-433a-aaa4-6378d5e7f1cf`；Manifest SHA-256：`5e7bf52c19d4167846673ca581216337af3f03133a9cd1392ed1c55e140d0842`。
+- 用户已确认人工验收通过（本会话，2026-09-11）；20 个实际交易日观察仍为 `NOT_RUN`，因此阶段总体仍为 `PARTIALLY_IMPLEMENTED`。
+- 复核项目级门禁时发现仓库当前未提供 `verify:version` 和 `verify:compat` npm scripts（`pnpm` 退出码 1）；这两项不能宣称通过，保留为后续版本门禁缺口。
