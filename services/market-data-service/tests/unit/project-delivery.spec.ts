@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DataVersionConflict, FairProjectQuota, ProjectAccessDenied, ProjectQuotaExceeded, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey } from "../../src/application/project-delivery.js";
+import { DataVersionConflict, FairProjectQuota, FairQueueMetrics, ProjectAccessDenied, ProjectQuotaExceeded, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey } from "../../src/application/project-delivery.js";
 
 describe("project delivery rules", () => {
   it("enforces project ownership and scopes", () => {
@@ -30,5 +30,13 @@ describe("project delivery rules", () => {
     const exported = exportWithManifest("stockquant", "v1", [1, 2]);
     expect(exported.rowCount).toBe(2);
     expect(exported.sha256).toHaveLength(64);
+    expect(exported.items).toEqual([1, 2]);
+  });
+  it("records fair queue metrics and redacts credentials from exports", () => {
+    const metrics = new FairQueueMetrics();
+    metrics.record("a", "queued"); metrics.record("a", "rejected"); metrics.record("a", "admitted");
+    expect(metrics.snapshot("a")).toEqual({ projectId: "a", queued: 1, admitted: 1, rejected: 1 });
+    const exported = exportWithManifest("a", "v1", [{ value: 1, token: "secret", nested: { authorization: "bearer" } }]);
+    expect(exported.items).toEqual([{ value: 1, nested: {} }]);
   });
 });

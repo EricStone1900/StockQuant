@@ -34,6 +34,17 @@ export class FairProjectQuota {
   activeCount(projectId: string): number { return this.active.get(projectId) ?? 0; }
 }
 
+export type QueueMetric = { projectId: string; queued: number; admitted: number; rejected: number };
+export class FairQueueMetrics {
+  private readonly metrics = new Map<string, QueueMetric>();
+  record(projectId: string, event: "queued" | "admitted" | "rejected"): void {
+    const current = this.metrics.get(projectId) ?? { projectId, queued: 0, admitted: 0, rejected: 0 };
+    current[event] += 1;
+    this.metrics.set(projectId, current);
+  }
+  snapshot(projectId: string): QueueMetric { return { ...(this.metrics.get(projectId) ?? { projectId, queued: 0, admitted: 0, rejected: 0 }) }; }
+}
+
 export function physicalDedupeKey(input: { source: string; market: string; securityId: string; frequency: string; adjustment: string; windowStart: string; windowEnd: string; adapterVersion: string }): string {
   return [input.source, input.market, input.securityId, input.frequency, input.adjustment, input.windowStart, input.windowEnd, input.adapterVersion].join("|");
 }
@@ -48,6 +59,16 @@ export function paginateVersioned<T>(items: T[], dataVersion: string, requestedV
 }
 
 export function exportWithManifest<T>(projectId: string, dataVersion: string, items: T[]): { projectId: string; dataVersion: string; rowCount: number; sha256: string; items: T[] } {
-  const content = JSON.stringify(items);
-  return { projectId, dataVersion, rowCount: items.length, sha256: createHash("sha256").update(content).digest("hex"), items };
+  const safeItems = redactExportItems(items);
+  const content = JSON.stringify(safeItems);
+  return { projectId, dataVersion, rowCount: safeItems.length, sha256: createHash("sha256").update(content).digest("hex"), items: safeItems };
+}
+
+const REDACTED_FIELDS = new Set(["token", "projectToken", "sourceCredential", "rawResponse", "authorization"]);
+export function redactExportItems<T>(items: T): T {
+  if (Array.isArray(items)) return items.map((item) => redactExportItems(item)) as T;
+  if (!items || typeof items !== "object") return items;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(items as Record<string, unknown>)) if (!REDACTED_FIELDS.has(key)) result[key] = redactExportItems(value);
+  return result as T;
 }

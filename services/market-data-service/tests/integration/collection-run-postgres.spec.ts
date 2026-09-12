@@ -176,5 +176,8 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(projects.reserveRun(projectId)).rejects.toBeInstanceOf(ProjectQuotaRepositoryError);
     await projects.releaseRun(projectId);
     await expect(projects.reserveRun(projectId)).resolves.toBeTruthy();
+    await projects.recordQueueMetric(projectId, "admitted");
+    await projects.recordQueueMetric(projectId, "rejected");
+    expect(await projects.queueMetrics(projectId)).toMatchObject({ projectId, admitted: 1, rejected: 1 });
   });
 });

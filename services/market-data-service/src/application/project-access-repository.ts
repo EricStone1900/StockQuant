@@ -25,6 +25,13 @@ export class ProjectAccessRepository {
         active_runs INTEGER NOT NULL DEFAULT 0 CHECK (active_runs >= 0),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+      CREATE TABLE IF NOT EXISTS market_data_project_queue_metrics (
+        project_id TEXT PRIMARY KEY REFERENCES market_data_projects(project_id),
+        queued BIGINT NOT NULL DEFAULT 0,
+        admitted BIGINT NOT NULL DEFAULT 0,
+        rejected BIGINT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
     `);
   }
 
@@ -55,6 +62,16 @@ export class ProjectAccessRepository {
 
   async releaseRun(projectId: string): Promise<void> {
     await this.pool.query("UPDATE market_data_projects SET active_runs=GREATEST(active_runs-1,0), updated_at=now() WHERE project_id=$1", [projectId]);
+  }
+
+  async recordQueueMetric(projectId: string, event: "queued" | "admitted" | "rejected"): Promise<void> {
+    await this.pool.query(`INSERT INTO market_data_project_queue_metrics (project_id, ${event}) VALUES ($1,1) ON CONFLICT (project_id) DO UPDATE SET ${event}=market_data_project_queue_metrics.${event}+1, updated_at=now()`, [projectId]);
+  }
+
+  async queueMetrics(projectId: string): Promise<{ projectId: string; queued: number; admitted: number; rejected: number }> {
+    const result = await this.pool.query<QueryResultRow & { queued: number; admitted: number; rejected: number }>("SELECT queued, admitted, rejected FROM market_data_project_queue_metrics WHERE project_id=$1", [projectId]);
+    const row = result.rows[0];
+    return { projectId, queued: Number(row?.queued ?? 0), admitted: Number(row?.admitted ?? 0), rejected: Number(row?.rejected ?? 0) };
   }
 
   private map(row: ProjectRow): StoredProject {

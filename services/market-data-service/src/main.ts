@@ -195,6 +195,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const actor = await projectActorForRequest(req);
       if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
       assertProjectAccess(actor, body.projectId, "DATA_READ");
+      if (projectAccessRepository) await projectAccessRepository.recordQueueMetric(actor.projectId, "admitted");
       return json(res, paginateVersioned(body.items, body.dataVersion, body.dataVersion, Number(body.cursor ?? 0), Number(body.pageSize ?? 100)));
     }
     if (req.url === "/v2/data/export" && req.method === "POST") {
@@ -203,6 +204,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
       assertProjectAccess(actor, body.projectId, "DATA_EXPORT");
       return json(res, exportWithManifest(body.projectId, body.dataVersion, body.items));
+    }
+    if (req.url === "/v2/projects/queue-metrics" && req.method === "GET") {
+      const actor = await projectActorForRequest(req);
+      if (!actor) return json(res, { code: "UNAUTHENTICATED" }, 401);
+      return json(res, projectAccessRepository ? await projectAccessRepository.queueMetrics(actor.projectId) : { projectId: actor.projectId, queued: 0, admitted: 0, rejected: 0 });
     }
     if (req.url === "/v2/data/dedupe-key" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { source?: string; market?: string; securityId?: string; frequency?: string; adjustment?: string; windowStart?: string; windowEnd?: string; adapterVersion?: string };
