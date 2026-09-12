@@ -51,3 +51,11 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1` 与
 2026-09-12 已停用 18 条历史测试订阅，并创建唯一正式订阅
 `dc08a-20260914-short-v1`（2026-09-14 至 2026-09-16）。使用 `--check-only` 验证返回
 `READY_TO_ENABLE`、退出码 0；服务仍保持关闭。激活测试 4/4 PASS。
+
+## 自动观察证据
+
+已实现 `pnpm dc08a:observe`。该只读脚本从 `/ready` 和 PostgreSQL 汇总订阅、运行状态、
+Artifact 行数、未发送 Outbox 和开放缺口，并将带时间戳的
+`evidence/dc08a/observation-*.json` 保存为 `dc08a-observation-v1` 记录。
+2026-09-12 首份基线报告显示：唯一正式订阅已启用，服务健康但执行器仍关闭，运行数为 0，
+状态为 `NOT_ACTIVE`；观察脚本测试 3/3 PASS。
