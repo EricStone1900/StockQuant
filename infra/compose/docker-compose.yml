@@ -186,6 +186,8 @@ services:
 
   market-data-service:
     restart: unless-stopped
+    cpus: "1.0"
+    mem_limit: 1g
     build:
       context: ../..
       dockerfile: services/market-data-service/Dockerfile
