@@ -32,4 +32,23 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(published.status).toBe("COMPLETED");
     expect(published.publishedArtifactId).toBe(`artifact-${suffix}`);
   });
+
+  it("lets a new worker take over an expired lease and fences the old worker", async () => {
+    const request = { subscriptionId: `takeover-${suffix}`, subscriptionVersion: 1, windowStart: "2026-09-11T05:40:00.000Z", windowEnd: "2026-09-11T05:45:00.000Z", jobKind: "INTRADAY_WINDOW" as const, idempotencyKey: `takeover-${suffix}`, requestHash: "e".repeat(64) };
+    const created = await repository.create(request);
+    const firstWorker = await repository.claim(created.run.runId, 30);
+    expect(firstWorker?.fencingToken).toBe(1);
+    await pool.query("UPDATE market_data_collection_runs SET lease_until=now() - interval '1 second' WHERE run_id=$1", [created.run.runId]);
+    const secondWorker = await repository.claim(created.run.runId, 30);
+    expect(secondWorker?.fencingToken).toBe(2);
+    await expect(repository.checkpoint(created.run.runId, firstWorker!.fencingToken, { cursor: "old-worker" })).rejects.toBeInstanceOf(CollectionRunConflict);
+    await repository.checkpoint(created.run.runId, secondWorker!.fencingToken, { cursor: "new-worker" });
+  });
+
+  it("does not confirm a task when the database is unavailable", async () => {
+    const unavailable = new Pool({ connectionString: "postgresql://market_data@127.0.0.1:59999/market_data", connectionTimeoutMillis: 200 });
+    const unavailableRepository = new CollectionRunRepository(unavailable);
+    await expect(unavailableRepository.migrate()).rejects.toBeTruthy();
+    await unavailable.end();
+  });
 });

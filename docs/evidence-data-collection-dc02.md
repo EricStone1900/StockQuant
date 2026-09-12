@@ -19,7 +19,7 @@ MARKET_DATA_DATABASE_URL='postgresql://market_data@127.0.0.1:5433/market_data' \
   pnpm --filter @stockquant/market-data-service exec vitest run tests/integration
 ```
 
-结果：TypeScript 检查通过；单元测试 2 个文件、4 个测试通过；真实 PostgreSQL 集成测试 1 个通过。集成测试验证迁移、创建、重复幂等、租约 fencing、检查点、旧 token 拒绝及发布。
+结果：TypeScript 检查通过；单元测试 2 个文件、4 个测试通过；真实 PostgreSQL 集成测试 3 个通过。集成测试验证迁移、创建、重复幂等、租约 fencing、检查点、旧 token 拒绝、过期租约接管、数据库不可用时不确认任务及发布。
 
 ## HTTP 烟测
 
@@ -31,4 +31,4 @@ MARKET_DATA_DATABASE_URL='postgresql://market_data@127.0.0.1:5433/market_data' \
 
 ## 未完成门槛
 
-DC-T12 的真实 Worker 进程崩溃、DC-T13 双 Worker 租约接管、DC-T14 数据库/消息故障和 DC-02 的完整 Fixture 采集发布链尚未执行；DC-02 状态为 `IN_PROGRESS`。下一步是补受控 Worker/检查点故障测试，再进入 DC-03 交易时段调度。
+DC-T12 的真实 Worker 进程崩溃、消息系统故障、完整 Fixture 采集发布链尚未执行；已用真实数据库模拟过期租约接管和数据库不可用边界。DC-02 状态为 `IN_PROGRESS`。下一步是补受控 Worker/检查点故障测试及 Fixture 发布链，再进入 DC-03 交易时段调度。

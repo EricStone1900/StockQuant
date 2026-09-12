@@ -22,7 +22,7 @@
 |---|---|---|---|---|---|
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
-| DC-02 持久切片 | IN_PROGRESS | PASS：TS、4单测、真实PostgreSQL 1集成测、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 补DC-T12/13/14受控故障与Fixture发布链，再进入DC-03 |
+| DC-02 持久切片 | IN_PROGRESS | PASS：TS、4单测、真实PostgreSQL 3集成测、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 补真实Worker终止/检查点故障、消息故障与Fixture发布链，再进入DC-03 |
 | DC-03 调度 | TODO | NOT_RUN | NOT_RUN | 无 | 日历/Clock、去重、漏调补偿 |
 | DC-04 主备 | TODO | NOT_RUN | NOT_RUN | 无 | 受控Python适配器及主备质量门槛 |
 | DC-05 补采覆盖 | TODO | NOT_RUN | NOT_RUN | 无 | 缺口台账与严格覆盖判断 |

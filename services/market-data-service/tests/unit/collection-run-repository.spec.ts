@@ -25,7 +25,7 @@ class FakePool {
     }
     if (sql.includes("SET status='RUNNING'")) {
       const row = this.rows.find((item) => item.run_id === params[0]);
-      if (!row || !["QUEUED", "WAITING_RETRY", "PARTIAL"].includes(row.status)) return { rowCount: 0, rows: [] };
+      if (!row || !["QUEUED", "RUNNING", "WAITING_RETRY", "PARTIAL"].includes(row.status) || (row.status === "RUNNING" && row.lease_until && row.lease_until > new Date())) return { rowCount: 0, rows: [] };
       row.status = "RUNNING";
       row.fencing_token += 1;
       row.version += 1;

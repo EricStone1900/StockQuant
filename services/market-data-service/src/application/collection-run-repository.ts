@@ -95,7 +95,7 @@ export class CollectionRunRepository {
       SET status='RUNNING', fencing_token=fencing_token+1,
           lease_until=now() + ($2::double precision * interval '1 second'),
           version=version+1, updated_at=now()
-      WHERE run_id=$1 AND status IN ('QUEUED','WAITING_RETRY','PARTIAL')
+      WHERE run_id=$1 AND status IN ('QUEUED','RUNNING','WAITING_RETRY','PARTIAL')
         AND (lease_until IS NULL OR lease_until < now())
       RETURNING *
     `, [runId, leaseSeconds]);
@@ -153,7 +153,7 @@ export class CollectionRunRepository {
       status: row.status,
       version: row.version,
       checkpoint: row.checkpoint,
-      fencingToken: row.fencing_token,
+      fencingToken: Number(row.fencing_token),
       leaseUntil: row.lease_until?.toISOString() ?? null,
       publishedArtifactId: row.published_artifact_id,
     };
