@@ -39,3 +39,14 @@
 验证记录（2026-09-12，本机 Docker）：`pnpm dc08a:test-supervise` 3/3 PASS；
 `node scripts/dc08a-supervise.mjs --check-only` 返回 `WAITING_CONFIGURATION`、退出码 2，
 与当前安全默认值 `STOCKQUANT_COLLECTION_EXECUTOR=0` 一致。
+
+## 定时启用保护
+
+已实现 `pnpm dc08a:activate`。它先读取 `/ready` 和 Postgres 中的订阅，只允许“恰好一个
+启用中的订阅，且 subscriptionId、日期窗口、calendarVersion 全部匹配 DC-08A 参数”时执行
+Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1` 与
+`STOCKQUANT_COLLECTION_EXECUTOR=1`。缺少参数、存在多个启用订阅或匹配失败时返回退出码 2，
+不执行任何重建。
+
+2026-09-12 本机真实阻断验证：发现 18 条历史启用测试订阅，且未提供 DC-08A 参数；脚本返回
+`BLOCKED`、退出码 2，未改变服务。激活测试 3/3 PASS。
