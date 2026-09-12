@@ -16,7 +16,7 @@ Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:m
 
 BaoStock 只读探针（2026-09-12，`BAOSTOCK_CAPACITY_SAMPLE=5 BAOSTOCK_MINUTE_SAMPLE=20 pnpm v25:probe-baostock`）：`query_all_stock(2024-01-05)` 返回 5,639 个证券，`query_stock_basic` 筛选出 5,219 个已上市 A 股；5 个 A 股多年日线样本均返回 1,456 行，20 个 A 股 5 分钟样本均返回 336 行且 `errorCode=0`。`sh.600000` 的 1 分钟请求仍返回 `10004012 请求数据类型不正确`，探针状态为 `PARTIAL`。该结果证明免费源具备日线和 5 分钟抽样读取能力，不是分钟级全市场多年导入/存储/限频/许可验收。
 
-限频/会话稳定性验证（2026-09-12）：`scripts/probe-baostock-stability.py` 已改为每个 5 分钟查询在独立进程和独立会话执行，由父进程强制超时回收；默认 30 秒，可由 `BAOSTOCK_STABILITY_QUERY_TIMEOUT_SECONDS` 配置。实测 `1 标的×1 轮、5 秒超时`：`sh.600000` 查询及随后独立恢复查询均准确记录为 `TIMEOUT`（约 5.00 秒），命令退出 0 且 JSON 状态为 `PARTIAL`，不再无限等待。该结果验证了失败边界与可观测性，不是上游稳定性 PASS；长期限频/会话稳定性仍为 `UNVERIFIED`。
+限频/会话稳定性验证（2026-09-12）：`scripts/probe-baostock-stability.py` 已改为每个 5 分钟查询在独立进程和独立会话执行，由父进程强制超时回收；默认 30 秒，可由 `BAOSTOCK_STABILITY_QUERY_TIMEOUT_SECONDS` 配置。实测 `2 标的×1 轮、10 秒超时`：两个查询及随后独立恢复查询均准确记录为 `TIMEOUT`（约 10.00 秒），命令退出 0 且 JSON 状态为 `PARTIAL`，不再无限等待。该结果验证了失败边界与可观测性，不是上游稳定性 PASS；长期限频/会话稳定性仍为 `UNVERIFIED`，50→100 容量档暂不启动。
 
 BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-daily.py`，通过 `query_stock_basic` 筛选 `type=1,status=1` 的已上市 A 股；宇宙 8,950 条，其中已上市股票 5,219 条。5 标的档完成 7,280 行写入，Manifest、逐证券 CSV 和 SHA-256 均生成；100 标的档完成 145,021 行写入。首次运行因 BaoStock 会话冲突在 38 个证券后中断，已保留 checkpoint；同一输出目录续跑完成 100/100，重跑不会重复查询已完成证券，证明中断恢复和幂等路径。该验证仍是 100 标的容量档，不代表 5,219 标的全量导入容量。
 
@@ -26,7 +26,7 @@ BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-da
 
 归档/恢复验证（2026-09-12）：将上述数据集归档到项目已忽略的本地路径 `data/local/baostock-daily-2019-2024-v1`（459 MiB）；从该归档创建隔离恢复副本 `/tmp/stockquant-baostock-daily-restore-verify-v1` 后，Manifest `COMPLETED`、5,219/5,219 个完成分区、6,260,343 行及 5,219/5,219 SHA-256 均通过。归档内容不提交 Git，保留源端/时间范围与文件完整性信息。
 
-5 分钟 20×约60交易日真实导入验证（2026-09-12）：`scripts/import-baostock-minute-sample.py` 已修正跨进程队列读取顺序：父进程先消费行集再等待子进程退出，避免大结果集的队列馈送阻塞；同时加入每标的最多 3 次的有限重试并记录实际尝试。`sh.600000` 单标的返回 2,784 行；5 标的完成 13,920 行；同一 Manifest 从检查点续跑至 20/20 标的、55,680 行，每标的 2,784 行。20 个 CSV 的 SHA-256、证券代码、重复时间戳和 OHLC 范围校验均通过；一次 `10001001 用户未登录` 在续跑时由独立会话重试恢复。产物位于 Git 忽略的 `data/local/baostock-minute-20x60-v1`。
+5 分钟 20×约60交易日真实导入验证（2026-09-12）：`scripts/import-baostock-minute-sample.py` 已修正跨进程队列读取顺序：父进程先消费行集再等待子进程退出，避免大结果集的队列馈送阻塞；同时加入每标的最多 3 次的有限重试并记录实际尝试。`sh.600000` 单标的返回 2,784 行；5 标的完成 13,920 行；同一 Manifest 从检查点续跑至 20/20 标的、55,680 行，每标的 2,784 行、58 个实际交易日。20 个 CSV 的 SHA-256、证券代码、重复时间戳和 OHLC 范围校验均通过；一次 `10001001 用户未登录` 在续跑时由独立会话重试恢复。产物位于 Git 忽略的 `data/local/baostock-minute-20x60-v1`。
 
 备用免费源实测（2026-09-12）：东方财富经 AKShare `stock_zh_a_hist_min_em(period="5")` 在本机被远端断开，未取得样本；新浪经 AKShare `stock_zh_a_minute(period="5")` 返回 1,970 行，覆盖 2026-07-16 至 2026-09-11，约 40 个交易日；腾讯公开分钟端点返回最近 320 根，覆盖 2026-09-03 至 2026-09-11，约 7 个交易日。新浪和腾讯可作为近期数据降级路径，但均不能满足 60 个交易日历史导入，当前没有经过本机实测且可替代 BaoStock 的免费 60 日备用源。
 
