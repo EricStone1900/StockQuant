@@ -13,7 +13,15 @@ export type CollectionAdapter = { collect(input: { securityIds: string[]; startD
 type ExecutionRepository = Pick<CollectionRunRepository, "runnableRunIds" | "claim" | "checkpoint" | "publishRows" | "releaseToRetry">;
 
 export class PythonMinuteCollectionAdapter implements CollectionAdapter {
-  constructor(private readonly command = process.env.STOCKQUANT_COLLECTION_PYTHON ?? "python3", private readonly timeoutMs = Number(process.env.STOCKQUANT_COLLECTION_TIMEOUT_MS ?? 120_000)) {}
+  constructor(
+    private readonly command = process.env.STOCKQUANT_COLLECTION_PYTHON ?? "python3",
+    private readonly timeoutMs = Number(process.env.STOCKQUANT_COLLECTION_TIMEOUT_MS ?? 180_000),
+    private readonly requestOptions = {
+      timeoutSeconds: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS ?? 20),
+      maxAttempts: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS ?? 2),
+      backoffSeconds: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_BACKOFF_SECONDS ?? 2),
+    },
+  ) {}
 
   async collect(input: { securityIds: string[]; startDate: string; endDate: string }): Promise<CollectionAdapterResult> {
     return new Promise((resolve, reject) => {
@@ -34,7 +42,7 @@ export class PythonMinuteCollectionAdapter implements CollectionAdapter {
           resolve({ sourceId: result.sourceId, bars: result.bars, attempts: result.attempts ?? [] });
         } catch (error) { reject(error); }
       });
-      child.stdin.end(JSON.stringify(input));
+      child.stdin.end(JSON.stringify({ ...input, ...this.requestOptions }));
     });
   }
 }

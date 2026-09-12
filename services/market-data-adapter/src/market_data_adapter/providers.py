@@ -13,9 +13,16 @@ from .failover import NormalizedBar, SourceError
 FIELDS = "date,time,code,open,high,low,close,volume,amount"
 
 
-def _bar_end(start: str) -> str:
-    value = datetime.fromisoformat(start.replace("Z", "+00:00")) + timedelta(minutes=5)
-    return value.isoformat().replace("+00:00", "Z")
+def _bar_window(endpoint: str) -> tuple[str, str]:
+    """Convert provider end timestamps to the canonical half-open bar window.
+
+    BaoStock and Sina expose the timestamp at the end of a 5-minute candle
+    (for example, 09:35 represents 09:30–09:35).  The domain contract stores
+    both boundaries explicitly, so normalize the endpoint before filtering.
+    """
+    end = datetime.fromisoformat(endpoint.replace("Z", "+00:00"))
+    start = end - timedelta(minutes=5)
+    return start.isoformat().replace("+00:00", "Z"), end.isoformat().replace("+00:00", "Z")
 
 
 def normalize_baostock(rows: Sequence[Sequence[str]], source_id: str = "baostock") -> list[NormalizedBar]:
@@ -24,9 +31,10 @@ def normalize_baostock(rows: Sequence[Sequence[str]], source_id: str = "baostock
         if len(row) != 9:
             raise SourceError("SCHEMA_INVALID", "BaoStock row does not contain the required 9 fields", retryable=False)
         date, clock, code, open_, high, low, close, volume, amount = row
-        start = f"{date}T{clock[:2]}:{clock[2:4]}:{clock[4:6]}+08:00"
+        endpoint = f"{date}T{clock[:2]}:{clock[2:4]}:{clock[4:6]}+08:00"
+        start, end = _bar_window(endpoint)
         market, number = code.split(".", 1)
-        result.append(NormalizedBar(f"{number}.{market.upper()}", start, _bar_end(start), None, open_, high, low, close, volume, amount, "raw", source_id))
+        result.append(NormalizedBar(f"{number}.{market.upper()}", start, end, None, open_, high, low, close, volume, amount, "raw", source_id))
     return result
 
 
@@ -36,8 +44,9 @@ def normalize_sina(items: Sequence[dict[str, Any]], security_id: str, source_id:
         required = ("day", "open", "high", "low", "close", "volume", "amount")
         if any(key not in item for key in required):
             raise SourceError("SCHEMA_INVALID", "Sina response misses a required OHLCV/amount field", retryable=False)
-        start = str(item["day"]).replace(" ", "T") + "+08:00"
-        result.append(NormalizedBar(security_id, start, _bar_end(start), None, str(item["open"]), str(item["high"]), str(item["low"]), str(item["close"]), str(item["volume"]), str(item["amount"]), "raw", source_id))
+        endpoint = str(item["day"]).replace(" ", "T") + "+08:00"
+        start, end = _bar_window(endpoint)
+        result.append(NormalizedBar(security_id, start, end, None, str(item["open"]), str(item["high"]), str(item["low"]), str(item["close"]), str(item["volume"]), str(item["amount"]), "raw", source_id))
     return result
 
 

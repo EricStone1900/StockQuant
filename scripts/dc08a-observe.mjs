@@ -25,7 +25,7 @@ export function buildObservation({ ready, schedule, statusCounts, artifactSummar
     artifacts: artifactSummary,
     pendingOutbox: Number(pendingOutbox ?? 0),
     openGaps: Number(openGaps ?? 0),
-    status: ready?.collectionExecutor === "ENABLED" && schedule?.enabled === true ? "ACTIVE" : "NOT_ACTIVE",
+    status: ready?.collectionSchedulerWorker === "ENABLED" && ready?.collectionExecutor === "ENABLED" && schedule?.enabled === true ? "ACTIVE" : "NOT_ACTIVE",
   };
 }
 

@@ -11,7 +11,7 @@ test("parseRows maps tabular psql output", () => {
 test("observation summarizes run and operational state", () => {
   const report = buildObservation({
     capturedAt: "2026-09-14T01:00:00.000Z",
-    ready: { collectionExecutor: "ENABLED" },
+    ready: { collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" },
     schedule: { enabled: true },
     statusCounts: [{ status: "COMPLETED", count: "2" }, { status: "WAITING_RETRY", count: "1" }],
     artifactSummary: { artifactCount: 2, rowCount: 96, latestCreatedAt: "2026-09-14T01:00:00.000Z" },
@@ -26,5 +26,10 @@ test("observation summarizes run and operational state", () => {
 
 test("disabled service is not reported active", () => {
   const report = buildObservation({ capturedAt: "2026-09-12T00:00:00.000Z", ready: { collectionExecutor: "DISABLED" }, schedule: { enabled: true }, statusCounts: [], artifactSummary: { artifactCount: 0, rowCount: 0, latestCreatedAt: null }, pendingOutbox: 0, openGaps: 0 });
+  assert.equal(report.status, "NOT_ACTIVE");
+});
+
+test("scheduler disabled is not reported active", () => {
+  const report = buildObservation({ capturedAt: "2026-09-12T00:00:00.000Z", ready: { collectionSchedulerWorker: "DISABLED", collectionExecutor: "ENABLED" }, schedule: { enabled: true }, statusCounts: [], artifactSummary: { artifactCount: 0, rowCount: 0, latestCreatedAt: null }, pendingOutbox: 0, openGaps: 0 });
   assert.equal(report.status, "NOT_ACTIVE");
 });

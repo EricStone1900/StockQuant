@@ -15,8 +15,8 @@ export function buildRepairPlan(state, mode) {
   return [["docker", [...composeArgs, "up", "-d", "market-data-service"]]];
 }
 
-function run(command, args) {
-  const result = spawnSync(command, args, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], ...options });
   return { status: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 

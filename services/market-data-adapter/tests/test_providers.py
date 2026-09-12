@@ -22,9 +22,12 @@ class Response:
 
 class ProviderTests(unittest.TestCase):
     def test_normalizes_baostock_and_sina_to_same_contract(self):
-        baostock = normalize_baostock([["2026-09-11", "093000", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
-        sina = normalize_sina([{"day": "2026-09-11 09:30:00", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 100, "amount": 1000}], "600000.SH")
+        baostock = normalize_baostock([["2026-09-11", "093500", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
+        sina = normalize_sina([{"day": "2026-09-11 09:35:00", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 100, "amount": 1000}], "600000.SH")
         self.assertEqual(baostock[0].security_id, sina[0].security_id)
+        self.assertEqual(baostock[0].bar_start, "2026-09-11T09:30:00+08:00")
+        self.assertEqual(baostock[0].bar_end, "2026-09-11T09:35:00+08:00")
+        self.assertEqual(sina[0].bar_start, "2026-09-11T09:30:00+08:00")
         self.assertEqual(baostock[0].bar_end, sina[0].bar_end)
         self.assertEqual(baostock[0].adjustment, "raw")
 

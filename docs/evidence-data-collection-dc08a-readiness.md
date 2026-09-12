@@ -31,12 +31,13 @@
 
 已实现 `pnpm dc08a:supervise`。默认执行只读检查；`--repair` 仅在 `/ready` 不可达时执行一次
 `docker compose -f infra/compose/docker-compose.yml up -d market-data-service`，随后最多等待 15 秒再次检查。
-脚本不会自动修改代码、打开 `STOCKQUANT_COLLECTION_EXECUTOR`、重启数据库、删除队列或重试业务任务。
+脚本默认不会自动修改代码、打开 `STOCKQUANT_COLLECTION_EXECUTOR`、重启数据库、删除队列或重试业务任务；
+正式激活后的定时巡检才会通过显式环境变量保留已批准的启用配置。
 
 退出码约定：`0=HEALTHY`（持久化为 Postgres 且执行器已启用）、`2=WAITING_CONFIGURATION`
 （服务正常但执行器未显式启用或持久化未就绪）、`1=UNHEALTHY/REPAIR_FAILED`。
 
-验证记录（2026-09-12，本机 Docker）：`pnpm dc08a:test-supervise` 3/3 PASS；
+验证记录（2026-09-12，本机 Docker）：`pnpm dc08a:test-supervise` 4/4 PASS；
 `node scripts/dc08a-supervise.mjs --check-only` 返回 `WAITING_CONFIGURATION`、退出码 2，
 与当前安全默认值 `STOCKQUANT_COLLECTION_EXECUTOR=0` 一致。
 
@@ -50,7 +51,7 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 
 2026-09-12 已停用 18 条历史测试订阅，并创建唯一正式订阅
 `dc08a-20260914-short-v1`（2026-09-14 至 2026-09-16）。使用 `--check-only` 验证返回
-`READY_TO_ENABLE`、退出码 0；服务仍保持关闭。激活测试 4/4 PASS。
+`READY_TO_ENABLE`、退出码 0；服务仍保持关闭。激活测试 6/6 PASS。
 
 同日又完成了启用前队列隔离清理：停用 2 条仍处于启用状态的集成测试调度，
 将其关联的 470 条 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING` 运行记录标记为
@@ -64,8 +65,11 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 `READY_TO_ENABLE`、退出码 0，不会提前启动采集；实际定时激活才会执行重建并开启两者。
 
 最终复核（2026-09-12）确认：启用调度为 `1/1`（唯一启用项为 DC-08A），运行记录为
-`CANCELLED=476`、`COMPLETED=87`，无非正式 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING`
+`CANCELLED=482`、`COMPLETED=92`，无非正式 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING`
 记录；正式激活 `--check-only` 返回 `READY_TO_ENABLE`、退出码 0。
+
+定时任务顺序已校准：首次激活为 2026-09-14 08:45，巡检从同日 09:00 起每 15 分钟运行，
+避免激活前自动修复与正式启用发生竞态。
 
 ## 自动观察证据
 
@@ -73,4 +77,6 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 Artifact 行数、未发送 Outbox 和开放缺口，并将带时间戳的
 `evidence/dc08a/observation-*.json` 保存为 `dc08a-observation-v1` 记录。
 2026-09-12 首份基线报告显示：唯一正式订阅已启用，服务健康但执行器仍关闭，运行数为 0，
-状态为 `NOT_ACTIVE`；观察脚本测试 3/3 PASS。
+状态为 `NOT_ACTIVE`；观察脚本测试 4/4 PASS。正式采集前的实时分钟时间语义校验发现
+BaoStock/Sina 返回的时间为 5 分钟窗口结束时刻，已在适配器中统一转换为窗口开始/结束边界；
+默认主源/备用源预算为单次 20 秒、最多 2 次、2 秒退避，外层适配器超时 180 秒。
