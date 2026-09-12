@@ -1,6 +1,6 @@
 # V2.5 历史数据扩容与 V2 验收证据
 
-验证日期：2026-09-12（Asia/Shanghai）。本次包含小规模确定性扩容切片与 BaoStock 全市场多年日线导入；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
+验证日期：2026-09-12（Asia/Shanghai）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
 
 - normal：`fe37c045-962f-40be-84b1-36d33df08184`，`COMPLETED`；20 只证券 × 60 交易日、1200 行，扩容前后规范结果 Hash 一致，PIT/Walk-forward、缓存隔离和资源预算断言通过。
 - rejection：`9996f785-fd7c-4912-b839-c6e0389f4c9f`，`COMPLETED`；超并发、跨 DataVersion 缓存和资源预算超限均拒绝，未发布半成品。
@@ -14,7 +14,7 @@
 
 Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:monitor-capacity` 先从 Tencent 返回结果中筛选有效证券，再依次写入并采集 50/80/100 只股票；配置数、采样数和有效 `LIVE_SOURCE` 数量分别为 50/50/50、80/80/80、100/100/100，耗时 65ms、61ms、58ms，服务上限 100，原 3 只监控池已恢复，质量门禁 PASS。该结果证明在线监控池的数量与时间戳质量路径可承载，不代表历史全市场容量。
 
-BaoStock 只读探针（2026-09-11，`pnpm v25:probe-baostock`）：`sh.600000` 日线返回 7 行、5 分钟返回 336 行，均 `errorCode=0`；1 分钟请求返回 `10004012 请求数据类型不正确`。`query_all_stock(2024-01-05)` 返回 5,639 个证券，另对前 20 个证券执行 2019-01-01 至 2024-12-31 日线查询，均返回 1,456 行且 `errorCode=0`。探针状态仍为 `PARTIAL`：该结果证明免费源具备较大股票宇宙和多年日线读取能力，但不是全市场多年导入/存储/限频/许可验收，也不证明 1 分钟能力。
+BaoStock 只读探针（2026-09-12，`BAOSTOCK_CAPACITY_SAMPLE=5 BAOSTOCK_MINUTE_SAMPLE=20 pnpm v25:probe-baostock`）：`query_all_stock(2024-01-05)` 返回 5,639 个证券，`query_stock_basic` 筛选出 5,219 个已上市 A 股；5 个 A 股多年日线样本均返回 1,456 行，20 个 A 股 5 分钟样本均返回 336 行且 `errorCode=0`。`sh.600000` 的 1 分钟请求仍返回 `10004012 请求数据类型不正确`，探针状态为 `PARTIAL`。该结果证明免费源具备日线和 5 分钟抽样读取能力，不是分钟级全市场多年导入/存储/限频/许可验收。
 
 BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-daily.py`，通过 `query_stock_basic` 筛选 `type=1,status=1` 的已上市 A 股；宇宙 8,950 条，其中已上市股票 5,219 条。5 标的档完成 7,280 行写入，Manifest、逐证券 CSV 和 SHA-256 均生成；100 标的档完成 145,021 行写入。首次运行因 BaoStock 会话冲突在 38 个证券后中断，已保留 checkpoint；同一输出目录续跑完成 100/100，重跑不会重复查询已完成证券，证明中断恢复和幂等路径。该验证仍是 100 标的容量档，不代表 5,219 标的全量导入容量。
 

@@ -56,10 +56,18 @@ def run_probe() -> dict[str, object]:
         if universe_query.error_code != "0":
             result["status"] = "PARTIAL"
 
-        sample_size = max(1, min(int(os.environ.get("BAOSTOCK_CAPACITY_SAMPLE", "20")), len(universe))) if universe else 0
+        basic_query = bs.query_stock_basic()
+        basic_rows: list[list[str]] = []
+        while basic_query.next():
+            basic_rows.append(basic_query.get_row_data())
+        listed_stocks = [row[0] for row in basic_rows if len(row) >= 6 and row[0] and row[4] == "1" and row[5] == "1"]
+        result["listedStockUniverse"] = {"errorCode": basic_query.error_code, "message": basic_query.error_msg, "rows": len(listed_stocks)}
+        if basic_query.error_code != "0":
+            result["status"] = "PARTIAL"
+
+        sample_size = max(1, min(int(os.environ.get("BAOSTOCK_CAPACITY_SAMPLE", "20")), len(listed_stocks))) if listed_stocks else 0
         capacity_queries: list[dict[str, object]] = []
-        for row in universe[:sample_size]:
-            code = row[0] if row else ""
+        for code in listed_stocks[:sample_size]:
             if not code:
                 continue
             capacity = bs.query_history_k_data_plus(
@@ -82,6 +90,33 @@ def run_probe() -> dict[str, object]:
             if capacity.error_code != "0":
                 result["status"] = "PARTIAL"
         result["multiYearSample"] = {"startDate": "2019-01-01", "endDate": "2024-12-31", "sampleSize": sample_size, "queries": capacity_queries}
+
+        minute_sample_size = max(0, min(int(os.environ.get("BAOSTOCK_MINUTE_SAMPLE", "0")), len(listed_stocks))) if listed_stocks else 0
+        minute_queries: list[dict[str, object]] = []
+        for code in listed_stocks[:minute_sample_size]:
+            if not code:
+                continue
+            minute = bs.query_history_k_data_plus(
+                code,
+                "date,time,code,open,high,low,close,volume,amount",
+                start_date="2024-01-02",
+                end_date="2024-01-10",
+                frequency="5",
+                adjustflag="3",
+            )
+            rows = 0
+            first_row = None
+            last_row = None
+            while minute.next():
+                row_data = minute.get_row_data()
+                rows += 1
+                first_row = first_row or row_data
+                last_row = row_data
+            minute_queries.append({"code": code, "errorCode": minute.error_code, "rows": rows, "firstRow": first_row, "lastRow": last_row})
+            if minute.error_code != "0" or rows == 0:
+                result["status"] = "PARTIAL"
+        if minute_sample_size:
+            result["minuteSample"] = {"frequency": "5m", "startDate": "2024-01-02", "endDate": "2024-01-10", "sampleSize": minute_sample_size, "successful": sum(item["errorCode"] == "0" and item["rows"] > 0 for item in minute_queries), "queries": minute_queries}
     finally:
         bs.logout()
     result["probedAt"] = datetime.now().astimezone().isoformat()
