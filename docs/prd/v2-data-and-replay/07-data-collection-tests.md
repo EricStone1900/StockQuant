@@ -1,6 +1,6 @@
 # 共享数据采集：测试案例与中断恢复手册
 
-版本1.1，2026-09-12。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。业务测试状态全部NOT_RUN；操作手册为DRAFT_NOT_EXECUTABLE，DC-02/07实现入口并亲自执行后才可更改。
+版本1.1，2026-09-12。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。DC-03确定性单元测试已PASS；真实交易日、后台进程和人工验收仍NOT_RUN。操作手册为DRAFT_NOT_EXECUTABLE，DC-02/07实现入口并亲自执行后才可更改。
 
 ## 1. 测试输入和证据约定
 

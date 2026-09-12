@@ -23,7 +23,7 @@
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
-| DC-03 调度 | TODO | NOT_RUN | NOT_RUN | 无 | 日历/Clock、去重、漏调补偿 |
+| DC-03 调度 | IN_PROGRESS | PASS：TS、3个调度单测/7个服务单测；计划 API 已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 补持久调度配置、独立后台 Worker、跨重启水位恢复和实际交易日运行 |
 | DC-04 主备 | TODO | NOT_RUN | NOT_RUN | 无 | 受控Python适配器及主备质量门槛 |
 | DC-05 补采覆盖 | TODO | NOT_RUN | NOT_RUN | 无 | 缺口台账与严格覆盖判断 |
 | DC-06 多项目Web/API | TODO | NOT_RUN | NOT_RUN | 无 | 授权、配额、共享、E2E及证据 |
@@ -78,3 +78,5 @@
 1.1文档校验：`pnpm docs:check`退出0（391个链接、0失败），`git diff --check`退出0。DC-T25已补短期真实运行输入与预期；所有业务测试保持NOT_RUN。计划修订完成，业务开发尚未开始。
 
 2026-09-12 DC-02收尾记录：TypeScript lint 退出0；`vitest run tests/unit` 退出0（4/4）；`MARKET_DATA_DATABASE_URL=... vitest run tests/integration/collection-run-postgres.spec.ts` 退出0（6/6）。测试使用唯一 `suffix=Date.now()`，收尾不删除共享数据库表，保留运行、Artifact 和 Outbox 证据。真实子进程脚本仅更新本次唯一 run 的租约，SIGKILL 后由新 worker 接管；消息故障通过不调用 `markEventSent` 模拟，随后恢复发送。人工验收仍为NOT_RUN。
+
+2026-09-12 DC-03启动记录：完成注入Clock/版本日历的确定性调度器和计划/启停 API；单元测试 7/7、TypeScript lint 通过。调度器只生成已闭合且达到发布延迟的5分钟窗口，未知日期进入等待，重复键跳过并标记漏窗补采。持久调度配置、独立后台进程和跨重启恢复尚未完成，人工验收NOT_RUN。

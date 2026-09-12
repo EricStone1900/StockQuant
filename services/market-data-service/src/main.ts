@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { resolve } from "node:path";
 import { Pool } from "pg";
 import { CollectionRunConflict, CollectionRunRepository } from "./application/collection-run-repository.js";
+import { CollectionScheduler } from "./application/collection-scheduler.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -34,6 +35,10 @@ const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: numb
 for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
 const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
 const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
+const collectionScheduler = new CollectionScheduler({ session: (date) => {
+  const result = cnAShareSession(date);
+  return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
+} }, { now: () => new Date() });
 
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
@@ -50,6 +55,15 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
     if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED" });
+    if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), nextExecutionAt: null, mode: "FIXTURE_PLAN_ONLY", note: "DC-03 scheduler plans persisted collection windows; worker activation remains an explicit deployment setting." });
+    if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
+    if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
+    if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {
+      const query = new URL(req.url, "http://localhost").searchParams;
+      const subscriptionId = query.get("subscriptionId"); const from = query.get("from"); const to = query.get("to");
+      if (!subscriptionId || !from || !to) return json(res, { code: "INVALID_SCHEDULE_QUERY", required: ["subscriptionId", "from", "to"] }, 422);
+      return json(res, collectionScheduler.plan(subscriptionId, from, to));
+    }
     if (req.url === "/v2/collection-runs" && req.method === "POST") {
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
