@@ -23,6 +23,9 @@ export type CollectionRun = CollectionRunRequest & {
   publishedArtifactId: string | null;
 };
 
+export type CollectionOutboxEvent = { eventId: string; eventKey: string; runId: string; eventType: "collection.run.completed.v1"; payload: Record<string, unknown>; sentAt: string | null };
+export type CollectionArtifact = { artifactId: string; runId: string; sha256: string; rowCount: number };
+
 type Row = QueryResultRow & {
   run_id: string;
   subscription_id: string;
@@ -71,6 +74,23 @@ export class CollectionRunRepository {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
       CREATE INDEX IF NOT EXISTS market_data_collection_runs_status_idx ON market_data_collection_runs(status, lease_until);
+      CREATE TABLE IF NOT EXISTS market_data_collection_artifacts (
+        artifact_id TEXT PRIMARY KEY,
+        run_id UUID NOT NULL REFERENCES market_data_collection_runs(run_id),
+        sha256 CHAR(64) NOT NULL,
+        row_count INTEGER NOT NULL CHECK (row_count >= 0),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS market_data_collection_outbox (
+        event_id UUID PRIMARY KEY,
+        event_key TEXT NOT NULL UNIQUE,
+        run_id UUID NOT NULL REFERENCES market_data_collection_runs(run_id),
+        event_type TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        sent_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS market_data_collection_outbox_pending_idx ON market_data_collection_outbox(sent_at) WHERE sent_at IS NULL;
     `);
   }
 
@@ -118,15 +138,52 @@ export class CollectionRunRepository {
     return this.map(result.rows[0]);
   }
 
-  async publish(runId: string, fencingToken: number, artifactId: string): Promise<CollectionRun> {
-    const result = await this.pool.query<Row>(`
+  async publish(runId: string, fencingToken: number, artifactId: string, artifact?: { sha256: string; rowCount: number }): Promise<CollectionRun> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<Row>(`
       UPDATE market_data_collection_runs
       SET status='COMPLETED', published_artifact_id=$3, lease_until=NULL, version=version+1, updated_at=now()
       WHERE run_id=$1 AND fencing_token=$2 AND status='RUNNING'
       RETURNING *
-    `, [runId, fencingToken, artifactId]);
-    if (result.rowCount !== 1) throw new CollectionRunConflict("publish rejected: lease is stale or run is not running");
-    return this.map(result.rows[0]);
+      `, [runId, fencingToken, artifactId]);
+      if (result.rowCount !== 1) throw new CollectionRunConflict("publish rejected: lease is stale or run is not running");
+      if (artifact) {
+        await client.query(`
+          INSERT INTO market_data_collection_artifacts (artifact_id, run_id, sha256, row_count)
+          VALUES ($1,$2,$3,$4)
+          ON CONFLICT (artifact_id) DO UPDATE SET run_id=EXCLUDED.run_id, sha256=EXCLUDED.sha256, row_count=EXCLUDED.row_count
+        `, [artifactId, runId, artifact.sha256, artifact.rowCount]);
+      }
+      await client.query(`
+        INSERT INTO market_data_collection_outbox (event_id, event_key, run_id, event_type, payload)
+        VALUES ($1,$2,$3,'collection.run.completed.v1',$4::jsonb)
+        ON CONFLICT (event_key) DO NOTHING
+      `, [randomUUID(), `collection-run:${runId}:completed`, runId, JSON.stringify({ runId, artifactId, ...(artifact ?? {}) })]);
+      await client.query("COMMIT");
+      return this.map(result.rows[0]);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async pendingEvents(limit = 100): Promise<CollectionOutboxEvent[]> {
+    const result = await this.pool.query<Record<string, any>>("SELECT * FROM market_data_collection_outbox WHERE sent_at IS NULL ORDER BY created_at LIMIT $1", [limit]);
+    return result.rows.map((row) => ({ eventId: row.event_id, eventKey: row.event_key, runId: row.run_id, eventType: row.event_type, payload: row.payload, sentAt: row.sent_at?.toISOString() ?? null }));
+  }
+
+  async markEventSent(eventId: string): Promise<void> {
+    await this.pool.query("UPDATE market_data_collection_outbox SET sent_at=now() WHERE event_id=$1 AND sent_at IS NULL", [eventId]);
+  }
+
+  async findArtifact(artifactId: string): Promise<CollectionArtifact | null> {
+    const result = await this.pool.query<Record<string, any>>("SELECT artifact_id, run_id, sha256, row_count FROM market_data_collection_artifacts WHERE artifact_id=$1", [artifactId]);
+    const row = result.rows[0];
+    return row ? { artifactId: row.artifact_id, runId: row.run_id, sha256: row.sha256.trim(), rowCount: Number(row.row_count) } : null;
   }
 
   async releaseToRetry(runId: string, fencingToken: number): Promise<CollectionRun> {

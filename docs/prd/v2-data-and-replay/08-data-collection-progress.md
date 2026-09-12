@@ -13,7 +13,7 @@
 两项交付分别记录：本次模块开发交付TODO；后续60日数据验收TODO。启用累积后后者可变WAITING；本次交付依据计划2.1及DC-T25，不能因后台观察未满误认为代码未完成，也不能跳过短期真实运行。
 
 - [x] 梳理用户需求、当前代码结构及仓库已有证据，形成版本化计划、测试矩阵和接续机制。
-- [ ] 完成新模块实现及自动测试。
+- [x] 完成新模块实现及自动测试（DC-00～DC-02 当前切片；调度/主备/部署仍待后续工作包）。
 - [ ] 验证盘中真实来源能力并启用正式采集任务。
 - [ ] 完成Mac/Ubuntu运行、备用切换、备份/恢复与人工验收。
 - [ ] 获得固定证券集合的严格60交易日真实覆盖并完成回放验收。
@@ -22,7 +22,7 @@
 |---|---|---|---|---|---|
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
-| DC-02 持久切片 | IN_PROGRESS | PASS：TS、4单测、真实PostgreSQL 3集成测、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 补真实Worker终止/检查点故障、消息故障与Fixture发布链，再进入DC-03 |
+| DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | TODO | NOT_RUN | NOT_RUN | 无 | 日历/Clock、去重、漏调补偿 |
 | DC-04 主备 | TODO | NOT_RUN | NOT_RUN | 无 | 受控Python适配器及主备质量门槛 |
 | DC-05 补采覆盖 | TODO | NOT_RUN | NOT_RUN | 无 | 缺口台账与严格覆盖判断 |
@@ -76,3 +76,5 @@
 本次交付时填写：实际部署/架构与运行版本、订阅及唯一调度ID、20只清单Hash、源能力报告、数据及备份位置、告警状态、下一运行时间、当前有效覆盖及缺口、DC-08B状态/后续检查入口、用户签署、主项目恢复点及前置门槛。主项目恢复点需交付时重新读取版本计划和证据确定，不提前声称后续任务已通过。
 
 1.1文档校验：`pnpm docs:check`退出0（391个链接、0失败），`git diff --check`退出0。DC-T25已补短期真实运行输入与预期；所有业务测试保持NOT_RUN。计划修订完成，业务开发尚未开始。
+
+2026-09-12 DC-02收尾记录：TypeScript lint 退出0；`vitest run tests/unit` 退出0（4/4）；`MARKET_DATA_DATABASE_URL=... vitest run tests/integration/collection-run-postgres.spec.ts` 退出0（6/6）。测试使用唯一 `suffix=Date.now()`，收尾不删除共享数据库表，保留运行、Artifact 和 Outbox 证据。真实子进程脚本仅更新本次唯一 run 的租约，SIGKILL 后由新 worker 接管；消息故障通过不调用 `markEventSent` 模拟，随后恢复发送。人工验收仍为NOT_RUN。

@@ -5,12 +5,29 @@ type Row = Record<string, any>;
 
 class FakePool {
   rows: Row[] = [];
+  events: Row[] = [];
+  artifacts: Row[] = [];
   migrations = 0;
 
   async query<T extends Row = Row>(sql: string, params: unknown[] = []): Promise<{ rowCount: number; rows: T[] }> {
+    if (["BEGIN", "COMMIT", "ROLLBACK"].includes(sql)) return { rowCount: 0, rows: [] };
     if (sql.includes("CREATE TABLE IF NOT EXISTS")) {
       this.migrations += 1;
       return { rowCount: 0, rows: [] };
+    }
+    if (sql.includes("INSERT INTO market_data_collection_outbox")) {
+      this.events.push({ event_id: params[0], event_key: params[1], run_id: params[2], event_type: "collection.run.completed.v1", payload: JSON.parse(String(params[3])), sent_at: null });
+      return { rowCount: 1, rows: [] };
+    }
+    if (sql.includes("INSERT INTO market_data_collection_artifacts")) {
+      this.artifacts.push({ artifact_id: params[0], run_id: params[1], sha256: params[2], row_count: params[3] });
+      return { rowCount: 1, rows: [] };
+    }
+    if (sql.includes("WHERE sent_at IS NULL")) return { rowCount: this.events.filter((event) => !event.sent_at).length, rows: this.events.filter((event) => !event.sent_at) as T[] };
+    if (sql.includes("SET sent_at=now()")) { const event = this.events.find((item) => item.event_id === params[0]); if (event) event.sent_at = new Date(); return { rowCount: event ? 1 : 0, rows: [] }; }
+    if (sql.includes("FROM market_data_collection_artifacts")) {
+      const row = this.artifacts.find((item) => item.artifact_id === params[0]);
+      return { rowCount: row ? 1 : 0, rows: row ? [row as T] : [] };
     }
     if (sql.includes("INSERT INTO market_data_collection_runs")) {
       const existing = this.rows.find((row) => row.idempotency_key === params[6]);
@@ -50,6 +67,8 @@ class FakePool {
     }
     throw new Error(`unhandled SQL: ${sql}`);
   }
+
+  async connect() { return { query: this.query.bind(this), release: () => undefined } as never; }
 
   private row(params: unknown[]): Row {
     return {
@@ -94,5 +113,9 @@ describe("CollectionRunRepository", () => {
     const published = await repository.publish(created.run.runId, 1, "artifact-1");
     expect(published.status).toBe("COMPLETED");
     expect(published.publishedArtifactId).toBe("artifact-1");
+    const events = await repository.pendingEvents();
+    expect(events).toHaveLength(1);
+    await repository.markEventSent(events[0].eventId);
+    expect(await repository.pendingEvents()).toHaveLength(0);
   });
 });
