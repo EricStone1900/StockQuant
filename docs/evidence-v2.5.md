@@ -16,6 +16,8 @@ Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:m
 
 BaoStock 只读探针（2026-09-12，`BAOSTOCK_CAPACITY_SAMPLE=5 BAOSTOCK_MINUTE_SAMPLE=20 pnpm v25:probe-baostock`）：`query_all_stock(2024-01-05)` 返回 5,639 个证券，`query_stock_basic` 筛选出 5,219 个已上市 A 股；5 个 A 股多年日线样本均返回 1,456 行，20 个 A 股 5 分钟样本均返回 336 行且 `errorCode=0`。`sh.600000` 的 1 分钟请求仍返回 `10004012 请求数据类型不正确`，探针状态为 `PARTIAL`。该结果证明免费源具备日线和 5 分钟抽样读取能力，不是分钟级全市场多年导入/存储/限频/许可验收。
 
+限频/会话稳定性验证（2026-09-12）：新增 `scripts/probe-baostock-stability.py`，设计为 20 标的×3 轮只读 5 分钟查询并重新登录恢复。实际运行在重复查询阶段超过 2 分钟无返回，受控停止；缩小到 5 标的×2 轮后仍在首轮查询阶段无返回，未取得可计入 PASS 的稳定性证据。结论为 `UNVERIFIED`，提示当前 BaoStock 连接存在吞吐/等待限制；不得据此宣称长期限频稳定。
+
 BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-daily.py`，通过 `query_stock_basic` 筛选 `type=1,status=1` 的已上市 A 股；宇宙 8,950 条，其中已上市股票 5,219 条。5 标的档完成 7,280 行写入，Manifest、逐证券 CSV 和 SHA-256 均生成；100 标的档完成 145,021 行写入。首次运行因 BaoStock 会话冲突在 38 个证券后中断，已保留 checkpoint；同一输出目录续跑完成 100/100，重跑不会重复查询已完成证券，证明中断恢复和幂等路径。该验证仍是 100 标的容量档，不代表 5,219 标的全量导入容量。
 
 500 标的容量档（2026-09-11）：同一导入器完成 500/500 个证券、727,421 行、500 个分区 CSV，磁盘占用 54,120,176 bytes（约 51.6 MiB），Manifest `COMPLETED` 且无错误字段；同目录幂等重跑退出 0，产物数量和行数保持不变。该结果可作为全量导入前的压力基线，仍不等同于 5,219 标的全量验收。
@@ -28,4 +30,4 @@ BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-da
 
 最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
 
-已知限制：分钟级全市场多年导入/存储/恢复容量、真实 Ubuntu、真实财务/行业 PIT、长期限频稳定性和用户人工验收尚未完成。
+已知限制：分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、真实 Ubuntu、真实财务/行业 PIT 和用户人工验收尚未完成。
