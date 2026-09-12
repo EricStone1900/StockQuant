@@ -30,7 +30,7 @@ export class CollectionScheduler {
   disable(): void { this.state = "DISABLED"; }
   status(): "DISABLED" | "ENABLED" { return this.state; }
 
-  plan(subscriptionId: string, fromDate: string, toDate: string, existingKeys = new Set<string>(), maxWindows = 500): { windows: CollectionWindow[]; waitingDates: string[]; nextExecutionAt: string | null } {
+  plan(subscriptionId: string, fromDate: string, toDate: string, existingKeys = new Set<string>(), watermarkEnd: string | null = null, maxWindows = 500): { windows: CollectionWindow[]; waitingDates: string[]; nextExecutionAt: string | null } {
     if (this.state === "DISABLED") return { windows: [], waitingDates: [], nextExecutionAt: null };
     const windows: CollectionWindow[] = [];
     const waitingDates: string[] = [];
@@ -46,6 +46,7 @@ export class CollectionScheduler {
           if (addMinutes(windowEnd, this.publishDelaySeconds / 60) > now) continue;
           const windowStartIso = iso(start);
           const windowEndIso = iso(windowEnd);
+          if (watermarkEnd && windowEndIso <= watermarkEnd) continue;
           const idempotencyKey = `${subscriptionId}|1|${windowStartIso}|${windowEndIso}|INTRADAY_WINDOW`;
           if (existingKeys.has(idempotencyKey)) continue;
           windows.push({ subscriptionId, windowStart: windowStartIso, windowEnd: windowEndIso, jobKind: "INTRADAY_WINDOW", idempotencyKey, calendarVersion: session.calendarVersion, backfill: windowEnd < addMinutes(now, -this.windowMinutes) });

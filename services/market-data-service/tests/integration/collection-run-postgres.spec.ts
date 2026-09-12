@@ -6,6 +6,9 @@ import { once } from "node:events";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CollectionRunConflict, CollectionRunRepository } from "../../src/application/collection-run-repository.js";
+import { CollectionScheduleRepository } from "../../src/application/collection-schedule-repository.js";
+import { CollectionScheduler } from "../../src/application/collection-scheduler.js";
+import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -13,10 +16,12 @@ const describeIfDatabase = connectionString ? describe : describe.skip;
 describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const pool = new Pool({ connectionString });
   const repository = new CollectionRunRepository(pool);
+  const schedules = new CollectionScheduleRepository(pool);
   const suffix = Date.now().toString();
 
   beforeAll(async () => {
     await repository.migrate();
+    await schedules.migrate();
   });
 
   afterAll(async () => {
@@ -110,5 +115,32 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(await repository.findArtifact(artifactId)).toEqual({ artifactId, runId: created.run.runId, sha256, rowCount });
     const event = (await repository.pendingEvents()).find((item) => item.runId === created.run.runId)!;
     expect(event.payload).toMatchObject({ runId: created.run.runId, artifactId, sha256, rowCount });
+  });
+
+  it("persists schedule configuration, enforces a single scheduler lease and resumes from its watermark", async () => {
+    const subscriptionId = `schedule-${suffix}`;
+    const created = await schedules.upsert({ subscriptionId, subscriptionVersion: 1, fromDate: "2026-09-11", toDate: "2026-09-11", calendarVersion: "fixture-cn-1" });
+    expect(created.enabled).toBe(false);
+    const enabled = await schedules.setEnabled(subscriptionId, true);
+    expect((await schedules.find(subscriptionId))?.enabled).toBe(true);
+    await pool.query("UPDATE market_data_collection_scheduler_lease SET lease_until=now() - interval '1 second' WHERE lease_id=1");
+    const firstLease = await schedules.acquireLease(`worker-a-${suffix}`, 60);
+    expect(firstLease?.fencingToken).toBeGreaterThan(0);
+    expect(await schedules.acquireLease(`worker-b-${suffix}`, 60)).toBeNull();
+
+    const planner = new CollectionScheduler({ session: (date) => ({ date, status: "TRADING" as const, calendarVersion: "fixture-cn-1", sessions: [{ start: "09:30", end: "09:40" }, { start: "13:00", end: "13:10" }] }) }, { now: () => new Date("2026-09-11T06:00:00.000Z") }, 5, 120);
+    const worker = new PersistentCollectionSchedulerWorker(schedules, repository, planner, `worker-a-${suffix}`);
+    const firstTick = await worker.tick();
+    expect(firstTick.leaseAcquired).toBe(true);
+    expect(firstTick.schedules).toBeGreaterThanOrEqual(1);
+    expect(firstTick.submitted).toBeGreaterThanOrEqual(4);
+    const after = await schedules.find(subscriptionId);
+    expect(after?.watermarkEnd).toBe("2026-09-11T05:10:00.000Z");
+
+    const resumed = new PersistentCollectionSchedulerWorker(schedules, repository, planner, `worker-a-${suffix}`);
+    const secondTick = await resumed.tick();
+    expect(secondTick.submitted).toBe(0);
+    expect((await schedules.find(subscriptionId))?.version).toBe(after?.version);
+    expect(enabled.version).toBeLessThan(after!.version);
   });
 });

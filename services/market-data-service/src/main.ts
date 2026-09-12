@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { Pool } from "pg";
 import { CollectionRunConflict, CollectionRunRepository } from "./application/collection-run-repository.js";
 import { CollectionScheduler } from "./application/collection-scheduler.js";
+import { CollectionScheduleConflict, CollectionScheduleRepository } from "./application/collection-schedule-repository.js";
+import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -35,10 +37,14 @@ const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: numb
 for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
 const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
 const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
+const collectionSchedules = databasePool ? new CollectionScheduleRepository(databasePool) : null;
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
 } }, { now: () => new Date() });
+const persistentSchedulerWorker = databasePool && collectionRuns && collectionSchedules && process.env.STOCKQUANT_SCHEDULER_WORKER === "1"
+  ? new PersistentCollectionSchedulerWorker(collectionSchedules, collectionRuns, collectionScheduler, process.env.STOCKQUANT_SCHEDULER_OWNER ?? `market-data-${process.pid}`)
+  : null;
 
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
@@ -63,6 +69,25 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const subscriptionId = query.get("subscriptionId"); const from = query.get("from"); const to = query.get("to");
       if (!subscriptionId || !from || !to) return json(res, { code: "INVALID_SCHEDULE_QUERY", required: ["subscriptionId", "from", "to"] }, 422);
       return json(res, collectionScheduler.plan(subscriptionId, from, to));
+    }
+    if (req.url === "/v2/collection-schedules" && req.method === "POST") {
+      if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+      const required = ["subscriptionId", "subscriptionVersion", "fromDate", "toDate", "calendarVersion"];
+      if (required.some((key) => body[key] === undefined)) return json(res, { code: "INVALID_COLLECTION_SCHEDULE" }, 422);
+      const schedule = await collectionSchedules.upsert({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), fromDate: String(body.fromDate), toDate: String(body.toDate), calendarVersion: String(body.calendarVersion) });
+      return json(res, schedule, 201);
+    }
+    const scheduleMatch = req.url?.match(/^\/v2\/collection-schedules\/([^/]+)(?:\/(enable|disable))?$/);
+    if (scheduleMatch && req.method === "GET" && !scheduleMatch[2]) {
+      if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const schedule = await collectionSchedules.find(scheduleMatch[1]);
+      return schedule ? json(res, schedule) : json(res, { code: "NOT_FOUND" }, 404);
+    }
+    if (scheduleMatch && req.method === "POST" && scheduleMatch[2]) {
+      if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const schedule = await collectionSchedules.setEnabled(scheduleMatch[1], scheduleMatch[2] === "enable");
+      return json(res, schedule);
     }
     if (req.url === "/v2/collection-runs" && req.method === "POST") {
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
@@ -132,7 +157,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const taskMatch = req.url?.match(/^\/v1\/artifacts\/tasks\/([^/]+)$/);
     if (taskMatch && req.method === "GET") { const task = artifactTasks.get(taskMatch[1]); if (!task) return json(res, { code: "NOT_FOUND" }, 404); return json(res, { taskId: taskMatch[1], ...task }); }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { return json(res, { code: error instanceof CollectionRunConflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, error instanceof CollectionRunConflict ? 409 : 500); }
+  } catch (error) { const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict; return json(res, { code: conflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, conflict ? 409 : 500); }
 });
 function readBody(req: IncomingMessage): Promise<string> { return new Promise((resolveBody, reject) => { let value = ""; req.on("data", (chunk) => { value += chunk; if (value.length > 1_000_000) reject(new Error("body too large")); }); req.on("end", () => resolveBody(value)); req.on("error", reject); }); }
 type MinuteBar = { securityId: string; market: string; frequency: string; barStart: string; barEnd: string; availableAt: string; open: number; high: number; low: number; close: number; volume: number; amount: number; adjustment: string };
@@ -142,6 +167,8 @@ async function sourceCheck(sourceId: string, url: string) { try { const response
 async function liveNews(sourceId: string, url: string, observedAt: string) { try { const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { "user-agent": "StockQuant-V2.1" } }); const html = await response.text(); const match = html.match(/<title[^>]*>\s*([^<]{3,200})\s*<\/title>/i); if (!response.ok || !match) return null; const title = match[1].replace(/\s+/g, " ").trim(); return { newsId: createHash("sha256").update(`${sourceId}:${title}`).digest("hex").slice(0, 24), sourceId, title, publishedAt: null, observedAt, ingestedAt: observedAt, availableAt: observedAt, revision: 1, symbols: [] as string[] }; } catch { return null; } }
 async function start(): Promise<void> {
   if (collectionRuns) await collectionRuns.migrate();
+  if (collectionSchedules) await collectionSchedules.migrate();
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
+  if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
 }
 void start().catch((error: unknown) => { console.error("market-data-service startup failed", error); process.exitCode = 1; });
