@@ -9,6 +9,7 @@ import { CollectionScheduleConflict, CollectionScheduleRepository } from "./appl
 import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
 import { CoverageRepository } from "./application/coverage-repository.js";
+import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -180,6 +181,33 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
       return json(res, result, result.created ? 201 : 200);
     }
+    if (req.url === "/v2/projects/access" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { projectId?: string; resourceProjectId?: string; scope?: ProjectScope };
+      const actor = projectActor(req);
+      if (!actor || !body.resourceProjectId || !body.scope) return json(res, { code: "UNAUTHENTICATED" }, 401);
+      assertProjectAccess(actor, body.resourceProjectId, body.scope);
+      return json(res, { projectId: actor.projectId, resourceProjectId: body.resourceProjectId, scope: body.scope, allowed: true });
+    }
+    if (req.url === "/v2/data/page" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { projectId?: string; dataVersion?: string; items?: unknown[]; cursor?: number; pageSize?: number };
+      const actor = projectActor(req);
+      if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
+      assertProjectAccess(actor, body.projectId, "DATA_READ");
+      return json(res, paginateVersioned(body.items, body.dataVersion, body.dataVersion, Number(body.cursor ?? 0), Number(body.pageSize ?? 100)));
+    }
+    if (req.url === "/v2/data/export" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { projectId?: string; dataVersion?: string; items?: unknown[] };
+      const actor = projectActor(req);
+      if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
+      assertProjectAccess(actor, body.projectId, "DATA_EXPORT");
+      return json(res, exportWithManifest(body.projectId, body.dataVersion, body.items));
+    }
+    if (req.url === "/v2/data/dedupe-key" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { source?: string; market?: string; securityId?: string; frequency?: string; adjustment?: string; windowStart?: string; windowEnd?: string; adapterVersion?: string };
+      const fields = [body.source, body.market, body.securityId, body.frequency, body.adjustment, body.windowStart, body.windowEnd, body.adapterVersion];
+      if (fields.some((value) => !value)) return json(res, { code: "INVALID_DEDUPE_INPUT" }, 422);
+      return json(res, { key: physicalDedupeKey(body as { source: string; market: string; securityId: string; frequency: string; adjustment: string; windowStart: string; windowEnd: string; adapterVersion: string }) });
+    }
     if (req.url === "/v2/minute/import" && req.method === "POST") { const body = JSON.parse(await readBody(req)); const file = body.fixture === "bad" ? minuteBadFixture : minuteFixture; const content = await readFile(file); const sha256 = createHash("sha256").update(content).digest("hex"); const existing = [...minuteImports.values()].find((item) => item.sha256 === sha256); if (existing) return json(res, { ...existing, idempotent: true }); const bars = await parseMinute(file); const errors = minuteQuality(bars); const accepted = errors.length ? 0 : bars.length; const result = { importId: `minute-import-${Date.now()}`, version: `v2.2-import-${sha256.slice(0, 12)}`, status: errors.length ? "REJECTED" : "PUBLISHED", accepted, errors, sha256 }; minuteImports.set(result.version, result); return json(res, { ...result, idempotent: false }, errors.length ? 422 : 201); }
     const minuteGet = req.url?.match(/^\/v2\/minute\/imports\/([^/]+)$/); if (minuteGet && req.method === "GET") { const result = minuteImports.get(minuteGet[1]); if (!result) return json(res, { code: "NOT_FOUND" }, 404); return json(res, result); }
     if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
@@ -191,8 +219,15 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const taskMatch = req.url?.match(/^\/v1\/artifacts\/tasks\/([^/]+)$/);
     if (taskMatch && req.method === "GET") { const task = artifactTasks.get(taskMatch[1]); if (!task) return json(res, { code: "NOT_FOUND" }, 404); return json(res, { taskId: taskMatch[1], ...task }); }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict; return json(res, { code: conflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, conflict ? 409 : 500); }
+  } catch (error) { const access = error instanceof ProjectAccessDenied; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict; return json(res, { code: access ? "PROJECT_ACCESS_DENIED" : conflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, access ? 403 : conflict ? 409 : 500); }
 });
+function projectActor(req: IncomingMessage): ProjectActor | null {
+  const projectId = req.headers["x-stockquant-project-id"];
+  if (typeof projectId !== "string" || !projectId) return null;
+  const rawScopes = req.headers["x-stockquant-scopes"];
+  const scopes = new Set((typeof rawScopes === "string" ? rawScopes.split(",") : []).filter((scope): scope is ProjectScope => ["DATA_READ", "DATA_WRITE", "DATA_EXPORT"].includes(scope)));
+  return { projectId, scopes };
+}
 function readBody(req: IncomingMessage): Promise<string> { return new Promise((resolveBody, reject) => { let value = ""; req.on("data", (chunk) => { value += chunk; if (value.length > 1_000_000) reject(new Error("body too large")); }); req.on("end", () => resolveBody(value)); req.on("error", reject); }); }
 type MinuteBar = { securityId: string; market: string; frequency: string; barStart: string; barEnd: string; availableAt: string; open: number; high: number; low: number; close: number; volume: number; amount: number; adjustment: string };
 async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1); return lines.map((line) => { const [securityId, market, frequency, barStart, barEnd, availableAt, open, high, low, close, volume, amount, adjustment] = line.split(","); return { securityId, market, frequency, barStart, barEnd, availableAt, open: Number(open), high: Number(high), low: Number(low), close: Number(close), volume: Number(volume), amount: Number(amount), adjustment }; }); }
