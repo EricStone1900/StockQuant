@@ -80,7 +80,7 @@ V2.2/2.3通过；V2.4连续观察可并行累计，完成V2必须具备其证据
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | recovery 场景使用固定游标/取消断言；不操作共享卷，不删除业务数据库 |
 | 预期耗时、轮询超时、实际观察期/预算 | 单场景 <60 秒；资源预算 1024 MB / 120 秒；V2.4 观察门禁独立累计 |
 
-真实免费源分档导入命令：`uv run --with baostock python scripts/import-baostock-daily.py --sample-size 5 --start-date 2019-01-01 --end-date 2024-12-31 --output-dir /tmp/stockquant-baostock-daily-s5`；扩大到 100 时将 `--sample-size` 改为 `100`。输出目录包含按证券分区的 CSV 与 `manifest.json`，中断后使用相同参数和目录续跑；5/100/500/5,219 日线档均已完成。归档位于 `data/local/baostock-daily-2019-2024-v1`（Git 忽略）；恢复副本完整性见 `docs/evidence-v2.5.md`。真实分钟扩大命令为 `pnpm v25:import-baostock-minute-sample -- --sample-size 20 --timeout-seconds 30`；当前首标的超时，必须保留失败 Manifest 后再决定何时重试，不能标作通过。
+真实免费源分档导入命令：`uv run --with baostock python scripts/import-baostock-daily.py --sample-size 5 --start-date 2019-01-01 --end-date 2024-12-31 --output-dir /tmp/stockquant-baostock-daily-s5`；扩大到 100 时将 `--sample-size` 改为 `100`。输出目录包含按证券分区的 CSV 与 `manifest.json`，中断后使用相同参数和目录续跑；5/100/500/5,219 日线档均已完成。归档位于 `data/local/baostock-daily-2019-2024-v1`（Git 忽略）；恢复副本完整性见 `docs/evidence-v2.5.md`。真实分钟扩大命令为 `pnpm v25:import-baostock-minute-sample -- --sample-size 20 --timeout-seconds 30`；当前首标的超时，必须保留失败 Manifest 后再决定何时重试，不能标作通过。已提供本地通达信（TDX）文件时，可使用只读备用命令 `pnpm v25:import-tdx-minute-sample -- --tdx-dir /绝对路径/通达信数据根目录 --symbols sh600000,sz000001 --start-date 2024-01-02 --end-date 2024-03-29 --output-dir data/local/tdx-minute-5`；它读取既有 `fzline/*.lc5` 或 `.5`、输出带源端 SHA-256 的 Manifest，当前因未提供源文件仍为 `NOT_RUN`。
 
 ### 8.2 初始化与启动
 
