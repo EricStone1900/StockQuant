@@ -25,7 +25,7 @@
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | IN_PROGRESS | PASS：TS、8个服务单测、真实PostgreSQL调度集成7/7、HTTP配置烟测；计划/持久API和Worker已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 在DC-07完成容器部署、目标环境实际交易日运行、Web/验收中心接入 |
 | DC-04 主备 | IN_PROGRESS | PASS：Python适配器5/5；TS检查通过；主备/熔断/字段隔离已验证 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再接入正式采集 |
-| DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归7/7、质量/覆盖HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 持久GapRecord/补采任务、停牌权威核验和真实60日覆盖报告 |
+| DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
 | DC-06 多项目Web/API | TODO | NOT_RUN | NOT_RUN | 无 | 授权、配额、共享、E2E及证据 |
 | DC-07 部署运维 | TODO | NOT_RUN | NOT_RUN | 无 | 实际容器和恢复演练、填写操作手册 |
 | DC-08A 启用/短期验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-07后3只2实际交易日、20只1实际交易日，交接并恢复主项目 |
@@ -86,3 +86,5 @@
 2026-09-12 DC-04启动记录：新增独立 `services/market-data-adapter` Python 包，BaoStock/Sina 均为只读适配器；主源三次可重试失败后切换新浪，连续失败打开熔断，冷却后单探针半开恢复；规范化层拒绝空结果、缺字段、来源不一致。Python unittest 5/5通过；真实源盘中能力和许可保持NOT_RUN。
 
 2026-09-12 DC-05启动记录：新增分钟质量校验、应有窗口、GapRecord、覆盖报告和年龄优先级；新增 `/v2/minute/quality` 与 `/v2/minute/coverage`。单元测试12/12、PostgreSQL回归7/7、HTTP质量/覆盖烟测通过；真实60交易日覆盖、持久缺口台账和停牌权威核验保持NOT_RUN。
+
+2026-09-12 DC-05持久化收尾记录：新增 `market_data_gap_records`、`market_data_backfill_tasks` 及对应 API；真实 PostgreSQL 测试 8/8，通过重复上报、关闭缺口、补采幂等验证；HTTP 烟测验证 GapRecord 写入/查询及相同幂等键返回相同 taskId。实际补采执行和每日自动报告尚未启用，人工验收NOT_RUN。

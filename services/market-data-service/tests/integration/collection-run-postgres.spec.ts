@@ -9,6 +9,7 @@ import { CollectionRunConflict, CollectionRunRepository } from "../../src/applic
 import { CollectionScheduleRepository } from "../../src/application/collection-schedule-repository.js";
 import { CollectionScheduler } from "../../src/application/collection-scheduler.js";
 import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
+import { CoverageRepository } from "../../src/application/coverage-repository.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -17,11 +18,13 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const pool = new Pool({ connectionString });
   const repository = new CollectionRunRepository(pool);
   const schedules = new CollectionScheduleRepository(pool);
+  const coverage = new CoverageRepository(pool);
   const suffix = Date.now().toString();
 
   beforeAll(async () => {
     await repository.migrate();
     await schedules.migrate();
+    await coverage.migrate();
   });
 
   afterAll(async () => {
@@ -142,5 +145,21 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(secondTick.submitted).toBe(0);
     expect((await schedules.find(subscriptionId))?.version).toBe(after?.version);
     expect(enabled.version).toBeLessThan(after!.version);
+  });
+
+  it("persists gaps and makes backfill requests idempotent", async () => {
+    const subscriptionId = `coverage-${suffix}`;
+    const gaps = [{ gapId: `gap-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const }];
+    expect(await coverage.upsertGaps(subscriptionId, gaps)).toBe(1);
+    expect((await coverage.open(subscriptionId))).toHaveLength(1);
+    expect(await coverage.upsertGaps(subscriptionId, gaps)).toBe(1);
+    expect((await coverage.open(subscriptionId))).toHaveLength(1);
+    await coverage.close(gaps[0].gapId);
+    expect(await coverage.open(subscriptionId)).toHaveLength(0);
+    const first = await coverage.createBackfill(subscriptionId, "2026-09-11", "2026-09-11", `backfill-${suffix}`);
+    const second = await coverage.createBackfill(subscriptionId, "2026-09-11", "2026-09-11", `backfill-${suffix}`);
+    expect(first.created).toBe(true);
+    expect(second.created).toBe(false);
+    expect(second.task.taskId).toBe(first.task.taskId);
   });
 });

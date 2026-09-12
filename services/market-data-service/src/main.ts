@@ -8,6 +8,7 @@ import { CollectionScheduler } from "./application/collection-scheduler.js";
 import { CollectionScheduleConflict, CollectionScheduleRepository } from "./application/collection-schedule-repository.js";
 import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
+import { CoverageRepository } from "./application/coverage-repository.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -39,6 +40,7 @@ for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) 
 const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
 const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
 const collectionSchedules = databasePool ? new CollectionScheduleRepository(databasePool) : null;
+const coverageRepository = databasePool ? new CoverageRepository(databasePool) : null;
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
@@ -159,6 +161,25 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const report = buildCoverage(body.securityIds, body.fromDate, body.toDate, body.bars, { session: (date) => { const session = cnAShareSession(date); return { status: session.status as "TRADING" | "CLOSED" | "UNKNOWN", sessions: session.sessions }; } });
       return json(res, report, report.status === "PASS" ? 200 : 422);
     }
+    if (req.url === "/v2/minute/gaps" && req.method === "POST") {
+      if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { subscriptionId?: string; gaps?: Array<{ gapId: string; securityId: string; barStart: string; barEnd: string; reason: "MISSING" | "DUPLICATE_CONFLICT"; priority: "P0" | "P1" | "P2" }> };
+      if (!body.subscriptionId || !Array.isArray(body.gaps)) return json(res, { code: "INVALID_GAP_INPUT" }, 422);
+      await coverageRepository.upsertGaps(body.subscriptionId, body.gaps);
+      return json(res, { subscriptionId: body.subscriptionId, open: await coverageRepository.open(body.subscriptionId) });
+    }
+    const gapsMatch = req.url?.match(/^\/v2\/minute\/gaps\/([^/]+)$/);
+    if (gapsMatch && req.method === "GET") {
+      if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      return json(res, { subscriptionId: gapsMatch[1], open: await coverageRepository.open(gapsMatch[1]) });
+    }
+    if (req.url === "/v2/minute/backfills" && req.method === "POST") {
+      if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { subscriptionId?: string; fromDate?: string; toDate?: string; idempotencyKey?: string };
+      if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
+      const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
+      return json(res, result, result.created ? 201 : 200);
+    }
     if (req.url === "/v2/minute/import" && req.method === "POST") { const body = JSON.parse(await readBody(req)); const file = body.fixture === "bad" ? minuteBadFixture : minuteFixture; const content = await readFile(file); const sha256 = createHash("sha256").update(content).digest("hex"); const existing = [...minuteImports.values()].find((item) => item.sha256 === sha256); if (existing) return json(res, { ...existing, idempotent: true }); const bars = await parseMinute(file); const errors = minuteQuality(bars); const accepted = errors.length ? 0 : bars.length; const result = { importId: `minute-import-${Date.now()}`, version: `v2.2-import-${sha256.slice(0, 12)}`, status: errors.length ? "REJECTED" : "PUBLISHED", accepted, errors, sha256 }; minuteImports.set(result.version, result); return json(res, { ...result, idempotent: false }, errors.length ? 422 : 201); }
     const minuteGet = req.url?.match(/^\/v2\/minute\/imports\/([^/]+)$/); if (minuteGet && req.method === "GET") { const result = minuteImports.get(minuteGet[1]); if (!result) return json(res, { code: "NOT_FOUND" }, 404); return json(res, result); }
     if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
@@ -181,6 +202,7 @@ async function liveNews(sourceId: string, url: string, observedAt: string) { try
 async function start(): Promise<void> {
   if (collectionRuns) await collectionRuns.migrate();
   if (collectionSchedules) await collectionSchedules.migrate();
+  if (coverageRepository) await coverageRepository.migrate();
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
   if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
 }
