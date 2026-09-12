@@ -177,3 +177,6 @@ P0→R0基础，P1→R1真实数据/日常能力，P2→R2双市场自动实盘�
 | D7 | AGT、RES、MEM/STR增强 | R3按需验收 |
 
 每个编号是目标需求，不以任务存在、代码存在或测试套件部分通过作为完成。修改需求时同步PRD、契约、测试及验收；不保留不可执行的外部项目依赖。
+# 共享数据采集扩展追踪（2026-09-12，计划）
+
+新增需求DC-R01～DC-R08、工作包DC-00～DC-08（08细分A/B）和测试DC-T01～DC-T25见[共享数据采集计划](./v2-data-and-replay/06-shared-data-collection-plan.md)。DC-T25验证DC-R02/03/05/06/08的短期真实运行交付。用例输入/步骤/预期见[测试手册](./v2-data-and-replay/07-data-collection-tests.md)，实际状态见[进度记录](./v2-data-and-replay/08-data-collection-progress.md)。本扩展尚未实现，不改变上述历史需求或验收结论。

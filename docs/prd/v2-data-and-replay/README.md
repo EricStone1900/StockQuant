@@ -15,3 +15,5 @@
 - [V2.5 历史数据扩容与 V2 验收](./05-data-scale-and-v2-acceptance.md)
 
 最后执行[测试计划](./90-test-plan.md)，填写[版本验收](./99-acceptance.md)。所有代码路径、Web路由和命令都是待开发目标，不表示已存在。
+
+2026-09-12新增规划：[共享数据采集开发计划](./06-shared-data-collection-plan.md)、[对应测试与恢复手册](./07-data-collection-tests.md)、[进度与接续记录](./08-data-collection-progress.md)。支持多项目、交易时段定时采集、主备来源与60交易日积累；当前为计划，未改变上述阶段验收结果。

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/provider-capability-v1.schema.json",
+  "title": "ProviderCapability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceId", "market", "frequency", "historicalStatus", "liveStatus", "fields", "checkedAt"],
+  "properties": {
+    "sourceId": {"type": "string", "minLength": 1},
+    "market": {"enum": ["CN_A_SHARE", "US_EQUITY"]},
+    "frequency": {"enum": ["5m", "1d"]},
+    "historicalStatus": {"enum": ["PASS", "PARTIAL", "FAIL", "NOT_RUN"]},
+    "liveStatus": {"enum": ["PASS", "PARTIAL", "FAIL", "NOT_RUN", "BLOCKED_CAPABILITY"]},
+    "fields": {"type": "array", "items": {"type": "string"}},
+    "checkedAt": {"type": "string", "format": "date-time"},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}

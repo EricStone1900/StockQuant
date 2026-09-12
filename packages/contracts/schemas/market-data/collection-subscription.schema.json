@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/collection-subscription-v1.schema.json",
+  "title": "CollectionSubscription",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subscriptionId", "projectId", "market", "securityUniverseVersion", "frequency", "barType", "sourcePolicy", "calendarVersion", "timeZone", "enabled", "version"],
+  "properties": {
+    "subscriptionId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "projectId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "market": {"enum": ["CN_A_SHARE", "US_EQUITY"]},
+    "securityUniverseVersion": {"type": "string", "minLength": 1},
+    "frequency": {"enum": ["5m", "1d"]},
+    "barType": {"enum": ["MINUTE_BAR", "DAILY_BAR"]},
+    "sourcePolicy": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "calendarVersion": {"type": "string", "minLength": 1},
+    "timeZone": {"type": "string", "minLength": 1},
+    "enabled": {"type": "boolean"},
+    "version": {"type": "integer", "minimum": 1},
+    "quota": {"type": "object", "additionalProperties": false, "properties": {"maxSecurities": {"type": "integer", "minimum": 1}, "maxRequestsPerMinute": {"type": "integer", "minimum": 1}}}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/collection-run-v1.schema.json",
+  "title": "CollectionRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "subscriptionId", "subscriptionVersion", "windowStart", "windowEnd", "jobKind", "status", "idempotencyKey"],
+  "properties": {
+    "runId": {"type": "string", "minLength": 1},
+    "subscriptionId": {"type": "string", "minLength": 1},
+    "subscriptionVersion": {"type": "integer", "minimum": 1},
+    "windowStart": {"type": "string", "format": "date-time"},
+    "windowEnd": {"type": "string", "format": "date-time"},
+    "jobKind": {"enum": ["INTRADAY_WINDOW", "CLOSE_RECONCILIATION", "BACKFILL", "GAP_REPAIR"]},
+    "status": {"enum": ["QUEUED", "RUNNING", "WAITING_RETRY", "WAITING_DEPENDENCY", "PARTIAL", "COMPLETED", "FAILED", "PAUSED", "CANCELLED"]},
+    "idempotencyKey": {"type": "string", "minLength": 8},
+    "checkpoint": {"type": ["object", "null"]},
+    "sourceAttempts": {"type": "array", "items": {"type": "object"}}
+  }
+}
