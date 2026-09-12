@@ -130,6 +130,21 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(event.payload).toMatchObject({ runId: created.run.runId, artifactId, sha256, rowCount });
   });
 
+  it("publishes normalized rows with Artifact metadata in one database transaction", async () => {
+    const projectId = `executor-project-${suffix}`;
+    await projects.register(projectId, `executor-token-${suffix}`, ["DATA_READ"], 1, 20);
+    const request = { subscriptionId: `executor-${suffix}`, subscriptionVersion: 1, windowStart: "2026-09-11T01:30:00.000Z", windowEnd: "2026-09-11T01:35:00.000Z", jobKind: "INTRADAY_WINDOW" as const, idempotencyKey: `executor-${suffix}`, requestHash: "d".repeat(64) };
+    const created = await repository.create(request);
+    const claimed = await repository.claim(created.run.runId, 30);
+    const rows = [{ securityId: "600000.SH", barStart: "2026-09-11T09:30:00+08:00", close: 10, sourceId: "baostock", testRun: suffix }];
+    const sha256 = createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+    const artifactId = `executor-${sha256.slice(0, 16)}`;
+    const published = await repository.publishRows({ runId: created.run.runId, fencingToken: claimed!.fencingToken, artifactId, sha256, projectId, dataVersion: "cn-5m-raw-v1", rows });
+    expect(published.status).toBe("COMPLETED");
+    expect(await repository.findArtifact(artifactId)).toEqual({ artifactId, runId: created.run.runId, sha256, rowCount: 1 });
+    expect(await artifacts.page(projectId, artifactId, "cn-5m-raw-v1", 0, 10)).toEqual({ dataVersion: "cn-5m-raw-v1", items: rows, nextCursor: null });
+  });
+
   it("persists schedule configuration, enforces a single scheduler lease and resumes from its watermark", async () => {
     const subscriptionId = `schedule-${suffix}`;
     const created = await schedules.upsert({ subscriptionId, subscriptionVersion: 1, fromDate: "2026-09-11", toDate: "2026-09-11", calendarVersion: "fixture-cn-1" });

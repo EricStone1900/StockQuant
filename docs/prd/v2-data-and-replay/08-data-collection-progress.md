@@ -1,6 +1,6 @@
 # 共享数据采集：进度、问题及接续记录
 
-日期：2026-09-12；计划版本1.1。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
+日期：2026-09-12；计划版本1.2。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
 
 ## 1. 状态规则
 
@@ -23,11 +23,11 @@
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
-| DC-03 调度 | IN_PROGRESS | PASS：TS、8个服务单测、真实PostgreSQL调度集成7/7、HTTP配置烟测；计划/持久API和Worker已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 在DC-07完成容器部署、目标环境实际交易日运行、Web/验收中心接入 |
-| DC-04 主备 | IN_PROGRESS | PASS：Python适配器5/5；TS检查通过；主备/熔断/字段隔离已验证 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再接入正式采集 |
+| DC-03 调度 | IN_PROGRESS | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 实际交易日运行、Web/验收中心接入；冻结订阅后显式启用 |
+| DC-04 主备 | IN_PROGRESS | PASS：Python适配器6/6、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
-| DC-07 部署运维 | IN_PROGRESS | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 外部告警出口故障/恢复、宿主机重启续跑记录、完善操作手册 |
+| DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
 | DC-08A 启用/短期验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-07后3只2实际交易日、20只1实际交易日，交接并恢复主项目 |
 | DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
 
@@ -55,10 +55,10 @@
 | ID | 项目 | 最迟解决包 | 当前状态/未解决行为 |
 |---|---|---|---|
 | DC-B01 | BaoStock/Sina盘中更新、字段、量额单位、限流与许可 | DC-00/04 | OPEN；禁用未验证盘中能力 |
-| DC-B02 | 首批20只清单、实际启动日期、允许消费字段 | DC-01/08 | OPEN；优先使用已有20只清单；冻结后才计覆盖 |
+| DC-B02 | 首批20只清单、实际启动日期、允许消费字段 | DC-01/08 | PASS（冻结输入）；计划、20只集合及 SHA 已记录；实际启动日期和覆盖仍待DC-08A |
 | DC-B03 | 日历来源与有效年限、特殊交易日规则 | DC-01/03 | OPEN；未知日期暂停受影响市场 |
-| DC-B04 | 独立备份路径、保留期限和告警目的地 | DC-07 | UNSET；开发使用隔离资源，正式备份/外部通知验收不通过 |
-| DC-B05 | Ubuntu主机/架构、资源及部署位置 | DC-07 | UNSET；以前其他模块的Ubuntu人工通过不覆盖本模块 |
+| DC-B04 | 独立备份路径、保留期限和告警目的地 | 上线前 | 本机备份/隔离恢复PASS；外部介质和告警目的地延期，不能标记生产就绪 |
+| DC-B05 | Ubuntu主机/架构、资源及部署位置 | 上线前 | Ubuntu实机人工兼容验证PASS；正式主机/资源/部署位置仍UNSET |
 | DC-B06 | 其他项目的数据种类/身份/用途与许可 | DC-06及新增适配器时 | OPEN；先两个隔离Fixture消费者验共享，未支持类型明确拒绝 |
 
 ## 5. 首次记录
@@ -96,3 +96,7 @@
 2026-09-12 DC-06交付收尾记录：新增持久队列指标表，分页访问记录 admitted 计数；导出递归脱敏敏感字段后重新计算 SHA-256；新增 `market_data_artifact_rows` 真实 Artifact 行存储、项目隔离分页和 DataVersion 冲突保护；新增平台验收代理和 `/acceptance/v2/dc06` 页面。单元测试17/17、真实 PostgreSQL 集成10/10、Artifact HTTP 烟测、平台/Web 构建和 Playwright 1/1 通过（写入2行、pageSize=1返回首行、错误令牌403）。人工验收已通过。
 
 2026-09-12 DC-06人工验收后自动复核：normal/rejection/recovery 三个 `testRunId` 均为 `COMPLETED` 且断言全PASS；Playwright 1/1、PostgreSQL 10/10、单元17/17通过。人工验收已由用户确认通过，后续仅保留运行期观察记录。
+
+2026-09-12 计划1.2/执行链启动记录：用户确认第一版本仅需本机单机全流程，Ubuntu已人工验证；因此DC-07标记为本机范围DONE，外部告警、异机备份和生产灾备延期至上线前，不降低真实分钟数据和DC-08A观察门槛。发现原持久调度器仅创建任务/推进水位、不调用适配器或持久化分钟数据；新增独立执行器领取持久任务、调用受控Python JSON边界、质量校验、内容寻址Artifact和项目范围行的同事务发布，源端/质量失败转`WAITING_RETRY`并记录延迟重试。Python适配器固定`baostock==0.8.9`并生成锁；修正BaoStock/Sina代码格式和新浪返回日期过滤。当前已通过市场数据服务单测20/20、TypeScript typecheck、Python unittest 6/6；容器/真实PostgreSQL复验仍在执行，真实交易日观察尚未启动。
+
+2026-09-12 DC-08A准备记录：复核既有冻结输入 `fixtures/v2/data-collection/collection-plan-v1.json`，20只集合版本为 `baostock-minute-20x60-v1`，SHA-256为`045595a9923a826e0413e9ad3708dc9409effaeeb007e794634bc21faf4d26a9`；完成服务格式映射并记录3只跨沪深短期观察集合。新增[DC-08A启用前准备记录](../../evidence-data-collection-dc08a-readiness.md)。调度器和执行器继续保持默认关闭，待实际交易时段按检查单显式启用。

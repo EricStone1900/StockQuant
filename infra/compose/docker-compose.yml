@@ -196,6 +196,14 @@ services:
       STOCKQUANT_PORT: 3002
       STOCKQUANT_PROJECT_ROOT: /workspace
       STOCKQUANT_DATABASE_URL: postgresql://market_data@postgres:5432/market_data
+      # Kept disabled until DC-00 freezes a real-source capability report and
+      # DC-08A creates the approved subscription.  Enabling either is an
+      # explicit operational action, never a side effect of `stack:up`.
+      STOCKQUANT_SCHEDULER_WORKER: "0"
+      STOCKQUANT_COLLECTION_EXECUTOR: "0"
+      STOCKQUANT_COLLECTION_SECURITY_IDS: 600000.SH,000001.SZ,600519.SH
+      STOCKQUANT_COLLECTION_PROJECT_ID: stockquant-local
+      STOCKQUANT_COLLECTION_DATA_VERSION: cn-5m-raw-v1
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from market_data_adapter.providers import normalize_baostock, normalize_sina, SinaMinuteClient
+from market_data_adapter.providers import baostock_symbol, normalize_baostock, normalize_sina, SinaMinuteClient, sina_symbol
 
 
 class Response:
@@ -35,6 +35,10 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(len(bars), 1)
         self.assertEqual(bars[0].amount, "1000")
         self.assertEqual(bars[0].source_id, "sina")
+
+    def test_translates_public_symbols_for_each_provider(self):
+        self.assertEqual(baostock_symbol("600000.SH"), "sh.600000")
+        self.assertEqual(sina_symbol("000001.SZ"), "sz000001")
 
 
 if __name__ == "__main__":

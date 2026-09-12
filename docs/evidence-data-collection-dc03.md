@@ -7,6 +7,8 @@
 - `services/market-data-service/src/application/collection-scheduler.ts`：注入 `Clock` 和版本化 `Calendar`，按 Asia/Shanghai 会话生成闭合 5 分钟窗口。
 - `services/market-data-service/src/application/collection-schedule-repository.ts`：持久化订阅计划、启停状态、版本和水位；使用单行租约表保证单活调度器。
 - `services/market-data-service/src/application/persistent-collection-scheduler.ts`：读取启用计划，抢占调度租约，按水位创建持久 CollectionRun，成功后推进水位；重复 Tick 依赖幂等键不重复创建。
+- `services/market-data-service/src/application/collection-executor.ts`：独立领取到期任务，通过 JSON stdin/stdout 调用受控 Python 适配器；只发布精确的已领取 5 分钟窗口，质量失败、空窗口或来源失败都转入带延迟的 `WAITING_RETRY`，不推进为成功。
+- `CollectionRunRepository.publishRows`：在同一数据库事务内写入 Artifact 元数据、项目范围规范行及完成 Outbox；过期 fencing token 不能发布。
 - 窗口必须满足结束时间加发布延迟（默认120秒）不晚于当前 Clock；午休、闭市不生成任务。
 - `UNKNOWN` 日历日期返回 `waitingDates`，不按周一至周五猜测交易日。
 - 使用 `subscriptionId + revision + windowStart + windowEnd + jobKind` 生成幂等键；传入已存在键时跳过，历史窗口标记 `backfill`。
@@ -19,8 +21,8 @@ pnpm --filter @stockquant/market-data-service lint
 pnpm --filter @stockquant/market-data-service exec vitest run tests/unit
 ```
 
-结果：TypeScript 检查通过；3 个单元测试文件、8 个测试通过；真实 PostgreSQL 调度集成测试 7/7 通过；HTTP 烟测验证 `/ready`、计划创建、启用和查询。覆盖开盘前/闭合窗口、发布延迟、午休和闭市、未知日历、重复触发去重、漏窗标记、暂停/恢复、持久水位和单活租约。
+结果：TypeScript 检查通过；服务单元测试21/21通过；真实 PostgreSQL 集成12/12通过（含规范行+Artifact+Outbox同事务发布）；容器内 Python 适配器导入和健康响应通过。覆盖开盘前/闭合窗口、发布延迟、午休和闭市、未知日历、重复触发去重、漏窗标记、暂停/恢复、持久水位、单活租约、精确窗口过滤及失败延迟重试。
 
 ## 范围与剩余门槛
 
-DC-03 当前状态为 `IN_PROGRESS`：确定性计划算法、持久调度配置、单活租约、可恢复 Worker 和 HTTP 配置链路已完成并验证。仍需在 DC-07 进行正式容器部署、目标环境实际交易日运行、Web/验收中心接入和真实来源采集；本证据不能代替 DC-T25 或 DC-08A。
+DC-03 当前状态为 `IN_PROGRESS`：确定性计划算法、持久调度配置、单活租约、可恢复 Worker、执行/发布链路和 HTTP 配置链路已完成并验证。Compose 默认将调度/执行器设为`0`，只有冻结订阅与来源能力报告后才显式设为`1`；这避免历史验证任务被误采集。仍需实际交易日运行、Web/验收中心接入和真实来源采集；本证据不能代替 DC-T25 或 DC-08A。

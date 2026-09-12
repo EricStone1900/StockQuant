@@ -41,6 +41,27 @@ def normalize_sina(items: Sequence[dict[str, Any]], security_id: str, source_id:
     return result
 
 
+def baostock_symbol(security_id: str) -> str:
+    """Convert the public 600000.SH form to BaoStock's sh.600000 form."""
+    number, market = security_id.upper().split(".", 1)
+    if market not in {"SH", "SZ"} or not number.isdigit() or len(number) != 6:
+        raise SourceError("SYMBOL_INVALID", f"unsupported A-share security id: {security_id}", retryable=False)
+    return f"{market.lower()}.{number}"
+
+
+def sina_symbol(security_id: str) -> str:
+    """Convert the public 600000.SH form to Sina's sh600000 form."""
+    number, market = security_id.upper().split(".", 1)
+    if market not in {"SH", "SZ"} or not number.isdigit() or len(number) != 6:
+        raise SourceError("SYMBOL_INVALID", f"unsupported A-share security id: {security_id}", retryable=False)
+    return f"{market.lower()}{number}"
+
+
+def filter_range(bars: Sequence[NormalizedBar], start: str, end: str) -> list[NormalizedBar]:
+    """Providers may return a rolling window; retain only the requested local dates."""
+    return [bar for bar in bars if start <= bar.bar_start[:10] <= end]
+
+
 def _baostock_child(code: str, start: str, end: str, output: Any) -> None:
     try:
         import baostock as bs  # type: ignore[import-not-found]
@@ -66,7 +87,7 @@ class BaoStockMinuteClient:
         bars: list[NormalizedBar] = []
         for security_id in security_ids:
             queue = context.Queue()
-            process = context.Process(target=_baostock_child, args=(security_id.lower().replace(".sh", ".SH").replace(".sz", ".SZ"), start, end, queue))
+            process = context.Process(target=_baostock_child, args=(baostock_symbol(security_id), start, end, queue))
             process.start()
             try:
                 response = queue.get(timeout=timeout_seconds)
@@ -82,7 +103,7 @@ class BaoStockMinuteClient:
             if response.get("error") or response.get("errorCode") != "0":
                 raise SourceError(str(response.get("error") or "QUERY_FAILED"), str(response.get("message", "BaoStock query failed")))
             bars.extend(normalize_baostock(response["rows"]))
-        return bars
+        return filter_range(bars, start, end)
 
 
 class SinaMinuteClient:
@@ -92,14 +113,14 @@ class SinaMinuteClient:
     def fetch(self, security_ids: Sequence[str], start: str, end: str, timeout_seconds: float) -> list[NormalizedBar]:
         bars: list[NormalizedBar] = []
         for security_id in security_ids:
-            symbol = security_id.replace(".", "")
+            symbol = sina_symbol(security_id)
             url = "https://quotes.sina.cn/cn/api/jsonp_v2.php/=/CN_MarketDataService.getKLineData?" + urllib.parse.urlencode({"symbol": symbol, "scale": 5, "datalen": 1970})
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": "StockQuant-DC04/1.0"})
                 with self.opener(request, timeout=timeout_seconds) as response:
                     body = response.read().decode("utf-8")
                 payload = body.split("=(", 1)[1].rsplit(");", 1)[0] if "=(" in body else body
-                bars.extend(normalize_sina(json.loads(payload), security_id))
+                bars.extend(filter_range(normalize_sina(json.loads(payload), security_id), start, end))
             except SourceError:
                 raise
             except Exception as error:  # noqa: BLE001

@@ -7,6 +7,7 @@ import { CollectionRunConflict, CollectionRunRepository } from "./application/co
 import { CollectionScheduler } from "./application/collection-scheduler.js";
 import { CollectionScheduleConflict, CollectionScheduleRepository } from "./application/collection-schedule-repository.js";
 import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
+import { PersistentCollectionExecutor, PythonMinuteCollectionAdapter } from "./application/collection-executor.js";
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
 import { CoverageRepository } from "./application/coverage-repository.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
@@ -55,6 +56,13 @@ const collectionScheduler = new CollectionScheduler({ session: (date) => {
 const persistentSchedulerWorker = databasePool && collectionRuns && collectionSchedules && process.env.STOCKQUANT_SCHEDULER_WORKER === "1"
   ? new PersistentCollectionSchedulerWorker(collectionSchedules, collectionRuns, collectionScheduler, process.env.STOCKQUANT_SCHEDULER_OWNER ?? `market-data-${process.pid}`)
   : null;
+const collectionExecutor = collectionRuns && process.env.STOCKQUANT_COLLECTION_EXECUTOR === "1"
+  ? new PersistentCollectionExecutor(collectionRuns, new PythonMinuteCollectionAdapter(), {
+    securityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean),
+    projectId: process.env.STOCKQUANT_COLLECTION_PROJECT_ID ?? "stockquant-local",
+    dataVersion: process.env.STOCKQUANT_COLLECTION_DATA_VERSION ?? "cn-5m-raw-v1",
+  })
+  : null;
 
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
@@ -70,7 +78,7 @@ async function json(res: ServerResponse, body: unknown, status = 200) { res.writ
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED" });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED" });
     if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), nextExecutionAt: null, mode: "FIXTURE_PLAN_ONLY", note: "DC-03 scheduler plans persisted collection windows; worker activation remains an explicit deployment setting." });
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
@@ -280,5 +288,6 @@ async function start(): Promise<void> {
   }
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
   if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
+  if (collectionExecutor) collectionExecutor.start(Number(process.env.STOCKQUANT_COLLECTION_EXECUTOR_INTERVAL_MS ?? 60_000));
 }
 void start().catch((error: unknown) => { console.error("market-data-service startup failed", error); process.exitCode = 1; });

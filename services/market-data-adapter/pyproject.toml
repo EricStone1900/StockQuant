@@ -3,12 +3,7 @@ name = "stockquant-market-data-adapter"
 version = "0.1.0"
 description = "Bounded read-only BaoStock/Sina minute data adapters"
 requires-python = ">=3.9"
-dependencies = []
-
-# BaoStock is imported only inside the isolated adapter child process. The
-# production image must add and lock it when the networked build environment
-# is available; the offline development lock intentionally keeps the core
-# failover/normalization tests dependency-free.
+dependencies = ["baostock==0.8.9"]
 
 [build-system]
 requires = ["setuptools>=68"]

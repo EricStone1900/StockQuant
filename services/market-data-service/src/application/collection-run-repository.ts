@@ -20,6 +20,7 @@ export type CollectionRun = CollectionRunRequest & {
   checkpoint: Record<string, unknown> | null;
   fencingToken: number;
   leaseUntil: string | null;
+  retryAt: string | null;
   publishedArtifactId: string | null;
 };
 
@@ -40,6 +41,7 @@ type Row = QueryResultRow & {
   checkpoint: Record<string, unknown> | null;
   fencing_token: number;
   lease_until: Date | null;
+  retry_at: Date | null;
   published_artifact_id: string | null;
 };
 
@@ -69,11 +71,14 @@ export class CollectionRunRepository {
         checkpoint JSONB,
         fencing_token BIGINT NOT NULL DEFAULT 0 CHECK (fencing_token >= 0),
         lease_until TIMESTAMPTZ,
+        retry_at TIMESTAMPTZ,
         published_artifact_id TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+      ALTER TABLE market_data_collection_runs ADD COLUMN IF NOT EXISTS retry_at TIMESTAMPTZ;
       CREATE INDEX IF NOT EXISTS market_data_collection_runs_status_idx ON market_data_collection_runs(status, lease_until);
+      CREATE INDEX IF NOT EXISTS market_data_collection_runs_retry_idx ON market_data_collection_runs(status, retry_at);
       CREATE TABLE IF NOT EXISTS market_data_collection_artifacts (
         artifact_id TEXT PRIMARY KEY,
         run_id UUID NOT NULL REFERENCES market_data_collection_runs(run_id),
@@ -117,9 +122,22 @@ export class CollectionRunRepository {
           version=version+1, updated_at=now()
       WHERE run_id=$1 AND status IN ('QUEUED','RUNNING','WAITING_RETRY','PARTIAL')
         AND (lease_until IS NULL OR lease_until < now())
+        AND (retry_at IS NULL OR retry_at <= now())
       RETURNING *
     `, [runId, leaseSeconds]);
     return result.rowCount === 1 ? this.map(result.rows[0]) : null;
+  }
+
+  async runnableRunIds(limit = 10): Promise<string[]> {
+    const result = await this.pool.query<{ run_id: string }>(`
+      SELECT run_id FROM market_data_collection_runs
+      WHERE status IN ('QUEUED','WAITING_RETRY','PARTIAL')
+        AND (lease_until IS NULL OR lease_until < now())
+        AND (retry_at IS NULL OR retry_at <= now())
+      ORDER BY created_at, run_id
+      LIMIT $1
+    `, [Math.max(1, Math.min(limit, 100))]);
+    return result.rows.map((row) => row.run_id);
   }
 
   async find(runId: string): Promise<CollectionRun | null> {
@@ -171,6 +189,44 @@ export class CollectionRunRepository {
     }
   }
 
+  async publishRows(input: { runId: string; fencingToken: number; artifactId: string; sha256: string; projectId: string; dataVersion: string; rows: unknown[] }): Promise<CollectionRun> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<Row>(`
+        UPDATE market_data_collection_runs
+        SET status='COMPLETED', published_artifact_id=$3, lease_until=NULL, retry_at=NULL, version=version+1, updated_at=now()
+        WHERE run_id=$1 AND fencing_token=$2 AND status='RUNNING'
+        RETURNING *
+      `, [input.runId, input.fencingToken, input.artifactId]);
+      if (result.rowCount !== 1) throw new CollectionRunConflict("publish rejected: lease is stale or run is not running");
+      await client.query(`
+        INSERT INTO market_data_collection_artifacts (artifact_id, run_id, sha256, row_count)
+        VALUES ($1,$2,$3,$4)
+        ON CONFLICT (artifact_id) DO UPDATE SET run_id=EXCLUDED.run_id, sha256=EXCLUDED.sha256, row_count=EXCLUDED.row_count
+      `, [input.artifactId, input.runId, input.sha256, input.rows.length]);
+      for (const [rowNumber, payload] of input.rows.entries()) {
+        await client.query(`
+          INSERT INTO market_data_artifact_rows (artifact_id, project_id, data_version, row_number, payload)
+          VALUES ($1,$2,$3,$4,$5::jsonb)
+          ON CONFLICT (artifact_id, project_id, row_number) DO UPDATE SET payload=EXCLUDED.payload, data_version=EXCLUDED.data_version
+        `, [input.artifactId, input.projectId, input.dataVersion, rowNumber, JSON.stringify(payload)]);
+      }
+      await client.query(`
+        INSERT INTO market_data_collection_outbox (event_id, event_key, run_id, event_type, payload)
+        VALUES ($1,$2,$3,'collection.run.completed.v1',$4::jsonb)
+        ON CONFLICT (event_key) DO NOTHING
+      `, [randomUUID(), `collection-run:${input.runId}:completed`, input.runId, JSON.stringify({ runId: input.runId, artifactId: input.artifactId, sha256: input.sha256, rowCount: input.rows.length })]);
+      await client.query("COMMIT");
+      return this.map(result.rows[0]);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async pendingEvents(limit = 100): Promise<CollectionOutboxEvent[]> {
     const result = await this.pool.query<Record<string, any>>("SELECT * FROM market_data_collection_outbox WHERE sent_at IS NULL ORDER BY created_at LIMIT $1", [limit]);
     return result.rows.map((row) => ({ eventId: row.event_id, eventKey: row.event_key, runId: row.run_id, eventType: row.event_type, payload: row.payload, sentAt: row.sent_at?.toISOString() ?? null }));
@@ -186,13 +242,13 @@ export class CollectionRunRepository {
     return row ? { artifactId: row.artifact_id, runId: row.run_id, sha256: row.sha256.trim(), rowCount: Number(row.row_count) } : null;
   }
 
-  async releaseToRetry(runId: string, fencingToken: number): Promise<CollectionRun> {
+  async releaseToRetry(runId: string, fencingToken: number, retrySeconds = 300): Promise<CollectionRun> {
     const result = await this.pool.query<Row>(`
       UPDATE market_data_collection_runs
-      SET status='WAITING_RETRY', lease_until=NULL, version=version+1, updated_at=now()
+      SET status='WAITING_RETRY', lease_until=NULL, retry_at=now()+($3::double precision * interval '1 second'), version=version+1, updated_at=now()
       WHERE run_id=$1 AND fencing_token=$2 AND status='RUNNING'
       RETURNING *
-    `, [runId, fencingToken]);
+    `, [runId, fencingToken, retrySeconds]);
     if (result.rowCount !== 1) throw new CollectionRunConflict("retry transition rejected: lease is stale or run is not running");
     return this.map(result.rows[0]);
   }
@@ -212,6 +268,7 @@ export class CollectionRunRepository {
       checkpoint: row.checkpoint,
       fencingToken: Number(row.fencing_token),
       leaseUntil: row.lease_until?.toISOString() ?? null,
+      retryAt: row.retry_at?.toISOString() ?? null,
       publishedArtifactId: row.published_artifact_id,
     };
   }
