@@ -22,7 +22,7 @@
 |---|---|---|---|---|---|
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
-| DC-02 持久切片 | TODO | NOT_RUN | NOT_RUN | 无 | 在DC-01通过后实现真实DB/Worker与测试入口 |
+| DC-02 持久切片 | IN_PROGRESS | PASS：TS、4单测、真实PostgreSQL 1集成测、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 补DC-T12/13/14受控故障与Fixture发布链，再进入DC-03 |
 | DC-03 调度 | TODO | NOT_RUN | NOT_RUN | 无 | 日历/Clock、去重、漏调补偿 |
 | DC-04 主备 | TODO | NOT_RUN | NOT_RUN | 无 | 受控Python适配器及主备质量门槛 |
 | DC-05 补采覆盖 | TODO | NOT_RUN | NOT_RUN | 无 | 缺口台账与严格覆盖判断 |
@@ -65,7 +65,7 @@
 
 本节历史记录保留；最新安排以第6节为准。
 
-2026-09-12：完成计划文档；工作区开始时干净；核实market-data-service实际为TS且部分状态为内存Map，Python分钟导入脚本独立存在。既有58日、来源超时、TDX缺真实文件等结论来自历史证据。新采集任务未创建，既有V2.4观察任务未变更。DC-00历史探针三只跨沪深证券的BaoStock/Sina查询均成功；盘中能力未在交易时段执行，保持NOT_RUN。DC-01契约设计冻结并通过JSON/Fixture/Markdown检查。下一工作包DC-02；DC-00盘中观测可在下一交易时段执行。
+2026-09-12：完成计划文档；工作区开始时干净；核实market-data-service实际为TS且部分状态为内存Map，Python分钟导入脚本独立存在。既有58日、来源超时、TDX缺真实文件等结论来自历史证据。新正式采集任务未创建，既有V2.4观察任务未变更。DC-00历史探针三只跨沪深证券的BaoStock/Sina查询均成功；盘中能力未在交易时段执行，保持NOT_RUN。DC-01契约设计冻结并通过JSON/Fixture/Markdown检查。DC-02已完成持久表、任务API、单元/真实数据库集成和HTTP幂等烟测；Worker故障接管、消息/数据库故障、完整Fixture发布链仍待完成。
 
 文档校验：`pnpm docs:check`退出0，391个本地Markdown链接、0失败；`git diff --check`退出0。DC-00探针静态检查、contracts、fixtures和文档检查退出0；DC-T01～DC-T25均有输入、操作和预期。DC-01设计检查PASS；新模块持久化/调度业务测试和人工验收仍NOT_RUN。
 

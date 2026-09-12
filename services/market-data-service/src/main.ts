@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { resolve } from "node:path";
+import { Pool } from "pg";
+import { CollectionRunConflict, CollectionRunRepository } from "./application/collection-run-repository.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -30,6 +32,8 @@ function cnAShareSession(date: string) {
 }
 const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: number }>;
 for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
+const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
+const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
 
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
@@ -45,7 +49,21 @@ async function json(res: ServerResponse, body: unknown, status = 200) { res.writ
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED" });
+    if (req.url === "/v2/collection-runs" && req.method === "POST") {
+      if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+      const required = ["subscriptionId", "subscriptionVersion", "windowStart", "windowEnd", "jobKind", "idempotencyKey", "requestHash"];
+      if (required.some((key) => body[key] === undefined)) return json(res, { code: "INVALID_COLLECTION_RUN" }, 422);
+      const result = await collectionRuns.create({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), windowStart: String(body.windowStart), windowEnd: String(body.windowEnd), jobKind: body.jobKind as "INTRADAY_WINDOW" | "CLOSE_RECONCILIATION" | "BACKFILL" | "GAP_REPAIR", idempotencyKey: String(body.idempotencyKey), requestHash: String(body.requestHash) });
+      return json(res, { ...result, run: result.run }, result.created ? 201 : 200);
+    }
+    const collectionRunMatch = req.url?.match(/^\/v2\/collection-runs\/([^/]+)$/);
+    if (collectionRunMatch && req.method === "GET") {
+      if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const run = await collectionRuns.find(collectionRunMatch[1]);
+      return run ? json(res, run) : json(res, { code: "NOT_FOUND" }, 404);
+    }
     if (req.url === "/v2/sources" && req.method === "GET") return json(res, { sources: [
       { sourceId: "tencent-quote", kind: "QUOTE", url: "https://qt.gtimg.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },
       { sourceId: "sina-quote", kind: "QUOTE", url: "https://hq.sinajs.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },
@@ -100,7 +118,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const taskMatch = req.url?.match(/^\/v1\/artifacts\/tasks\/([^/]+)$/);
     if (taskMatch && req.method === "GET") { const task = artifactTasks.get(taskMatch[1]); if (!task) return json(res, { code: "NOT_FOUND" }, 404); return json(res, { taskId: taskMatch[1], ...task }); }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { return json(res, { code: "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, 500); }
+  } catch (error) { return json(res, { code: error instanceof CollectionRunConflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, error instanceof CollectionRunConflict ? 409 : 500); }
 });
 function readBody(req: IncomingMessage): Promise<string> { return new Promise((resolveBody, reject) => { let value = ""; req.on("data", (chunk) => { value += chunk; if (value.length > 1_000_000) reject(new Error("body too large")); }); req.on("end", () => resolveBody(value)); req.on("error", reject); }); }
 type MinuteBar = { securityId: string; market: string; frequency: string; barStart: string; barEnd: string; availableAt: string; open: number; high: number; low: number; close: number; volume: number; amount: number; adjustment: string };
@@ -108,4 +126,8 @@ async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (
 function minuteQuality(bars: MinuteBar[]) { const errors: Array<Record<string, unknown>> = []; const seen = new Set<string>(); for (const [index, bar] of bars.entries()) { const key = `${bar.securityId}|${bar.barStart}`; if (seen.has(key)) errors.push({ code: "DUPLICATE_CONFLICT", row: index + 2, key }); seen.add(key); if (!(bar.high >= bar.low && bar.high >= bar.open && bar.high >= bar.close && bar.low <= bar.open && bar.low <= bar.close)) errors.push({ code: "OHLC_INVALID", row: index + 2 }); const time = bar.barStart.slice(11, 16); if ((time >= "11:30" && time < "13:00") || time < "09:30" || time >= "15:00") errors.push({ code: "NON_TRADING_SESSION", row: index + 2, time }); if (bar.volume < 0 || bar.amount < 0) errors.push({ code: "UNIT_INVALID", row: index + 2 }); } return errors; }
 async function sourceCheck(sourceId: string, url: string) { try { const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { "user-agent": "StockQuant-V2.1" } }); const text = await response.text(); return { sourceId, status: response.ok && text.length > 0 ? "PASS" : "FAIL", httpStatus: response.status, bytes: text.length }; } catch (error) { return { sourceId, status: "FAIL", error: error instanceof Error ? error.message : "unknown" }; } }
 async function liveNews(sourceId: string, url: string, observedAt: string) { try { const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { "user-agent": "StockQuant-V2.1" } }); const html = await response.text(); const match = html.match(/<title[^>]*>\s*([^<]{3,200})\s*<\/title>/i); if (!response.ok || !match) return null; const title = match[1].replace(/\s+/g, " ").trim(); return { newsId: createHash("sha256").update(`${sourceId}:${title}`).digest("hex").slice(0, 24), sourceId, title, publishedAt: null, observedAt, ingestedAt: observedAt, availableAt: observedAt, revision: 1, symbols: [] as string[] }; } catch { return null; } }
-server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
+async function start(): Promise<void> {
+  if (collectionRuns) await collectionRuns.migrate();
+  server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
+}
+void start().catch((error: unknown) => { console.error("market-data-service startup failed", error); process.exitCode = 1; });

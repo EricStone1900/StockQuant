@@ -10,3 +10,5 @@ CREATE ROLE decision_governance LOGIN;
 CREATE DATABASE decision_governance OWNER decision_governance;
 CREATE ROLE quant_research LOGIN;
 CREATE DATABASE quant_research OWNER quant_research;
+CREATE ROLE market_data LOGIN;
+CREATE DATABASE market_data OWNER market_data;
