@@ -20,7 +20,7 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 | [V2.2](./02-minute-data-import.md) | 历史分钟数据导入与校验 | V2.1；详细依赖见阶段文件 | PASS |
 | [V2.3](./03-historical-minute-replay.md) | 日频决策、分钟撮合与历史事件回放 | V2.2；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（Fixture 回放、独立 Worker、治理授权、费用、基础订单状态转换与成交事务外盒已验证；补偿重试与完整恢复编排未完成） |
 | [V2.4](./04-continuous-paper-trading.md) | 真实时钟下持续模拟交易 | V2.3；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（持续 Paper 场景、快照新鲜度、重复调度幂等与断网恢复切片已验证；20 个实际交易日观察未开始） |
-| [V2.5](./05-data-scale-and-v2-acceptance.md) | 历史数据扩容与 V2 验收 | V2.4；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（20×60 Fixture 扩容、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；真实分钟20×约60日首标的超时、分钟级全量、长期稳定性与 V2.4 观察门禁待完成） |
+| [V2.5](./05-data-scale-and-v2-acceptance.md) | 历史数据扩容与 V2 验收 | V2.4；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；分钟级全量、长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成） |
 
 以功能纵向切片交付；服务内部仍采用S0～S6生命周期。每阶段先冻结场景和预期，再同时开发后端与Web，执行自动检查后人工验收。后续独立工作可推进，但未通过的依赖不能被假成功替代。
 

@@ -26,7 +26,9 @@ BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-da
 
 归档/恢复验证（2026-09-12）：将上述数据集归档到项目已忽略的本地路径 `data/local/baostock-daily-2019-2024-v1`（459 MiB）；从该归档创建隔离恢复副本 `/tmp/stockquant-baostock-daily-restore-verify-v1` 后，Manifest `COMPLETED`、5,219/5,219 个完成分区、6,260,343 行及 5,219/5,219 SHA-256 均通过。归档内容不提交 Git，保留源端/时间范围与文件完整性信息。
 
-5 分钟 20×约60交易日真实导入尝试（2026-09-12）：新增 `scripts/import-baostock-minute-sample.py` 和 `pnpm v25:import-baostock-minute-sample`。它从已归档的冻结 A 股清单取样，按证券分区写 Manifest，校验重复时间戳、证券代码及 OHLC 范围，并为每个源请求设置独立进程超时。受控试运行 `--sample-size 1 --timeout-seconds 15` 时，`sh.600000` 在 15.004 秒后为 `TIMEOUT`，Manifest 为 `FAILED`、0 行、无产物；因此未扩大到 20 标的，真实 20×约60交易日导入仍为 `NOT_RUN`，不以 Fixture 切片替代。
+5 分钟 20×约60交易日真实导入验证（2026-09-12）：`scripts/import-baostock-minute-sample.py` 已修正跨进程队列读取顺序：父进程先消费行集再等待子进程退出，避免大结果集的队列馈送阻塞；同时加入每标的最多 3 次的有限重试并记录实际尝试。`sh.600000` 单标的返回 2,784 行；5 标的完成 13,920 行；同一 Manifest 从检查点续跑至 20/20 标的、55,680 行，每标的 2,784 行。20 个 CSV 的 SHA-256、证券代码、重复时间戳和 OHLC 范围校验均通过；一次 `10001001 用户未登录` 在续跑时由独立会话重试恢复。产物位于 Git 忽略的 `data/local/baostock-minute-20x60-v1`。
+
+备用免费源实测（2026-09-12）：东方财富经 AKShare `stock_zh_a_hist_min_em(period="5")` 在本机被远端断开，未取得样本；新浪经 AKShare `stock_zh_a_minute(period="5")` 返回 1,970 行，覆盖 2026-07-16 至 2026-09-11，约 40 个交易日；腾讯公开分钟端点返回最近 320 根，覆盖 2026-09-03 至 2026-09-11，约 7 个交易日。新浪和腾讯可作为近期数据降级路径，但均不能满足 60 个交易日历史导入，当前没有经过本机实测且可替代 BaoStock 的免费 60 日备用源。
 
 全市场多年日线数据容量验证：`PARTIAL_PASS`。5,219 标的全量导入、磁盘产物和逐文件完整性已通过；分钟级全量、长期限频/恢复稳定性仍未验证，因此 V2.5 全部容量门禁不能标记 PASS。Ubuntu 实机人工子项另行记录如下。
 
@@ -36,4 +38,4 @@ Ubuntu 实机人工验收（2026-09-12）：用户已确认 Ubuntu 实机验证�
 
 最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
 
-已知限制：真实 20×约60交易日及分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、真实财务/行业 PIT、V2.5 整体人工验收和 V2.4 20 个实际交易日观察尚未完成；Ubuntu 实机人工子项已确认通过。
+已知限制：分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、可覆盖 60 个交易日的第二免费分钟源、真实财务/行业 PIT、V2.5 整体人工验收和 V2.4 20 个实际交易日观察尚未完成；Ubuntu 实机人工子项已确认通过。

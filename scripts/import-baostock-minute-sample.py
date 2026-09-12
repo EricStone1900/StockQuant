@@ -31,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start-date", default="2024-01-02")
     parser.add_argument("--end-date", default="2024-03-29")
     parser.add_argument("--timeout-seconds", type=float, default=30)
+    parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument("--retry-backoff-seconds", type=float, default=1)
     parser.add_argument("--source-manifest", default=DEFAULT_SOURCE)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT)
     parser.add_argument("--continue-on-error", action="store_true")
@@ -75,19 +77,39 @@ def fetch_with_timeout(context: Any, code: str, start_date: str, end_date: str, 
     process = context.Process(target=_fetch, args=(code, start_date, end_date, queue))
     started = time.monotonic()
     process.start()
-    process.join(timeout_seconds)
-    elapsed = round(time.monotonic() - started, 3)
-    if process.is_alive():
+    try:
+        # Consume the result before joining.  A child that has placed a large
+        # row set on a multiprocessing queue can otherwise wait for its queue
+        # feeder while the parent waits in join().
+        response = queue.get(timeout=timeout_seconds)
+    except Empty:
         process.terminate()
         process.join(5)
         queue.close()
-        return {"outcome": "TIMEOUT", "timeoutSeconds": timeout_seconds, "elapsedSeconds": elapsed}
-    try:
-        response = queue.get(timeout=1)
-    except Empty:
-        response = {"outcome": "NO_RESULT", "exitCode": process.exitcode}
+        return {"outcome": "TIMEOUT", "timeoutSeconds": timeout_seconds, "elapsedSeconds": round(time.monotonic() - started, 3)}
+    process.join(5)
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
     queue.close()
-    response["elapsedSeconds"] = elapsed
+    response["elapsedSeconds"] = round(time.monotonic() - started, 3)
+    response["exitCode"] = process.exitcode
+    return response
+
+
+def fetch_with_retries(
+    context: Any, code: str, start_date: str, end_date: str, timeout_seconds: float, max_attempts: int, retry_backoff_seconds: float
+) -> dict[str, object]:
+    attempts: list[dict[str, object]] = []
+    for attempt in range(1, max_attempts + 1):
+        response = fetch_with_timeout(context, code, start_date, end_date, timeout_seconds)
+        attempts.append({key: value for key, value in response.items() if key != "rows"})
+        if response.get("outcome") == "SUCCESS":
+            response["attempts"] = attempts
+            return response
+        if attempt < max_attempts:
+            time.sleep(retry_backoff_seconds * attempt)
+    response["attempts"] = attempts
     return response
 
 
@@ -115,6 +137,8 @@ def run() -> dict[str, object]:
     args = parse_args()
     if args.sample_size < 1:
         raise ValueError("--sample-size must be positive")
+    if args.max_attempts < 1 or args.retry_backoff_seconds < 0:
+        raise ValueError("--max-attempts must be positive and --retry-backoff-seconds cannot be negative")
     source = json.loads(Path(args.source_manifest).read_text(encoding="utf-8"))
     codes = list(source.get("selectedCodes", []))[: args.sample_size]
     if len(codes) != args.sample_size:
@@ -132,7 +156,7 @@ def run() -> dict[str, object]:
     for code in codes:
         if code in completed:
             continue
-        response = fetch_with_timeout(context, code, args.start_date, args.end_date, args.timeout_seconds)
+        response = fetch_with_retries(context, code, args.start_date, args.end_date, args.timeout_seconds, args.max_attempts, args.retry_backoff_seconds)
         if response.get("outcome") != "SUCCESS":
             manifest.update({"status": "FAILED", "error": {"code": code, **response}, "updatedAt": datetime.now().astimezone().isoformat()})
             atomic_json(manifest_path, manifest)
@@ -153,7 +177,7 @@ def run() -> dict[str, object]:
             writer = csv.writer(handle)
             writer.writerow(FIELDS.split(","))
             writer.writerows(rows)
-        artifact = {"path": str(path.relative_to(output)), "rows": len(rows), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "quality": "PASS"}
+        artifact = {"path": str(path.relative_to(output)), "rows": len(rows), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "quality": "PASS", "sourceAttempts": response["attempts"]}
         manifest["artifacts"][code] = artifact  # type: ignore[index]
         completed.add(code)
         manifest["completed"] = sorted(completed)
