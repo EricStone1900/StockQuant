@@ -71,6 +71,10 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 定时任务顺序已校准：首次激活为 2026-09-14 08:45，巡检从同日 09:00 起每 15 分钟运行，
 避免激活前自动修复与正式启用发生竞态。
 
+已补充 `pnpm dc08a:eod-report` 日终质量门禁：15:20 运行，非交易日返回 0；交易日仅
+`PASS` 返回 0，`INCOMPLETE/NOT_RUN` 返回 2，以便计划任务的 `failed_runs_only` 通知策略
+能够提示覆盖缺口。该任务只生成/更新日终报告，不修改订阅、队列或 Artifact。
+
 ## 自动观察证据
 
 已实现 `pnpm dc08a:observe`。该只读脚本从 `/ready` 和 PostgreSQL 汇总订阅、运行状态、
