@@ -36,3 +36,16 @@ test("approved activation passes explicit enable flags to compose", async () => 
   assert.equal(call.options.env.STOCKQUANT_SCHEDULER_WORKER, "1");
   assert.equal(call.options.env.STOCKQUANT_COLLECTION_EXECUTOR, "1");
 });
+
+test("check-only never runs compose after all guards pass", async () => {
+  let called = false;
+  const result = await activate({
+    dryRun: true,
+    env: { DC08A_SUBSCRIPTION_ID: expected.subscriptionId, DC08A_CALENDAR_VERSION: expected.calendarVersion, DC08A_FROM_DATE: expected.fromDate, DC08A_TO_DATE: expected.toDate },
+    ready: async () => ({ status: "ready", collectionPersistence: "POSTGRES" }),
+    read: async () => [schedule],
+    command: () => { called = true; return { status: 0, stdout: "", stderr: "" }; },
+  });
+  assert.equal(result.status, "READY_TO_ENABLE");
+  assert.equal(called, false);
+});

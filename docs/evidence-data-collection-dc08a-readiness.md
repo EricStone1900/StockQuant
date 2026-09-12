@@ -48,5 +48,6 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1` 与
 `STOCKQUANT_COLLECTION_EXECUTOR=1`。缺少参数、存在多个启用订阅或匹配失败时返回退出码 2，
 不执行任何重建。
 
-2026-09-12 本机真实阻断验证：发现 18 条历史启用测试订阅，且未提供 DC-08A 参数；脚本返回
-`BLOCKED`、退出码 2，未改变服务。激活测试 3/3 PASS。
+2026-09-12 已停用 18 条历史测试订阅，并创建唯一正式订阅
+`dc08a-20260914-short-v1`（2026-09-14 至 2026-09-16）。使用 `--check-only` 验证返回
+`READY_TO_ENABLE`、退出码 0；服务仍保持关闭。激活测试 4/4 PASS。

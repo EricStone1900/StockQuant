@@ -34,7 +34,7 @@ function readSchedules() {
   }) : [];
 }
 
-export async function activate({ env = process.env, command = run, ready = getReady, read = readSchedules, url = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready" } = {}) {
+export async function activate({ env = process.env, command = run, ready = getReady, read = readSchedules, url = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", dryRun = false } = {}) {
   const expected = { subscriptionId: env.DC08A_SUBSCRIPTION_ID, calendarVersion: env.DC08A_CALENDAR_VERSION, fromDate: env.DC08A_FROM_DATE, toDate: env.DC08A_TO_DATE };
   let observation;
   let schedules;
@@ -46,6 +46,7 @@ export async function activate({ env = process.env, command = run, ready = getRe
   }
   const decision = evaluateActivation({ ready: observation, schedules, expected });
   if (!decision.ok) return { status: "BLOCKED", reasons: decision.reasons, exitCode: 2 };
+  if (dryRun) return { status: "READY_TO_ENABLE", subscriptionId: expected.subscriptionId, exitCode: 0 };
   const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], {
     env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1" },
   });
@@ -54,7 +55,8 @@ export async function activate({ env = process.env, command = run, ready = getRe
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const result = await activate();
+  const dryRun = process.argv.includes("--check-only");
+  const result = await activate({ dryRun });
   console.log(JSON.stringify(result, null, 2));
   process.exitCode = result.exitCode;
 }
