@@ -10,6 +10,7 @@ import { PersistentCollectionSchedulerWorker } from "./application/persistent-co
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
 import { CoverageRepository } from "./application/coverage-repository.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
+import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -42,6 +43,7 @@ const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connection
 const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
 const collectionSchedules = databasePool ? new CollectionScheduleRepository(databasePool) : null;
 const coverageRepository = databasePool ? new CoverageRepository(databasePool) : null;
+const projectAccessRepository = databasePool ? new ProjectAccessRepository(databasePool) : null;
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
@@ -183,21 +185,21 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/projects/access" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { projectId?: string; resourceProjectId?: string; scope?: ProjectScope };
-      const actor = projectActor(req);
+      const actor = await projectActorForRequest(req);
       if (!actor || !body.resourceProjectId || !body.scope) return json(res, { code: "UNAUTHENTICATED" }, 401);
       assertProjectAccess(actor, body.resourceProjectId, body.scope);
       return json(res, { projectId: actor.projectId, resourceProjectId: body.resourceProjectId, scope: body.scope, allowed: true });
     }
     if (req.url === "/v2/data/page" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { projectId?: string; dataVersion?: string; items?: unknown[]; cursor?: number; pageSize?: number };
-      const actor = projectActor(req);
+      const actor = await projectActorForRequest(req);
       if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
       assertProjectAccess(actor, body.projectId, "DATA_READ");
       return json(res, paginateVersioned(body.items, body.dataVersion, body.dataVersion, Number(body.cursor ?? 0), Number(body.pageSize ?? 100)));
     }
     if (req.url === "/v2/data/export" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { projectId?: string; dataVersion?: string; items?: unknown[] };
-      const actor = projectActor(req);
+      const actor = await projectActorForRequest(req);
       if (!actor || !body.projectId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
       assertProjectAccess(actor, body.projectId, "DATA_EXPORT");
       return json(res, exportWithManifest(body.projectId, body.dataVersion, body.items));
@@ -219,11 +221,17 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const taskMatch = req.url?.match(/^\/v1\/artifacts\/tasks\/([^/]+)$/);
     if (taskMatch && req.method === "GET") { const task = artifactTasks.get(taskMatch[1]); if (!task) return json(res, { code: "NOT_FOUND" }, 404); return json(res, { taskId: taskMatch[1], ...task }); }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { const access = error instanceof ProjectAccessDenied; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict; return json(res, { code: access ? "PROJECT_ACCESS_DENIED" : conflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, access ? 403 : conflict ? 409 : 500); }
+  } catch (error) { const access = error instanceof ProjectAccessDenied || error instanceof ProjectAuthenticationError; const quota = error instanceof ProjectQuotaRepositoryError; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict; return json(res, { code: access ? "PROJECT_ACCESS_DENIED" : quota ? "PROJECT_QUOTA_EXCEEDED" : conflict ? "COLLECTION_RUN_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, access ? 403 : quota ? 429 : conflict ? 409 : 500); }
 });
-function projectActor(req: IncomingMessage): ProjectActor | null {
+async function projectActorForRequest(req: IncomingMessage): Promise<ProjectActor | null> {
   const projectId = req.headers["x-stockquant-project-id"];
   if (typeof projectId !== "string" || !projectId) return null;
+  const token = req.headers["x-stockquant-project-token"];
+  if (projectAccessRepository) {
+    if (typeof token !== "string" || !token) throw new ProjectAuthenticationError("project token required");
+    const project = await projectAccessRepository.authenticate(projectId, token);
+    return { projectId: project.projectId, scopes: new Set(project.scopes) };
+  }
   const rawScopes = req.headers["x-stockquant-scopes"];
   const scopes = new Set((typeof rawScopes === "string" ? rawScopes.split(",") : []).filter((scope): scope is ProjectScope => ["DATA_READ", "DATA_WRITE", "DATA_EXPORT"].includes(scope)));
   return { projectId, scopes };
@@ -238,6 +246,10 @@ async function start(): Promise<void> {
   if (collectionRuns) await collectionRuns.migrate();
   if (collectionSchedules) await collectionSchedules.migrate();
   if (coverageRepository) await coverageRepository.migrate();
+  if (projectAccessRepository) {
+    await projectAccessRepository.migrate();
+    for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);
+  }
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
   if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
 }

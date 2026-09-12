@@ -10,6 +10,7 @@ import { CollectionScheduleRepository } from "../../src/application/collection-s
 import { CollectionScheduler } from "../../src/application/collection-scheduler.js";
 import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
 import { CoverageRepository } from "../../src/application/coverage-repository.js";
+import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/application/project-access-repository.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -19,12 +20,14 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const repository = new CollectionRunRepository(pool);
   const schedules = new CollectionScheduleRepository(pool);
   const coverage = new CoverageRepository(pool);
+  const projects = new ProjectAccessRepository(pool);
   const suffix = Date.now().toString();
 
   beforeAll(async () => {
     await repository.migrate();
     await schedules.migrate();
     await coverage.migrate();
+    await projects.migrate();
   });
 
   afterAll(async () => {
@@ -161,5 +164,17 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
     expect(second.task.taskId).toBe(first.task.taskId);
+  });
+
+  it("authenticates persisted projects and enforces the persisted run quota", async () => {
+    const projectId = `project-${suffix}`;
+    const registered = await projects.register(projectId, `token-${suffix}`, ["DATA_READ", "DATA_EXPORT"], 1, 20);
+    expect(registered.projectId).toBe(projectId);
+    expect((await projects.authenticate(projectId, `token-${suffix}`)).scopes).toContain("DATA_EXPORT");
+    await expect(projects.authenticate(projectId, "wrong-token")).rejects.toBeInstanceOf(ProjectAuthenticationError);
+    await projects.reserveRun(projectId);
+    await expect(projects.reserveRun(projectId)).rejects.toBeInstanceOf(ProjectQuotaRepositoryError);
+    await projects.releaseRun(projectId);
+    await expect(projects.reserveRun(projectId)).resolves.toBeTruthy();
   });
 });

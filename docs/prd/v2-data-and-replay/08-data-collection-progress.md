@@ -26,7 +26,7 @@
 | DC-03 调度 | IN_PROGRESS | PASS：TS、8个服务单测、真实PostgreSQL调度集成7/7、HTTP配置烟测；计划/持久API和Worker已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 在DC-07完成容器部署、目标环境实际交易日运行、Web/验收中心接入 |
 | DC-04 主备 | IN_PROGRESS | PASS：Python适配器5/5；TS检查通过；主备/熔断/字段隔离已验证 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再接入正式采集 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
-| DC-06 多项目Web/API | IN_PROGRESS | PASS：项目规则16/16单测、TypeScript检查、权限/分页/导出/去重HTTP烟测 | NOT_RUN | [DC-06证据](../../evidence-data-collection-dc06.md) | 接入正式认证、持久配额/公平队列、真实分页导出和Web/验收中心E2E |
+| DC-06 多项目Web/API | IN_PROGRESS | PASS：项目规则16/16单测、PostgreSQL集成9/9、数据库令牌认证/权限/分页/导出/去重HTTP烟测 | NOT_RUN | [DC-06证据](../../evidence-data-collection-dc06.md) | 公平队列指标、真实Artifact分页导出、脱敏和Web/验收中心E2E |
 | DC-07 部署运维 | TODO | NOT_RUN | NOT_RUN | 无 | 实际容器和恢复演练、填写操作手册 |
 | DC-08A 启用/短期验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-07后3只2实际交易日、20只1实际交易日，交接并恢复主项目 |
 | DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
@@ -90,3 +90,5 @@
 2026-09-12 DC-05持久化收尾记录：新增 `market_data_gap_records`、`market_data_backfill_tasks` 及对应 API；真实 PostgreSQL 测试 8/8，通过重复上报、关闭缺口、补采幂等验证；HTTP 烟测验证 GapRecord 写入/查询及相同幂等键返回相同 taskId。实际补采执行和每日自动报告尚未启用，人工验收NOT_RUN。
 
 2026-09-12 DC-06启动记录：新增项目归属/作用域、并发配额/公平队列、物理共享去重键、DataVersion锁定分页和导出Manifest；新增项目访问、分页、导出和去重API。16/16单测及HTTP烟测通过；正式认证、持久配额、Web/验收中心E2E保持NOT_RUN。
+
+2026-09-12 DC-06认证收尾记录：新增 `market_data_projects` 持久化项目策略、作用域、令牌哈希和运行计数；数据库模式下缺失/错误令牌返回403，配额超限返回429。真实 PostgreSQL 集成测试9/9通过；认证 HTTP 烟测正确令牌允许、缺失/错误令牌拒绝。公平队列指标、真实Artifact分页和脱敏仍待部署切片，人工验收NOT_RUN。
