@@ -295,6 +295,21 @@ export class Dc06AcceptanceController {
   @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("DC-06 run was not found"); return run; }
 }
 
+@Controller("api/v1/acceptance/v2/dc08")
+export class Dc08AcceptanceController {
+  constructor(private readonly container: PlatformContainer) {}
+  @Get("preview")
+  async preview() {
+    const subscriptionId = process.env.STOCKQUANT_DC08A_SUBSCRIPTION_ID ?? "dc08a-20260914-short-v1";
+    const [ready, schedule, gaps] = await Promise.all([
+      fetch(`${this.container.marketDataUrl}/ready`).then((response) => response.json()),
+      fetch(`${this.container.marketDataUrl}/v2/collection-schedules/${subscriptionId}`).then((response) => response.json()),
+      fetch(`${this.container.marketDataUrl}/v2/minute/gaps/${subscriptionId}`).then((response) => response.json()),
+    ]);
+    return { stageId: "DC-08A", subscriptionId, ready, schedule, gaps, webMode: "READ_ONLY", note: "页面只读；正式启用由受保护的定时脚本执行" };
+  }
+}
+
 @Controller("api/v1/acceptance/v2/v2.1")
 export class V21AcceptanceController {
   private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
@@ -367,5 +382,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, Dc06AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, Dc06AcceptanceController, Dc08AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}
