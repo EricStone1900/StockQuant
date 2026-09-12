@@ -27,7 +27,7 @@
 | DC-04 主备 | IN_PROGRESS | PASS：Python适配器5/5；TS检查通过；主备/熔断/字段隔离已验证 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再接入正式采集 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
-| DC-07 部署运维 | IN_PROGRESS | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表 | NOT_RUN | [DC-07证据](../../evidence-data-collection-dc07.md) | Ubuntu实机、外部告警出口故障/恢复、宿主机重启续跑、完善操作手册 |
+| DC-07 部署运维 | IN_PROGRESS | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 外部告警出口故障/恢复、宿主机重启续跑记录、完善操作手册 |
 | DC-08A 启用/短期验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-07后3只2实际交易日、20只1实际交易日，交接并恢复主项目 |
 | DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
 
