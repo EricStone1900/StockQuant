@@ -26,3 +26,16 @@
 - 尚未在交易时段启用正式调度；盘中延迟、持续更新和恢复仍为 `NOT_RUN`。
 - 20 只集合尚未产生新的真实采集 Artifact；历史 58 日样本不能替代连续 60 日观察。
 - 外部告警/异机灾备仍属于上线前生产就绪事项。
+
+## 巡检与自动修复边界
+
+已实现 `pnpm dc08a:supervise`。默认执行只读检查；`--repair` 仅在 `/ready` 不可达时执行一次
+`docker compose -f infra/compose/docker-compose.yml up -d market-data-service`，随后最多等待 15 秒再次检查。
+脚本不会自动修改代码、打开 `STOCKQUANT_COLLECTION_EXECUTOR`、重启数据库、删除队列或重试业务任务。
+
+退出码约定：`0=HEALTHY`（持久化为 Postgres 且执行器已启用）、`2=WAITING_CONFIGURATION`
+（服务正常但执行器未显式启用或持久化未就绪）、`1=UNHEALTHY/REPAIR_FAILED`。
+
+验证记录（2026-09-12，本机 Docker）：`pnpm dc08a:test-supervise` 3/3 PASS；
+`node scripts/dc08a-supervise.mjs --check-only` 返回 `WAITING_CONFIGURATION`、退出码 2，
+与当前安全默认值 `STOCKQUANT_COLLECTION_EXECUTOR=0` 一致。
