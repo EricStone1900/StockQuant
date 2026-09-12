@@ -16,13 +16,17 @@ Mac 监控池实测（2026-09-11，Apple Silicon `darwin/arm64`）：`pnpm v25:m
 
 BaoStock 只读探针（2026-09-12，`BAOSTOCK_CAPACITY_SAMPLE=5 BAOSTOCK_MINUTE_SAMPLE=20 pnpm v25:probe-baostock`）：`query_all_stock(2024-01-05)` 返回 5,639 个证券，`query_stock_basic` 筛选出 5,219 个已上市 A 股；5 个 A 股多年日线样本均返回 1,456 行，20 个 A 股 5 分钟样本均返回 336 行且 `errorCode=0`。`sh.600000` 的 1 分钟请求仍返回 `10004012 请求数据类型不正确`，探针状态为 `PARTIAL`。该结果证明免费源具备日线和 5 分钟抽样读取能力，不是分钟级全市场多年导入/存储/限频/许可验收。
 
-限频/会话稳定性验证（2026-09-12）：新增 `scripts/probe-baostock-stability.py`，设计为 20 标的×3 轮只读 5 分钟查询并重新登录恢复。实际运行在重复查询阶段超过 2 分钟无返回，受控停止；缩小到 5 标的×2 轮后仍在首轮查询阶段无返回，未取得可计入 PASS 的稳定性证据。结论为 `UNVERIFIED`，提示当前 BaoStock 连接存在吞吐/等待限制；不得据此宣称长期限频稳定。
+限频/会话稳定性验证（2026-09-12）：`scripts/probe-baostock-stability.py` 已改为每个 5 分钟查询在独立进程和独立会话执行，由父进程强制超时回收；默认 30 秒，可由 `BAOSTOCK_STABILITY_QUERY_TIMEOUT_SECONDS` 配置。实测 `1 标的×1 轮、5 秒超时`：`sh.600000` 查询及随后独立恢复查询均准确记录为 `TIMEOUT`（约 5.00 秒），命令退出 0 且 JSON 状态为 `PARTIAL`，不再无限等待。该结果验证了失败边界与可观测性，不是上游稳定性 PASS；长期限频/会话稳定性仍为 `UNVERIFIED`。
 
 BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-daily.py`，通过 `query_stock_basic` 筛选 `type=1,status=1` 的已上市 A 股；宇宙 8,950 条，其中已上市股票 5,219 条。5 标的档完成 7,280 行写入，Manifest、逐证券 CSV 和 SHA-256 均生成；100 标的档完成 145,021 行写入。首次运行因 BaoStock 会话冲突在 38 个证券后中断，已保留 checkpoint；同一输出目录续跑完成 100/100，重跑不会重复查询已完成证券，证明中断恢复和幂等路径。该验证仍是 100 标的容量档，不代表 5,219 标的全量导入容量。
 
 500 标的容量档（2026-09-11）：同一导入器完成 500/500 个证券、727,421 行、500 个分区 CSV，磁盘占用 54,120,176 bytes（约 51.6 MiB），Manifest `COMPLETED` 且无错误字段；同目录幂等重跑退出 0，产物数量和行数保持不变。该结果可作为全量导入前的压力基线，仍不等同于 5,219 标的全量验收。
 
 全量预检与导入（2026-09-12）：500 档实测推算 5,219 标的约需 538.7 MiB；本机 `/tmp` 可用空间约 183 GiB，磁盘不是阻塞因素。随后使用 `--sample-size 5219` 完成全量导入：5,219/5,219 个已上市 A 股、6,260,343 行、5,219 个分区 CSV，磁盘占用 469,866,998 bytes（约 0.438 GiB）。Manifest 为 `COMPLETED` 且无错误字段；逐文件行数与 SHA-256 校验 5,219/5,219 全部匹配。该结果证明本机环境下全量多年日线导入可完成，但不覆盖分钟级全量、长期限频稳定性或 Ubuntu 实机。
+
+归档/恢复验证（2026-09-12）：将上述数据集归档到项目已忽略的本地路径 `data/local/baostock-daily-2019-2024-v1`（459 MiB）；从该归档创建隔离恢复副本 `/tmp/stockquant-baostock-daily-restore-verify-v1` 后，Manifest `COMPLETED`、5,219/5,219 个完成分区、6,260,343 行及 5,219/5,219 SHA-256 均通过。归档内容不提交 Git，保留源端/时间范围与文件完整性信息。
+
+5 分钟 20×约60交易日真实导入尝试（2026-09-12）：新增 `scripts/import-baostock-minute-sample.py` 和 `pnpm v25:import-baostock-minute-sample`。它从已归档的冻结 A 股清单取样，按证券分区写 Manifest，校验重复时间戳、证券代码及 OHLC 范围，并为每个源请求设置独立进程超时。受控试运行 `--sample-size 1 --timeout-seconds 15` 时，`sh.600000` 在 15.004 秒后为 `TIMEOUT`，Manifest 为 `FAILED`、0 行、无产物；因此未扩大到 20 标的，真实 20×约60交易日导入仍为 `NOT_RUN`，不以 Fixture 切片替代。
 
 全市场多年日线数据容量验证：`PARTIAL_PASS`。5,219 标的全量导入、磁盘产物和逐文件完整性已通过；分钟级全量、长期限频/恢复稳定性仍未验证，因此 V2.5 全部容量门禁不能标记 PASS。Ubuntu 实机人工子项另行记录如下。
 
@@ -32,4 +36,4 @@ Ubuntu 实机人工验收（2026-09-12）：用户已确认 Ubuntu 实机验证�
 
 最终 CLI 复核（2026-09-11）：normal `verify:stage` 运行 ID 由命令新建并退出 0；rejection `aad9a92f-6ed6-4bf2-b4dd-125825333a3a`、recovery `ad5b6860-974f-4223-8459-185b93b7e7bc` 均 `COMPLETED` 且全部断言 `PASS`。此前导出的 normal 证据目录与 Manifest 保持不变。
 
-已知限制：分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、真实财务/行业 PIT、V2.5 整体人工验收和 V2.4 20 个实际交易日观察尚未完成；Ubuntu 实机人工子项已确认通过。
+已知限制：真实 20×约60交易日及分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、真实财务/行业 PIT、V2.5 整体人工验收和 V2.4 20 个实际交易日观察尚未完成；Ubuntu 实机人工子项已确认通过。
