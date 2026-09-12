@@ -128,15 +128,17 @@ export class CollectionRunRepository {
     return result.rowCount === 1 ? this.map(result.rows[0]) : null;
   }
 
-  async runnableRunIds(limit = 10): Promise<string[]> {
+  async runnableRunIds(limit = 10, subscriptionId?: string): Promise<string[]> {
+    const filter = subscriptionId ? " AND subscription_id=$2" : "";
     const result = await this.pool.query<{ run_id: string }>(`
       SELECT run_id FROM market_data_collection_runs
       WHERE status IN ('QUEUED','WAITING_RETRY','PARTIAL')
         AND (lease_until IS NULL OR lease_until < now())
         AND (retry_at IS NULL OR retry_at <= now())
+        ${filter}
       ORDER BY created_at, run_id
       LIMIT $1
-    `, [Math.max(1, Math.min(limit, 100))]);
+    `, subscriptionId ? [Math.max(1, Math.min(limit, 100)), subscriptionId] : [Math.max(1, Math.min(limit, 100))]);
     return result.rows.map((row) => row.run_id);
   }
 

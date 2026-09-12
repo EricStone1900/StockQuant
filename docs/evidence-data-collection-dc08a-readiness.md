@@ -44,13 +44,28 @@
 
 已实现 `pnpm dc08a:activate`。它先读取 `/ready` 和 Postgres 中的订阅，只允许“恰好一个
 启用中的订阅，且 subscriptionId、日期窗口、calendarVersion 全部匹配 DC-08A 参数”时执行
-Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1` 与
-`STOCKQUANT_COLLECTION_EXECUTOR=1`。缺少参数、存在多个启用订阅或匹配失败时返回退出码 2，
-不执行任何重建。
+Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
+`STOCKQUANT_COLLECTION_EXECUTOR=1` 和正式 `subscriptionId`。调度器与执行器必须同开或同关；
+一开一关、缺少参数、存在多个启用订阅或匹配失败时返回退出码 2，不执行任何重建。
 
 2026-09-12 已停用 18 条历史测试订阅，并创建唯一正式订阅
 `dc08a-20260914-short-v1`（2026-09-14 至 2026-09-16）。使用 `--check-only` 验证返回
 `READY_TO_ENABLE`、退出码 0；服务仍保持关闭。激活测试 4/4 PASS。
+
+同日又完成了启用前队列隔离清理：停用 2 条仍处于启用状态的集成测试调度，
+将其关联的 470 条 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING` 运行记录标记为
+`CANCELLED`（保留原始记录和证据），核验结果为仅 1 条启用调度、非 DC-08A
+可运行记录为 0。正式执行器现在会按 `STOCKQUANT_COLLECTION_SUBSCRIPTION_ID`
+限定可领取的运行，避免历史测试任务混入正式采集。
+
+市场数据服务 `/ready` 现同时返回 `collectionSchedulerWorker` 和
+`collectionExecutor`。激活脚本会拒绝两者不一致的状态，并把正式 `subscriptionId`
+注入 Compose；在当前安全关闭状态下运行激活 `--check-only` 会返回
+`READY_TO_ENABLE`、退出码 0，不会提前启动采集；实际定时激活才会执行重建并开启两者。
+
+最终复核（2026-09-12）确认：启用调度为 `1/1`（唯一启用项为 DC-08A），运行记录为
+`CANCELLED=476`、`COMPLETED=87`，无非正式 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING`
+记录；正式激活 `--check-only` 返回 `READY_TO_ENABLE`、退出码 0。
 
 ## 自动观察证据
 

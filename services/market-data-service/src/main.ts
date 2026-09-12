@@ -61,6 +61,7 @@ const collectionExecutor = collectionRuns && process.env.STOCKQUANT_COLLECTION_E
     securityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean),
     projectId: process.env.STOCKQUANT_COLLECTION_PROJECT_ID ?? "stockquant-local",
     dataVersion: process.env.STOCKQUANT_COLLECTION_DATA_VERSION ?? "cn-5m-raw-v1",
+    subscriptionId: process.env.STOCKQUANT_COLLECTION_SUBSCRIPTION_ID,
   })
   : null;
 
@@ -78,7 +79,7 @@ async function json(res: ServerResponse, body: unknown, status = 200) { res.writ
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED" });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED" });
     if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), nextExecutionAt: null, mode: "FIXTURE_PLAN_ONLY", note: "DC-03 scheduler plans persisted collection windows; worker activation remains an explicit deployment setting." });
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }

@@ -5,7 +5,7 @@ export const composeArgs = ["compose", "-f", "infra/compose/docker-compose.yml"]
 export function classifyReady(body, httpStatus = 200) {
   if (httpStatus !== 200 || !body || body.status !== "ready") return "UNHEALTHY";
   if (body.collectionPersistence !== "POSTGRES") return "WAITING_CONFIGURATION";
-  if (body.collectionExecutor !== "ENABLED") return "WAITING_CONFIGURATION";
+  if (body.collectionSchedulerWorker !== "ENABLED" || body.collectionExecutor !== "ENABLED") return "WAITING_CONFIGURATION";
   return "HEALTHY";
 }
 
@@ -34,12 +34,13 @@ function usage() {
   console.error("Usage: node scripts/dc08a-supervise.mjs [--check-only|--repair]");
 }
 
-export async function supervise({ mode = "check-only", url = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+export async function supervise({ mode = "check-only", url = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), preserveEnabled = process.env.DC08A_PRESERVE_ENABLED === "1" } = {}) {
   let observation = await probe();
   const actions = [];
   if (observation.state === "UNHEALTHY") {
     for (const [binary, args] of buildRepairPlan(observation.state, mode)) {
-      const result = command(binary, args);
+      const repairEnv = preserveEnabled ? { ...process.env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: process.env.DC08A_SUBSCRIPTION_ID ?? "" } : undefined;
+      const result = command(binary, args, repairEnv ? { env: repairEnv } : undefined);
       actions.push({ command: [binary, ...args].join(" "), exitCode: result.status });
       if (result.status !== 0) return { state: "REPAIR_FAILED", observation, actions, exitCode: 1 };
     }

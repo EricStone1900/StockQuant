@@ -5,6 +5,9 @@ const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
 export function evaluateActivation({ ready, schedules, expected }) {
   const reasons = [];
   if (ready?.status !== "ready" || ready.collectionPersistence !== "POSTGRES") reasons.push("market-data-service is not ready with PostgreSQL persistence");
+  const schedulerEnabled = ready?.collectionSchedulerWorker === "ENABLED";
+  const executorEnabled = ready?.collectionExecutor === "ENABLED";
+  if (schedulerEnabled !== executorEnabled) reasons.push("collection scheduler/executor state is inconsistent");
   if (!expected.subscriptionId || !expected.calendarVersion || !expected.fromDate || !expected.toDate) reasons.push("DC-08A subscription parameters are incomplete");
   const enabled = schedules.filter((schedule) => schedule.enabled);
   if (enabled.length !== 1) reasons.push(`expected exactly one enabled subscription, found ${enabled.length}`);
@@ -48,7 +51,7 @@ export async function activate({ env = process.env, command = run, ready = getRe
   if (!decision.ok) return { status: "BLOCKED", reasons: decision.reasons, exitCode: 2 };
   if (dryRun) return { status: "READY_TO_ENABLE", subscriptionId: expected.subscriptionId, exitCode: 0 };
   const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], {
-    env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1" },
+    env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: expected.subscriptionId },
   });
   if (result.status !== 0) return { status: "FAILED", reasons: [result.stderr.trim() || "compose activation failed"], exitCode: 1 };
   return { status: "ENABLED", subscriptionId: expected.subscriptionId, exitCode: 0 };
