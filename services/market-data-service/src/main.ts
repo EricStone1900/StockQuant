@@ -11,6 +11,7 @@ import { buildCoverage, validateBars, type QualityBar } from "./application/minu
 import { CoverageRepository } from "./application/coverage-repository.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
 import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
+import { ArtifactDeliveryRepository } from "./application/artifact-delivery-repository.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -44,6 +45,7 @@ const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) 
 const collectionSchedules = databasePool ? new CollectionScheduleRepository(databasePool) : null;
 const coverageRepository = databasePool ? new CoverageRepository(databasePool) : null;
 const projectAccessRepository = databasePool ? new ProjectAccessRepository(databasePool) : null;
+const artifactDeliveryRepository = databasePool ? new ArtifactDeliveryRepository(databasePool) : null;
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
@@ -198,6 +200,22 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (projectAccessRepository) await projectAccessRepository.recordQueueMetric(actor.projectId, "admitted");
       return json(res, paginateVersioned(body.items, body.dataVersion, body.dataVersion, Number(body.cursor ?? 0), Number(body.pageSize ?? 100)));
     }
+    if (req.url === "/v2/data/artifact-rows" && req.method === "POST") {
+      if (!artifactDeliveryRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { projectId?: string; artifactId?: string; dataVersion?: string; items?: unknown[] };
+      const actor = await projectActorForRequest(req);
+      if (!actor || !body.projectId || !body.artifactId || !body.dataVersion || !Array.isArray(body.items)) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
+      assertProjectAccess(actor, body.projectId, "DATA_WRITE");
+      return json(res, { projectId: body.projectId, artifactId: body.artifactId, dataVersion: body.dataVersion, rowCount: await artifactDeliveryRepository.publishRows(body.projectId, body.artifactId, body.dataVersion, body.items) }, 201);
+    }
+    if (req.url === "/v2/data/artifact-page" && req.method === "POST") {
+      if (!artifactDeliveryRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { projectId?: string; artifactId?: string; dataVersion?: string; cursor?: string | number; pageSize?: number };
+      const actor = await projectActorForRequest(req);
+      if (!actor || !body.projectId || !body.artifactId || !body.dataVersion) return json(res, { code: "UNAUTHENTICATED_OR_INVALID_INPUT" }, 401);
+      assertProjectAccess(actor, body.projectId, "DATA_READ");
+      return json(res, await artifactDeliveryRepository.page(body.projectId, body.artifactId, body.dataVersion, Math.max(0, Number(body.cursor ?? 0)), Number(body.pageSize ?? 100)));
+    }
     if (req.url === "/v2/data/export" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { projectId?: string; dataVersion?: string; items?: unknown[] };
       const actor = await projectActorForRequest(req);
@@ -252,6 +270,7 @@ async function start(): Promise<void> {
   if (collectionRuns) await collectionRuns.migrate();
   if (collectionSchedules) await collectionSchedules.migrate();
   if (coverageRepository) await coverageRepository.migrate();
+  if (artifactDeliveryRepository) await artifactDeliveryRepository.migrate();
   if (projectAccessRepository) {
     await projectAccessRepository.migrate();
     for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);

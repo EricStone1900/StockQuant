@@ -11,6 +11,8 @@ import { CollectionScheduler } from "../../src/application/collection-scheduler.
 import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
 import { CoverageRepository } from "../../src/application/coverage-repository.js";
 import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/application/project-access-repository.js";
+import { ArtifactDeliveryRepository } from "../../src/application/artifact-delivery-repository.js";
+import { DataVersionConflict, ProjectAccessDenied } from "../../src/application/project-delivery.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -21,6 +23,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const schedules = new CollectionScheduleRepository(pool);
   const coverage = new CoverageRepository(pool);
   const projects = new ProjectAccessRepository(pool);
+  const artifacts = new ArtifactDeliveryRepository(pool);
   const suffix = Date.now().toString();
 
   beforeAll(async () => {
@@ -28,6 +31,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await schedules.migrate();
     await coverage.migrate();
     await projects.migrate();
+    await artifacts.migrate();
   });
 
   afterAll(async () => {
@@ -179,5 +183,23 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await projects.recordQueueMetric(projectId, "admitted");
     await projects.recordQueueMetric(projectId, "rejected");
     expect(await projects.queueMetrics(projectId)).toMatchObject({ projectId, admitted: 1, rejected: 1 });
+  });
+
+  it("persists project-scoped artifact rows and resumes immutable pagination", async () => {
+    const projectId = `artifact-project-${suffix}`;
+    const otherProjectId = `artifact-other-${suffix}`;
+    await projects.register(projectId, `artifact-token-${suffix}`, ["DATA_READ", "DATA_WRITE"], 1, 20);
+    await projects.register(otherProjectId, `artifact-other-token-${suffix}`, ["DATA_READ"], 1, 20);
+    const request = { subscriptionId: `artifact-page-${suffix}`, subscriptionVersion: 1, windowStart: "2026-09-11T06:00:00.000Z", windowEnd: "2026-09-11T06:05:00.000Z", jobKind: "INTRADAY_WINDOW" as const, idempotencyKey: `artifact-page-${suffix}`, requestHash: "a".repeat(64) };
+    const created = await repository.create(request);
+    const claimed = await repository.claim(created.run.runId, 30);
+    const artifactId = `artifact-page-${suffix}`;
+    await repository.publish(created.run.runId, claimed!.fencingToken, artifactId, { sha256: "b".repeat(64), rowCount: 3 });
+    expect(await artifacts.publishRows(projectId, artifactId, "data-v1", [{ row: 1 }, { row: 2 }, { row: 3 }])).toBe(3);
+    expect(await artifacts.page(projectId, artifactId, "data-v1", 0, 2)).toEqual({ dataVersion: "data-v1", items: [{ row: 1 }, { row: 2 }], nextCursor: "2" });
+    expect(await artifacts.page(projectId, artifactId, "data-v1", 2, 2)).toEqual({ dataVersion: "data-v1", items: [{ row: 3 }], nextCursor: null });
+    await expect(artifacts.page(otherProjectId, artifactId, "data-v1", 0, 2)).rejects.toBeInstanceOf(ProjectAccessDenied);
+    await expect(artifacts.page(projectId, artifactId, "data-old", 0, 2)).rejects.toBeInstanceOf(DataVersionConflict);
+    expect(await artifacts.publishRows(projectId, artifactId, "data-v1", [{ row: 1 }, { row: 2 }, { row: 3 }])).toBe(3);
   });
 });
