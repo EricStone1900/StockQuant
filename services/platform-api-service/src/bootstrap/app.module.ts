@@ -251,6 +251,50 @@ export class V25AcceptanceController {
   }
 }
 
+@Controller("api/v1/acceptance/v2/dc06")
+export class Dc06AcceptanceController {
+  private readonly runs = new Map<string, any>();
+  private readonly projectId = process.env.STOCKQUANT_DC06_PROJECT_ID ?? "dc06-web";
+  private readonly projectToken = process.env.STOCKQUANT_DC06_PROJECT_TOKEN;
+  constructor(private readonly container: PlatformContainer) {}
+  @Get("scenarios") scenarios() { return [{ scenarioId: "normal", title: "项目分页与导出脱敏", expected: "同项目读取成功、敏感字段不出现在导出结果" }, { scenarioId: "rejection", title: "跨项目访问拒绝", expected: "资源项目不匹配返回403" }, { scenarioId: "recovery", title: "令牌错误后恢复", expected: "错误令牌拒绝，正确令牌可继续读取" }]; }
+  @Get("preview") preview() { return { stageId: "DC-06", projectId: this.projectId, dataVersion: "dc06-web-v1", environmentMode: "PAPER", brokerMode: "FAKE", tokenConfigured: Boolean(this.projectToken), artifactMode: Boolean(process.env.STOCKQUANT_DC06_ARTIFACT_ID) }; }
+  private headers(token = this.projectToken): Record<string, string> {
+    const headers: Record<string, string> = { "content-type": "application/json", "x-stockquant-project-id": this.projectId };
+    if (token) headers["x-stockquant-project-token"] = token;
+    else headers["x-stockquant-scopes"] = "DATA_READ,DATA_EXPORT";
+    return headers;
+  }
+  private async call(path: string, body: Record<string, unknown>, token = this.projectToken): Promise<{ status: number; body: any }> {
+    const response = await fetch(`${this.container.marketDataUrl}${path}`, { method: "POST", headers: this.headers(token), body: JSON.stringify(body) });
+    const text = await response.text();
+    let parsed: any; try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
+    return { status: response.status, body: parsed };
+  }
+  @Post("runs") @HttpCode(202) async create(@Body() body: { scenarioId?: "normal" | "rejection" | "recovery"; seed?: number }) {
+    const scenarioId = body.scenarioId ?? "normal"; const testRunId = randomUUID();
+    if (!["normal", "rejection", "recovery"].includes(scenarioId)) throw new ForbiddenException("scenario is not available for DC-06");
+    const items = [{ symbol: "600000.SH", close: 10.2, token: "must-be-redacted" }, { symbol: "000001.SZ", close: 11.3 }];
+    const assertions: any[] = [];
+    if (scenarioId === "normal") {
+      const page = await this.call("/v2/data/page", { projectId: this.projectId, dataVersion: "dc06-web-v1", items, pageSize: 1 });
+      const exported = await this.call("/v2/data/export", { projectId: this.projectId, dataVersion: "dc06-web-v1", items });
+      assertions.push({ assertionId: "DC06-WEB-PAGE-001", status: page.status === 200 && page.body.items?.length === 1 ? "PASS" : "FAIL", expected: "200 and one paged row", actual: page.body });
+      assertions.push({ assertionId: "DC06-WEB-REDACTION-001", status: exported.status === 200 && !JSON.stringify(exported.body.items).includes("must-be-redacted") ? "PASS" : "FAIL", expected: "token absent from export", actual: exported.body });
+    } else if (scenarioId === "rejection") {
+      const rejected = await this.call("/v2/data/page", { projectId: "other-project", dataVersion: "dc06-web-v1", items });
+      assertions.push({ assertionId: "DC06-WEB-AUTH-001", status: rejected.status === 403 ? "PASS" : "FAIL", expected: 403, actual: rejected.status });
+    } else {
+      const denied = await this.call("/v2/data/page", { projectId: this.projectId, dataVersion: "dc06-web-v1", items }, "wrong-token");
+      const recovered = await this.call("/v2/data/page", { projectId: this.projectId, dataVersion: "dc06-web-v1", items }, this.projectToken);
+      assertions.push({ assertionId: "DC06-WEB-RECOVERY-001", status: denied.status === 403 && recovered.status === 200 ? "PASS" : "FAIL", expected: "wrong token 403 then correct token 200", actual: { denied: denied.status, recovered: recovered.status } });
+    }
+    const result = { testRunId, stageId: "DC-06", scenarioId, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", seed: body.seed ?? 20260907, assertions };
+    this.runs.set(testRunId, result); return { accepted: true, testRunId, status: result.status };
+  }
+  @Get("runs/:testRunId") get(@Param("testRunId") id: string) { const run = this.runs.get(id); if (!run) throw new NotFoundException("DC-06 run was not found"); return run; }
+}
+
 @Controller("api/v1/acceptance/v2/v2.1")
 export class V21AcceptanceController {
   private readonly marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
@@ -323,5 +367,5 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, Dc06AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}

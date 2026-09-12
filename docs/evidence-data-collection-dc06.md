@@ -12,6 +12,7 @@
 - 导出递归移除 token、projectToken、authorization、sourceCredential 和 rawResponse 字段后再计算 SHA-256。
 - 新增 `ArtifactDeliveryRepository`：Artifact 行持久化到 `market_data_artifact_rows`，按项目和不可变 DataVersion 分页；跨项目读取和版本冲突均拒绝。
 - 新增 API：`/v2/projects/access`、`/v2/data/page`、`/v2/data/artifact-rows`、`/v2/data/artifact-page`、`/v2/data/export`、`/v2/data/dedupe-key`。数据库模式使用服务端令牌；仅无数据库的本地开发模式允许 Header scopes。
+- 平台验收代理 `/api/v1/acceptance/v2/dc06` 和 Web 页面 `/acceptance/v2/dc06` 已接入正常、跨项目拒绝、错误令牌恢复三个场景；项目令牌只在平台服务端配置，不下发浏览器。
 
 ## 自动验证
 
@@ -23,8 +24,8 @@ pnpm contracts:check
 pnpm fixtures:check
 ```
 
-结果：17/17 单元测试通过；真实 PostgreSQL 集成测试 10/10 通过（项目认证、错误令牌拒绝、并发配额、队列指标、Artifact 行隔离、分页恢复和 DataVersion 冲突）；TypeScript、文档、合同和 Fixture 检查通过。HTTP 烟测验证 Artifact 写入、单页读取、错误令牌返回 403、同项目授权和物理去重键链路。
+结果：17/17 单元测试通过；真实 PostgreSQL 集成测试 10/10 通过（项目认证、错误令牌拒绝、并发配额、队列指标、Artifact 行隔离、分页恢复和 DataVersion 冲突）；平台 API/Web TypeScript 和生产构建通过；DC-06 Playwright 浏览器场景 1/1 通过。HTTP 烟测验证 Artifact 写入、单页读取、错误令牌返回 403、同项目授权和物理去重键链路。
 
 ## 未完成门槛
 
-DC-06 当前为 `IN_PROGRESS`。项目规则、持久项目策略/令牌校验、并发配额计数、公平队列指标、真实 Artifact 分页、导出脱敏和 API 已完成并验证；Web/验收中心 E2E 仍需后续部署交付。无数据库本地模式仍允许开发 Header，正式数据库模式不会接受 Header scopes 伪造。
+DC-06 当前为 `IN_PROGRESS`。项目规则、持久项目策略/令牌校验、并发配额计数、公平队列指标、真实 Artifact 分页、导出脱敏、平台验收代理和 Web 场景已完成并验证；剩余为用户人工验收签字。无数据库本地模式仍允许开发 Header，正式数据库模式不会接受 Header scopes 伪造。
