@@ -13,6 +13,7 @@ import { CoverageRepository } from "../../src/application/coverage-repository.js
 import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/application/project-access-repository.js";
 import { ArtifactDeliveryRepository } from "../../src/application/artifact-delivery-repository.js";
 import { DataVersionConflict, ProjectAccessDenied } from "../../src/application/project-delivery.js";
+import { AlertOutboxRepository } from "../../src/application/alert-outbox-repository.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -24,6 +25,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const coverage = new CoverageRepository(pool);
   const projects = new ProjectAccessRepository(pool);
   const artifacts = new ArtifactDeliveryRepository(pool);
+  const alerts = new AlertOutboxRepository(pool);
   const suffix = Date.now().toString();
 
   beforeAll(async () => {
@@ -32,6 +34,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await coverage.migrate();
     await projects.migrate();
     await artifacts.migrate();
+    await alerts.migrate();
   });
 
   afterAll(async () => {
@@ -201,5 +204,20 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(artifacts.page(otherProjectId, artifactId, "data-v1", 0, 2)).rejects.toBeInstanceOf(ProjectAccessDenied);
     await expect(artifacts.page(projectId, artifactId, "data-old", 0, 2)).rejects.toBeInstanceOf(DataVersionConflict);
     expect(await artifacts.publishRows(projectId, artifactId, "data-v1", [{ row: 1 }, { row: 2 }, { row: 3 }])).toBe(3);
+  });
+
+  it("deduplicates alert events and retains failed delivery for retry", async () => {
+    const key = `alert-${suffix}`;
+    const first = await alerts.enqueue(key, "SOURCE_UNAVAILABLE", "CRITICAL", { sourceId: "baostock", runId: suffix });
+    const duplicate = await alerts.enqueue(key, "SOURCE_UNAVAILABLE", "CRITICAL", { sourceId: "baostock", runId: suffix });
+    expect(first.created).toBe(true);
+    expect(duplicate).toEqual({ alertId: first.alertId, created: false });
+    expect(await alerts.pending()).toHaveLength(1);
+    await alerts.markFailed(first.alertId, "notification endpoint unavailable");
+    expect((await alerts.pending()).find((item) => item.alertId === first.alertId)).toBeUndefined();
+    await pool.query("UPDATE market_data_alert_outbox SET next_attempt_at=now() WHERE alert_id=$1", [first.alertId]);
+    expect((await alerts.pending()).find((item) => item.alertId === first.alertId)?.attempts).toBe(1);
+    await alerts.markSent(first.alertId);
+    expect((await alerts.pending()).find((item) => item.alertId === first.alertId)).toBeUndefined();
   });
 });

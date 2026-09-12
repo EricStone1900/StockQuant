@@ -21,10 +21,17 @@ async function getJson(url) {
 
 await mkdir(outputDir, { recursive: true });
 run([...compose, "config", "--quiet"]);
-const ps = run([...compose, "ps", "--format", "json"]).trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
+const readStatuses = () => run([...compose, "ps", "--format", "json"]).trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
+let ps = readStatuses();
+for (let attempt = 0; attempt < 30; attempt += 1) {
+  const statuses = new Map(ps.map((item) => [item.Service, item.Health || item.Status]));
+  if (["postgres", "market-data-service", "platform-api-service"].every((service) => String(statuses.get(service)).includes("healthy"))) break;
+  await new Promise((resolveWait) => setTimeout(resolveWait, 1000));
+  ps = readStatuses();
+}
 const healthy = new Map(ps.map((item) => [item.Service, item.Health || item.Status]));
 for (const service of ["postgres", "market-data-service", "platform-api-service"]) {
-  if (!String(healthy.get(service)).includes("healthy")) throw new Error(`${service} is not healthy: ${healthy.get(service)}`);
+  if (!String(healthy.get(service)).includes("healthy")) throw new Error(`${service} is not healthy after 30s: ${healthy.get(service)}`);
 }
 const before = await getJson(`${marketUrl}/ready`);
 if (before.status !== 200 || before.body.collectionPersistence !== "POSTGRES") throw new Error(`market-data before restart failed: ${JSON.stringify(before)}`);

@@ -12,6 +12,7 @@ import { CoverageRepository } from "./application/coverage-repository.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
 import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
 import { ArtifactDeliveryRepository } from "./application/artifact-delivery-repository.js";
+import { AlertOutboxRepository } from "./application/alert-outbox-repository.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -46,6 +47,7 @@ const collectionSchedules = databasePool ? new CollectionScheduleRepository(data
 const coverageRepository = databasePool ? new CoverageRepository(databasePool) : null;
 const projectAccessRepository = databasePool ? new ProjectAccessRepository(databasePool) : null;
 const artifactDeliveryRepository = databasePool ? new ArtifactDeliveryRepository(databasePool) : null;
+const alertOutboxRepository = databasePool ? new AlertOutboxRepository(databasePool) : null;
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
@@ -271,6 +273,7 @@ async function start(): Promise<void> {
   if (collectionSchedules) await collectionSchedules.migrate();
   if (coverageRepository) await coverageRepository.migrate();
   if (artifactDeliveryRepository) await artifactDeliveryRepository.migrate();
+  if (alertOutboxRepository) await alertOutboxRepository.migrate();
   if (projectAccessRepository) {
     await projectAccessRepository.migrate();
     for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);
