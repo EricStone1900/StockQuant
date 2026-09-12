@@ -28,4 +28,14 @@ pnpm fixtures:check
 
 ## 未完成门槛
 
-DC-06 当前为 `IN_PROGRESS`。项目规则、持久项目策略/令牌校验、并发配额计数、公平队列指标、真实 Artifact 分页、导出脱敏、平台验收代理和 Web 场景已完成并验证；剩余为用户人工验收签字。无数据库本地模式仍允许开发 Header，正式数据库模式不会接受 Header scopes 伪造。
+DC-06 当前实现与验收均已完成；后续仅保留运行期观察。项目规则、持久项目策略/令牌校验、并发配额计数、公平队列指标、真实 Artifact 分页、导出脱敏、平台验收代理和 Web 场景均已验证。无数据库本地模式仍允许开发 Header，正式数据库模式不会接受 Header scopes 伪造。
+
+## 人工验收后的自动复核记录
+
+2026-09-12 16:19（Asia/Shanghai）按人工验收流程重新执行：
+
+- `normal`：`testRunId=d6681cbe-b297-41de-bd63-d122227f11c0`，`COMPLETED`，`DC06-WEB-PAGE-001` / `DC06-WEB-REDACTION-001` 全部 PASS。
+- `rejection`：`testRunId=9666f0a4-e4da-47b0-a3f7-8f8ad7637aad`，`COMPLETED`，`DC06-WEB-AUTH-001` PASS，跨项目返回 403。
+- `recovery`：`testRunId=c36128fd-64e8-403e-add3-789df02eba26`，`COMPLETED`，`DC06-WEB-RECOVERY-001` PASS，错误令牌 403 后正确令牌 200。
+- 浏览器：`dc06-acceptance.spec.ts` 1/1 PASS。
+- 后端回归：PostgreSQL 10/10、单元 17/17；文档链接、合同和 Fixture 检查全部 PASS。
