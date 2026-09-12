@@ -66,6 +66,26 @@ export class CoverageRepository {
     return { task: this.mapTask(existing.rows[0]), created: false };
   }
 
+  async findBackfill(taskId: string): Promise<BackfillTask | null> {
+    const result = await this.pool.query<TaskRow>("SELECT * FROM market_data_backfill_tasks WHERE task_id=$1", [taskId]);
+    return result.rowCount === 1 ? this.mapTask(result.rows[0]) : null;
+  }
+
+  async claimBackfill(taskId: string): Promise<BackfillTask | null> {
+    const result = await this.pool.query<TaskRow>("UPDATE market_data_backfill_tasks SET status='RUNNING' WHERE task_id=$1 AND status='QUEUED' RETURNING *", [taskId]);
+    return result.rowCount === 1 ? this.mapTask(result.rows[0]) : null;
+  }
+
+  async completeBackfill(taskId: string): Promise<BackfillTask | null> {
+    const result = await this.pool.query<TaskRow>("UPDATE market_data_backfill_tasks SET status='COMPLETED' WHERE task_id=$1 AND status='RUNNING' RETURNING *", [taskId]);
+    return result.rowCount === 1 ? this.mapTask(result.rows[0]) : null;
+  }
+
+  async failBackfill(taskId: string): Promise<BackfillTask | null> {
+    const result = await this.pool.query<TaskRow>("UPDATE market_data_backfill_tasks SET status='FAILED' WHERE task_id=$1 AND status='RUNNING' RETURNING *", [taskId]);
+    return result.rowCount === 1 ? this.mapTask(result.rows[0]) : null;
+  }
+
   private mapTask(row: TaskRow): BackfillTask {
     const date = (value: string | Date): string => value instanceof Date ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(value) : String(value).slice(0, 10);
     return { taskId: row.task_id, subscriptionId: row.subscription_id, fromDate: date(row.from_date), toDate: date(row.to_date), idempotencyKey: row.idempotency_key, status: row.status };

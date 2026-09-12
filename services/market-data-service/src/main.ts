@@ -195,6 +195,18 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
       return json(res, result, result.created ? 201 : 200);
     }
+    const backfillMatch = req.url?.match(/^\/v2\/minute\/backfills\/([^/]+)(?:\/(claim|complete|fail))?$/);
+    if (backfillMatch && req.method === "GET" && !backfillMatch[2]) {
+      if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const task = await coverageRepository.findBackfill(backfillMatch[1]);
+      return task ? json(res, task) : json(res, { code: "NOT_FOUND" }, 404);
+    }
+    if (backfillMatch && req.method === "POST" && backfillMatch[2]) {
+      if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const action = backfillMatch[2];
+      const task = action === "claim" ? await coverageRepository.claimBackfill(backfillMatch[1]) : action === "complete" ? await coverageRepository.completeBackfill(backfillMatch[1]) : await coverageRepository.failBackfill(backfillMatch[1]);
+      return task ? json(res, task) : json(res, { code: "INVALID_BACKFILL_STATE" }, 409);
+    }
     if (req.url === "/v2/projects/access" && req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as { projectId?: string; resourceProjectId?: string; scope?: ProjectScope };
       const actor = await projectActorForRequest(req);
