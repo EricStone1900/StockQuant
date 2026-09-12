@@ -14,3 +14,7 @@ test("incomplete trading day returns the required-observation exit code", () => 
   assert.equal(finalReportExitCode({ tradingDay: true, status: "INCOMPLETE" }), 2);
   assert.equal(finalReportExitCode({ tradingDay: true, status: "NOT_RUN" }), 2);
 });
+
+test("calendar dependency failure never reports success", () => {
+  assert.equal(finalReportExitCode({ tradingDay: false, calendarStatus: "UNAVAILABLE", status: "WAITING_DEPENDENCY" }), 2);
+});

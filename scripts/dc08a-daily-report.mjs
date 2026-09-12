@@ -8,9 +8,10 @@ export function expectedBars(securityCount, sessions = 2, barsPerSession = 24) {
   return Math.max(0, securityCount) * Math.max(0, sessions) * Math.max(0, barsPerSession);
 }
 
-export function classifyDailyStatus({ tradingDay, expected, actual, statuses, openGaps }) {
+export function classifyDailyStatus({ tradingDay, calendarStatus, expected, actual, statuses, openGaps, pendingOutbox = 0 }) {
+  if (calendarStatus === "UNKNOWN" || calendarStatus === "UNAVAILABLE") return "WAITING_DEPENDENCY";
   if (!tradingDay || expected === 0 || actual === 0) return "NOT_RUN";
-  if (openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") || actual < expected) return "INCOMPLETE";
+  if (openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") || actual !== expected) return "INCOMPLETE";
   return "PASS";
 }
 
@@ -37,7 +38,18 @@ function safeDate(value) {
 
 export async function createDailyReport({ date = process.env.REPORT_DATE ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date()), subscriptionId = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260914-short-v1", securityCount = Number(process.env.DC08A_SECURITY_COUNT ?? 3), tradingDay, outputDir = process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002" } = {}) {
   const reportDate = safeDate(date);
-  const calendarTradingDay = tradingDay ?? (await fetch(`${calendarUrl}/v2/calendar/cn-a-share/${reportDate}`, { signal: AbortSignal.timeout(3000) }).then(async (response) => response.ok && (await response.json()).status === "TRADING").catch(() => false));
+  let calendarStatus = tradingDay === undefined ? "UNAVAILABLE" : tradingDay ? "TRADING" : "CLOSED";
+  if (tradingDay === undefined) {
+    try {
+      const response = await fetch(`${calendarUrl}/v2/calendar/cn-a-share/${reportDate}`, { signal: AbortSignal.timeout(3000) });
+      if (!response.ok) throw new Error(`calendar HTTP ${response.status}`);
+      const body = await response.json();
+      calendarStatus = body.status === "TRADING" || body.status === "CLOSED" || body.status === "UNKNOWN" ? body.status : "UNKNOWN";
+    } catch (error) {
+      calendarStatus = "UNAVAILABLE";
+    }
+  }
+  const calendarTradingDay = calendarStatus === "TRADING";
   const escaped = subscriptionId.replaceAll("'", "''");
   const statuses = rows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}' GROUP BY status ORDER BY status`), ["status", "count"]).map((item) => ({ status: item.status, count: Number(item.count) }));
   const totals = rows(query(`SELECT coalesce(sum(a.row_count),0), count(*) FROM market_data_collection_artifacts a JOIN market_data_collection_runs r ON r.published_artifact_id=a.artifact_id WHERE r.subscription_id='${escaped}' AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`), ["actualBars", "artifactCount"])[0] ?? { actualBars: "0", artifactCount: "0" };
@@ -45,7 +57,7 @@ export async function createDailyReport({ date = process.env.REPORT_DATE ?? new 
   const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`).trim() || "0");
   const expected = calendarTradingDay ? expectedBars(securityCount) : 0;
   const actual = Number(totals.actualBars);
-  const report = { schemaVersion: "dc08a-daily-report-v1", reportDate, subscriptionId, tradingDay: calendarTradingDay, securityCount, expectedBars: expected, actualBars: actual, artifactCount: Number(totals.artifactCount), statuses, openGaps, pendingOutbox, status: classifyDailyStatus({ tradingDay: calendarTradingDay, expected, actual, statuses, openGaps }) };
+  const report = { schemaVersion: "dc08a-daily-report-v1", reportDate, subscriptionId, tradingDay: calendarTradingDay, calendarStatus, securityCount, expectedBars: expected, actualBars: actual, artifactCount: Number(totals.artifactCount), statuses, openGaps, pendingOutbox, status: classifyDailyStatus({ tradingDay: calendarTradingDay, calendarStatus, expected, actual, statuses, openGaps, pendingOutbox }) };
   const directory = resolve(outputDir);
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `daily-report-${reportDate}.json`);

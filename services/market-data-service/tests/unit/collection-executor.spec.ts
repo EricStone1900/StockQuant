@@ -35,6 +35,14 @@ describe("PersistentCollectionExecutor", () => {
     expect(runs.retry).toBe(123);
   });
 
+  it("does not publish a partial security window", async () => {
+    const runs = new FakeRuns();
+    const adapter: CollectionAdapter = { collect: async () => ({ sourceId: "sina", bars: [bar], attempts: [] }) };
+    const result = await new PersistentCollectionExecutor(runs as never, adapter, { securityIds: ["600000.SH", "000001.SZ"], projectId: "stockquant-local", dataVersion: "cn-5m-raw-v1" }).tick();
+    expect(result).toEqual({ attempted: 1, completed: 0, waitingRetry: 1 });
+    expect(runs.published).toBeNull();
+  });
+
   it("publishes only the exact claimed five-minute window", async () => {
     const runs = new FakeRuns();
     const adapter: CollectionAdapter = { collect: async () => ({ sourceId: "baostock", bars: [bar, { ...bar, barStart: "2026-09-11T09:35:00+08:00", barEnd: "2026-09-11T09:40:00+08:00" }], attempts: [] }) };

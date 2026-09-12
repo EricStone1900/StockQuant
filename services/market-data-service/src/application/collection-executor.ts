@@ -63,6 +63,7 @@ export class PersistentCollectionExecutor {
         const result = await this.adapter.collect({ securityIds: this.config.securityIds, startDate: localDate(run.windowStart), endDate: localDate(run.windowEnd) });
         const normalized = result.bars.map(normalizeBar).filter((bar) => withinWindow(bar, run));
         if (!normalized.length) throw new Error("EMPTY_WINDOW_RESULT");
+        if (normalized.length !== this.config.securityIds.length) throw new Error(`INCOMPLETE_WINDOW_RESULT:${normalized.length}/${this.config.securityIds.length}`);
         const issues = validateBars(normalized);
         if (issues.length) throw new Error(`QUALITY_REJECTED:${JSON.stringify(issues.slice(0, 5))}`);
         const rows = normalized.map((bar) => ({ ...bar, ingestedAt: new Date().toISOString(), sourceAttempts: result.attempts }));

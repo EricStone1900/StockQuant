@@ -140,7 +140,7 @@ DC-08保留原编号，细分DC-08A“启用与短期验收”和DC-08B“60日�
 
 现有可用文档检查：项目根目录运行 `pnpm docs:check`、`git diff --check`。现有质量入口 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm test:contract` 不能代替本模块的真实DB/调度/恢复测试。
 
-以下为 DC-01/02 必须实现的命令契约，当前均未创建，不应直接执行或声明PASS：
+以下为 DC-01/02 必须实现的命令契约；除已注明的覆盖检查入口外，其余仍未创建，不应直接执行或声明PASS：
 
 | 目标入口 | 参数与语义 |
 |---|---|
@@ -148,7 +148,7 @@ DC-08保留原编号，细分DC-08A“启用与短期验收”和DC-08B“60日�
 | pnpm data:status | `--run ID`；读取任务/分区/重试/缺口/下一动作，不触发采集 |
 | pnpm data:resume | `--run ID --expected-version N`；恢复原任务，配置冲突409；已完成幂等返回 |
 | pnpm data:backfill | `--subscription ID --from DATE --to DATE --idempotency-key KEY`；验证日期和配额、复用同一质量/发布路径 |
-| pnpm data:coverage | `--subscription ID --from DATE --to DATE --check-only`；只读日历/版本/缺口，缺覆盖退出2 |
+| pnpm data:coverage | `--subscription ID --from DATE --to DATE --check-only`；已实现，只读日历/版本/逐窗口缺口，缺覆盖退出2 |
 | pnpm data:schedule | `--subscription ID --action enable/disable/status`；持久配置，启用校验能力及冲突，禁用不删数据 |
 
 测试仍复用 `verify:stage`/`test:e2e`/`evidence:export`，在V2.5内注册命名空间化采集场景及独立断言，不重复建测试平台。DC-02冻结确切scenario选择参数并实现命令解析，保留既有V2.5回归；未知场景、零用例、全部跳过和缺依赖不得退出0。0=通过、1=失败、2=未完成/缺必需前置；命令受理成功不等于验收成功。

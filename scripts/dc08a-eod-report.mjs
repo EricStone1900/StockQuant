@@ -3,7 +3,7 @@ import { createDailyReport } from "./dc08a-daily-report.mjs";
 export function finalReportExitCode(report) {
   // Non-trading days are expected and should not page. A trading day is
   // successful only when the complete expected coverage is present.
-  if (!report?.tradingDay) return 0;
+  if (!report?.tradingDay) return report?.status === "WAITING_DEPENDENCY" ? 2 : 0;
   return report.status === "PASS" ? 0 : 2;
 }
 
