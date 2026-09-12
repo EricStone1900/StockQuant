@@ -188,6 +188,16 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(second.task.taskId).toBe(first.task.taskId);
   });
 
+  it("closes resolved gaps during scoped reconciliation", async () => {
+    const subscriptionId = `coverage-reconcile-${suffix}`;
+    const gap = { gapId: `gap-reconcile-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const };
+    await coverage.reconcileGaps(subscriptionId, "2026-09-11", "2026-09-11", [gap.securityId], [gap]);
+    expect(await coverage.open(subscriptionId)).toHaveLength(1);
+    const result = await coverage.reconcileGaps(subscriptionId, "2026-09-11", "2026-09-11", [gap.securityId], []);
+    expect(result.closed).toBe(1);
+    expect(await coverage.open(subscriptionId)).toHaveLength(0);
+  });
+
   it("authenticates persisted projects and enforces the persisted run quota", async () => {
     const projectId = `project-${suffix}`;
     const registered = await projects.register(projectId, `token-${suffix}`, ["DATA_READ", "DATA_EXPORT"], 1, 20);

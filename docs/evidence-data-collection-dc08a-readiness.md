@@ -80,7 +80,9 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 已补充 `pnpm data:coverage -- --subscription ID --from today --to today --security-ids LIST`
 覆盖入口，按冻结日历、当前已闭合窗口、证券集合和逐 5 分钟窗口核对缺失、重复、意外 Bar、
 运行状态和开放缺口，生成 `evidence/dc08a/coverage-*.json`；非交易日退出 0，交易日缺覆盖
-或日历依赖未满足时退出 2。使用 `--record-gaps` 时会将发现的缺口幂等写入 GapRecord。
+或日历依赖未满足时退出 2。默认减去 120 秒发布宽限期（可用 `DC08A_COVERAGE_GRACE_SECONDS`
+调整）；使用 `--record-gaps` 时会按订阅、日期和证券范围原子登记当前缺口，并自动关闭本次
+覆盖已恢复的旧 `OPEN` 缺口，报告 `gapReconciliation.opened/closed`。
 执行器现在拒绝部分证券窗口并保留原任务进入重试，不发布不完整 Artifact。
 
 已补充 `pnpm dc08a:active-subscription` 只读读取唯一启用订阅和当前证券集合；巡检与日终

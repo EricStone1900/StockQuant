@@ -10,6 +10,7 @@ import { PersistentCollectionSchedulerWorker } from "./application/persistent-co
 import { PersistentCollectionExecutor, PythonMinuteCollectionAdapter } from "./application/collection-executor.js";
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
 import { CoverageRepository } from "./application/coverage-repository.js";
+import { validateGapRequest } from "./application/coverage-request.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
 import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
 import { ArtifactDeliveryRepository } from "./application/artifact-delivery-repository.js";
@@ -183,10 +184,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/minute/gaps" && req.method === "POST") {
       if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
-      const body = JSON.parse(await readBody(req)) as { subscriptionId?: string; gaps?: Array<{ gapId: string; securityId: string; barStart: string; barEnd: string; reason: "MISSING" | "DUPLICATE_CONFLICT"; priority: "P0" | "P1" | "P2" }> };
-      if (!body.subscriptionId || !Array.isArray(body.gaps)) return json(res, { code: "INVALID_GAP_INPUT" }, 422);
-      await coverageRepository.upsertGaps(body.subscriptionId, body.gaps);
-      return json(res, { subscriptionId: body.subscriptionId, open: await coverageRepository.open(body.subscriptionId) });
+      const validation = validateGapRequest(JSON.parse(await readBody(req)));
+      if (!validation.ok) return json(res, { code: validation.code }, 422);
+      const { subscriptionId, fromDate, toDate, securityIds, gaps } = validation.value;
+      const result = await coverageRepository.reconcileGaps(subscriptionId, fromDate, toDate, securityIds, gaps);
+      return json(res, { subscriptionId, ...result, open: await coverageRepository.open(subscriptionId) });
     }
     const gapsMatch = req.url?.match(/^\/v2\/minute\/gaps\/([^/]+)$/);
     if (gapsMatch && req.method === "GET") {

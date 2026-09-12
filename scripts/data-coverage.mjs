@@ -109,13 +109,13 @@ export function coverageExitCode(report) {
 
 async function persistGaps(baseUrl, report) {
   const gaps = buildGapPayload(report);
-  if (!gaps.length) return 0;
-  const response = await fetch(`${baseUrl}/v2/minute/gaps`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscriptionId: report.subscriptionId, gaps }), signal: AbortSignal.timeout(5000) });
+  const response = await fetch(`${baseUrl}/v2/minute/gaps`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscriptionId: report.subscriptionId, fromDate: report.fromDate, toDate: report.toDate, securityIds: report.securityIds, gaps }), signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error(`gap record HTTP ${response.status}`);
-  return gaps.length;
+  const result = await response.json();
+  return { opened: result.opened ?? gaps.length, closed: result.closed ?? 0, open: Array.isArray(result.open) ? result.open.length : undefined };
 }
 
-export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", asOf = new Date(), recordGaps = false } = {}) {
+export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", asOf = new Date(), graceSeconds = Number(process.env.DC08A_COVERAGE_GRACE_SECONDS ?? 120), recordGaps = false } = {}) {
   const dates = datesBetween(fromDate, toDate);
   const days = await calendarDays(dates, calendarUrl);
   const escaped = sqlValue(subscriptionId);
@@ -123,8 +123,15 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
   const statuses = parseRows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}' GROUP BY status ORDER BY status`), ["status", "count"]).map((row) => ({ status: row.status, count: Number(row.count) }));
   const openGaps = Number(query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
   const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
-  const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days, asOf), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
-  if (recordGaps) report.recordedGapCount = await persistGaps(calendarUrl, report);
+  const effectiveAsOf = new Date(asOf.getTime() - Math.max(0, graceSeconds) * 1000);
+  const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), effectiveAsOf: effectiveAsOf.toISOString(), graceSeconds, subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days, effectiveAsOf), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
+  if (recordGaps) {
+    report.gapReconciliation = await persistGaps(calendarUrl, report);
+    if (report.gapReconciliation.open !== undefined) {
+      report.openGaps = report.gapReconciliation.open;
+      report.status = report.unknownCalendar.length ? "WAITING_DEPENDENCY" : report.missingBars || report.duplicateBars || report.unexpectedBars || report.openGaps > 0 || report.statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : report.expectedBars > 0 ? "PASS" : "NOT_RUN";
+    }
+  }
   const directory = resolve(outputDir);
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `coverage-${subscriptionId}-${fromDate}-${toDate}.json`);

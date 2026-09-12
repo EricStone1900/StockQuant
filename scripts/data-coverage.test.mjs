@@ -14,6 +14,12 @@ test("coverage excludes future windows during the trading day", () => {
   assert.equal(buildExpectedKeys(["600000.SH"], days, new Date("2026-09-14T07:20:00.000Z")).length, 4);
 });
 
+test("coverage grace excludes the just-closed publish-delay window", () => {
+  const asOf = new Date("2026-09-14T01:36:00.000Z");
+  const effective = new Date(asOf.getTime() - 120_000);
+  assert.equal(buildExpectedKeys(["600000.SH"], days, effective).length, 0);
+});
+
 test("coverage rejects missing, duplicate and unexpected bars", () => {
   const expectedKeys = buildExpectedKeys(["600000.SH"], days);
   const rows = expectedKeys.slice(0, 3).map((key) => { const [securityId, barStart] = key.split("|"); return { securityId, barStart }; });

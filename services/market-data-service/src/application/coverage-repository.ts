@@ -49,6 +49,40 @@ export class CoverageRepository {
     return gaps.length;
   }
 
+  async reconcileGaps(subscriptionId: string, fromDate: string, toDate: string, securityIds: string[], gaps: GapRecord[]): Promise<{ opened: number; closed: number }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const gap of gaps) {
+        await client.query(`
+          INSERT INTO market_data_gap_records (gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority)
+          VALUES ($1,$2,$3,$4,$5,$6,$7)
+          ON CONFLICT (subscription_id, security_id, bar_start, reason) DO UPDATE SET gap_id=EXCLUDED.gap_id, priority=EXCLUDED.priority, status='OPEN', last_seen_at=now()
+        `, [gap.gapId, subscriptionId, gap.securityId, gap.barStart, gap.barEnd, gap.reason, gap.priority]);
+      }
+      const result = await client.query(`
+        UPDATE market_data_gap_records
+        SET status='CLOSED', last_seen_at=now()
+        WHERE subscription_id=$1 AND status='OPEN'
+          AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN $2::date AND $3::date
+          AND security_id = ANY($4::text[])
+          AND NOT EXISTS (
+            SELECT 1 FROM jsonb_to_recordset($5::jsonb) AS current(security_id text, bar_start timestamptz, reason text)
+            WHERE current.security_id=market_data_gap_records.security_id
+              AND current.bar_start=market_data_gap_records.bar_start
+              AND current.reason=market_data_gap_records.reason
+          )
+        `, [subscriptionId, fromDate, toDate, securityIds, JSON.stringify(gaps.map((gap) => ({ security_id: gap.securityId, bar_start: gap.barStart, reason: gap.reason })))]);
+      await client.query("COMMIT");
+      return { opened: gaps.length, closed: result.rowCount ?? 0 };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async open(subscriptionId: string): Promise<PersistedGap[]> {
     const result = await this.pool.query<GapRow>("SELECT gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority, status FROM market_data_gap_records WHERE subscription_id=$1 AND status='OPEN' ORDER BY priority, bar_end", [subscriptionId]);
     return result.rows.map((row) => ({ gapId: row.gap_id, subscriptionId: row.subscription_id, securityId: row.security_id, barStart: row.bar_start.toISOString(), barEnd: row.bar_end.toISOString(), reason: row.reason, priority: row.priority, status: row.status }));
