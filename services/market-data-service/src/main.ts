@@ -7,6 +7,7 @@ import { CollectionRunConflict, CollectionRunRepository } from "./application/co
 import { CollectionScheduler } from "./application/collection-scheduler.js";
 import { CollectionScheduleConflict, CollectionScheduleRepository } from "./application/collection-schedule-repository.js";
 import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
+import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -146,6 +147,18 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return json(res, { observedAt, items: deduplicated, sourceCount: 2, deduplicated: deduplicated.length === items.length, status: deduplicated.length === 2 ? "PASS" : "PARTIAL" });
     }
     if (req.url === "/v2/minute/preview" && req.method === "GET") { const bars = await parseMinute(minuteFixture); return json(res, { fixtureVersion: "v2.2-minute-bars-1", rows: bars.length, securities: new Set(bars.map((bar) => bar.securityId)).size, quality: minuteQuality(bars), bars }); }
+    if (req.url === "/v2/minute/quality" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { bars?: QualityBar[]; requireAmount?: boolean };
+      if (!Array.isArray(body.bars)) return json(res, { code: "INVALID_QUALITY_INPUT" }, 422);
+      const issues = validateBars(body.bars, body.requireAmount ?? true);
+      return json(res, { status: issues.length ? "REJECTED" : "READY", rows: body.bars.length, issues }, issues.length ? 422 : 200);
+    }
+    if (req.url === "/v2/minute/coverage" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req)) as { securityIds?: string[]; fromDate?: string; toDate?: string; bars?: QualityBar[] };
+      if (!Array.isArray(body.securityIds) || !body.fromDate || !body.toDate || !Array.isArray(body.bars)) return json(res, { code: "INVALID_COVERAGE_INPUT" }, 422);
+      const report = buildCoverage(body.securityIds, body.fromDate, body.toDate, body.bars, { session: (date) => { const session = cnAShareSession(date); return { status: session.status as "TRADING" | "CLOSED" | "UNKNOWN", sessions: session.sessions }; } });
+      return json(res, report, report.status === "PASS" ? 200 : 422);
+    }
     if (req.url === "/v2/minute/import" && req.method === "POST") { const body = JSON.parse(await readBody(req)); const file = body.fixture === "bad" ? minuteBadFixture : minuteFixture; const content = await readFile(file); const sha256 = createHash("sha256").update(content).digest("hex"); const existing = [...minuteImports.values()].find((item) => item.sha256 === sha256); if (existing) return json(res, { ...existing, idempotent: true }); const bars = await parseMinute(file); const errors = minuteQuality(bars); const accepted = errors.length ? 0 : bars.length; const result = { importId: `minute-import-${Date.now()}`, version: `v2.2-import-${sha256.slice(0, 12)}`, status: errors.length ? "REJECTED" : "PUBLISHED", accepted, errors, sha256 }; minuteImports.set(result.version, result); return json(res, { ...result, idempotent: false }, errors.length ? 422 : 201); }
     const minuteGet = req.url?.match(/^\/v2\/minute\/imports\/([^/]+)$/); if (minuteGet && req.method === "GET") { const result = minuteImports.get(minuteGet[1]); if (!result) return json(res, { code: "NOT_FOUND" }, 404); return json(res, result); }
     if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
