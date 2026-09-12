@@ -77,15 +77,20 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 能够提示覆盖缺口；日历不可用或未知时返回 `WAITING_DEPENDENCY`/退出码 2，实际 Bar 数量
 必须与预期严格相等。该任务只生成/更新日终报告，不修改订阅、队列或 Artifact。
 
-已补充 `pnpm data:coverage -- --subscription ID --from DATE --to DATE --check-only`，按冻结
-日历、证券集合和逐 5 分钟窗口核对缺失、重复、意外 Bar、运行状态和开放缺口，生成
-`evidence/dc08a/coverage-*.json`；缺覆盖或日历依赖未满足时退出 2。执行器现在拒绝部分证券
-窗口并保留原任务进入重试，不发布不完整 Artifact。
+已补充 `pnpm data:coverage -- --subscription ID --from today --to today --security-ids LIST`
+覆盖入口，按冻结日历、当前已闭合窗口、证券集合和逐 5 分钟窗口核对缺失、重复、意外 Bar、
+运行状态和开放缺口，生成 `evidence/dc08a/coverage-*.json`；非交易日退出 0，交易日缺覆盖
+或日历依赖未满足时退出 2。使用 `--record-gaps` 时会将发现的缺口幂等写入 GapRecord。
+执行器现在拒绝部分证券窗口并保留原任务进入重试，不发布不完整 Artifact。
+
+已补充 `pnpm dc08a:active-subscription` 只读读取唯一启用订阅和当前证券集合；巡检与日终
+任务均动态使用该结果，切换证券集合后不再引用旧短期参数。
 
 已补充 `pnpm dc08a:promote-20 -- --check-only` 作为短期观察后的受保护切换入口：只有
 两份短期日终报告均为 `PASS`、唯一启用订阅正确且目标集合恰为 20 只时才返回
 `READY_TO_PROMOTE`。实际切换必须显式去掉 `--check-only`，会创建目标订阅、停用短期订阅、
-启用目标订阅并以 20 只证券重建服务；未达到条件不会修改数据库或容器。
+启用目标订阅并以 20 只证券构建/重建服务；未达到条件不会修改数据库或容器。首次激活也会
+构建最新 market-data-service 镜像后再重建，避免使用旧镜像。
 
 ## 自动观察证据
 

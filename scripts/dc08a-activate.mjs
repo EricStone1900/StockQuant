@@ -51,7 +51,7 @@ export async function activate({ env = process.env, command = run, ready = getRe
   if (!decision.ok) return { status: "BLOCKED", reasons: decision.reasons, exitCode: 2 };
   if (observation.collectionSchedulerWorker === "ENABLED" && observation.collectionExecutor === "ENABLED") return { status: "ALREADY_ENABLED", subscriptionId: expected.subscriptionId, exitCode: 0 };
   if (dryRun) return { status: "READY_TO_ENABLE", subscriptionId: expected.subscriptionId, exitCode: 0 };
-  const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], {
+  const result = command([...compose, "up", "-d", "--build", "--force-recreate", "market-data-service"], {
     env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: expected.subscriptionId },
   });
   if (result.status !== 0) return { status: "FAILED", reasons: [result.stderr.trim() || "compose activation failed"], exitCode: 1 };

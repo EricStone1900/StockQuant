@@ -5,12 +5,15 @@ import { spawnSync } from "node:child_process";
 const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
 const defaultSecurityIds = ["600000.SH", "000001.SZ", "600519.SH"];
 
+function todayShanghai() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date()); }
+
 export function parseArgs(argv) {
-  const args = { checkOnly: false, securityIds: defaultSecurityIds, outputDir: process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a" };
+  const args = { checkOnly: false, recordGaps: false, securityIds: defaultSecurityIds, outputDir: process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a" };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--") continue;
     if (value === "--check-only") args.checkOnly = true;
+    else if (value === "--record-gaps") args.recordGaps = true;
     else if (value === "--subscription") args.subscriptionId = argv[++index];
     else if (value === "--from") args.fromDate = argv[++index];
     else if (value === "--to") args.toDate = argv[++index];
@@ -18,12 +21,14 @@ export function parseArgs(argv) {
     else if (value === "--output-dir") args.outputDir = argv[++index];
     else throw new Error(`unknown argument: ${value}`);
   }
+  if (args.fromDate === "today") args.fromDate = todayShanghai();
+  if (args.toDate === "today") args.toDate = todayShanghai();
   if (!args.subscriptionId || !args.fromDate || !args.toDate) throw new Error("--subscription, --from and --to are required");
   if (!args.securityIds.length) throw new Error("at least one --security-ids value is required");
   return args;
 }
 
-export function buildExpectedKeys(securityIds, dates) {
+export function buildExpectedKeys(securityIds, dates, asOf = null) {
   const result = [];
   for (const day of dates) {
     if (day.status !== "TRADING") continue;
@@ -33,6 +38,7 @@ export function buildExpectedKeys(securityIds, dates) {
       const start = new Date(Date.UTC(Number(day.date.slice(0, 4)), Number(day.date.slice(5, 7)) - 1, Number(day.date.slice(8, 10)), startHour - 8, startMinute));
       const end = new Date(Date.UTC(Number(day.date.slice(0, 4)), Number(day.date.slice(5, 7)) - 1, Number(day.date.slice(8, 10)), endHour - 8, endMinute));
       for (let cursor = start; cursor.getTime() + 5 * 60_000 <= end.getTime(); cursor = new Date(cursor.getTime() + 5 * 60_000)) {
+        if (asOf && cursor.getTime() + 5 * 60_000 > asOf.getTime()) continue;
         const barStart = cursor.toISOString();
         for (const securityId of securityIds) result.push(`${securityId}|${barStart}`);
       }
@@ -83,7 +89,33 @@ export function summarizeCoverage({ expectedKeys, rows, statuses, openGaps, pend
   return { status, expectedBars: expected.size, actualRows: rows.length, actualUniqueBars: counts.size, missingBars: missingKeys.length, duplicateBars: duplicateKeys.length, unexpectedBars: unexpectedKeys.length, missingKeys, duplicateKeys, unexpectedKeys, statuses, openGaps, pendingOutbox, unknownCalendar };
 }
 
-export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002" } = {}) {
+export function buildGapPayload(report) {
+  const missing = report.missingKeys.map((key) => {
+    const [securityId, barStart] = key.split("|");
+    return { gapId: `gap:${key}`, securityId, barStart, barEnd: new Date(new Date(barStart).getTime() + 5 * 60_000).toISOString(), reason: "MISSING", priority: "P1" };
+  });
+  const duplicate = report.duplicateKeys.map((key) => {
+    const [securityId, barStart] = key.split("|");
+    return { gapId: `duplicate:${key}`, securityId, barStart, barEnd: new Date(new Date(barStart).getTime() + 5 * 60_000).toISOString(), reason: "DUPLICATE_CONFLICT", priority: "P1" };
+  });
+  return [...missing, ...duplicate];
+}
+
+export function coverageExitCode(report) {
+  if (report.status === "PASS") return 0;
+  if (report.status === "NOT_RUN" && report.calendarDays.length > 0 && report.calendarDays.every((day) => day.status === "CLOSED")) return 0;
+  return 2;
+}
+
+async function persistGaps(baseUrl, report) {
+  const gaps = buildGapPayload(report);
+  if (!gaps.length) return 0;
+  const response = await fetch(`${baseUrl}/v2/minute/gaps`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscriptionId: report.subscriptionId, gaps }), signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`gap record HTTP ${response.status}`);
+  return gaps.length;
+}
+
+export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", asOf = new Date(), recordGaps = false } = {}) {
   const dates = datesBetween(fromDate, toDate);
   const days = await calendarDays(dates, calendarUrl);
   const escaped = sqlValue(subscriptionId);
@@ -91,7 +123,8 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
   const statuses = parseRows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}' GROUP BY status ORDER BY status`), ["status", "count"]).map((row) => ({ status: row.status, count: Number(row.count) }));
   const openGaps = Number(query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
   const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
-  const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
+  const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days, asOf), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
+  if (recordGaps) report.recordedGapCount = await persistGaps(calendarUrl, report);
   const directory = resolve(outputDir);
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `coverage-${subscriptionId}-${fromDate}-${toDate}.json`);
@@ -102,9 +135,9 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const result = await coverage({ ...args, calendarUrl: process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002" });
+    const result = await coverage({ ...args, calendarUrl: process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", outputDir: args.outputDir });
     console.log(JSON.stringify(result, null, 2));
-    process.exitCode = result.report.status === "PASS" ? 0 : result.report.status === "NOT_RUN" || result.report.status === "WAITING_DEPENDENCY" || args.checkOnly ? 2 : 1;
+    process.exitCode = coverageExitCode(result.report);
   } catch (error) {
     console.error(JSON.stringify({ status: "FAILED", error: String(error) }));
     process.exitCode = 1;

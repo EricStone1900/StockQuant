@@ -79,7 +79,7 @@ async function json(res: ServerResponse, body: unknown, status = 200) { res.writ
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED" });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", collectionSecurityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean) });
     if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), nextExecutionAt: null, mode: "FIXTURE_PLAN_ONLY", note: "DC-03 scheduler plans persisted collection windows; worker activation remains an explicit deployment setting." });
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
@@ -88,6 +88,10 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const subscriptionId = query.get("subscriptionId"); const from = query.get("from"); const to = query.get("to");
       if (!subscriptionId || !from || !to) return json(res, { code: "INVALID_SCHEDULE_QUERY", required: ["subscriptionId", "from", "to"] }, 422);
       return json(res, collectionScheduler.plan(subscriptionId, from, to));
+    }
+    if (req.url === "/v2/collection-schedules" && req.method === "GET") {
+      if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      return json(res, { schedules: await collectionSchedules.enabled() });
     }
     if (req.url === "/v2/collection-schedules" && req.method === "POST") {
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);

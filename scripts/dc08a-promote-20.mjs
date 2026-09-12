@@ -61,7 +61,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
   await requestFn(baseUrl, "/v2/collection-schedules", { method: "POST", body: JSON.stringify({ subscriptionId: config.targetId, subscriptionVersion: 1, fromDate: config.fromDate, toDate: config.toDate, calendarVersion: config.calendarVersion }) });
   await requestFn(baseUrl, `/v2/collection-schedules/${encodeURIComponent(config.shortId)}/disable`, { method: "POST", body: "{}" });
   await requestFn(baseUrl, `/v2/collection-schedules/${encodeURIComponent(config.targetId)}/enable`, { method: "POST", body: "{}" });
-  const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.targetId, STOCKQUANT_COLLECTION_SECURITY_IDS: config.securityIds.join(",") } });
+  const result = command([...compose, "up", "-d", "--build", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.targetId, STOCKQUANT_COLLECTION_SECURITY_IDS: config.securityIds.join(",") } });
   if (result.status !== 0) return { status: "FAILED", reasons: [result.stderr.trim() || "promotion compose failed"], exitCode: 1 };
   return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
 }
