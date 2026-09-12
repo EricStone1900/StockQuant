@@ -24,7 +24,7 @@
 | DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | IN_PROGRESS | PASS：TS、8个服务单测、真实PostgreSQL调度集成7/7、HTTP配置烟测；计划/持久API和Worker已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 在DC-07完成容器部署、目标环境实际交易日运行、Web/验收中心接入 |
-| DC-04 主备 | TODO | NOT_RUN | NOT_RUN | 无 | 受控Python适配器及主备质量门槛 |
+| DC-04 主备 | IN_PROGRESS | PASS：Python适配器5/5；TS检查通过；主备/熔断/字段隔离已验证 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再接入正式采集 |
 | DC-05 补采覆盖 | TODO | NOT_RUN | NOT_RUN | 无 | 缺口台账与严格覆盖判断 |
 | DC-06 多项目Web/API | TODO | NOT_RUN | NOT_RUN | 无 | 授权、配额、共享、E2E及证据 |
 | DC-07 部署运维 | TODO | NOT_RUN | NOT_RUN | 无 | 实际容器和恢复演练、填写操作手册 |
@@ -82,3 +82,5 @@
 2026-09-12 DC-03启动记录：完成注入Clock/版本日历的确定性调度器和计划/启停 API；单元测试 7/7、TypeScript lint 通过。调度器只生成已闭合且达到发布延迟的5分钟窗口，未知日期进入等待，重复键跳过并标记漏窗补采。持久调度配置、独立后台进程和跨重启恢复尚未完成，人工验收NOT_RUN。
 
 2026-09-12 DC-03持久化收尾记录：新增调度计划表、单活租约表和可选后台 Worker（`STOCKQUANT_SCHEDULER_WORKER=1`）；Worker 按持久水位创建 CollectionRun，跨新 Worker 实例恢复后重复 Tick 提交数为0。真实 PostgreSQL 调度集成 7/7 通过；HTTP 烟测在端口3313验证 `/ready`、创建计划、启用和查询；服务已停止，未启用正式无人值守采集。人工验收仍NOT_RUN。
+
+2026-09-12 DC-04启动记录：新增独立 `services/market-data-adapter` Python 包，BaoStock/Sina 均为只读适配器；主源三次可重试失败后切换新浪，连续失败打开熔断，冷却后单探针半开恢复；规范化层拒绝空结果、缺字段、来源不一致。Python unittest 5/5通过；真实源盘中能力和许可保持NOT_RUN。
