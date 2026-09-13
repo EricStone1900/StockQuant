@@ -50,9 +50,13 @@ export class PythonMinuteCollectionAdapter implements CollectionAdapter {
 /** Claims persisted work; a source failure leaves it durable and retryable. */
 export class PersistentCollectionExecutor {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private ticking = false;
   constructor(private readonly runs: ExecutionRepository, private readonly adapter: CollectionAdapter, private readonly config: { securityIds: string[]; projectId: string; dataVersion: string; subscriptionId?: string; retrySeconds?: number; leaseSeconds?: number; maxRetries?: number; onRunCompleted?: (run: CollectionRun) => Promise<void>; onRunFailed?: (run: CollectionRun, reason: string) => Promise<void> }) {}
 
   async tick(limit = 5): Promise<{ attempted: number; completed: number; waitingRetry: number }> {
+    if (this.ticking) return { attempted: 0, completed: 0, waitingRetry: 0 };
+    this.ticking = true;
+    try {
     let completed = 0;
     let waitingRetry = 0;
     const ids = await this.runs.runnableRunIds(limit, this.config.subscriptionId);
@@ -88,6 +92,7 @@ export class PersistentCollectionExecutor {
       }
     }
     return { attempted: ids.length, completed, waitingRetry };
+    } finally { this.ticking = false; }
   }
 
   start(intervalMs = 60_000): void {

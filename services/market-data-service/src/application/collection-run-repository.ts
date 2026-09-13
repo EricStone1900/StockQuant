@@ -132,7 +132,7 @@ export class CollectionRunRepository {
     const filter = subscriptionId ? " AND subscription_id=$2" : "";
     const result = await this.pool.query<{ run_id: string }>(`
       SELECT run_id FROM market_data_collection_runs
-      WHERE status IN ('QUEUED','WAITING_RETRY','PARTIAL')
+      WHERE (status IN ('QUEUED','WAITING_RETRY','PARTIAL') OR (status='RUNNING' AND lease_until < now()))
         AND (lease_until IS NULL OR lease_until < now())
         AND (retry_at IS NULL OR retry_at <= now())
         ${filter}
