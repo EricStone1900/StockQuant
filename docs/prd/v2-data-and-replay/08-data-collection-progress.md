@@ -137,3 +137,7 @@ TypeScript typecheck、30 个单测、PostgreSQL 集成 15/15 通过。真实适
 容器实际领取运行并出现 `WAITING_RETRY`（BaoStock/Sina 网络回溯耗时），证明执行器→适配器
 边界已接通。受数据源响应未在观察时限内完成影响，本次未取得 Artifact/缺口关闭/`COMPLETED`
 终态，真实数据补采仍保持 NOT_RUN，不能将该烟测标记为完整 E2E PASS。
+
+2026-09-13 API 校验补强：collection-run 创建现在核对订阅存在、版本一致及窗口日期在
+订阅范围内；resume 对非法 runId 返回 422、未知运行返回 404，版本冲突保持 409。类型检查、
+31 个单测与文档链接检查继续通过。
