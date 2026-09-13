@@ -215,7 +215,19 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey || !/^\d{4}-\d{2}-\d{2}$/.test(body.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.toDate) || body.toDate < body.fromDate) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
       try {
         const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
-        return json(res, result, result.created ? 201 : 200);
+        if (!result.created || !collectionRuns || !collectionSchedules) return json(res, result, result.created ? 201 : 200);
+        const schedule = await collectionSchedules.find(body.subscriptionId);
+        if (!schedule) return json(res, { ...result, expandedRunCount: 0, expansionStatus: "WAITING_DEPENDENCY" }, 201);
+        collectionScheduler.enable();
+        const plan = collectionScheduler.plan(body.subscriptionId, body.fromDate, body.toDate, new Set(), null, 500);
+        let expandedRunCount = 0;
+        for (const window of plan.windows) {
+          const idempotencyKey = `${result.task.taskId}|${window.windowStart}|${window.windowEnd}|BACKFILL`;
+          const createdRun = await collectionRuns.create({ subscriptionId: body.subscriptionId, subscriptionVersion: schedule.subscriptionVersion, windowStart: window.windowStart, windowEnd: window.windowEnd, jobKind: "BACKFILL", idempotencyKey, requestHash: createHash("sha256").update(idempotencyKey).digest("hex") });
+          if (createdRun.created) expandedRunCount += 1;
+        }
+        await coverageRepository.claimBackfill(result.task.taskId);
+        return json(res, { ...result, expandedRunCount, waitingDates: plan.waitingDates, expansionStatus: plan.waitingDates.length ? "PARTIAL" : "READY" }, 201);
       } catch (error) {
         if (error instanceof BackfillConflict) return json(res, { code: "IDEMPOTENCY_CONFLICT", message: error.message }, 409);
         throw error;
