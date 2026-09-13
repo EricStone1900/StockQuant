@@ -106,3 +106,11 @@
 DC-04/05 仍保持 IN_PROGRESS，因为盘中真实源能力、实际补采和 60 日覆盖尚未取得证据。
 DC-08A 仍为 TODO/NOT_RUN：唯一正式订阅已准备且 check-only 返回 `READY_TO_ENABLE`，
 但调度器/执行器保持关闭，等待下一个实际交易日的 3 只短期观察。
+
+2026-09-13 启动条件与保护链复验：宿主权限下 `pnpm v24:preflight` 5/5 PASS，
+`pnpm dc08a:activate -- --check-only` 返回 `READY_TO_ENABLE`，唯一正式订阅为
+`dc08a-20260914-short-v1`；调度器/执行器均为 `DISABLED`，服务状态为
+`WAITING_CONFIGURATION`（退出码2），符合默认安全配置。覆盖规则 `data:test-coverage`
+7/7、日终报告 3/3、观察 4/4、Linux ARM64 兼容性验证 PASS。非交易日
+`daily-report-2026-09-13.json` 为 `NOT_RUN`，当前观察 `NOT_ACTIVE`、Artifact/缺口均为0；
+`dc08a:promote-20 -- --check-only` 按预期以“短期日终报告未全部 PASS”阻塞，未修改订阅或容器。
