@@ -34,7 +34,7 @@ function usage() {
   console.error("Usage: node scripts/dc08a-supervise.mjs [--check-only|--repair]");
 }
 
-export async function supervise({ mode = "check-only", url = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), preserveEnabled = process.env.DC08A_PRESERVE_ENABLED === "1" } = {}) {
+export async function supervise({ mode = "check-only", url = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), preserveEnabled = process.env.DC08A_PRESERVE_ENABLED !== "0" } = {}) {
   let observation = await probe();
   const actions = [];
   if (observation.state === "UNHEALTHY") {
