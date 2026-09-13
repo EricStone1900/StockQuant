@@ -126,3 +126,14 @@ CLI 的真实网络执行、DC-T25 实际交易日观察及浏览器采集场景
 任务前缀汇总运行状态，全部完成时自动关闭对应日期/证券缺口并将 task 标记 `COMPLETED`。
 TypeScript typecheck、30 个单测、PostgreSQL 集成 15/15 通过。真实适配器运行和 60 日覆盖仍
 保持 NOT_RUN，HTTP 扩展烟测仅证明任务展开，不代表真实数据已补齐。
+
+2026-09-13 回填失败边界补齐：执行器记录每次失败的 `retryCount/lastError`，达到配置的
+`maxRetries`（默认3次）后将 collection run 标记 `FAILED`；BACKFILL 运行同步使所属 task
+进入 `FAILED`，避免无限重试。来源范围外/空窗口错误因此可审计并终止，真实 Docker 适配器
+执行仍待专门端到端验证。
+
+2026-09-13 Docker 端到端复验：重新构建 `market-data-service` 镜像成功，并以
+`STOCKQUANT_COLLECTION_EXECUTOR=1`、隔离订阅启动；HTTP 创建回填任务成功展开 48 个窗口，
+容器实际领取运行并出现 `WAITING_RETRY`（BaoStock/Sina 网络回溯耗时），证明执行器→适配器
+边界已接通。受数据源响应未在观察时限内完成影响，本次未取得 Artifact/缺口关闭/`COMPLETED`
+终态，真实数据补采仍保持 NOT_RUN，不能将该烟测标记为完整 E2E PASS。
