@@ -1,6 +1,6 @@
 # V2 免费数据、分钟回放与连续模拟：验收清单
 
-当前结论：PARTIALLY_IMPLEMENTED。这里只验收本轮模拟范围，不代表原R1真实账户、R2实盘或全部R3增强通过；V2.3、V2.4 已完成人工确认，但 V2.4 的 20 个实际交易日观察仍未完成。
+当前结论：PARTIALLY_IMPLEMENTED。这里只验收本轮模拟范围，不代表原R1真实账户、R2实盘或全部R3增强通过；V2.3、V2.4 已完成人工确认，但 V2.4 的 20 个实际交易日观察、V2.5 整体验收和 DC-08A 短期真实运行仍未完成。
 
 ## 1. 阶段验收
 
@@ -11,6 +11,8 @@
 | [V2.3 日频决策、分钟撮合与历史事件回放](./03-historical-minute-replay.md) | PARTIALLY_IMPLEMENTED（Fixture 回放、持久 TestRun、独立 Worker、多 Bar 检查点、Qlib 训练与独立验证、候选精确版本登记/显式审批/数据库持久化、治理授权、费用、基础订单状态转换、成交事务外盒、后台重试扫描、UNKNOWN 安全恢复与 Saga 状态机） | PASS（用户人工验收确认，2026-09-11；normal/rejection/recovery、同 Run 核对、代码套件和 Web E2E 均复核通过） | `docs/evidence-v2.3-2.md`；normal `6522c574-fc20-472b-8eba-1a0b59024d9c`；rejection `3d361eb3-e1cd-4517-9de8-5eccb88776dc`；recovery `49b5dc51-1a1d-40ad-9100-d290c423f386`；Manifest `02293ca437201a36096a7e04631f5be837869a49f9bb9be490f4b64a9995002a` | 激活保持 `DISABLED_UNTIL_MANDATE`；尚未接入真实模型训练、完整研究运行时或 LIVE 激活 | 用户人工确认 / 2026-09-11；技术复核 / 2026-09-11 |
 | [V2.4 真实时钟下持续模拟交易](./04-continuous-paper-trading.md) | PARTIALLY_IMPLEMENTED（持续 Paper 场景、快照新鲜度、重复调度幂等、断网恢复和日终对账切片） | PASS（用户人工验收确认，2026-09-11；实现范围） | `docs/evidence-v2.4.md`；normal `755cb415-0f1d-433a-aaa4-6378d5e7f1cf`；rejection `ac6e5e4a-cdfc-4a54-9731-4f3bce0e0f52`；recovery `8bb6606e-96c0-4ca4-8deb-9df40c0bbbb9`；Manifest `5e7bf52c19d4167846673ca581216337af3f03133a9cd1392ed1c55e140d0842` | 20 个实际交易日观察尚未完成，真实来源长期稳定性/许可和全量容量待验证 | 用户人工确认 / 2026-09-11；技术复核 / 2026-09-11 |
 | [V2.5 历史数据扩容与 V2 验收](./05-data-scale-and-v2-acceptance.md) | PARTIALLY_IMPLEMENTED（20×60 Fixture 与 BaoStock 真实分钟切片、回归/PIT/缓存/资源/恢复切片；真实 20 标的 55,680 行及 20/20 SHA-256/质量检查通过；Mac 监控池 50/80/100 质量、5/100/500/5219 多年日线、归档和隔离恢复 5,219/5,219 SHA-256 通过；BaoStock 财务公告日字段已核验但行业 PIT/修订链不足；稳定性未取得 PASS；Ubuntu 实机人工子项已确认通过） | NOT_RUN（V2.5 整体待用户人工验收） | `docs/evidence-v2.5.md`；normal `fe37c045-962f-40be-84b1-36d33df08184`；rejection `9996f785-fd7c-4912-b839-c6e0389f4c9f`；recovery `0727a1c4-ed36-4ae8-9a94-543d287cdc68`；Fixture Manifest `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e` | 分钟级全量、长期限频/恢复稳定性、60日备用免费分钟源、带修订链的真实 PIT、容量长期稳定性和 V2.4 20 日观察待完成；Ubuntu 原始技术日志待补 | 技术复核 / 2026-09-12 |
+
+最新复核（2026-09-13）：V2.5 启动前预检 5/5 PASS；DC-08A 唯一正式订阅已冻结，激活保护返回 `READY_TO_ENABLE`；采集 Worker 保持关闭，等待实际交易日。
 
 ## 2. 版本门禁
 

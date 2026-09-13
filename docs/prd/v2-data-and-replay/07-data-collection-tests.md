@@ -54,7 +54,7 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 5. DC-06执行Web/CLI同run复核；DC-07执行真实容器、故障与备份恢复。
 6. DC-08A执行DC-T25并完成开发交付签署，通过后恢复主项目。DC-08B每日记录覆盖，DC-T23真实覆盖不足返回2；此等待不否定已完成的开发交付，但不能将长期数据验收标PASS。
 
-## 4. 运行中断恢复操作手册（待实现命令）
+## 4. 运行中断恢复操作手册（本机入口已验证，真实观察待运行）
 
 启动前：确认部署环境、DB/Artifact卷、日历版本、订阅修订、20只清单Hash、来源能力、磁盘、唯一活动调度器；记录runId。正式定时启用前先执行 `pnpm dc08a:supervise -- --repair`，该命令最多启动一次 market-data-service 并复查 `/ready`；随后使用真实订阅参数执行 `pnpm dc08a:activate -- --check-only`，仅返回 `READY_TO_ENABLE` 后才可去掉 `--check-only`。不要使用/tmp作为正式数据存储。
 
@@ -68,7 +68,15 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 
 数据库/磁盘灾难：暂停采集→验证备份Hash→恢复到新隔离卷/库→核对版本引用与检查点→计算RPO缺口→补采→人工核对后切换唯一调度实例。没有可用备份且超来源回溯期限时不能保证数据可恢复，明确列出损失范围。
 
-DC-07交付前必须替换目标命令为实测入口，并填写：实际工作目录、Web地址和按钮、服务名称、非秘密配置、身份建立方法、Fixture/源数据Hash、命令退出码、超时、备份路径、恢复步骤及报告。未补齐时手册保持DRAFT_NOT_EXECUTABLE。
+本机已验证入口（工作目录为项目根目录 `/Users/huangbosong/Documents/ChatGPT/StockQuant`）：
+
+- `pnpm data:collect -- --subscription ID --window-start ISO --window-end ISO --idempotency-key KEY` 创建持久采集运行，返回 `runId`；
+- `pnpm data:status -- --run RUN_ID` 只读查询运行状态；
+- `pnpm data:resume -- --run RUN_ID --expected-version N` 使用版本保护恢复等待/失败运行，冲突返回退出码2；
+- `pnpm data:backfill -- --subscription ID --from DATE --to DATE --idempotency-key KEY` 创建幂等补采任务；
+- `pnpm data:schedule -- --subscription ID --action status|enable|disable` 查询或变更订阅状态。
+
+命令契约通过 market-data-service TypeScript typecheck、30 个服务单元测试、覆盖 7/7、DC-08A 保护链测试和 `pnpm docs:check` 验证。正式 Docker URL、认证方式、备份目标、Web 按钮和 DC-T25 实际交易日输出仍需在真实运行后补录；因此本手册继续保持 `DRAFT_NOT_EXECUTABLE`，不代表命令实现缺失。
 
 ## 5. 人工验收与终止条件
 
