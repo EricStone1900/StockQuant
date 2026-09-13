@@ -108,3 +108,11 @@ BaoStock/Sina 返回的时间为 5 分钟窗口结束时刻，已在适配器中
 覆盖报告会同时记录 `pendingOutbox`。当前本机范围没有配置外部完成事件消费者，因此该字段
 作为必须处理的交付告警留证，但不把“本地完成事件尚未投递”伪装成分钟覆盖缺失；外部通知
 上线前仍需配置真实目的地并单独验证发送/重试/确认。
+
+2026-09-13 启用前复核：以 `pnpm stack:up -- --stage V2.5` 重建并启动默认安全配置，随后
+`pnpm v24:preflight` 在宿主权限下 5/5 通过。`market-data-service` 与 PostgreSQL 就绪，
+V2.4 为 `PAPER + FAKE`，采集调度器/执行器均保持 `DISABLED`；行情探针返回 3 只证券的
+`LIVE_SOURCE`。发现数据库有两条历史 fixture 订阅误处于启用状态，已通过现有停用 API
+停用 `schedule-1789219234281`、`schedule-1789219488982`，复核 `active-subscription`
+唯一正式订阅为 `dc08a-20260914-short-v1`、证券数为 3；DC-08A `--check-only` 返回
+`READY_TO_ENABLE`。本次未启动正式采集、未发布分钟 Artifact；真实缺口补采待交易日数据产生后执行。
