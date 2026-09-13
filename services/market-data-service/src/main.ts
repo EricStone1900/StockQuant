@@ -50,6 +50,7 @@ const coverageRepository = databasePool ? new CoverageRepository(databasePool) :
 const projectAccessRepository = databasePool ? new ProjectAccessRepository(databasePool) : null;
 const artifactDeliveryRepository = databasePool ? new ArtifactDeliveryRepository(databasePool) : null;
 const alertOutboxRepository = databasePool ? new AlertOutboxRepository(databasePool) : null;
+const collectionSecurityIds = (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean);
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
   return { ...result, status: result.status as "TRADING" | "CLOSED" | "UNKNOWN" };
@@ -59,10 +60,22 @@ const persistentSchedulerWorker = databasePool && collectionRuns && collectionSc
   : null;
 const collectionExecutor = collectionRuns && process.env.STOCKQUANT_COLLECTION_EXECUTOR === "1"
   ? new PersistentCollectionExecutor(collectionRuns, new PythonMinuteCollectionAdapter(), {
-    securityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean),
+    securityIds: collectionSecurityIds,
     projectId: process.env.STOCKQUANT_COLLECTION_PROJECT_ID ?? "stockquant-local",
     dataVersion: process.env.STOCKQUANT_COLLECTION_DATA_VERSION ?? "cn-5m-raw-v1",
     subscriptionId: process.env.STOCKQUANT_COLLECTION_SUBSCRIPTION_ID,
+    onRunCompleted: async (run) => {
+      if (run.jobKind !== "BACKFILL" || !coverageRepository || !collectionRuns) return;
+      const taskId = run.idempotencyKey.split("|", 1)[0];
+      const task = await coverageRepository.findBackfill(taskId);
+      if (!task || task.status !== "RUNNING") return;
+      const summary = await collectionRuns.summarizeBackfill(taskId);
+      if (summary.failed > 0) { await coverageRepository.failBackfill(taskId); return; }
+      if (summary.total > 0 && summary.active === 0 && summary.completed === summary.total) {
+        await coverageRepository.reconcileGaps(task.subscriptionId, task.fromDate, task.toDate, collectionSecurityIds, []);
+        await coverageRepository.completeBackfill(taskId);
+      }
+    },
   })
   : null;
 

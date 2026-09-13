@@ -50,7 +50,7 @@ export class PythonMinuteCollectionAdapter implements CollectionAdapter {
 /** Claims persisted work; a source failure leaves it durable and retryable. */
 export class PersistentCollectionExecutor {
   private timer: ReturnType<typeof setInterval> | null = null;
-  constructor(private readonly runs: ExecutionRepository, private readonly adapter: CollectionAdapter, private readonly config: { securityIds: string[]; projectId: string; dataVersion: string; subscriptionId?: string; retrySeconds?: number; leaseSeconds?: number }) {}
+  constructor(private readonly runs: ExecutionRepository, private readonly adapter: CollectionAdapter, private readonly config: { securityIds: string[]; projectId: string; dataVersion: string; subscriptionId?: string; retrySeconds?: number; leaseSeconds?: number; onRunCompleted?: (run: CollectionRun) => Promise<void> }) {}
 
   async tick(limit = 5): Promise<{ attempted: number; completed: number; waitingRetry: number }> {
     let completed = 0;
@@ -70,7 +70,8 @@ export class PersistentCollectionExecutor {
         const sha256 = createHash("sha256").update(JSON.stringify(rows)).digest("hex");
         const artifactId = `minute-5m-${sha256.slice(0, 24)}`;
         await this.runs.checkpoint(run.runId, run.fencingToken, { sourceId: result.sourceId, rowCount: rows.length, sha256, attempts: result.attempts });
-        await this.runs.publishRows({ runId: run.runId, fencingToken: run.fencingToken, artifactId, sha256, projectId: this.config.projectId, dataVersion: this.config.dataVersion, rows });
+        const completedRun = await this.runs.publishRows({ runId: run.runId, fencingToken: run.fencingToken, artifactId, sha256, projectId: this.config.projectId, dataVersion: this.config.dataVersion, rows });
+        if (this.config.onRunCompleted) await this.config.onRunCompleted(completedRun);
         completed += 1;
       } catch (error) {
         await this.runs.releaseToRetry(run.runId, run.fencingToken, this.config.retrySeconds ?? 300);

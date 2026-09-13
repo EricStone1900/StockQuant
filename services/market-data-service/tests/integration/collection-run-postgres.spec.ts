@@ -202,6 +202,22 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(coverage.createBackfill(subscriptionId, "2026-09-10", "2026-09-11", `backfill-${suffix}`)).rejects.toBeInstanceOf(BackfillConflict);
   });
 
+  it("summarizes expanded backfill runs by task prefix", async () => {
+    const taskId = (await coverage.createBackfill(`summary-${suffix}`, "2026-09-11", "2026-09-11", `summary-${suffix}`)).task.taskId;
+    for (const [startTime, endTime] of [["01:30", "01:35"], ["01:35", "01:40"]] as const) {
+      const start = `2026-09-11T${startTime}:00.000Z`;
+      const end = `2026-09-11T${endTime}:00.000Z`;
+      await repository.create({ subscriptionId: `summary-${suffix}`, subscriptionVersion: 1, windowStart: start, windowEnd: end, jobKind: "BACKFILL", idempotencyKey: `${taskId}|${start}|${end}|BACKFILL`, requestHash: "a".repeat(64) });
+    }
+    expect(await repository.summarizeBackfill(taskId)).toEqual({ total: 2, completed: 0, failed: 0, active: 2 });
+    const runs = await pool.query<{ run_id: string }>("SELECT run_id FROM market_data_collection_runs WHERE idempotency_key LIKE $1 ORDER BY idempotency_key", [`${taskId}|%`]);
+    for (const row of runs.rows) {
+      const claimed = await repository.claim(row.run_id, 30);
+      await repository.publish(row.run_id, claimed!.fencingToken, `summary-artifact-${row.run_id}`);
+    }
+    expect(await repository.summarizeBackfill(taskId)).toEqual({ total: 2, completed: 2, failed: 0, active: 0 });
+  });
+
   it("closes resolved gaps during scoped reconciliation", async () => {
     const subscriptionId = `coverage-reconcile-${suffix}`;
     const gap = { gapId: `gap-reconcile-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const };

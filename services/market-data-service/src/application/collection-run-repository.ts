@@ -147,6 +147,20 @@ export class CollectionRunRepository {
     return result.rowCount === 1 ? this.map(result.rows[0]) : null;
   }
 
+  async summarizeBackfill(taskId: string): Promise<{ total: number; completed: number; failed: number; active: number }> {
+    const result = await this.pool.query<{ status: CollectionRunStatus; count: string }>(`
+      SELECT status, COUNT(*)::text AS count
+      FROM market_data_collection_runs
+      WHERE idempotency_key LIKE $1
+      GROUP BY status
+    `, [`${taskId}|%`]);
+    const counts = new Map(result.rows.map((row) => [row.status, Number(row.count)]));
+    const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
+    const completed = counts.get("COMPLETED") ?? 0;
+    const failed = counts.get("FAILED") ?? 0;
+    return { total, completed, failed, active: total - completed - failed };
+  }
+
   async resume(runId: string, expectedVersion: number): Promise<CollectionRun> {
     const result = await this.pool.query<Row>(`
       UPDATE market_data_collection_runs

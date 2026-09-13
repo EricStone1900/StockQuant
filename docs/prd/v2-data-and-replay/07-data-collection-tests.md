@@ -76,7 +76,7 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 - `pnpm data:backfill -- --subscription ID --from DATE --to DATE --idempotency-key KEY` 创建幂等补采任务；
 - `pnpm data:schedule -- --subscription ID --action status|enable|disable` 查询或变更订阅状态。
 
-命令契约通过 market-data-service TypeScript typecheck、30 个服务单元测试、覆盖 7/7、DC-08A 保护链测试和 `pnpm docs:check` 验证。正式 Docker URL、认证方式、备份目标、Web 按钮和 DC-T25 实际交易日输出仍需在真实运行后补录；因此本手册继续保持 `DRAFT_NOT_EXECUTABLE`，不代表命令实现缺失。
+命令契约通过 market-data-service TypeScript typecheck、30 个服务单元测试、覆盖 7/7、DC-08A 保护链测试和 `pnpm docs:check` 验证。回填任务现会展开逐窗口 `BACKFILL` runs，并在执行器完成全部窗口后自动收口 task/缺口；正式 Docker URL、认证方式、备份目标、Web 按钮和 DC-T25 实际交易日输出仍需在真实运行后补录；因此本手册继续保持 `DRAFT_NOT_EXECUTABLE`，不代表命令实现缺失。
 
 ## 5. 人工验收与终止条件
 
