@@ -76,6 +76,11 @@ const collectionExecutor = collectionRuns && process.env.STOCKQUANT_COLLECTION_E
         await coverageRepository.completeBackfill(taskId);
       }
     },
+    onRunFailed: async (run) => {
+      if (run.jobKind !== "BACKFILL" || !coverageRepository) return;
+      const taskId = run.idempotencyKey.split("|", 1)[0];
+      await coverageRepository.failBackfill(taskId);
+    },
   })
   : null;
 

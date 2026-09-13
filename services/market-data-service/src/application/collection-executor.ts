@@ -10,7 +10,7 @@ export type CollectedMinuteBar = QualityBar & {
 };
 export type CollectionAdapterResult = { sourceId: string; bars: CollectedMinuteBar[]; attempts: unknown[] };
 export type CollectionAdapter = { collect(input: { securityIds: string[]; startDate: string; endDate: string }): Promise<CollectionAdapterResult> };
-type ExecutionRepository = Pick<CollectionRunRepository, "runnableRunIds" | "claim" | "checkpoint" | "publishRows" | "releaseToRetry">;
+type ExecutionRepository = Pick<CollectionRunRepository, "runnableRunIds" | "claim" | "checkpoint" | "publishRows" | "releaseToRetry"> & Partial<Pick<CollectionRunRepository, "fail">>;
 
 export class PythonMinuteCollectionAdapter implements CollectionAdapter {
   constructor(
@@ -50,7 +50,7 @@ export class PythonMinuteCollectionAdapter implements CollectionAdapter {
 /** Claims persisted work; a source failure leaves it durable and retryable. */
 export class PersistentCollectionExecutor {
   private timer: ReturnType<typeof setInterval> | null = null;
-  constructor(private readonly runs: ExecutionRepository, private readonly adapter: CollectionAdapter, private readonly config: { securityIds: string[]; projectId: string; dataVersion: string; subscriptionId?: string; retrySeconds?: number; leaseSeconds?: number; onRunCompleted?: (run: CollectionRun) => Promise<void> }) {}
+  constructor(private readonly runs: ExecutionRepository, private readonly adapter: CollectionAdapter, private readonly config: { securityIds: string[]; projectId: string; dataVersion: string; subscriptionId?: string; retrySeconds?: number; leaseSeconds?: number; maxRetries?: number; onRunCompleted?: (run: CollectionRun) => Promise<void>; onRunFailed?: (run: CollectionRun, reason: string) => Promise<void> }) {}
 
   async tick(limit = 5): Promise<{ attempted: number; completed: number; waitingRetry: number }> {
     let completed = 0;
@@ -74,8 +74,17 @@ export class PersistentCollectionExecutor {
         if (this.config.onRunCompleted) await this.config.onRunCompleted(completedRun);
         completed += 1;
       } catch (error) {
-        await this.runs.releaseToRetry(run.runId, run.fencingToken, this.config.retrySeconds ?? 300);
-        waitingRetry += 1;
+        const retries = Number(run.checkpoint?.retryCount ?? 0) + 1;
+        const reason = error instanceof Error ? error.message : String(error);
+        if (this.runs.fail && retries >= (this.config.maxRetries ?? 3)) {
+          const failedRun = await this.runs.fail(run.runId, run.fencingToken, reason);
+          if (this.config.onRunFailed) await this.config.onRunFailed(failedRun, reason);
+        }
+        else {
+          await this.runs.checkpoint(run.runId, run.fencingToken, { ...(run.checkpoint ?? {}), retryCount: retries, lastError: reason });
+          await this.runs.releaseToRetry(run.runId, run.fencingToken, this.config.retrySeconds ?? 300);
+          waitingRetry += 1;
+        }
       }
     }
     return { attempted: ids.length, completed, waitingRetry };

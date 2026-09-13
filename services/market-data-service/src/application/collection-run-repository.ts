@@ -280,6 +280,18 @@ export class CollectionRunRepository {
     return this.map(result.rows[0]);
   }
 
+  async fail(runId: string, fencingToken: number, reason: string): Promise<CollectionRun> {
+    const result = await this.pool.query<Row>(`
+      UPDATE market_data_collection_runs
+      SET status='FAILED', lease_until=NULL, retry_at=NULL,
+          checkpoint=jsonb_build_object('error', $3::text), version=version+1, updated_at=now()
+      WHERE run_id=$1 AND fencing_token=$2 AND status='RUNNING'
+      RETURNING *
+    `, [runId, fencingToken, reason]);
+    if (result.rowCount !== 1) throw new CollectionRunConflict("fail transition rejected: lease is stale or run is not running");
+    return this.map(result.rows[0]);
+  }
+
   private map(row: Row): CollectionRun {
     return {
       runId: row.run_id,

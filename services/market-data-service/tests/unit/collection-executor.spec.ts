@@ -8,11 +8,13 @@ class FakeRuns {
   checkpointed: unknown = null;
   published: any = null;
   retry: unknown = null;
+  failed: unknown = null;
   async runnableRunIds() { return [run.runId]; }
   async claim() { return { ...run }; }
   async checkpoint(_id: string, _token: number, checkpoint: unknown) { this.checkpointed = checkpoint; return { ...run, checkpoint }; }
   async publishRows(input: any) { this.published = input; return { ...run, status: "COMPLETED", publishedArtifactId: input.artifactId }; }
   async releaseToRetry(_id: string, _token: number, seconds: number) { this.retry = seconds; return { ...run, status: "WAITING_RETRY" }; }
+  async fail(_id: string, _token: number, reason: string) { this.failed = reason; return { ...run, status: "FAILED" }; }
 }
 
 describe("PersistentCollectionExecutor", () => {
@@ -57,5 +59,14 @@ describe("PersistentCollectionExecutor", () => {
     const result = await new PersistentCollectionExecutor(runs as never, adapter, { securityIds: ["600000.SH"], projectId: "stockquant-local", dataVersion: "cn-5m-raw-v1" }).tick();
     expect(result.waitingRetry).toBe(1);
     expect(runs.retry).toBe(300);
+  });
+
+  it("moves a repeatedly failing run to FAILED after the retry limit", async () => {
+    const runs = new FakeRuns();
+    const adapter: CollectionAdapter = { collect: async () => { throw new Error("OUT_OF_SOURCE_RANGE"); } };
+    runs.claim = async () => ({ ...run, checkpoint: { retryCount: 2 } });
+    const result = await new PersistentCollectionExecutor(runs as never, adapter, { securityIds: ["600000.SH"], projectId: "stockquant-local", dataVersion: "cn-5m-raw-v1", maxRetries: 3 }).tick();
+    expect(result).toEqual({ attempted: 1, completed: 0, waitingRetry: 0 });
+    expect(runs.failed).toBe("OUT_OF_SOURCE_RANGE");
   });
 });
