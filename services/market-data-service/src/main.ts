@@ -96,6 +96,8 @@ function quality(bars: Bar[], asOf: string) {
 }
 async function json(res: ServerResponse, body: unknown, status = 200) { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); }
 function validIso(value: unknown): value is string { return typeof value === "string" && !Number.isNaN(Date.parse(value)); }
+function isUuid(value: string): boolean { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }
+function shanghaiDate(value: string): string { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)); }
 function validHash(value: unknown): value is string { return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value); }
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
@@ -139,6 +141,14 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const required = ["subscriptionId", "subscriptionVersion", "windowStart", "windowEnd", "jobKind", "idempotencyKey", "requestHash"];
       if (required.some((key) => body[key] === undefined)) return json(res, { code: "INVALID_COLLECTION_RUN" }, 422);
       if (!Number.isInteger(body.subscriptionVersion) || Number(body.subscriptionVersion) <= 0 || !validIso(body.windowStart) || !validIso(body.windowEnd) || new Date(String(body.windowEnd)) <= new Date(String(body.windowStart)) || !["INTRADAY_WINDOW", "CLOSE_RECONCILIATION", "BACKFILL", "GAP_REPAIR"].includes(String(body.jobKind)) || !validHash(body.requestHash)) return json(res, { code: "INVALID_COLLECTION_RUN", reason: "invalid version, window, jobKind, or requestHash" }, 422);
+      if (typeof body.idempotencyKey !== "string" || body.idempotencyKey.trim().length < 1) return json(res, { code: "INVALID_COLLECTION_RUN", reason: "idempotencyKey is required" }, 422);
+      if (collectionSchedules) {
+        const schedule = await collectionSchedules.find(String(body.subscriptionId));
+        if (!schedule) return json(res, { code: "SUBSCRIPTION_NOT_FOUND" }, 404);
+        const startDate = shanghaiDate(String(body.windowStart));
+        const endDate = shanghaiDate(String(body.windowEnd));
+        if (startDate < schedule.fromDate || endDate > schedule.toDate || Number(body.subscriptionVersion) !== schedule.subscriptionVersion) return json(res, { code: "WINDOW_OUTSIDE_SUBSCRIPTION" }, 422);
+      }
       const result = await collectionRuns.create({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), windowStart: String(body.windowStart), windowEnd: String(body.windowEnd), jobKind: body.jobKind as "INTRADAY_WINDOW" | "CLOSE_RECONCILIATION" | "BACKFILL" | "GAP_REPAIR", idempotencyKey: String(body.idempotencyKey), requestHash: String(body.requestHash) });
       return json(res, { ...result, run: result.run }, result.created ? 201 : 200);
     }
@@ -150,9 +160,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (collectionRunMatch && req.method === "POST" && collectionRunMatch[2] === "resume") {
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      if (!isUuid(collectionRunMatch[1])) return json(res, { code: "INVALID_RUN_ID" }, 422);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
       if (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) <= 0) return json(res, { code: "INVALID_RESUME", reason: "expectedVersion must be a positive integer" }, 422);
       try {
+        if (!(await collectionRuns.find(collectionRunMatch[1]))) return json(res, { code: "NOT_FOUND" }, 404);
         return json(res, await collectionRuns.resume(collectionRunMatch[1], Number(body.expectedVersion)));
       } catch (error) {
         if (error instanceof Error && error.name === "CollectionRunConflict") return json(res, { code: "VERSION_CONFLICT", message: error.message }, 409);
