@@ -141,3 +141,7 @@ TypeScript typecheck、30 个单测、PostgreSQL 集成 15/15 通过。真实适
 2026-09-13 API 校验补强：collection-run 创建现在核对订阅存在、版本一致及窗口日期在
 订阅范围内；resume 对非法 runId 返回 422、未知运行返回 404，版本冲突保持 409。类型检查、
 31 个单测与文档链接检查继续通过。
+
+2026-09-13 来源范围处理补强：当 BaoStock 与 Sina 均仅返回空结果时，适配器返回不可重试的
+`OUT_OF_SOURCE_RANGE`，执行器按失败上限直接收口，避免对明确超范围日期无限重试。Python
+适配器 unittest 7/7 通过。

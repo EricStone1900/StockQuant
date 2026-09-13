@@ -51,6 +51,13 @@ class FailoverTests(unittest.TestCase):
             collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
         self.assertEqual([item["code"] for item in failure.exception.attempts], ["EMPTY_RESULT", "SOURCE_MISMATCH"])
 
+    def test_all_sources_empty_is_out_of_source_range(self):
+        collector = FailoverCollector([("one", FakeSource([[]])), ("two", FakeSource([[]]))], max_attempts=1, backoff_seconds=0, sleeper=lambda _: None)
+        with self.assertRaises(SourceError) as failure:
+            collector.collect(["600000.SH"], "2025-09-11", "2025-09-11")
+        self.assertEqual(failure.exception.code, "OUT_OF_SOURCE_RANGE")
+        self.assertFalse(failure.exception.retryable)
+
 
 if __name__ == "__main__":
     unittest.main()

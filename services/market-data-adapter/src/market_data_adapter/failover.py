@@ -30,7 +30,9 @@ class SourceError(RuntimeError):
 
 class AllSourcesFailed(SourceError):
     def __init__(self, attempts: list[dict[str, object]]) -> None:
-        super().__init__("ALL_SOURCES_FAILED", "all configured minute sources failed")
+        codes = [str(item.get("code")) for item in attempts if item.get("code")]
+        out_of_range = bool(codes) and all(code == "EMPTY_RESULT" for code in codes)
+        super().__init__("OUT_OF_SOURCE_RANGE" if out_of_range else "ALL_SOURCES_FAILED", "all configured minute sources returned no bars" if out_of_range else "all configured minute sources failed", retryable=not out_of_range)
         self.attempts = attempts
 
 
