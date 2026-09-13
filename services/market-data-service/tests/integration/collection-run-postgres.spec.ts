@@ -9,7 +9,7 @@ import { CollectionRunConflict, CollectionRunRepository } from "../../src/applic
 import { CollectionScheduleRepository } from "../../src/application/collection-schedule-repository.js";
 import { CollectionScheduler } from "../../src/application/collection-scheduler.js";
 import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
-import { CoverageRepository } from "../../src/application/coverage-repository.js";
+import { BackfillConflict, CoverageRepository } from "../../src/application/coverage-repository.js";
 import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/application/project-access-repository.js";
 import { ArtifactDeliveryRepository } from "../../src/application/artifact-delivery-repository.js";
 import { DataVersionConflict, ProjectAccessDenied } from "../../src/application/project-delivery.js";
@@ -199,6 +199,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
     expect(second.task.taskId).toBe(first.task.taskId);
+    await expect(coverage.createBackfill(subscriptionId, "2026-09-10", "2026-09-11", `backfill-${suffix}`)).rejects.toBeInstanceOf(BackfillConflict);
   });
 
   it("closes resolved gaps during scoped reconciliation", async () => {

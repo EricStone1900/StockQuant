@@ -18,6 +18,25 @@ function required(args, names) {
   for (const name of names) if (!args[name]) throw new Error(`missing --${name}`);
 }
 
+function positiveInt(value, name) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`--${name} must be a positive integer`);
+  return parsed;
+}
+
+function nonNegativeInt(value, name) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`--${name} must be a non-negative integer`);
+  return parsed;
+}
+
+function isoDate(value, name) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) throw new Error(`--${name} must be YYYY-MM-DD`);
+  return String(value);
+}
+
+export { isoDate, nonNegativeInt, positiveInt };
+
 async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? process.env.DATA_CLI_TIMEOUT_MS ?? 10000);
   const { timeoutMs: _timeout, ...fetchOptions } = options;
@@ -30,7 +49,7 @@ async function request(path, options = {}) {
 }
 
 async function waitForRun(runId, waitSeconds) {
-  const deadline = Date.now() + Math.max(0, Number(waitSeconds)) * 1000;
+  const deadline = Date.now() + nonNegativeInt(waitSeconds, "wait-seconds") * 1000;
   let latest;
   do {
     latest = await request(`/v2/collection-runs/${encodeURIComponent(runId)}`);
@@ -47,12 +66,14 @@ async function main([command, ...argv]) {
   const args = argsOf(argv);
   if (command === "collect") {
     required(args, ["subscription", "window-start", "window-end", "idempotency-key"]);
-    const payload = { subscriptionId: args.subscription, subscriptionVersion: Number(args["subscription-version"] ?? 1), windowStart: args["window-start"], windowEnd: args["window-end"], jobKind: args["job-kind"] ?? "INTRADAY_WINDOW", idempotencyKey: args["idempotency-key"], requestHash: createHash("sha256").update(JSON.stringify(args)).digest("hex") };
+    const payload = { subscriptionId: args.subscription, subscriptionVersion: positiveInt(args["subscription-version"] ?? 1, "subscription-version"), windowStart: args["window-start"], windowEnd: args["window-end"], jobKind: args["job-kind"] ?? "INTRADAY_WINDOW", idempotencyKey: args["idempotency-key"] };
+    if (new Date(payload.windowEnd) <= new Date(payload.windowStart)) throw new Error("--window-end must be after --window-start");
+    payload.requestHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
     const result = await request("/v2/collection-runs", { method: "POST", body: JSON.stringify(payload) });
     const run = result.run ?? result;
     const waited = args["wait-seconds"] === undefined ? run : await waitForRun(run.runId, args["wait-seconds"]);
     console.log(JSON.stringify({ ...result, run: waited, waitCompleted: ["COMPLETED", "FAILED", "CANCELLED"].includes(waited.status) }, null, 2));
-    if (args["wait-seconds"] !== undefined && !["COMPLETED", "FAILED", "CANCELLED"].includes(waited.status)) process.exitCode = 2;
+    if (args["wait-seconds"] !== undefined) process.exitCode = waited.status === "COMPLETED" ? 0 : ["FAILED", "CANCELLED"].includes(waited.status) ? 1 : 2;
     return;
   }
   if (command === "status") {
@@ -62,12 +83,15 @@ async function main([command, ...argv]) {
   }
   if (command === "resume") {
     required(args, ["run", "expected-version"]);
-    console.log(JSON.stringify(await request(`/v2/collection-runs/${encodeURIComponent(args.run)}/resume`, { method: "POST", body: JSON.stringify({ expectedVersion: Number(args["expected-version"]) }) }), null, 2));
+    console.log(JSON.stringify(await request(`/v2/collection-runs/${encodeURIComponent(args.run)}/resume`, { method: "POST", body: JSON.stringify({ expectedVersion: positiveInt(args["expected-version"], "expected-version") }) }), null, 2));
     return;
   }
   if (command === "backfill") {
     required(args, ["subscription", "from", "to", "idempotency-key"]);
-    console.log(JSON.stringify(await request("/v2/minute/backfills", { method: "POST", body: JSON.stringify({ subscriptionId: args.subscription, fromDate: args.from, toDate: args.to, idempotencyKey: args["idempotency-key"] }) }), null, 2));
+    const fromDate = isoDate(args.from, "from");
+    const toDate = isoDate(args.to, "to");
+    if (toDate < fromDate) throw new Error("--to must be on or after --from");
+    console.log(JSON.stringify(await request("/v2/minute/backfills", { method: "POST", body: JSON.stringify({ subscriptionId: args.subscription, fromDate, toDate, idempotencyKey: args["idempotency-key"] }) }), null, 2));
     return;
   }
   if (command === "schedule") {

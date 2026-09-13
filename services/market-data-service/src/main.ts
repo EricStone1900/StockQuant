@@ -9,7 +9,7 @@ import { CollectionScheduleConflict, CollectionScheduleRepository } from "./appl
 import { PersistentCollectionSchedulerWorker } from "./application/persistent-collection-scheduler.js";
 import { PersistentCollectionExecutor, PythonMinuteCollectionAdapter } from "./application/collection-executor.js";
 import { buildCoverage, validateBars, type QualityBar } from "./application/minute-quality.js";
-import { CoverageRepository } from "./application/coverage-repository.js";
+import { BackfillConflict, CoverageRepository } from "./application/coverage-repository.js";
 import { validateGapRequest } from "./application/coverage-request.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "./application/project-delivery.js";
 import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
@@ -77,6 +77,8 @@ function quality(bars: Bar[], asOf: string) {
   return { status: errors.length ? "REJECTED" : "READY", errors };
 }
 async function json(res: ServerResponse, body: unknown, status = 200) { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); }
+function validIso(value: unknown): value is string { return typeof value === "string" && !Number.isNaN(Date.parse(value)); }
+function validHash(value: unknown): value is string { return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value); }
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
@@ -118,6 +120,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
       const required = ["subscriptionId", "subscriptionVersion", "windowStart", "windowEnd", "jobKind", "idempotencyKey", "requestHash"];
       if (required.some((key) => body[key] === undefined)) return json(res, { code: "INVALID_COLLECTION_RUN" }, 422);
+      if (!Number.isInteger(body.subscriptionVersion) || Number(body.subscriptionVersion) <= 0 || !validIso(body.windowStart) || !validIso(body.windowEnd) || new Date(String(body.windowEnd)) <= new Date(String(body.windowStart)) || !["INTRADAY_WINDOW", "CLOSE_RECONCILIATION", "BACKFILL", "GAP_REPAIR"].includes(String(body.jobKind)) || !validHash(body.requestHash)) return json(res, { code: "INVALID_COLLECTION_RUN", reason: "invalid version, window, jobKind, or requestHash" }, 422);
       const result = await collectionRuns.create({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), windowStart: String(body.windowStart), windowEnd: String(body.windowEnd), jobKind: body.jobKind as "INTRADAY_WINDOW" | "CLOSE_RECONCILIATION" | "BACKFILL" | "GAP_REPAIR", idempotencyKey: String(body.idempotencyKey), requestHash: String(body.requestHash) });
       return json(res, { ...result, run: result.run }, result.created ? 201 : 200);
     }
@@ -130,7 +133,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (collectionRunMatch && req.method === "POST" && collectionRunMatch[2] === "resume") {
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
-      if (body.expectedVersion === undefined) return json(res, { code: "INVALID_RESUME", required: ["expectedVersion"] }, 422);
+      if (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) <= 0) return json(res, { code: "INVALID_RESUME", reason: "expectedVersion must be a positive integer" }, 422);
       try {
         return json(res, await collectionRuns.resume(collectionRunMatch[1], Number(body.expectedVersion)));
       } catch (error) {
@@ -209,9 +212,14 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (req.url === "/v2/minute/backfills" && req.method === "POST") {
       if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as { subscriptionId?: string; fromDate?: string; toDate?: string; idempotencyKey?: string };
-      if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
-      const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
-      return json(res, result, result.created ? 201 : 200);
+      if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey || !/^\d{4}-\d{2}-\d{2}$/.test(body.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.toDate) || body.toDate < body.fromDate) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
+      try {
+        const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
+        return json(res, result, result.created ? 201 : 200);
+      } catch (error) {
+        if (error instanceof BackfillConflict) return json(res, { code: "IDEMPOTENCY_CONFLICT", message: error.message }, 409);
+        throw error;
+      }
     }
     const backfillMatch = req.url?.match(/^\/v2\/minute\/backfills\/([^/]+)(?:\/(claim|complete|fail))?$/);
     if (backfillMatch && req.method === "GET" && !backfillMatch[2]) {

@@ -4,6 +4,7 @@ import type { GapRecord } from "./minute-quality.js";
 
 export type PersistedGap = GapRecord & { subscriptionId: string; status: "OPEN" | "CLOSED" | "UNRECOVERABLE" };
 export type BackfillTask = { taskId: string; subscriptionId: string; fromDate: string; toDate: string; idempotencyKey: string; status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" };
+export class BackfillConflict extends Error { constructor(message: string) { super(message); this.name = "BackfillConflict"; } }
 type GapRow = QueryResultRow & { gap_id: string; subscription_id: string; security_id: string; bar_start: Date; bar_end: Date; reason: GapRecord["reason"]; priority: GapRecord["priority"]; status: PersistedGap["status"] };
 type TaskRow = QueryResultRow & { task_id: string; subscription_id: string; from_date: string | Date; to_date: string | Date; idempotency_key: string; status: BackfillTask["status"] };
 
@@ -97,7 +98,9 @@ export class CoverageRepository {
     if (result.rowCount === 1) return { task: this.mapTask(result.rows[0]), created: true };
     const existing = await this.pool.query<TaskRow>("SELECT * FROM market_data_backfill_tasks WHERE idempotency_key=$1", [idempotencyKey]);
     if (existing.rowCount !== 1) throw new Error("backfill task disappeared after idempotent insert");
-    return { task: this.mapTask(existing.rows[0]), created: false };
+    const prior = this.mapTask(existing.rows[0]);
+    if (prior.subscriptionId !== subscriptionId || prior.fromDate !== fromDate || prior.toDate !== toDate) throw new BackfillConflict("idempotency key was reused with a different backfill request");
+    return { task: prior, created: false };
   }
 
   async findBackfill(taskId: string): Promise<BackfillTask | null> {

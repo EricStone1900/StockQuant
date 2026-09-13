@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { argsOf, waitForRun } from "./data-cli.mjs";
+import { argsOf, isoDate, positiveInt, waitForRun } from "./data-cli.mjs";
 
 test("CLI argument parser ignores pnpm separator", () => {
   assert.deepEqual(argsOf(["--", "--subscription", "sub", "--wait-seconds", "2"]), { subscription: "sub", "wait-seconds": "2" });
@@ -28,4 +28,11 @@ test("bounded wait returns nonterminal run at deadline", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("CLI validates positive integers and ISO dates", () => {
+  assert.equal(positiveInt("3", "wait-seconds"), 3);
+  assert.throws(() => positiveInt("0", "wait-seconds"), /positive integer/);
+  assert.equal(isoDate("2026-09-14", "from"), "2026-09-14");
+  assert.throws(() => isoDate("2026/09/14", "from"), /YYYY-MM-DD/);
 });
