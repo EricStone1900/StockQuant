@@ -68,7 +68,9 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 `CANCELLED=482`、`COMPLETED=92`，无非正式 `QUEUED/WAITING_RETRY/PARTIAL/RUNNING`
 记录；正式激活 `--check-only` 返回 `READY_TO_ENABLE`、退出码 0。
 
-定时任务顺序已校准：首次激活从 2026-09-14 08:45 起每 5 分钟重试至 09:25，巡检从同日
+定时任务顺序已校准：首次激活从 2026-09-14 08:45 起每 5 分钟重试至 09:25；每次先执行一次受控
+`pnpm dc08a:supervise -- --repair` 拉起未运行的 market-data-service，再执行激活保护检查。
+只有 `/ready` 和唯一订阅校验通过后才会打开调度器/执行器。巡检从同日
 09:00 起每 15 分钟运行；激活脚本对已启用状态幂等，不会重复重建容器，避免激活前自动修复
 与正式启用发生竞态。
 

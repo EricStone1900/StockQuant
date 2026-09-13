@@ -56,7 +56,7 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 
 ## 4. 运行中断恢复操作手册（待实现命令）
 
-启动前：确认部署环境、DB/Artifact卷、日历版本、订阅修订、20只清单Hash、来源能力、磁盘、唯一活动调度器；记录runId。不要使用/tmp作为正式数据存储。
+启动前：确认部署环境、DB/Artifact卷、日历版本、订阅修订、20只清单Hash、来源能力、磁盘、唯一活动调度器；记录runId。正式定时启用前先执行 `pnpm dc08a:supervise -- --repair`，该命令最多启动一次 market-data-service 并复查 `/ready`；随后使用真实订阅参数执行 `pnpm dc08a:activate -- --check-only`，仅返回 `READY_TO_ENABLE` 后才可去掉 `--check-only`。不要使用/tmp作为正式数据存储。
 
 中断后按以下顺序操作，参数ID必须从实际记录取得：
 
