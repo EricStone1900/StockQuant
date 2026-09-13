@@ -38,6 +38,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   });
 
   afterAll(async () => {
+    await pool.query("UPDATE market_data_collection_schedules SET enabled=false WHERE subscription_id LIKE $1", [`%${suffix}`]);
     await pool.end();
   });
 

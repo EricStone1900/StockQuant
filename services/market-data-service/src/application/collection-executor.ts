@@ -63,6 +63,7 @@ export class PersistentCollectionExecutor {
     for (const runId of ids) {
       const run = await this.runs.claim(runId, this.config.leaseSeconds ?? 180);
       if (!run) continue;
+      let completedRun: CollectionRun | null = null;
       try {
         const result = await this.adapter.collect({ securityIds: this.config.securityIds, startDate: localDate(run.windowStart), endDate: localDate(run.windowEnd) });
         const normalized = result.bars.map(normalizeBar).filter((bar) => withinWindow(bar, run));
@@ -74,8 +75,7 @@ export class PersistentCollectionExecutor {
         const sha256 = createHash("sha256").update(JSON.stringify(rows)).digest("hex");
         const artifactId = `minute-5m-${sha256.slice(0, 24)}`;
         await this.runs.checkpoint(run.runId, run.fencingToken, { sourceId: result.sourceId, rowCount: rows.length, sha256, attempts: result.attempts });
-        const completedRun = await this.runs.publishRows({ runId: run.runId, fencingToken: run.fencingToken, artifactId, sha256, projectId: this.config.projectId, dataVersion: this.config.dataVersion, rows });
-        if (this.config.onRunCompleted) await this.config.onRunCompleted(completedRun);
+        completedRun = await this.runs.publishRows({ runId: run.runId, fencingToken: run.fencingToken, artifactId, sha256, projectId: this.config.projectId, dataVersion: this.config.dataVersion, rows });
         completed += 1;
       } catch (error) {
         const retries = Number(run.checkpoint?.retryCount ?? 0) + 1;
@@ -89,6 +89,9 @@ export class PersistentCollectionExecutor {
           await this.runs.releaseToRetry(run.runId, run.fencingToken, this.config.retrySeconds ?? 300);
           waitingRetry += 1;
         }
+      }
+      if (completedRun && this.config.onRunCompleted) {
+        try { await this.config.onRunCompleted(completedRun); } catch (error) { console.error("collection completion callback failed", error); }
       }
     }
     return { attempted: ids.length, completed, waitingRetry };

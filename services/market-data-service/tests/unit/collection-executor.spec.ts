@@ -69,4 +69,12 @@ describe("PersistentCollectionExecutor", () => {
     expect(result).toEqual({ attempted: 1, completed: 0, waitingRetry: 0 });
     expect(runs.failed).toBe("OUT_OF_SOURCE_RANGE");
   });
+
+  it("keeps a published run completed when the completion callback fails", async () => {
+    const runs = new FakeRuns();
+    const adapter: CollectionAdapter = { collect: async () => ({ sourceId: "baostock", bars: [bar], attempts: [] }) };
+    const result = await new PersistentCollectionExecutor(runs as never, adapter, { securityIds: ["600000.SH"], projectId: "stockquant-local", dataVersion: "cn-5m-raw-v1", onRunCompleted: async () => { throw new Error("callback unavailable"); } }).tick();
+    expect(result).toEqual({ attempted: 1, completed: 1, waitingRetry: 0 });
+    expect(runs.retry).toBeNull();
+  });
 });
