@@ -114,3 +114,9 @@ DC-08A 仍为 TODO/NOT_RUN：唯一正式订阅已准备且 check-only 返回 `R
 7/7、日终报告 3/3、观察 4/4、Linux ARM64 兼容性验证 PASS。非交易日
 `daily-report-2026-09-13.json` 为 `NOT_RUN`，当前观察 `NOT_ACTIVE`、Artifact/缺口均为0；
 `dc08a:promote-20 -- --check-only` 按预期以“短期日终报告未全部 PASS”阻塞，未修改订阅或容器。
+
+2026-09-13 CLI 契约收尾：新增根入口 `pnpm data:collect`、`data:status`、`data:resume`、
+`data:backfill`、`data:schedule`，分别覆盖采集运行创建/查询、带 `expectedVersion` 的恢复、
+补采任务幂等创建和订阅启停/查询；服务新增恢复 API 的版本冲突保护。market-data-service
+TypeScript typecheck、`data:test-coverage` 7/7、`dc08a:test-activate` 7/7 和脚本语法检查通过。
+CLI 的真实网络执行、DC-T25 实际交易日观察及浏览器采集场景仍保持 NOT_RUN。

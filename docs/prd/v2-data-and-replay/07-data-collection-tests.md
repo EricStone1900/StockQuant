@@ -1,6 +1,6 @@
 # 共享数据采集：测试案例与中断恢复手册
 
-版本1.1，2026-09-12。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。DC-03确定性单元测试已PASS；真实交易日、后台进程和人工验收仍NOT_RUN。操作手册为DRAFT_NOT_EXECUTABLE，DC-02/07实现入口并亲自执行后才可更改。
+版本1.1，2026-09-12。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。DC-03确定性单元测试已PASS；真实交易日、后台进程和人工验收仍NOT_RUN。采集 CLI 入口已补齐并完成类型/单元回归；真实交易日操作手册仍需实测后才能改为可执行。
 
 ## 1. 测试输入和证据约定
 
@@ -45,7 +45,7 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 
 新增DC-T25（真实短期运行，NOT_RUN）：DC-07部署后3只跨沪深证券连续2实际交易日自动运行，再20只至少1实际交易日；检查盘中、日终补采、调度ID、心跳和逐日覆盖。预期：无需人工逐次触发，闭合窗口及时性符合冻结来源能力，每日无未解释缺口，故障恢复证据可查，正式20只订阅保持启用且不依赖浏览器。故障演练在隔离任务执行，不破坏正式数据；该测试不能替代60日覆盖。
 
-目标测试组织：服务内 tests/unit/collection-*.spec.ts、tests/integration/collection-*.spec.ts；Python适配器在自己的锁定环境内使用pytest；浏览器用现有Playwright组织新增采集用例。这些目标文件当前未创建。禁止把当前根test:integration的V1.1结果作为DC-T12～14通过。
+目标测试组织：服务内 tests/unit/collection-*.spec.ts、tests/integration/collection-*.spec.ts；Python适配器在自己的锁定环境内使用pytest；浏览器用现有Playwright组织新增采集用例。根目录 CLI 入口为 `data:collect`、`data:status`、`data:resume`、`data:backfill`、`data:schedule`，分别调用持久运行、查询、版本保护恢复、补采任务和订阅启停 API。真实交易日和浏览器采集用例仍未完成，禁止把当前根test:integration的V1.1结果作为DC-T12～14通过。
 
 1. DC-01冻结Fixture和预期；测试先失败以验证拒绝/缺失路径，随后实现相应工作包。
 2. 每包执行受影响的lint/type/unit/contract；持久化包必须执行真实PostgreSQL，调度包执行实际后台进程。

@@ -121,11 +121,22 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const result = await collectionRuns.create({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), windowStart: String(body.windowStart), windowEnd: String(body.windowEnd), jobKind: body.jobKind as "INTRADAY_WINDOW" | "CLOSE_RECONCILIATION" | "BACKFILL" | "GAP_REPAIR", idempotencyKey: String(body.idempotencyKey), requestHash: String(body.requestHash) });
       return json(res, { ...result, run: result.run }, result.created ? 201 : 200);
     }
-    const collectionRunMatch = req.url?.match(/^\/v2\/collection-runs\/([^/]+)$/);
-    if (collectionRunMatch && req.method === "GET") {
+    const collectionRunMatch = req.url?.match(/^\/v2\/collection-runs\/([^/]+)(?:\/(resume))?$/);
+    if (collectionRunMatch && req.method === "GET" && !collectionRunMatch[2]) {
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const run = await collectionRuns.find(collectionRunMatch[1]);
       return run ? json(res, run) : json(res, { code: "NOT_FOUND" }, 404);
+    }
+    if (collectionRunMatch && req.method === "POST" && collectionRunMatch[2] === "resume") {
+      if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+      if (body.expectedVersion === undefined) return json(res, { code: "INVALID_RESUME", required: ["expectedVersion"] }, 422);
+      try {
+        return json(res, await collectionRuns.resume(collectionRunMatch[1], Number(body.expectedVersion)));
+      } catch (error) {
+        if (error instanceof Error && error.name === "CollectionRunConflict") return json(res, { code: "VERSION_CONFLICT", message: error.message }, 409);
+        throw error;
+      }
     }
     if (req.url === "/v2/sources" && req.method === "GET") return json(res, { sources: [
       { sourceId: "tencent-quote", kind: "QUOTE", url: "https://qt.gtimg.cn", status: "CONFIGURED", license: "public web endpoint; verify terms before production" },

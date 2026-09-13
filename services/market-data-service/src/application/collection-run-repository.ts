@@ -147,6 +147,17 @@ export class CollectionRunRepository {
     return result.rowCount === 1 ? this.map(result.rows[0]) : null;
   }
 
+  async resume(runId: string, expectedVersion: number): Promise<CollectionRun> {
+    const result = await this.pool.query<Row>(`
+      UPDATE market_data_collection_runs
+      SET status='QUEUED', lease_until=NULL, retry_at=NULL, version=version+1, updated_at=now()
+      WHERE run_id=$1 AND version=$2 AND status IN ('PAUSED','FAILED','WAITING_DEPENDENCY','WAITING_RETRY','PARTIAL')
+      RETURNING *
+    `, [runId, expectedVersion]);
+    if (result.rowCount !== 1) throw new CollectionRunConflict("resume rejected: stale version, completed run, or invalid status");
+    return this.map(result.rows[0]);
+  }
+
   async checkpoint(runId: string, fencingToken: number, checkpoint: Record<string, unknown>): Promise<CollectionRun> {
     const result = await this.pool.query<Row>(`
       UPDATE market_data_collection_runs
