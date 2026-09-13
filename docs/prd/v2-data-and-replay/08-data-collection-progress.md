@@ -21,9 +21,9 @@
 | 工作包 | 开发状态 | 自动测试 | 人工验收 | 本包证据 | 下一动作 |
 |---|---|---|---|---|---|
 | DC-00 来源能力 | IN_PROGRESS | PASS（历史）/NOT_RUN（盘中） | NOT_RUN | [DC-00来源能力记录](../../evidence-data-collection-dc00.md)；探针退出0 | 在实际交易时段完成DC-T19盘中更新/延迟/切换观测；60日第二源仍未满足 |
-| DC-01 契约设计 | DONE（设计冻结） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 进入DC-02持久最小切片；生成客户端/迁移仍待实现 |
+| DC-01 契约设计 | DONE（设计与冻结输入） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 生成客户端/迁移设计已纳入服务实现；人工验收仍待补 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
-| DC-03 调度 | IN_PROGRESS | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 实际交易日运行、Web/验收中心接入；冻结订阅后显式启用 |
+| DC-03 调度 | DONE（本机范围） | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 真实交易日运行和 Web/验收中心观察归入 DC-08A；正式订阅仍默认关闭 |
 | DC-04 主备 | IN_PROGRESS | PASS：Python适配器6/6、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
@@ -100,3 +100,9 @@
 2026-09-12 计划1.2/执行链启动记录：用户确认第一版本仅需本机单机全流程，Ubuntu已人工验证；因此DC-07标记为本机范围DONE，外部告警、异机备份和生产灾备延期至上线前，不降低真实分钟数据和DC-08A观察门槛。发现原持久调度器仅创建任务/推进水位、不调用适配器或持久化分钟数据；新增独立执行器领取持久任务、调用受控Python JSON边界、质量校验、内容寻址Artifact和项目范围行的同事务发布，源端/质量失败转`WAITING_RETRY`并记录延迟重试。Python适配器固定`baostock==0.8.9`并生成锁；修正BaoStock/Sina代码格式和新浪返回日期过滤。当前已通过市场数据服务单测20/20、TypeScript typecheck、Python unittest 6/6；容器/真实PostgreSQL复验仍在执行，真实交易日观察尚未启动。
 
 2026-09-12 DC-08A准备记录：复核既有冻结输入 `fixtures/v2/data-collection/collection-plan-v1.json`，20只集合版本为 `baostock-minute-20x60-v1`，SHA-256为`045595a9923a826e0413e9ad3708dc9409effaeeb007e794634bc21faf4d26a9`；完成服务格式映射并记录3只跨沪深短期观察集合。新增[DC-08A启用前准备记录](../../evidence-data-collection-dc08a-readiness.md)。调度器和执行器继续保持默认关闭，待实际交易时段按检查单显式启用。
+
+2026-09-13 当前状态校准：根据已提交的 DC-02～DC-07 实现和复验结果，DC-01～DC-03
+当前表格状态改为 DONE（DC-03 限本机范围），不再把已完成的契约冻结、持久化和调度能力列为待实现；
+DC-04/05 仍保持 IN_PROGRESS，因为盘中真实源能力、实际补采和 60 日覆盖尚未取得证据。
+DC-08A 仍为 TODO/NOT_RUN：唯一正式订阅已准备且 check-only 返回 `READY_TO_ENABLE`，
+但调度器/执行器保持关闭，等待下一个实际交易日的 3 只短期观察。
