@@ -71,6 +71,19 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await repository.checkpoint(created.run.runId, secondWorker!.fencingToken, { cursor: "new-worker" });
   });
 
+  it("resumes only the requested version and keeps completed runs idempotent", async () => {
+    const request = { subscriptionId: `resume-${suffix}`, subscriptionVersion: 1, windowStart: "2026-09-11T06:00:00.000Z", windowEnd: "2026-09-11T06:05:00.000Z", jobKind: "INTRADAY_WINDOW" as const, idempotencyKey: `resume-${suffix}`, requestHash: "r".repeat(64) };
+    const created = await repository.create(request);
+    await pool.query("UPDATE market_data_collection_runs SET status='PAUSED' WHERE run_id=$1", [created.run.runId]);
+    await expect(repository.resume(created.run.runId, created.run.version + 1)).rejects.toBeInstanceOf(CollectionRunConflict);
+    const resumed = await repository.resume(created.run.runId, created.run.version);
+    expect(resumed.status).toBe("QUEUED");
+    await expect(repository.resume(created.run.runId, resumed.version)).rejects.toBeInstanceOf(CollectionRunConflict);
+    const claimed = await repository.claim(created.run.runId, 30);
+    await repository.publish(created.run.runId, claimed!.fencingToken, `resume-artifact-${suffix}`);
+    await expect(repository.resume(created.run.runId, (await repository.find(created.run.runId))!.version)).rejects.toBeInstanceOf(CollectionRunConflict);
+  });
+
   it("does not confirm a task when the database is unavailable", async () => {
     const unavailable = new Pool({ connectionString: "postgresql://market_data@127.0.0.1:59999/market_data", connectionTimeoutMillis: 200 });
     const unavailableRepository = new CollectionRunRepository(unavailable);

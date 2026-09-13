@@ -120,3 +120,7 @@ DC-08A 仍为 TODO/NOT_RUN：唯一正式订阅已准备且 check-only 返回 `R
 补采任务幂等创建和订阅启停/查询；服务新增恢复 API 的版本冲突保护。market-data-service
 TypeScript typecheck、`data:test-coverage` 7/7、`dc08a:test-activate` 7/7 和脚本语法检查通过。
 CLI 的真实网络执行、DC-T25 实际交易日观察及浏览器采集场景仍保持 NOT_RUN。
+
+当前补采边界：`data:backfill` 已能创建并查询持久化、幂等的 backfill task；自动 Worker
+尚未将该 task 展开为逐窗口 `BACKFILL` collection run 并驱动适配器发布。因此实际缺口关闭、
+补采成功和 60 日覆盖仍保持 NOT_RUN，不能把任务创建返回视为补采完成。
