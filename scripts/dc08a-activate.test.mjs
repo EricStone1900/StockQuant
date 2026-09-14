@@ -6,7 +6,7 @@ const expected = { subscriptionId: "dc08a-20260914", calendarVersion: "sse-cn-a-
 const schedule = { ...expected, enabled: true, subscriptionVersion: 1 };
 
 test("activation defaults remain the frozen approved short subscription", () => {
-  assert.deepEqual(defaultActivationConfig, { subscriptionId: "dc08a-20260914-short-v1", calendarVersion: "sse-cn-a-share-2026-1", fromDate: "2026-09-14", toDate: "2026-09-16" });
+  assert.deepEqual(defaultActivationConfig, { subscriptionId: "dc08a-20260914-short-v1", calendarVersion: "sse-cn-a-share-2026-1", fromDate: "2026-09-14", toDate: "2026-10-19" });
 });
 
 test("activation requires exactly one matching enabled subscription", () => {

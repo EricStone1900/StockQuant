@@ -63,6 +63,10 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
         const facts = reconciliation as { unresolved_order_count?: number; pending_outbox_count?: number };
         reconciliationStatus = facts.unresolved_order_count === 0 && facts.pending_outbox_count === 0 ? "PASS" : "FAIL";
       } catch (error) { errors.push(error instanceof Error ? error.message : "reconciliation probe failed"); reconciliationStatus = "FAIL"; }
+      try {
+        const priorErrors = await this.repository.errorsForDate(observationDate);
+        for (const priorError of priorErrors) if (!errors.includes(priorError)) errors.push(priorError);
+      } catch (error) { errors.push(error instanceof Error ? error.message : "prior observation error lookup failed"); }
     }
 
     await this.repository.upsertObservation({

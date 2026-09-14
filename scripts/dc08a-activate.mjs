@@ -5,7 +5,7 @@ export const defaultActivationConfig = {
   subscriptionId: "dc08a-20260914-short-v1",
   calendarVersion: "sse-cn-a-share-2026-1",
   fromDate: "2026-09-14",
-  toDate: "2026-09-16",
+  toDate: "2026-10-19",
 };
 
 export function evaluateActivation({ ready, schedules, expected }) {

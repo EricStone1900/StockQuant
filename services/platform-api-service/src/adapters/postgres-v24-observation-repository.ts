@@ -91,6 +91,11 @@ export class PostgresV24ObservationRepository {
       DELETE FROM v24_observation_day_finalizations f
       USING v24_observation_days d
       WHERE d.observation_date=f.observation_date AND jsonb_array_length(d.errors) > 0;
+      UPDATE acceptance_stage_runs s
+      SET status='FAILED',
+          evidence=s.evidence || '{"observationCounted":false,"invalidatedReason":"observation event errors"}'::jsonb
+      WHERE s.stage_id='V2.4' AND s.scenario_id='observation' AND s.status='COMPLETED'
+        AND EXISTS (SELECT 1 FROM v24_observation_days d WHERE d.observation_date::text = split_part(s.namespace, 'v24-observation-', 2) AND jsonb_array_length(d.errors) > 0);
     `);
   }
 
@@ -164,6 +169,11 @@ export class PostgresV24ObservationRepository {
 
   async completeDailyTestRun(observationDate: string, testRunId: string, evidence: Record<string, unknown>): Promise<void> {
     await this.pool.query(`UPDATE acceptance_stage_runs SET status='COMPLETED', assertions=$2::jsonb, evidence=evidence || $3::jsonb, completed_at=now() WHERE test_run_id=$1 AND stage_id='V2.4'`, [testRunId, JSON.stringify([{ assertionId: "V2.4-OBSERVATION-DAY", status: "PASS", expected: "independent EOD reconciliation", actual: evidence }]), JSON.stringify(evidence)]);
+  }
+
+  async errorsForDate(observationDate: string): Promise<string[]> {
+    const result = await this.pool.query<{ errors: string[] }>("SELECT errors FROM v24_observation_days WHERE observation_date=$1", [observationDate]);
+    return result.rows[0]?.errors ?? [];
   }
 
   async listObservations(limit = 30): Promise<ObservationRecord[]> {
