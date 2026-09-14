@@ -4,6 +4,10 @@ import type { SchedulerTickHandler } from "./v24-scheduler.js";
 
 type Calendar = { status?: "TRADING" | "CLOSED" | "UNKNOWN"; calendarVersion?: string; reason?: string };
 
+export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[] }): boolean {
+  return actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0;
+}
+
 export class V24LiveObservationHandler implements SchedulerTickHandler {
   constructor(private readonly repository: PostgresV24ObservationRepository, private readonly marketUrl: string, private readonly executionUrl = "http://127.0.0.1:3005") {}
 
@@ -67,13 +71,13 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
       evidence: {
         recordedAt: now.toISOString(), eventKind: kind, scheduledFor, scheduledDelaySeconds, previousSampleAt, timeZone: "Asia/Shanghai",
         actualTradingDay: calendar.status ?? "UNKNOWN", calendarVersion: calendar.calendarVersion ?? null, calendarReason: calendar.reason ?? null,
-        observationCounted: actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS",
+        observationCounted: shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors }),
         dataMode: "LIVE_SOURCE", sourceProbe: quote, reconciliation, mode: "PAPER", brokerMode: "FAKE",
         strategy: signalStatus === "HOLD" ? "v24-conservative-hold-v1" : null,
         noBackfill: true
       }
     });
-    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && reconciliationStatus === "PASS") await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true });
+    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors })) await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true });
   }
 
   private async calendar(date: string, errors: string[]): Promise<Calendar> {

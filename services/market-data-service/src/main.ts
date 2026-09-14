@@ -15,6 +15,7 @@ import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWi
 import { parseProjectTokenConfig, ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "./application/project-access-repository.js";
 import { ArtifactDeliveryRepository } from "./application/artifact-delivery-repository.js";
 import { AlertOutboxRepository } from "./application/alert-outbox-repository.js";
+import { decodeTencentQuote, previewTencentQuotes } from "./application/tencent-quote-preview.js";
 
 type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -200,7 +201,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/quote/preview" && req.method === "GET") {
       const symbols = watchlist.slice(0, 100); const codes = symbols.map((symbol) => `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`).join(",");
-      try { const response = await fetch(`https://qt.gtimg.cn/q=${codes}`, { signal: AbortSignal.timeout(5000) }); const text = await response.text(); const ingestedAt = new Date().toISOString(); const securities = symbols.map((symbol) => { const code = `${symbol.startsWith("6") ? "sh" : "sz"}${symbol.slice(0, 6)}`; const match = text.match(new RegExp(`v_${code}="([^\"]*)`)); const fields = match?.[1]?.split("~") ?? []; const rawTimestamp = fields[30] ?? ""; const timestampMatch = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(rawTimestamp); const observedAt = timestampMatch ? `${timestampMatch[1]}-${timestampMatch[2]}-${timestampMatch[3]}T${timestampMatch[4]}:${timestampMatch[5]}:${timestampMatch[6]}+08:00` : null; return { symbol, price: Number(fields[3] ?? 0), name: fields[1] ?? null, observedAt, ingestedAt, status: match && observedAt ? "LIVE_SOURCE" : "MISSING_TIMESTAMP" }; }); return json(res, { sourceId: "tencent-quote", securities, count: securities.length, ingestedAt }); } catch (error) { return json(res, { sourceId: "tencent-quote", status: "STALE", securities: symbols, ingestedAt: new Date().toISOString(), error: error instanceof Error ? error.message : "unknown" }); }
+      try { const response = await fetch(`https://qt.gtimg.cn/q=${codes}`, { signal: AbortSignal.timeout(5000) }); const text = decodeTencentQuote(await response.arrayBuffer()); const ingestedAt = new Date().toISOString(); const securities = previewTencentQuotes(symbols, text, ingestedAt); return json(res, { sourceId: "tencent-quote", securities, count: securities.length, ingestedAt }); } catch (error) { return json(res, { sourceId: "tencent-quote", status: "STALE", securities: symbols, ingestedAt: new Date().toISOString(), error: error instanceof Error ? error.message : "unknown" }); }
     }
     if (req.url === "/v2/news/preview" && req.method === "GET") return json(res, { items: [{ newsId: "v2-news-001", sourceId: "eastmoney-rss", title: "示例公告（验收样本）", publishedAt: "2026-09-09T00:00:00Z", revision: 1, symbols: ["600000.SH"] }], deduplicated: true, sourceStatus: "CONFIGURED" });
     if (req.url === "/v2/news/live" && req.method === "GET") {

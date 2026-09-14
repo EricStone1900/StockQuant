@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { V24ContinuousPaperEngine } from "../../src/application/v24-continuous-paper.js";
 import { ContinuousPaperScheduler, type Clock } from "../../src/application/v24-scheduler.js";
+import { shouldCountDailyObservation } from "../../src/application/v24-live-observation.js";
 
 describe("V2.4 continuous paper scenarios", () => {
   const engine = new V24ContinuousPaperEngine();
@@ -28,5 +29,10 @@ describe("V2.4 continuous paper scenarios", () => {
     expect(scheduler.status().tickCount).toBe(1);
     await scheduler.stop();
     expect(scheduler.status().status).toBe("STOPPED");
+  });
+  it("does not count an end-of-day observation with unresolved errors", () => {
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [] })).toBe(true);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"] })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "SAMPLING_SLOT", reconciliationStatus: "PASS", errors: [] })).toBe(false);
   });
 });

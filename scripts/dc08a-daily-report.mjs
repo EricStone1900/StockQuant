@@ -11,7 +11,7 @@ export function expectedBars(securityCount, sessions = 2, barsPerSession = 24) {
 export function classifyDailyStatus({ tradingDay, calendarStatus, expected, actual, statuses, openGaps, pendingOutbox = 0 }) {
   if (calendarStatus === "UNKNOWN" || calendarStatus === "UNAVAILABLE") return "WAITING_DEPENDENCY";
   if (!tradingDay || expected === 0 || actual === 0) return "NOT_RUN";
-  if (openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") || actual !== expected) return "INCOMPLETE";
+  if (openGaps > 0 || pendingOutbox > 0 || statuses.some((item) => item.status !== "COMPLETED") || actual !== expected) return "INCOMPLETE";
   return "PASS";
 }
 
@@ -51,10 +51,10 @@ export async function createDailyReport({ date = process.env.REPORT_DATE ?? new 
   }
   const calendarTradingDay = calendarStatus === "TRADING";
   const escaped = subscriptionId.replaceAll("'", "''");
-  const statuses = rows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}' GROUP BY status ORDER BY status`), ["status", "count"]).map((item) => ({ status: item.status, count: Number(item.count) }));
+  const statuses = rows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND status <> 'CANCELLED' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}' GROUP BY status ORDER BY status`), ["status", "count"]).map((item) => ({ status: item.status, count: Number(item.count) }));
   const totals = rows(query(`SELECT coalesce(sum(a.row_count),0), count(*) FROM market_data_collection_artifacts a JOIN market_data_collection_runs r ON r.published_artifact_id=a.artifact_id WHERE r.subscription_id='${escaped}' AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`), ["actualBars", "artifactCount"])[0] ?? { actualBars: "0", artifactCount: "0" };
   const openGaps = Number(query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`).trim() || "0");
-  const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`).trim() || "0");
+  const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND r.status <> 'CANCELLED' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date='${reportDate}'`).trim() || "0");
   const expected = calendarTradingDay ? expectedBars(securityCount) : 0;
   const actual = Number(totals.actualBars);
   const report = { schemaVersion: "dc08a-daily-report-v1", reportDate, subscriptionId, tradingDay: calendarTradingDay, calendarStatus, securityCount, expectedBars: expected, actualBars: actual, artifactCount: Number(totals.artifactCount), statuses, openGaps, pendingOutbox, status: classifyDailyStatus({ tradingDay: calendarTradingDay, calendarStatus, expected, actual, statuses, openGaps, pendingOutbox }) };

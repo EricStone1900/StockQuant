@@ -26,6 +26,7 @@
     "verify:version": "node scripts/verify-version.mjs",
     "verify:compat": "node scripts/verify-compat.mjs",
     "v24:preflight": "node scripts/v24-preflight.mjs",
+    "v24:test-preflight": "node --test scripts/v24-preflight.test.mjs",
     "v25:monitor-capacity": "node scripts/v25-monitor-capacity.mjs",
     "v25:probe-baostock": "uv run --with baostock python scripts/probe-baostock.py",
     "v25:probe-baostock-stability": "uv run --with baostock python scripts/probe-baostock-stability.py",
@@ -56,6 +57,11 @@
     "dc08a:test-promote-20": "node --test scripts/dc08a-promote-20.test.mjs",
     "dc08a:active-subscription": "node scripts/dc08a-active-subscription.mjs",
     "dc08a:test-active-subscription": "node --test scripts/dc08a-active-subscription.test.mjs",
+    "dc08a:drain-outbox": "node scripts/dc08a-drain-outbox.mjs",
+    "dc08a:test-drain-outbox": "node --test scripts/dc08a-drain-outbox.test.mjs",
+    "dc08a:morning": "node scripts/dc08a-operations.mjs morning",
+    "dc08a:monitor": "node scripts/dc08a-operations.mjs monitor",
+    "dc08a:eod": "node scripts/dc08a-operations.mjs eod",
     "v25:import-baostock": "uv run --with baostock python scripts/import-baostock-daily.py",
     "evidence:export": "node scripts/evidence-export.mjs"
   }

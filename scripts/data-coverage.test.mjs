@@ -31,6 +31,14 @@ test("coverage rejects missing, duplicate and unexpected bars", () => {
   assert.equal(result.unexpectedBars, 1);
 });
 
+test("coverage compares equivalent offset and UTC bar timestamps as the same instant", () => {
+  const expectedKeys = buildExpectedKeys(["600000.SH"], days);
+  const result = summarizeCoverage({ expectedKeys, rows: [{ securityId: "600000.SH", barStart: "2026-09-14T09:30:00+08:00" }], statuses: [{ status: "COMPLETED", count: 1 }], openGaps: 0, pendingOutbox: 0, calendarDays: days });
+  assert.equal(result.actualUniqueBars, 1);
+  assert.equal(result.unexpectedBars, 0);
+  assert.equal(result.missingBars, expectedKeys.length - 1);
+});
+
 test("unknown calendar remains waiting dependency", () => {
   const result = summarizeCoverage({ expectedKeys: [], rows: [], statuses: [], openGaps: 0, pendingOutbox: 0, calendarDays: [{ date: "2026-09-14", status: "UNKNOWN" }] });
   assert.equal(result.status, "WAITING_DEPENDENCY");

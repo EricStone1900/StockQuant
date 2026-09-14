@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { activate, evaluateActivation } from "./dc08a-activate.mjs";
+import { activate, defaultActivationConfig, evaluateActivation } from "./dc08a-activate.mjs";
 
 const expected = { subscriptionId: "dc08a-20260914", calendarVersion: "sse-cn-a-share-2026-1", fromDate: "2026-09-14", toDate: "2026-11-30" };
 const schedule = { ...expected, enabled: true, subscriptionVersion: 1 };
+
+test("activation defaults remain the frozen approved short subscription", () => {
+  assert.deepEqual(defaultActivationConfig, { subscriptionId: "dc08a-20260914-short-v1", calendarVersion: "sse-cn-a-share-2026-1", fromDate: "2026-09-14", toDate: "2026-09-16" });
+});
 
 test("activation requires exactly one matching enabled subscription", () => {
   const ready = { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" };

@@ -1,6 +1,8 @@
 import json
 import unittest
 
+from market_data_adapter.cli import wire_bar
+from market_data_adapter.failover import NormalizedBar
 from market_data_adapter.providers import baostock_symbol, normalize_baostock, normalize_sina, SinaMinuteClient, sina_symbol
 
 
@@ -21,6 +23,13 @@ class Response:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_serializes_adapter_boundary_with_camel_case_field_names(self):
+        payload = wire_bar(NormalizedBar("600000.SH", "2026-09-11T09:30:00+08:00", "2026-09-11T09:35:00+08:00", None, "10", "11", "9", "10", "100", "1000", "raw", "sina"))
+        self.assertEqual(payload["securityId"], "600000.SH")
+        self.assertEqual(payload["barStart"], "2026-09-11T09:30:00+08:00")
+        self.assertEqual(payload["barEnd"], "2026-09-11T09:35:00+08:00")
+        self.assertNotIn("bar_start", payload)
+
     def test_normalizes_baostock_and_sina_to_same_contract(self):
         baostock = normalize_baostock([["2026-09-11", "093500", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
         sina = normalize_sina([{"day": "2026-09-11 09:35:00", "open": 10, "high": 11, "low": 9, "close": 10, "volume": 100, "amount": 1000}], "600000.SH")

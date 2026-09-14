@@ -11,6 +11,6 @@ test("daily status never passes without a real trading run", () => {
 test("daily status distinguishes incomplete from pass", () => {
   assert.equal(classifyDailyStatus({ tradingDay: true, calendarStatus: "TRADING", expected: 144, actual: 120, statuses: [{ status: "COMPLETED" }], openGaps: 0 }), "INCOMPLETE");
   assert.equal(classifyDailyStatus({ tradingDay: true, calendarStatus: "TRADING", expected: 144, actual: 145, statuses: [{ status: "COMPLETED" }], openGaps: 0 }), "INCOMPLETE");
-  assert.equal(classifyDailyStatus({ tradingDay: true, calendarStatus: "TRADING", expected: 144, actual: 144, statuses: [{ status: "COMPLETED" }], openGaps: 0, pendingOutbox: 3 }), "PASS");
+  assert.equal(classifyDailyStatus({ tradingDay: true, calendarStatus: "TRADING", expected: 144, actual: 144, statuses: [{ status: "COMPLETED" }], openGaps: 0, pendingOutbox: 3 }), "INCOMPLETE");
   assert.equal(classifyDailyStatus({ tradingDay: true, calendarStatus: "TRADING", expected: 144, actual: 144, statuses: [{ status: "WAITING_RETRY" }], openGaps: 0 }), "INCOMPLETE");
 });

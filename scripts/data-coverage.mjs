@@ -78,7 +78,9 @@ export function summarizeCoverage({ expectedKeys, rows, statuses, openGaps, pend
   const expected = new Set(expectedKeys);
   const counts = new Map();
   for (const row of rows) {
-    const key = `${row.securityId}|${row.barStart}`;
+    const parsed = new Date(row.barStart);
+    const barStart = Number.isNaN(parsed.getTime()) ? row.barStart : parsed.toISOString();
+    const key = `${row.securityId}|${barStart}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const missingKeys = [...expected].filter((key) => !counts.has(key));
@@ -120,9 +122,9 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
   const days = await calendarDays(dates, calendarUrl);
   const escaped = sqlValue(subscriptionId);
   const rows = parseRows(query(`SELECT ar.payload->>'securityId', ar.payload->>'barStart' FROM market_data_artifact_rows ar JOIN market_data_collection_artifacts a ON a.artifact_id=ar.artifact_id JOIN market_data_collection_runs r ON r.published_artifact_id=a.artifact_id WHERE r.subscription_id='${escaped}' AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`), ["securityId", "barStart"]);
-  const statuses = parseRows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}' GROUP BY status ORDER BY status`), ["status", "count"]).map((row) => ({ status: row.status, count: Number(row.count) }));
+  const statuses = parseRows(query(`SELECT status, count(*) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND status <> 'CANCELLED' AND (window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}' GROUP BY status ORDER BY status`), ["status", "count"]).map((row) => ({ status: row.status, count: Number(row.count) }));
   const openGaps = Number(query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
-  const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
+  const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND r.status <> 'CANCELLED' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
   const effectiveAsOf = new Date(asOf.getTime() - Math.max(0, graceSeconds) * 1000);
   const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), effectiveAsOf: effectiveAsOf.toISOString(), graceSeconds, subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days, effectiveAsOf), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
   if (recordGaps) {

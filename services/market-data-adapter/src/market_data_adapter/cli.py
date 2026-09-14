@@ -8,11 +8,28 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict
 from typing import Any
 
-from .failover import AllSourcesFailed, FailoverCollector, SourceError
+from .failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
 from .providers import BaoStockMinuteClient, SinaMinuteClient
+
+
+def wire_bar(bar: NormalizedBar) -> dict[str, Any]:
+    """Serialize the Python adapter contract using the TypeScript boundary's camelCase fields."""
+    return {
+        "securityId": bar.security_id,
+        "barStart": bar.bar_start,
+        "barEnd": bar.bar_end,
+        "availableAt": bar.available_at,
+        "open": bar.open,
+        "high": bar.high,
+        "low": bar.low,
+        "close": bar.close,
+        "volume": bar.volume,
+        "amount": bar.amount,
+        "adjustment": bar.adjustment,
+        "sourceId": bar.source_id,
+    }
 
 
 def main() -> int:
@@ -32,7 +49,7 @@ def main() -> int:
             backoff_seconds=float(request.get("backoffSeconds", 5)),
         )
         source_id, bars, attempts = collector.collect(security_ids, start, end)
-        print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [asdict(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))
+        print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))
         return 0
     except AllSourcesFailed as error:
         print(json.dumps({"status": "WAITING_RETRY", "code": error.code, "attempts": error.attempts}, separators=(",", ":")))

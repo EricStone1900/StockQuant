@@ -1,6 +1,12 @@
 import { spawnSync } from "node:child_process";
 
 const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+export const defaultActivationConfig = {
+  subscriptionId: "dc08a-20260914-short-v1",
+  calendarVersion: "sse-cn-a-share-2026-1",
+  fromDate: "2026-09-14",
+  toDate: "2026-09-16",
+};
 
 export function evaluateActivation({ ready, schedules, expected }) {
   const reasons = [];
@@ -38,7 +44,7 @@ function readSchedules() {
 }
 
 export async function activate({ env = process.env, command = run, ready = getReady, read = readSchedules, url = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", dryRun = false } = {}) {
-  const expected = { subscriptionId: env.DC08A_SUBSCRIPTION_ID, calendarVersion: env.DC08A_CALENDAR_VERSION, fromDate: env.DC08A_FROM_DATE, toDate: env.DC08A_TO_DATE };
+  const expected = { subscriptionId: env.DC08A_SUBSCRIPTION_ID ?? defaultActivationConfig.subscriptionId, calendarVersion: env.DC08A_CALENDAR_VERSION ?? defaultActivationConfig.calendarVersion, fromDate: env.DC08A_FROM_DATE ?? defaultActivationConfig.fromDate, toDate: env.DC08A_TO_DATE ?? defaultActivationConfig.toDate };
   let observation;
   let schedules;
   try {

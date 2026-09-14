@@ -85,6 +85,12 @@ export class PostgresV24ObservationRepository {
         final_record JSONB NOT NULL,
         source_event_id UUID NOT NULL
       );
+      UPDATE v24_observation_days
+      SET evidence = jsonb_set(evidence, '{observationCounted}', 'false'::jsonb, true)
+      WHERE evidence->>'observationCounted'='true' AND jsonb_array_length(errors) > 0;
+      DELETE FROM v24_observation_day_finalizations f
+      USING v24_observation_days d
+      WHERE d.observation_date=f.observation_date AND jsonb_array_length(d.errors) > 0;
     `);
   }
 
@@ -124,8 +130,8 @@ export class PostgresV24ObservationRepository {
   async upsertObservation(record: ObservationRecord): Promise<void> {
     const eventId = randomUUID();
     await this.pool.query("INSERT INTO v24_observation_events (event_id, observation_date, recorded_at, record) VALUES ($1, $2, now(), $3::jsonb)", [eventId, record.observationDate, JSON.stringify(record)]);
-    if (record.evidence.observationCounted === true) {
-      await this.pool.query("INSERT INTO v24_observation_day_finalizations (observation_date, final_observation_counted, final_record, source_event_id) VALUES ($1,true,$2::jsonb,$3) ON CONFLICT (observation_date) DO NOTHING", [record.observationDate, JSON.stringify(record), eventId]);
+    if (record.evidence.eventKind === "END_OF_DAY") {
+      await this.pool.query("INSERT INTO v24_observation_day_finalizations (observation_date, final_observation_counted, final_record, source_event_id) VALUES ($1,$2,$3::jsonb,$4) ON CONFLICT (observation_date) DO UPDATE SET finalized_at=now(), final_observation_counted=EXCLUDED.final_observation_counted, final_record=EXCLUDED.final_record, source_event_id=EXCLUDED.source_event_id", [record.observationDate, record.evidence.observationCounted === true, JSON.stringify(record), eventId]);
     }
     await this.pool.query(`
       INSERT INTO v24_observation_days
@@ -137,7 +143,7 @@ export class PostgresV24ObservationRepository {
         signal_status=CASE WHEN EXCLUDED.signal_status='UNKNOWN' AND v24_observation_days.signal_status<>'NOT_IMPLEMENTED' THEN v24_observation_days.signal_status ELSE EXCLUDED.signal_status END,simulated_order_status=CASE WHEN EXCLUDED.simulated_order_status='UNKNOWN' AND v24_observation_days.simulated_order_status<>'NOT_IMPLEMENTED' THEN v24_observation_days.simulated_order_status ELSE EXCLUDED.simulated_order_status END,fill_status=CASE WHEN EXCLUDED.fill_status='UNKNOWN' AND v24_observation_days.fill_status<>'NOT_IMPLEMENTED' THEN v24_observation_days.fill_status ELSE EXCLUDED.fill_status END,
         reconciliation_status=CASE WHEN EXCLUDED.reconciliation_status='UNKNOWN' AND v24_observation_days.reconciliation_status<>'NOT_IMPLEMENTED' THEN v24_observation_days.reconciliation_status ELSE EXCLUDED.reconciliation_status END,outage_status=CASE WHEN EXCLUDED.outage_status='UNKNOWN' AND v24_observation_days.outage_status<>'NOT_IMPLEMENTED' THEN v24_observation_days.outage_status ELSE EXCLUDED.outage_status END,test_run_id=COALESCE(EXCLUDED.test_run_id,v24_observation_days.test_run_id),
         errors=v24_observation_days.errors || EXCLUDED.errors,recovery_actions=v24_observation_days.recovery_actions || EXCLUDED.recovery_actions,
-        evidence=CASE WHEN v24_observation_days.evidence->>'observationCounted'='true' AND EXCLUDED.evidence->>'observationCounted'='false' THEN v24_observation_days.evidence || (EXCLUDED.evidence - 'observationCounted') ELSE v24_observation_days.evidence || EXCLUDED.evidence END,updated_at=now()
+        evidence=v24_observation_days.evidence || EXCLUDED.evidence,updated_at=now()
     `, [record.observationDate, record.sourceAvailable, record.lastSnapshotAt, record.dataAgeSeconds, record.samplingEvery30Minutes, record.enteredExecutionWindow, record.signalStatus, record.simulatedOrderStatus, record.fillStatus, record.reconciliationStatus, record.outageStatus, record.testRunId, JSON.stringify(record.errors), JSON.stringify(record.recoveryActions), JSON.stringify(record.evidence)]);
   }
 

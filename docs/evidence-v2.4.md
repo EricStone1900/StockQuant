@@ -55,3 +55,10 @@
 - `v24_observation_day_finalizations` 以交易日为键追加保存日终最终记录；后续恢复事件不能覆盖 `observationCounted=true`。每日观察 TestRun 同步注册到 `acceptance_stage_runs`，日终独立对账成功后才转为 `COMPLETED`。
 - 观察事件查询默认上限提升为 1000，并支持 `?limit=`（最大 5000），以覆盖 20 个交易日的盘中槽位、执行、日终和恢复事件；历史事件不删除。
 - 重新构建并重启受影响容器后，`node scripts/v24-preflight.mjs` 全部 PASS；平台和市场数据类型检查通过，平台单元测试 19/19 通过。20 个真实交易日仍为 `NOT_RUN`。
+
+## 2026-09-14 观察质量修复
+
+- 日终观察日只有在交易日、`END_OF_DAY`、独立对账 `PASS` 且没有未解决错误时才计数。日终最终记录可将先前的错误计数降为 `false`；启动迁移同步修正既有错误记录，避免恢复事件或历史错误伪造有效观察日。
+- Tencent 报价改用 GB18030 解码，中文证券名称恢复正确；预检新增30分钟来源时间新鲜度门禁。收盘后探针虽仍标注 `LIVE_SOURCE`，但因实际 `observedAt` 陈旧而正确返回失败，不能再产生假阳性。
+- 2026-09-14 观察日 `testRunId=19bf69b7-599c-49da-a432-48db85108b89` 保留日终超时错误并已更正为 `observationCounted=false`，因此不计入20个实际交易日。
+- 平台 API 与市场数据服务 TypeScript typecheck、V2.4 单元测试、行情预检和 DC-08A 脚本单元测试均通过。真实观察门禁仍为 `NOT_RUN`。
