@@ -1,6 +1,6 @@
 # DC-08A 启用前准备记录
 
-状态：`READY_NOT_ENABLED`。本记录只证明启动输入已冻结和代码链路已验证，不代表已经完成实际交易日观察。
+状态：`ACTIVE_OBSERVING`。本记录证明启动输入已冻结、正式短期订阅已启用并正在进行实际交易日观察；不代表长期观察或20只切换已完成。
 
 ## 冻结输入
 
@@ -23,7 +23,7 @@
 
 ## 当前未完成项
 
-- 尚未在交易时段启用正式调度；盘中延迟、持续更新和恢复仍为 `NOT_RUN`。
+- 短期3只证券已完成 2026-09-14、2026-09-15 两个实际交易日；正式20只集合切换仍待 2026-09-17 定时任务执行。
 - 20 只集合尚未产生新的真实采集 Artifact；历史 58 日样本不能替代连续 60 日观察。
 - 外部告警/异机灾备仍属于上线前生产就绪事项。
 
@@ -126,3 +126,15 @@ V2.4 为 `PAPER + FAKE`，采集调度器/执行器均保持 `DISABLED`；行情
 因此BaoStock主源盘中成功率仍待独立观察。`pnpm dc08a:promote-20 -- --check-only` 已返回
 `READY_TO_PROMOTE`；实际切换保持安排在2026-09-17交易时段前，未将该检查替代20只实际
 交易日或人工验收。
+
+## 2026-09-15 定时任务权限复核
+
+- 已在本机无人值守规则中增加 3 个最小精确入口：`pnpm dc08a:promote-20`、
+  `pnpm dc08a:supervise`、`pnpm dc08a:active-subscription`；不授予通用 Docker、数据库或真实券商权限。
+- 20 只切换任务的复核命令已统一为上述 `pnpm` 入口，保持 `failed_runs_only` 通知策略。
+- `pnpm dc08a:test-promote-20`（3/3）、`pnpm dc08a:test-supervise`（4/4）、
+  `pnpm dc08a:test-active-subscription`（2/2）通过。
+- 本机授权执行复核：`dc08a:promote-20 --check-only=READY_TO_PROMOTE`、
+  `dc08a:supervise --check-only=HEALTHY`；当前活动订阅仍为短期订阅、证券数为 3。
+- 已新增项目级配置回归入口 `pnpm dc08a:verify-automation`，对当前 Mac 的心跳频率、旧任务暂停、
+  20 只一次性切换及复核命令进行检查，结果 `PASS`。

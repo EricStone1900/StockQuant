@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { Pool } from "pg";
 import { checkpointForBars, checkpointForExecution } from "./domain/checkpoint.js";
+import { assertTransition, type ReplayStatus } from "./domain/lifecycle.js";
 
 type Command = { testRunId: string; namespace: string; ownerId: string; scenarioId: "normal" | "recovery"; seed: number; bar: { timestamp: string; open: string; volume: number } };
 type MultiCommand = Omit<Command, "bar"> & { bars: Array<{ timestamp: string; open: string; volume: number }> };
@@ -14,8 +15,31 @@ const allowedService = process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-ap
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status,{"content-type":"application/json"}); res.end(JSON.stringify(body)); };
 await pool.query(`CREATE TABLE IF NOT EXISTS replay_worker_runs (
   test_run_id UUID PRIMARY KEY, namespace TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, scenario_id TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('RUNNING','COMPLETED','FAILED')), checkpoint JSONB NOT NULL, result JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ
+  status TEXT NOT NULL CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED')), checkpoint JSONB NOT NULL, result JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ
 )`);
+await pool.query("ALTER TABLE replay_worker_runs DROP CONSTRAINT IF EXISTS replay_worker_runs_status_check");
+await pool.query("ALTER TABLE replay_worker_runs ADD CONSTRAINT replay_worker_runs_status_check CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED'))");
+
+class ReplayCancelled extends Error { constructor() { super("replay was cancelled"); } }
+async function transition(testRunId: string, to: ReplayStatus): Promise<void> {
+  const current = await pool.query<{ status: ReplayStatus }>("SELECT status FROM replay_worker_runs WHERE test_run_id=$1", [testRunId]);
+  if (current.rowCount !== 1) throw new Error("replay run was not found");
+  assertTransition(current.rows[0].status, to);
+  await pool.query("UPDATE replay_worker_runs SET status=$2, completed_at=CASE WHEN $2 IN ('COMPLETED','FAILED','CANCELLED') THEN now() ELSE completed_at END WHERE test_run_id=$1", [testRunId, to]);
+}
+async function throwIfCancelled(testRunId: string): Promise<void> {
+  const current = await pool.query<{ status: ReplayStatus }>("SELECT status FROM replay_worker_runs WHERE test_run_id=$1", [testRunId]);
+  if (current.rows[0]?.status === "CANCELLED") throw new ReplayCancelled();
+}
+async function waitUntilRunnable(testRunId: string): Promise<void> {
+  for (;;) {
+    const current = await pool.query<{ status: ReplayStatus }>("SELECT status FROM replay_worker_runs WHERE test_run_id=$1", [testRunId]);
+    if (current.rowCount !== 1) throw new Error("replay run was not found");
+    if (current.rows[0].status === "CANCELLED") throw new ReplayCancelled();
+    if (current.rows[0].status !== "PAUSED") return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
 
 async function start(command: Command) {
   const found = await pool.query<any>("SELECT * FROM replay_worker_runs WHERE test_run_id=$1", [command.testRunId]);
@@ -52,6 +76,7 @@ async function startMulti(command: MultiCommand) {
     const account = await initialized.json() as { snapshot:{accountId:string} };
     const executions: any[] = [];
     for (let index = checkpoint.cursor; index < command.bars.length; index += 1) {
+      await waitUntilRunnable(command.testRunId);
       const bar = command.bars[index];
       const executionCommand = { namespace:command.namespace, accountId:account.snapshot.accountId, clientOrderId:`v2.3-order-${index + 1}`, security:"600000.SH", requestedQuantity:100, bar };
       const authorizationResponse = await fetch(`${governanceUrl}/internal/v1/authorizations`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({namespace:command.namespace,accountId:account.snapshot.accountId,environmentMode:"BACKTEST",brokerMode:"FAKE",command:executionCommand}) });
@@ -70,7 +95,15 @@ async function startMulti(command: MultiCommand) {
     const result = { accountId:account.snapshot.accountId, executions, checkpoint, snapshot:await snapshotResponse.json(), research:await researchResponse.json(), replayedRun:false };
     await pool.query("UPDATE replay_worker_runs SET status='COMPLETED',result=$2::jsonb,completed_at=now() WHERE test_run_id=$1", [command.testRunId, JSON.stringify(result)]);
     return result;
-  } catch (error) { await pool.query("UPDATE replay_worker_runs SET status='FAILED',completed_at=now() WHERE test_run_id=$1", [command.testRunId]); throw error; }
+  } catch (error) {
+    if (error instanceof ReplayCancelled) throw error;
+    await pool.query("UPDATE replay_worker_runs SET status='FAILED',completed_at=now() WHERE test_run_id=$1", [command.testRunId]); throw error;
+  }
+}
+
+async function getRun(testRunId: string) {
+  const found = await pool.query("SELECT test_run_id AS \"testRunId\", namespace, owner_id AS \"ownerId\", scenario_id AS \"scenarioId\", status, checkpoint, result, created_at AS \"createdAt\", completed_at AS \"completedAt\" FROM replay_worker_runs WHERE test_run_id=$1", [testRunId]);
+  return found.rows[0] ?? null;
 }
 async function recoverUnknown(testRunId: string) {
   const found = await pool.query<any>("SELECT result FROM replay_worker_runs WHERE test_run_id=$1", [testRunId]);
@@ -90,12 +123,31 @@ createServer(async(req,res)=>{
   if(req.method==="GET"&&req.url==="/live")return json(res,200,{status:"live",service:"historical-replay-worker"});
   if(req.method==="GET"&&req.url==="/ready"){try{await pool.query("SELECT 1");return json(res,200,{status:"ready",service:"historical-replay-worker"});}catch{return json(res,503,{status:"unavailable"});}}
   const recoveryMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/recover-unknown$/);
-  if (req.method === "POST" && recoveryMatch) { try { return json(res, 200, await recoverUnknown(recoveryMatch[1])); } catch (error) { return json(res, 422, { error: error instanceof Error ? error.message : "invalid recovery" }); } }
+  if (req.method === "POST" && recoveryMatch) {
+    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    try { return json(res, 200, await recoverUnknown(recoveryMatch[1])); } catch (error) { return json(res, 422, { error: error instanceof Error ? error.message : "invalid recovery" }); }
+  }
+  const runMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)$/);
+  if (runMatch && req.method === "GET") {
+    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    const run = await getRun(runMatch[1]); return run ? json(res, 200, run) : json(res, 404, { error: "replay run was not found" });
+  }
+  const actionMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/(pause|resume|cancel)$/);
+  if (actionMatch && req.method === "POST") {
+    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    try {
+      const run = await getRun(actionMatch[1]);
+      if (!run) return json(res, 404, { error: "replay run was not found" });
+      const target = actionMatch[2] === "pause" ? "PAUSED" : actionMatch[2] === "resume" ? "RUNNING" : "CANCELLED";
+      await transition(actionMatch[1], target);
+      return json(res, 200, await getRun(actionMatch[1]));
+    } catch (error) { return json(res, 409, { error: error instanceof Error ? error.message : "invalid replay transition" }); }
+  }
   if (req.method === "POST" && req.url === "/internal/v1/replays/multi") {
     if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
     let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await startMulti(JSON.parse(body) as MultiCommand));}catch(error){return json(res,422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
   }
   if(req.method!=="POST"||req.url!=="/internal/v1/replays")return json(res,404,{error:"not found"});
   if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-  let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await start(JSON.parse(body) as Command));}catch(error){return json(res,422,{error:error instanceof Error?error.message:"invalid replay"});}
+  let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await start(JSON.parse(body) as Command));}catch(error){return json(res,error instanceof ReplayCancelled ? 409 : 422,{error:error instanceof Error?error.message:"invalid replay"});}
 }).listen(port,process.env.STOCKQUANT_BIND_HOST??"127.0.0.1");
