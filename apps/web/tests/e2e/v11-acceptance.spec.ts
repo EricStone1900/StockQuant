@@ -79,6 +79,8 @@ test("V2.3 replay page shows deterministic matching and recovery evidence", asyn
   await page.getByRole("button", { name: "运行检查点恢复" }).click();
   await expect(page.getByTestId("v23-evidence")).toContainText("V2.3-RECOVERY-001");
   await expect(page.getByTestId("v23-evidence")).toContainText('"status": "PASS"');
+  await page.getByRole("button", { name: "查询状态" }).click();
+  await expect(page.getByTestId("v23-worker-status")).toContainText("COMPLETED");
 });
 
 test("V2.4 continuous paper page shows stale and recovery evidence", async ({ page }) => {
