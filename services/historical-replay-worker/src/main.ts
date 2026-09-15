@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { Pool } from "pg";
 import { checkpointForBars, checkpointForExecution } from "./domain/checkpoint.js";
 import { assertTransition, type ReplayStatus } from "./domain/lifecycle.js";
@@ -22,12 +23,24 @@ async function withReplaySlot<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation(); } finally { activeReplays -= 1; replayWaiters.shift()?.(); }
 }
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status,{"content-type":"application/json"}); res.end(JSON.stringify(body)); };
+class ReplayConflict extends Error { constructor(message: string) { super(message); this.name = "ReplayConflict"; } }
+function requestHash(command: Command | MultiCommand): string {
+  const payload = "bar" in command ? { testRunId: command.testRunId, namespace: command.namespace, ownerId: command.ownerId, scenarioId: command.scenarioId, seed: command.seed, bar: command.bar } : { testRunId: command.testRunId, namespace: command.namespace, ownerId: command.ownerId, scenarioId: command.scenarioId, seed: command.seed, bars: command.bars };
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+async function withRunLock<T>(testRunId: string, operation: () => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  const lock = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(hashtext($1)) AS locked", [testRunId]);
+  if (!lock.rows[0]?.locked) { client.release(); throw new ReplayConflict("replay run is already executing"); }
+  try { return await operation(); } finally { await client.query("SELECT pg_advisory_unlock(hashtext($1))", [testRunId]).catch(() => undefined); client.release(); }
+}
 await pool.query(`CREATE TABLE IF NOT EXISTS replay_worker_runs (
-  test_run_id UUID PRIMARY KEY, namespace TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, scenario_id TEXT NOT NULL,
+  test_run_id UUID PRIMARY KEY, namespace TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, scenario_id TEXT NOT NULL, request_hash CHAR(64),
   status TEXT NOT NULL CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED')), checkpoint JSONB NOT NULL, result JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ
 )`);
 await pool.query("ALTER TABLE replay_worker_runs DROP CONSTRAINT IF EXISTS replay_worker_runs_status_check");
 await pool.query("ALTER TABLE replay_worker_runs ADD CONSTRAINT replay_worker_runs_status_check CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED'))");
+await pool.query("ALTER TABLE replay_worker_runs ADD COLUMN IF NOT EXISTS request_hash CHAR(64)");
 
 class ReplayCancelled extends Error { constructor() { super("replay was cancelled"); } }
 async function transition(testRunId: string, to: ReplayStatus): Promise<void> {
@@ -51,10 +64,12 @@ async function waitUntilRunnable(testRunId: string): Promise<void> {
 }
 
 async function start(command: Command) {
+  const hash = requestHash(command);
   const found = await pool.query<any>("SELECT * FROM replay_worker_runs WHERE test_run_id=$1", [command.testRunId]);
+  if (found.rowCount === 1 && found.rows[0].request_hash && found.rows[0].request_hash.trim() !== hash) throw new ReplayConflict("replay request hash conflicts with the persisted run");
   if (found.rowCount === 1 && found.rows[0].status === "COMPLETED") return { ...found.rows[0].result, replayedRun: true };
-  await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,status,checkpoint) VALUES ($1,$2,$3,$4,'RUNNING',$5::jsonb)
-    ON CONFLICT (test_run_id) DO UPDATE SET status='RUNNING', checkpoint=EXCLUDED.checkpoint`, [command.testRunId,command.namespace,command.ownerId,command.scenarioId,JSON.stringify(checkpointForExecution(command.bar.timestamp, command.seed))]);
+  if (found.rowCount === 0) await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb)`, [command.testRunId,command.namespace,command.ownerId,command.scenarioId,hash,JSON.stringify(checkpointForExecution(command.bar.timestamp, command.seed))]);
+  else await pool.query("UPDATE replay_worker_runs SET status='RUNNING', request_hash=COALESCE(request_hash,$2) WHERE test_run_id=$1 AND status IN ('PAUSED','FAILED')", [command.testRunId, hash]);
   try {
     const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`,{method:"POST",headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"},body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`})});
     if (!initialized.ok) throw new Error(`portfolio initialization failed: ${initialized.status}`);
@@ -75,17 +90,21 @@ async function start(command: Command) {
   } catch(error) { await pool.query("UPDATE replay_worker_runs SET status='FAILED', completed_at=now() WHERE test_run_id=$1",[command.testRunId]); throw error; }
 }
 async function startMulti(command: MultiCommand) {
+  const hash = requestHash(command);
   const found = await pool.query<any>("SELECT * FROM replay_worker_runs WHERE test_run_id=$1", [command.testRunId]);
+  if (found.rowCount === 1 && found.rows[0].request_hash && found.rows[0].request_hash.trim() !== hash) throw new ReplayConflict("replay request hash conflicts with the persisted run");
   if (found.rowCount === 1 && found.rows[0].status === "COMPLETED") return { ...found.rows[0].result, replayedRun: true };
   let checkpoint = checkpointForBars(command.bars, command.seed);
   if (found.rowCount === 1 && found.rows[0].checkpoint) checkpoint = found.rows[0].checkpoint;
-  await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,status,checkpoint) VALUES ($1,$2,$3,$4,'RUNNING',$5::jsonb) ON CONFLICT (test_run_id) DO UPDATE SET status='RUNNING',checkpoint=EXCLUDED.checkpoint`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, JSON.stringify(checkpoint)]);
+  if (found.rowCount === 1 && checkpoint.cursor > 0 && !Array.isArray(found.rows[0].result?.executions)) throw new ReplayConflict("persisted checkpoint has no cumulative execution evidence");
+  if (found.rowCount === 0) await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb)`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, hash, JSON.stringify(checkpoint)]);
+  else await pool.query("UPDATE replay_worker_runs SET status='RUNNING', request_hash=COALESCE(request_hash,$2) WHERE test_run_id=$1 AND status IN ('PAUSED','FAILED')", [command.testRunId, hash]);
   try {
     const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`}) });
     if (!initialized.ok) throw new Error(`portfolio initialization failed: ${initialized.status}`);
     const account = await initialized.json() as { snapshot:{accountId:string} };
-    const executions: any[] = [];
-    const eventLog: string[][] = [];
+    const executions: any[] = Array.isArray(found.rows[0]?.result?.executions) ? found.rows[0].result.executions : [];
+    const eventLog: string[][] = Array.isArray(found.rows[0]?.result?.eventLog) ? found.rows[0].result.eventLog : [];
     for (let index = checkpoint.cursor; index < command.bars.length; index += 1) {
       await waitUntilRunnable(command.testRunId);
       const bar = command.bars[index];
@@ -99,7 +118,7 @@ async function startMulti(command: MultiCommand) {
       executions.push(execution);
       eventLog.push(eventsForExecution(execution.status));
       checkpoint = checkpointForBars(command.bars, command.seed, index + 1, executions.map((_, completed) => `v2.3-order-${completed + 1}`));
-      await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint)]);
+      await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb, result=$3::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint), JSON.stringify({ executions, eventLog })]);
     }
     const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId} });
     if (!snapshotResponse.ok) throw new Error(`portfolio snapshot failed: ${snapshotResponse.status}`);
@@ -158,9 +177,9 @@ createServer(async(req,res)=>{
   }
   if (req.method === "POST" && req.url === "/internal/v1/replays/multi") {
     if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-    let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await withReplaySlot(() => startMulti(JSON.parse(body) as MultiCommand)));}catch(error){return json(res,422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
+    let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as MultiCommand;return json(res,200,await withReplaySlot(() => withRunLock(command.testRunId, () => startMulti(command))));}catch(error){return json(res,error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
   }
   if(req.method!=="POST"||req.url!=="/internal/v1/replays")return json(res,404,{error:"not found"});
   if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-  let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await start(JSON.parse(body) as Command));}catch(error){return json(res,error instanceof ReplayCancelled ? 409 : 422,{error:error instanceof Error?error.message:"invalid replay"});}
+  let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as Command;return json(res,200,await withRunLock(command.testRunId, () => start(command)));}catch(error){return json(res,error instanceof ReplayCancelled || error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid replay"});}
 }).listen(port,process.env.STOCKQUANT_BIND_HOST??"127.0.0.1");
