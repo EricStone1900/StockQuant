@@ -31,6 +31,11 @@ export function evaluatePromotion({ schedules, reports, config }) {
   return { ok: reasons.length === 0, reasons, alreadyPromoted };
 }
 
+export function verifyPromotedRuntime(ready, config) {
+  const ids = Array.isArray(ready?.collectionSecurityIds) ? ready.collectionSecurityIds : [];
+  return ready?.status === "ready" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
+}
+
 async function request(baseUrl, path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", ...(options.headers ?? {}) } });
   const body = await response.json().catch(() => ({}));
@@ -58,12 +63,24 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
   if (!decision.ok) return { status: "BLOCKED", reasons: decision.reasons, exitCode: 2 };
   if (decision.alreadyPromoted) return { status: "ALREADY_PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
   if (checkOnly) return { status: "READY_TO_PROMOTE", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
+  const build = command([...compose, "build", "market-data-service"], { env });
+  if (build.status !== 0) return { status: "FAILED", reasons: [build.stderr.trim() || "promotion image build failed"], exitCode: 1 };
   await requestFn(baseUrl, "/v2/collection-schedules", { method: "POST", body: JSON.stringify({ subscriptionId: config.targetId, subscriptionVersion: 1, fromDate: config.fromDate, toDate: config.toDate, calendarVersion: config.calendarVersion }) });
-  await requestFn(baseUrl, `/v2/collection-schedules/${encodeURIComponent(config.shortId)}/disable`, { method: "POST", body: "{}" });
-  await requestFn(baseUrl, `/v2/collection-schedules/${encodeURIComponent(config.targetId)}/enable`, { method: "POST", body: "{}" });
-  const result = command([...compose, "up", "-d", "--build", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.targetId, STOCKQUANT_COLLECTION_SECURITY_IDS: config.securityIds.join(",") } });
-  if (result.status !== 0) return { status: "FAILED", reasons: [result.stderr.trim() || "promotion compose failed"], exitCode: 1 };
-  return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
+  let switched = false;
+  try {
+    await requestFn(baseUrl, "/v2/collection-schedules/switch", { method: "POST", body: JSON.stringify({ sourceSubscriptionId: config.shortId, targetSubscriptionId: config.targetId }) });
+    switched = true;
+    const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.targetId, STOCKQUANT_COLLECTION_SECURITY_IDS: config.securityIds.join(",") } });
+    if (result.status !== 0) throw new Error(result.stderr.trim() || "promotion compose failed");
+    const ready = await requestFn(baseUrl, "/ready");
+    if (!verifyPromotedRuntime(ready, config)) throw new Error("promoted service is not healthy with the frozen 20-security configuration");
+    return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
+  } catch (error) {
+    if (switched) {
+      try { await requestFn(baseUrl, "/v2/collection-schedules/switch", { method: "POST", body: JSON.stringify({ sourceSubscriptionId: config.targetId, targetSubscriptionId: config.shortId }) }); } catch (rollbackError) { return { status: "FAILED", reasons: [String(error), `rollback failed: ${String(rollbackError)}`], exitCode: 1 }; }
+    }
+    return { status: "FAILED", reasons: [String(error)], exitCode: 1 };
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

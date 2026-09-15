@@ -125,6 +125,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const schedule = await collectionSchedules.upsert({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), fromDate: String(body.fromDate), toDate: String(body.toDate), calendarVersion: String(body.calendarVersion) });
       return json(res, schedule, 201);
     }
+    if (req.url === "/v2/collection-schedules/switch" && req.method === "POST") {
+      if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+      if (typeof body.sourceSubscriptionId !== "string" || typeof body.targetSubscriptionId !== "string" || !body.sourceSubscriptionId || !body.targetSubscriptionId) return json(res, { code: "INVALID_SCHEDULE_SWITCH" }, 422);
+      try { return json(res, await collectionSchedules.switchEnabled(body.sourceSubscriptionId, body.targetSubscriptionId)); }
+      catch (error) { if (error instanceof CollectionScheduleConflict) return json(res, { code: "SCHEDULE_SWITCH_CONFLICT", message: error.message }, 409); throw error; }
+    }
     const scheduleMatch = req.url?.match(/^\/v2\/collection-schedules\/([^/]+)(?:\/(enable|disable))?$/);
     if (scheduleMatch && req.method === "GET" && !scheduleMatch[2]) {
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);

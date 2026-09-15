@@ -54,10 +54,10 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const published = await repository.publish(created.run.runId, claimed!.fencingToken, `artifact-${suffix}`);
     expect(published.status).toBe("COMPLETED");
     expect(published.publishedArtifactId).toBe(`artifact-${suffix}`);
-    const events = (await repository.pendingEvents()).filter((event) => event.runId === created.run.runId);
+    const events = (await repository.pendingEvents(10_000)).filter((event) => event.runId === created.run.runId);
     expect(events).toHaveLength(1);
     await repository.markEventSent(events[0].eventId);
-    expect((await repository.pendingEvents()).some((event) => event.runId === created.run.runId)).toBe(false);
+    expect((await repository.pendingEvents(10_000)).some((event) => event.runId === created.run.runId)).toBe(false);
   });
 
   it("lets a new worker take over an expired lease and fences the old worker", async () => {
@@ -97,13 +97,13 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const created = await repository.create(request);
     const claimed = await repository.claim(created.run.runId, 30);
     await repository.publish(created.run.runId, claimed!.fencingToken, `artifact-${suffix}-outbox`);
-    const pending = await repository.pendingEvents();
+    const pending = await repository.pendingEvents(10_000);
     expect(pending.some((event) => event.runId === created.run.runId)).toBe(true);
     // Simulate a broker outage: the dispatcher does not mark the event sent.
-    expect((await repository.pendingEvents()).some((event) => event.runId === created.run.runId)).toBe(true);
+    expect((await repository.pendingEvents(10_000)).some((event) => event.runId === created.run.runId)).toBe(true);
     const event = pending.find((item) => item.runId === created.run.runId)!;
     await repository.markEventSent(event.eventId);
-    expect((await repository.pendingEvents()).some((item) => item.runId === created.run.runId)).toBe(false);
+    expect((await repository.pendingEvents(10_000)).some((item) => item.runId === created.run.runId)).toBe(false);
   });
 
   it("recovers after a real worker process is terminated and fences its lease", async () => {
@@ -140,7 +140,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const published = await repository.publish(created.run.runId, claimed!.fencingToken, artifactId, { sha256, rowCount });
     expect(published.status).toBe("COMPLETED");
     expect(await repository.findArtifact(artifactId)).toEqual({ artifactId, runId: created.run.runId, sha256, rowCount });
-    const event = (await repository.pendingEvents()).find((item) => item.runId === created.run.runId)!;
+    const event = (await repository.pendingEvents(10_000)).find((item) => item.runId === created.run.runId)!;
     expect(event.payload).toMatchObject({ runId: created.run.runId, artifactId, sha256, rowCount });
   });
 
@@ -184,6 +184,24 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(secondTick.submitted).toBe(0);
     expect((await schedules.find(subscriptionId))?.version).toBe(after?.version);
     expect(enabled.version).toBeLessThan(after!.version);
+    await schedules.setEnabled(subscriptionId, false);
+  });
+
+  it("switches enabled subscriptions atomically", async () => {
+    const current = (await schedules.enabled())[0];
+    const sourceId = current?.subscriptionId ?? `switch-source-${suffix}`;
+    const targetId = `switch-target-${suffix}`;
+    if (!current) {
+      await schedules.upsert({ subscriptionId: sourceId, subscriptionVersion: 1, fromDate: "2026-09-11", toDate: "2026-09-11", calendarVersion: "fixture-cn-1" });
+      await schedules.setEnabled(sourceId, true);
+    }
+    await schedules.upsert({ subscriptionId: targetId, subscriptionVersion: 1, fromDate: "2026-09-11", toDate: "2026-09-11", calendarVersion: "fixture-cn-1" });
+    const switched = await schedules.switchEnabled(sourceId, targetId);
+    expect(switched.source.enabled).toBe(false);
+    expect(switched.target.enabled).toBe(true);
+    expect((await schedules.find(sourceId))?.enabled).toBe(false);
+    expect((await schedules.find(targetId))?.enabled).toBe(true);
+    await schedules.switchEnabled(targetId, sourceId);
   });
 
   it("persists gaps and makes backfill requests idempotent", async () => {

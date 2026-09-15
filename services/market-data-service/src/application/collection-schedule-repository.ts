@@ -71,6 +71,33 @@ export class CollectionScheduleRepository {
     return this.map(result.rows[0]);
   }
 
+  async switchEnabled(sourceId: string, targetId: string): Promise<{ source: CollectionSchedule; target: CollectionSchedule }> {
+    if (sourceId === targetId) throw new CollectionScheduleConflict("source and target subscriptions must differ");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const rows = await client.query<ScheduleRow>("SELECT * FROM market_data_collection_schedules WHERE subscription_id IN ($1,$2) FOR UPDATE", [sourceId, targetId]);
+      const source = rows.rows.find((row) => row.subscription_id === sourceId);
+      const target = rows.rows.find((row) => row.subscription_id === targetId);
+      if (!source || !target) throw new CollectionScheduleConflict("source or target subscription was not found");
+      const other = await client.query<{ subscription_id: string }>("SELECT subscription_id FROM market_data_collection_schedules WHERE enabled=true AND subscription_id NOT IN ($1,$2)", [sourceId, targetId]);
+      if (other.rowCount) throw new CollectionScheduleConflict("another subscription is already enabled");
+      if (!source.enabled && target.enabled) {
+        await client.query("COMMIT");
+        return { source: this.map(source), target: this.map(target) };
+      }
+      if (!source.enabled) throw new CollectionScheduleConflict("source subscription is not enabled");
+      await client.query("UPDATE market_data_collection_schedules SET enabled=false, version=version+1, updated_at=now() WHERE subscription_id=$1", [sourceId]);
+      await client.query("UPDATE market_data_collection_schedules SET enabled=true, version=version+1, updated_at=now() WHERE subscription_id=$1", [targetId]);
+      const switched = await client.query<ScheduleRow>("SELECT * FROM market_data_collection_schedules WHERE subscription_id IN ($1,$2)", [sourceId, targetId]);
+      await client.query("COMMIT");
+      return { source: this.map(switched.rows.find((row) => row.subscription_id === sourceId)!), target: this.map(switched.rows.find((row) => row.subscription_id === targetId)!) };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  }
+
   async advanceWatermark(subscriptionId: string, expectedVersion: number, watermarkEnd: string): Promise<CollectionSchedule> {
     const result = await this.pool.query<ScheduleRow>("UPDATE market_data_collection_schedules SET watermark_end=$3, version=version+1, updated_at=now() WHERE subscription_id=$1 AND version=$2 AND enabled=true RETURNING *", [subscriptionId, expectedVersion, watermarkEnd]);
     if (result.rowCount !== 1) throw new CollectionScheduleConflict("schedule watermark is stale or disabled");
