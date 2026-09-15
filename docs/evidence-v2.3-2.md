@@ -55,3 +55,7 @@
 
 - 重建并重启 `historical-replay-worker` 后提交 8 Bar 多窗口任务 `8b8c50b8-9e43-4f02-bd6a-310fdd0ab53a`；暂停接口返回 200，查询状态为 `PAUSED`，恢复接口返回 200，最终完成 cursor=8，8 个订单均有持久 `completedOrderIds`，证明恢复使用数据库检查点而非从零开始。
 - 取消任务 `2dabbeaf-c273-42c1-99bf-2708b128eff6`；取消接口返回 200，原执行请求以 HTTP 422 `replay was cancelled` 收口，未继续推进。两项均使用服务身份保护接口和 Fixture/FAKE/BACKTEST。
+
+### 并发隔离实测（2026-09-15）
+
+- Docker Worker 同时提交 5 个隔离的 4 Bar 任务；5/5 返回 HTTP 200，均完成到 `cursor=4`，每个任务均产生 4 笔执行，且账户 ID 分别为 `9d3dd927-5d4a-44b4-9add-90c789c2b20c`、`6865a5e3-3057-4c77-9368-d4cbdeed9b5e`、`f164539f-744d-4481-bac4-03ac945c0259`、`576cdf47-8484-4c3d-9bc0-96bb855e0ec4`、`c1a8c29c-31cd-47b9-ad84-b3137ba17b5d`，无跨任务串用。
