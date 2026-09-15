@@ -8,7 +8,7 @@
 
 ## 2. 当前完成与待办
 
-当前优先级：先完成本模块DC-00～DC-07及DC-08A，再恢复主项目其他开发；DC-08B届时后台继续。仅本模块必要兼容修改和原有功能回归可在当前开发；既有观察任务继续。任务开始时重新核对Git及部署状态，本文尚不表示已经启动开发。
+当前优先级：先完成本模块DC-00～DC-07及DC-08A，再恢复主项目其他开发；DC-08B届时后台继续。20只隔离吞吐验证不切换正式订阅；定时任务健康检查需记录最近成功 Tick 与下一触发时间。仅本模块必要兼容修改和原有功能回归可在当前开发；既有观察任务继续。
 
 两项交付分别记录：本次模块开发交付TODO；后续60日数据验收TODO。启用累积后后者可变WAITING；本次交付依据计划2.1及DC-T25，不能因后台观察未满误认为代码未完成，也不能跳过短期真实运行。
 
@@ -30,6 +30,8 @@
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
 | DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14、2026-09-15各完成48窗口/144根5分钟Bar、0缺口、0非取消待投递Outbox；20只切换门禁返回READY_TO_PROMOTE | NOT_RUN | `evidence/dc08a/daily-report-2026-09-14.json`、`daily-report-2026-09-15.json`、两日 coverage 报告 | 在2026-09-17开盘前切换20只冻结集合，并完成至少1个实际交易日 |
 | DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
+
+2026-09-15 代码与容量复核：20只证券隔离监控池测试使用 `V25_MONITOR_SIZES=20 pnpm v25:monitor-capacity`，返回 configured/sampled/live 均为20、耗时47ms，测试后 watchlist 恢复3只，未修改正式活动订阅。持久调度器状态接口新增 `lastSuccessfulTickAt`、`nextExecutionAt`、`lastSubmitted`，盘后无待执行窗口时仅保留低频健康轮询。market-data-service 单元35/35、PostgreSQL集成17/17、全仓 lint/typecheck/test、契约/Fixture、Docker DC-07、V2.5 Web E2E、ARM64兼容性均通过；`pnpm test:integration` 因既有验收服务等待超时未完成，保留为待重跑项。人工验收和真实交易日观察不因本次自动测试提前签署。
 
 ## 3. 开发中断接续协议
 

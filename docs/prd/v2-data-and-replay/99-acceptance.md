@@ -12,7 +12,7 @@
 | [V2.4 真实时钟下持续模拟交易](./04-continuous-paper-trading.md) | PARTIALLY_IMPLEMENTED（持续 Paper 场景、快照新鲜度、重复调度幂等、断网恢复和日终对账切片） | PASS（用户人工验收确认，2026-09-11；实现范围） | `docs/evidence-v2.4.md`；normal `755cb415-0f1d-433a-aaa4-6378d5e7f1cf`；rejection `ac6e5e4a-cdfc-4a54-9731-4f3bce0e0f52`；recovery `8bb6606e-96c0-4ca4-8deb-9df40c0bbbb9`；Manifest `5e7bf52c19d4167846673ca581216337af3f03133a9cd1392ed1c55e140d0842` | 20 个实际交易日观察尚未完成，真实来源长期稳定性/许可和全量容量待验证 | 用户人工确认 / 2026-09-11；技术复核 / 2026-09-11 |
 | [V2.5 历史数据扩容与 V2 验收](./05-data-scale-and-v2-acceptance.md) | PARTIALLY_IMPLEMENTED（20×60 Fixture 与 BaoStock 真实分钟切片、回归/PIT/缓存/资源/恢复切片；真实 20 标的 55,680 行及 20/20 SHA-256/质量检查通过；Mac 监控池 50/80/100 质量、5/100/500/5219 多年日线、归档和隔离恢复 5,219/5,219 SHA-256 通过；BaoStock 财务公告日字段已核验但行业 PIT/修订链不足；稳定性未取得 PASS；Ubuntu 实机人工子项已确认通过） | NOT_RUN（V2.5 整体待用户人工验收） | `docs/evidence-v2.5.md`；normal `fe37c045-962f-40be-84b1-36d33df08184`；rejection `9996f785-fd7c-4912-b839-c6e0389f4c9f`；recovery `0727a1c4-ed36-4ae8-9a94-543d287cdc68`；Fixture Manifest `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e` | 分钟级全量、长期限频/恢复稳定性、60日备用免费分钟源、带修订链的真实 PIT、容量长期稳定性和 V2.4 20 日观察待完成；Ubuntu 原始技术日志待补 | 技术复核 / 2026-09-12 |
 
-最新复核（2026-09-15）：DC-08A 短期订阅 `dc08a-20260914-short-v1` 已在2026-09-14、2026-09-15各完成48个窗口、144/144根5分钟Bar、0开放缺口；两份最终日终报告均为`PASS`，20只受保护切换检查返回 `READY_TO_PROMOTE`。实际来源为Sina，BaoStock盘中成功率仍待观察；20只实际交易日、60日覆盖、V2.4其余19个有效观察日及人工验收继续保持未完成。
+最新复核（2026-09-15）：DC-08A 短期订阅 `dc08a-20260914-short-v1` 已在2026-09-14、2026-09-15各完成48个窗口、144/144根5分钟Bar、0开放缺口；两份最终日终报告均为`PASS`，20只受保护切换检查返回 `READY_TO_PROMOTE`。另完成不改正式订阅的20只隔离吞吐测试（20/20 LIVE_SOURCE，watchlist恢复3只）。实际来源为Sina，BaoStock盘中成功率仍待观察；20只实际交易日、60日覆盖、V2.4其余19个有效观察日及人工验收继续保持未完成。
 
 ## 2. 版本门禁
 

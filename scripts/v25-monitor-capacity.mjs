@@ -1,5 +1,6 @@
 const baseUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
-const sizes = [50, 80, 100];
+const sizes = (process.env.V25_MONITOR_SIZES ?? "50,80,100").split(",").map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0 && value <= 100);
+if (sizes.length === 0) throw new Error("V25_MONITOR_SIZES must contain at least one size between 1 and 100");
 const request = async (path, init) => {
   const response = await fetch(`${baseUrl}${path}`, { ...init, signal: AbortSignal.timeout(30_000) });
   const body = await response.json().catch(() => ({}));

@@ -5,7 +5,14 @@ import { CollectionScheduler } from "./collection-scheduler.js";
 
 export class PersistentCollectionSchedulerWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private lastSuccessfulTickAt: string | null = null;
+  private nextExecutionAt: string | null = null;
+  private lastSubmitted = 0;
   constructor(private readonly schedules: CollectionScheduleRepository, private readonly runs: CollectionRunRepository, private readonly planner: CollectionScheduler, private readonly ownerId: string) {}
+
+  status(): { enabled: boolean; lastSuccessfulTickAt: string | null; nextExecutionAt: string | null; lastSubmitted: number } {
+    return { enabled: this.timer !== null, lastSuccessfulTickAt: this.lastSuccessfulTickAt, nextExecutionAt: this.nextExecutionAt, lastSubmitted: this.lastSubmitted };
+  }
 
   async tick(): Promise<{ leaseAcquired: boolean; schedules: number; submitted: number }> {
     const lease = await this.schedules.acquireLease(this.ownerId, 90);
@@ -13,8 +20,10 @@ export class PersistentCollectionSchedulerWorker {
     let submitted = 0;
     const active = await this.schedules.enabled();
     this.planner.enable();
+    let nextExecutionAt: string | null = null;
     for (const schedule of active) {
       const plan = this.planner.plan(schedule.subscriptionId, schedule.fromDate, schedule.toDate, new Set(), schedule.watermarkEnd);
+      if (plan.nextExecutionAt && (!nextExecutionAt || plan.nextExecutionAt < nextExecutionAt)) nextExecutionAt = plan.nextExecutionAt;
       let lastWindowEnd: string | null = null;
       for (const window of plan.windows) {
         const requestHash = createHash("sha256").update(window.idempotencyKey).digest("hex");
@@ -24,6 +33,9 @@ export class PersistentCollectionSchedulerWorker {
       }
       if (lastWindowEnd) await this.schedules.advanceWatermark(schedule.subscriptionId, schedule.version, lastWindowEnd);
     }
+    this.lastSuccessfulTickAt = new Date().toISOString();
+    this.nextExecutionAt = nextExecutionAt;
+    this.lastSubmitted = submitted;
     return { leaseAcquired: true, schedules: active.length, submitted };
   }
 

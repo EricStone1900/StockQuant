@@ -7,7 +7,7 @@
 | OD-001 | Node、pnpm、TypeScript、Web/服务框架精确版本 | 开发者 | V1.1 开始实现前 | Node 24.1.0、pnpm 10.34.5 已写入基线；框架/依赖和实际构建仍待锁定 | PARTIAL |
 | OD-002 | V1.1 Python 版本及 uv 工具版本 | 开发者 | V1.1 Python 服务建立前 | Python 切片不启动 | OPEN |
 | OD-003 | PostgreSQL、Artifact 实现、容器镜像、端口和卷名 | 开发者 | V1.1 Compose 建立前 | `stack:up` 保持未实现 | OPEN |
-| OD-004 | 本地用户会话与服务身份的具体实现 | 项目所有者、开发者 | V1.1 API 实现前 | 所有写接口不可匿名开放 | OPEN |
+| OD-004 | 本地用户会话与服务身份的具体实现 | 项目所有者、开发者 | V1.1 API 实现前 | 采集控制写接口已要求 `x-stockquant-control-token`；完整用户会话方案仍待统一 | PARTIAL |
 | OD-005 | V1.1 CN/US 初始化 Fixture ID、预期账本和保留策略 | 开发者 | V1.1 场景冻结前 | 已建立[草案 Manifest](../../fixtures/v1/v1.1/manifest.json)；需实现后实测冻结 | PARTIAL |
 | OD-006 | Qlib source commit、Python/数值栈和 ARM64 镜像 | 开发者 | V1.2 实现前 | 只保留 Adapter，不能声称 Qlib 通过 | OPEN |
 | OD-007 | 策略持有期、再平衡、基准和组合数量（PRD Q05） | 项目所有者 | V1.2 策略验证前 | 使用计划中的低换手样例且不晋升 | OPEN |
