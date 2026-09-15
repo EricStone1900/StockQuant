@@ -43,3 +43,10 @@
 - 证据导出：目录 `evidence/local/V2.3/6522c574-fc20-472b-8eba-1a0b59024d9c`，Manifest SHA-256 `02293ca437201a36096a7e04631f5be837869a49f9bb9be490f4b64a9995002a`。
 - 候选持久化：重启服务后 `candidate-persisted` 查询 HTTP 200，状态 `CANDIDATE_APPROVED`，激活仍为 `DISABLED_UNTIL_MANDATE`。
 - 问题记录：首次复核发现量化研究验证项在单 Bar 输入下被错误标记为 FAIL，已修复为 `NOT_APPLICABLE`，重建容器后全场景复核通过；首次 Playwright 运行受 macOS 沙箱权限影响，授权重跑后通过。
+
+### Docker 跨服务复验（2026-09-15）
+
+- 环境：Docker Compose 服务均为 `running`，`BACKTEST` + `FAKE`，seed `20260907`。
+- 执行：`pnpm verify:stage -- --stage V2.3 --scenario normal|rejection|recovery --seed 20260907`。
+- 结果：normal、rejection、recovery 均 `COMPLETED`，退出码 0；运行 ID 分别为 `b4134cf7-8c60-4fbd-b848-00bcf2182adc`、`c5fbef2f-9502-42a3-afc9-bb8c31802ef9`、`4fcba255-46f2-4a8f-aa06-6ce05a6ab74b`。正常场景完成 FakeBroker 部分成交、组合账本对账与事件屏障；拒绝场景无 Fill；恢复场景无重复 Fill。
+- 边界：本记录属于 Fixture/FAKE/BACKTEST 跨服务证据，不代表真实市场数据、真实券商或 LIVE 能力。
