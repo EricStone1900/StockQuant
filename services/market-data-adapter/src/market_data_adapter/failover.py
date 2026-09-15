@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+import json
+import os
 from dataclasses import dataclass
 from typing import Callable, Protocol, Sequence
 
@@ -94,13 +96,47 @@ class _Provider:
 
 
 class FailoverCollector:
-    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic, health_path: str | None = None) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
         self.sleeper = sleeper
         self.clock = clock
+        self.health_path = health_path
         self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper)) for source, client in providers]
+        self._load_health()
+
+    def _load_health(self) -> None:
+        if not self.health_path or not os.path.exists(self.health_path):
+            return
+        try:
+            with open(self.health_path, encoding="utf-8") as handle:
+                state = json.load(handle)
+            for provider in self.providers:
+                saved = state.get(provider.source_id, {})
+                provider.breaker.failures = int(saved.get("failures", 0))
+                provider.breaker.state = str(saved.get("state", "CLOSED"))
+                if provider.breaker.state == "OPEN":
+                    elapsed = max(0.0, time.time() - float(saved.get("openedAt", time.time())))
+                    provider.breaker.opened_at = self.clock() - elapsed
+        except (OSError, ValueError, TypeError):
+            return
+
+    def _save_health(self) -> None:
+        if not self.health_path:
+            return
+        state = {}
+        for provider in self.providers:
+            opened_at = None
+            if provider.breaker.opened_at is not None:
+                opened_at = time.time() - max(0.0, self.clock() - provider.breaker.opened_at)
+            state[provider.source_id] = {"failures": provider.breaker.failures, "state": provider.breaker.state, "openedAt": opened_at}
+        directory = os.path.dirname(self.health_path) or "."
+        os.makedirs(directory, exist_ok=True)
+        temporary = self.health_path + ".tmp"
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, separators=(",", ":"))
+        os.replace(temporary, self.health_path)
 
     def collect(self, security_ids: Sequence[str], start: str, end: str) -> tuple[str, list[NormalizedBar], list[dict[str, object]]]:
         attempts: list[dict[str, object]] = []
@@ -120,6 +156,7 @@ class FailoverCollector:
                         raise SourceError("SOURCE_MISMATCH", "normalized bar source does not match adapter", retryable=False)
                     provider.breaker.success()
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "status": "PASS", "rows": len(bars)})
+                    self._save_health()
                     return provider.source_id, bars, attempts
                 except SourceError as error:
                     provider.breaker.failure()
@@ -132,4 +169,5 @@ class FailoverCollector:
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
                     if attempt < self.max_attempts:
                         self.sleeper(self.backoff_seconds * attempt)
+        self._save_health()
         raise AllSourcesFailed(attempts)

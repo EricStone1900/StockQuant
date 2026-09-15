@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+import os
 
 from market_data_adapter.failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
 
@@ -57,6 +59,16 @@ class FailoverTests(unittest.TestCase):
             collector.collect(["600000.SH"], "2025-09-11", "2025-09-11")
         self.assertEqual(failure.exception.code, "OUT_OF_SOURCE_RANGE")
         self.assertFalse(failure.exception.retryable)
+
+    def test_health_state_survives_new_collector(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with self.assertRaises(AllSourcesFailed):
+                FailoverCollector([("baostock", FakeSource([SourceError("TIMEOUT", "slow")] * 3))], max_attempts=3, backoff_seconds=0, sleeper=lambda _: None, health_path=path).collect(["600000.SH"], "2026-09-11", "2026-09-11")
+            restored = FailoverCollector([("baostock", FakeSource([[bar("baostock")]]))], health_path=path)
+            with self.assertRaises(AllSourcesFailed) as failure:
+                restored.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+            self.assertEqual(failure.exception.attempts[0]["code"], "CIRCUIT_OPEN")
 
 
 if __name__ == "__main__":

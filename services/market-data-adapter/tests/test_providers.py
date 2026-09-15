@@ -48,6 +48,13 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(bars[0].amount, "1000")
         self.assertEqual(bars[0].source_id, "sina")
 
+    def test_sina_client_limits_each_security(self):
+        payload = [{"day": "2026-09-11 09:30:00", "open": 1, "high": 1, "low": 1, "close": 1, "volume": 1, "amount": 1}]
+        waits = []
+        client = SinaMinuteClient(opener=lambda request, timeout: Response("=(" + json.dumps(payload) + ");"), minimum_interval_seconds=1, sleeper=waits.append, clock=lambda: 0)
+        client.fetch(["600000.SH", "000001.SZ"], "2026-09-11", "2026-09-11", 1)
+        self.assertEqual(waits, [1])
+
     def test_translates_public_symbols_for_each_provider(self):
         self.assertEqual(baostock_symbol("600000.SH"), "sh.600000")
         self.assertEqual(sina_symbol("000001.SZ"), "sz000001")
