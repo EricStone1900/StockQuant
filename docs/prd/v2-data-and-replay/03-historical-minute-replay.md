@@ -65,6 +65,8 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 
 2026-09-15 Web E2E 复验：启动 `pnpm dev:web` 后执行 `pnpm test:e2e -- --stage V2.3`，Playwright 场景“V2.3 replay page shows deterministic matching and recovery evidence”通过 1/1（退出码 0）。本次仅覆盖现有验收页和 Fixture API 断言，不能替代真实跨服务历史回放验收。
 
+2026-09-15 Worker 生命周期实测：Docker 重建 Worker 后，8 Bar 任务暂停查询为 `PAUSED`，恢复后从持久检查点完成到 cursor=8；另一 20 Bar 任务取消后以 `replay was cancelled` 收口，未继续推进。生命周期 API 的跨服务实测通过；长时高并发、Web 按钮驱动的实际暂停/恢复仍待补充。
+
 ## 8. 阶段验收操作手册
 
 ### 8.1 当前可执行性与验收准备

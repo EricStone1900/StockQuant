@@ -50,3 +50,8 @@
 - 执行：`pnpm verify:stage -- --stage V2.3 --scenario normal|rejection|recovery --seed 20260907`。
 - 结果：normal、rejection、recovery 均 `COMPLETED`，退出码 0；运行 ID 分别为 `b4134cf7-8c60-4fbd-b848-00bcf2182adc`、`c5fbef2f-9502-42a3-afc9-bb8c31802ef9`、`4fcba255-46f2-4a8f-aa06-6ce05a6ab74b`。正常场景完成 FakeBroker 部分成交、组合账本对账与事件屏障；拒绝场景无 Fill；恢复场景无重复 Fill。
 - 边界：本记录属于 Fixture/FAKE/BACKTEST 跨服务证据，不代表真实市场数据、真实券商或 LIVE 能力。
+
+### Worker 生命周期实测（2026-09-15）
+
+- 重建并重启 `historical-replay-worker` 后提交 8 Bar 多窗口任务 `8b8c50b8-9e43-4f02-bd6a-310fdd0ab53a`；暂停接口返回 200，查询状态为 `PAUSED`，恢复接口返回 200，最终完成 cursor=8，8 个订单均有持久 `completedOrderIds`，证明恢复使用数据库检查点而非从零开始。
+- 取消任务 `2dabbeaf-c273-42c1-99bf-2708b128eff6`；取消接口返回 200，原执行请求以 HTTP 422 `replay was cancelled` 收口，未继续推进。两项均使用服务身份保护接口和 Fixture/FAKE/BACKTEST。

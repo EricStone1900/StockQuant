@@ -70,6 +70,7 @@ async function startMulti(command: MultiCommand) {
   const found = await pool.query<any>("SELECT * FROM replay_worker_runs WHERE test_run_id=$1", [command.testRunId]);
   if (found.rowCount === 1 && found.rows[0].status === "COMPLETED") return { ...found.rows[0].result, replayedRun: true };
   let checkpoint = checkpointForBars(command.bars, command.seed);
+  if (found.rowCount === 1 && found.rows[0].checkpoint) checkpoint = found.rows[0].checkpoint;
   await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,status,checkpoint) VALUES ($1,$2,$3,$4,'RUNNING',$5::jsonb) ON CONFLICT (test_run_id) DO UPDATE SET status='RUNNING',checkpoint=EXCLUDED.checkpoint`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, JSON.stringify(checkpoint)]);
   try {
     const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`}) });
