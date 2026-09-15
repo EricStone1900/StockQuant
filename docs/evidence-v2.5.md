@@ -72,3 +72,13 @@ PostgreSQL 数据采集集成复验（2026-09-15）：使用本地 Docker Postgr
 `MARKET_DATA_DATABASE_URL=postgresql://market_data:market_data_local_only@localhost:5433/market_data pnpm --filter @stockquant/market-data-service exec vitest run tests/integration/collection-run-postgres.spec.ts`，15/15 通过，覆盖分区运行、检查点、租约接管、恢复、配额和项目隔离；不代表分钟级全市场容量。
 
 V2.5 代码套件复验（2026-09-15）：执行 `pnpm verify:stage -- --stage V2.5 --suite code`，文档链接 403/403、契约 19/19、Fixture 8/8、全仓构建、lint、类型检查及各服务单测全部通过，退出码 0。该结果证明代码回归通过，不改变 V2.5 实际数据容量和人工验收门禁。
+
+V2.5 Web 端到端复验（2026-09-15）：执行
+`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.5`，V2.5
+扩容页回归与恢复证据场景 1/1 通过，退出码 0。该结果证明 Web 页面可读取既有证据，
+不替代真实来源、容量和人工观察门禁。
+
+项目级门禁复验（2026-09-15）：`pnpm verify:compat -- --platform linux/arm64`
+返回 `PASS`（容器 `linux/arm64`、Node `v24.1.0`）。`pnpm verify:version -- --version V2`
+按设计返回退出码 1（`NOT_PASS`），明确列出 V2.3 补偿/完整恢复编排、V2.4 20 个交易日
+观察以及 V2.5 分钟全量/长期稳定性/60 日备用源等未满足门禁；该非零结果为预期，不是测试故障。
