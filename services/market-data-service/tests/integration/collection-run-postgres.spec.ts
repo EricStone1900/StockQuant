@@ -219,6 +219,12 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(await repository.summarizeBackfill(taskId)).toEqual({ total: 2, completed: 2, failed: 0, active: 0 });
   });
 
+  it("keeps a backfill task queued when its expansion is incomplete", async () => {
+    const task = await coverage.createBackfill(`queued-${suffix}`, "2026-09-11", "2026-09-11", `queued-${suffix}`);
+    expect(task.task.status).toBe("QUEUED");
+    expect(await repository.summarizeBackfill(task.task.taskId)).toEqual({ total: 0, completed: 0, failed: 0, active: 0 });
+  });
+
   it("closes resolved gaps during scoped reconciliation", async () => {
     const subscriptionId = `coverage-reconcile-${suffix}`;
     const gap = { gapId: `gap-reconcile-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const };

@@ -246,11 +246,14 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey || !/^\d{4}-\d{2}-\d{2}$/.test(body.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.toDate) || body.toDate < body.fromDate) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
       try {
         const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
-        if (!result.created || !collectionRuns || !collectionSchedules) return json(res, result, result.created ? 201 : 200);
+        if (!collectionRuns || !collectionSchedules) return json(res, result, result.created ? 201 : 200);
+        if (result.task.status !== "QUEUED") return json(res, result, result.created ? 201 : 200);
         const schedule = await collectionSchedules.find(body.subscriptionId);
         if (!schedule) return json(res, { ...result, expandedRunCount: 0, expansionStatus: "WAITING_DEPENDENCY" }, 201);
         collectionScheduler.enable();
-        const plan = collectionScheduler.plan(body.subscriptionId, body.fromDate, body.toDate, new Set(), null, 500);
+        const plan = collectionScheduler.plan(body.subscriptionId, body.fromDate, body.toDate, new Set(), null, 100_000);
+        if (plan.truncated) return json(res, { ...result, expandedRunCount: 0, waitingDates: plan.waitingDates, expansionStatus: "TOO_LARGE", reason: "backfill exceeds the safe expansion limit of 100000 windows" }, 422);
+        if (plan.waitingDates.length) return json(res, { ...result, expandedRunCount: 0, waitingDates: plan.waitingDates, expansionStatus: "WAITING_DEPENDENCY" }, 202);
         let expandedRunCount = 0;
         for (const window of plan.windows) {
           const idempotencyKey = `${result.task.taskId}|${window.windowStart}|${window.windowEnd}|BACKFILL`;
@@ -258,7 +261,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
           if (createdRun.created) expandedRunCount += 1;
         }
         await coverageRepository.claimBackfill(result.task.taskId);
-        return json(res, { ...result, expandedRunCount, waitingDates: plan.waitingDates, expansionStatus: plan.waitingDates.length ? "PARTIAL" : "READY" }, 201);
+        return json(res, { ...result, task: { ...result.task, status: "RUNNING" }, expandedRunCount, waitingDates: plan.waitingDates, expansionStatus: "READY" }, result.created ? 201 : 200);
       } catch (error) {
         if (error instanceof BackfillConflict) return json(res, { code: "IDEMPOTENCY_CONFLICT", message: error.message }, 409);
         throw error;

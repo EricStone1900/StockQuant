@@ -58,4 +58,12 @@ describe("CollectionScheduler", () => {
     expect(second.windows).toHaveLength(0);
     expect(submitted).toHaveLength(4);
   });
+
+  it("reports truncation instead of silently treating a capped plan as complete", () => {
+    const scheduler = new CollectionScheduler(calendar, clock, 5, 120);
+    scheduler.enable();
+    const plan = scheduler.plan("sub", "2026-09-11", "2026-09-11", new Set(), null, 2);
+    expect(plan.windows).toHaveLength(2);
+    expect(plan.truncated).toBe(true);
+  });
 });

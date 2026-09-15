@@ -30,12 +30,14 @@ export class CollectionScheduler {
   disable(): void { this.state = "DISABLED"; }
   status(): "DISABLED" | "ENABLED" { return this.state; }
 
-  plan(subscriptionId: string, fromDate: string, toDate: string, existingKeys = new Set<string>(), watermarkEnd: string | null = null, maxWindows = 500): { windows: CollectionWindow[]; waitingDates: string[]; nextExecutionAt: string | null } {
-    if (this.state === "DISABLED") return { windows: [], waitingDates: [], nextExecutionAt: null };
+  plan(subscriptionId: string, fromDate: string, toDate: string, existingKeys = new Set<string>(), watermarkEnd: string | null = null, maxWindows = 500): { windows: CollectionWindow[]; waitingDates: string[]; nextExecutionAt: string | null; truncated: boolean } {
+    if (this.state === "DISABLED") return { windows: [], waitingDates: [], nextExecutionAt: null, truncated: false };
     const windows: CollectionWindow[] = [];
     const waitingDates: string[] = [];
+    let truncated = false;
     const now = this.clock.now();
-    for (let cursor = new Date(`${fromDate}T12:00:00Z`); dateOnly(cursor) <= toDate && windows.length < maxWindows; cursor = addMinutes(cursor, 24 * 60)) {
+    let cursor = new Date(`${fromDate}T12:00:00Z`);
+    for (; dateOnly(cursor) <= toDate && windows.length < maxWindows; cursor = addMinutes(cursor, 24 * 60)) {
       const date = dateOnly(cursor);
       const session = this.calendar.session(date);
       if (session.status === "UNKNOWN") { waitingDates.push(date); continue; }
@@ -50,13 +52,13 @@ export class CollectionScheduler {
           const idempotencyKey = `${subscriptionId}|1|${windowStartIso}|${windowEndIso}|INTRADAY_WINDOW`;
           if (existingKeys.has(idempotencyKey)) continue;
           windows.push({ subscriptionId, windowStart: windowStartIso, windowEnd: windowEndIso, jobKind: "INTRADAY_WINDOW", idempotencyKey, calendarVersion: session.calendarVersion, backfill: windowEnd < addMinutes(now, -this.windowMinutes) });
-          if (windows.length >= maxWindows) break;
+          if (windows.length >= maxWindows) { truncated = true; break; }
         }
         if (windows.length >= maxWindows) break;
       }
     }
     const future = this.nextWindow(subscriptionId, fromDate, toDate, now);
-    return { windows, waitingDates, nextExecutionAt: future };
+    return { windows, waitingDates, nextExecutionAt: future, truncated };
   }
 
   private nextWindow(subscriptionId: string, fromDate: string, toDate: string, now: Date): string | null {
