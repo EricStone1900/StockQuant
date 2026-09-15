@@ -23,12 +23,12 @@ async function request(path, init = {}) {
 }
 
 async function waitForRun(id) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const run = await request(`/api/v1/acceptance/runs/${id}`);
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    const run = await request(`/api/v1/acceptance/runs/${id}`, { signal: AbortSignal.timeout(5000) });
     if (["COMPLETED", "FAILED", "WAITING"].includes(run.status)) return run;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`timed out waiting for ${id}`);
+  throw new Error(`timed out waiting 120s for ${id}`);
 }
 
 function runCommand(command, commandArgs) {

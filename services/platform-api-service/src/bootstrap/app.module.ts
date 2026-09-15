@@ -46,11 +46,11 @@ export class PlatformContainer {
 
   async ready(): Promise<void> {
     await this.pool.query("SELECT 1");
-    const response = await fetch(`${process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001"}/ready`);
+    const response = await fetch(`${process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001"}/ready`, { signal: AbortSignal.timeout(3000) });
     if (!response.ok) throw new Error("portfolio dependency is unavailable");
-    const execution = await fetch(`${this.executionUrl}/ready`);
+    const execution = await fetch(`${this.executionUrl}/ready`, { signal: AbortSignal.timeout(3000) });
     if (!execution.ok) throw new Error("execution dependency is unavailable");
-    const replayWorker = await fetch(`${this.replayWorkerUrl}/ready`);
+    const replayWorker = await fetch(`${this.replayWorkerUrl}/ready`, { signal: AbortSignal.timeout(3000) });
     if (!replayWorker.ok) throw new Error("replay worker dependency is unavailable");
     if (process.env.STOCKQUANT_V24_AUTO_START === "true" && this.scheduler.status().status !== "RUNNING") {
       throw new Error("V2.4 continuous Paper scheduler is not running");
@@ -121,8 +121,9 @@ export class PlatformController {
       throw new ForbiddenException("scenario is not available for V1.1");
     }
     const run = await this.container.repository.create(ownerId, scenarioId, body.seed ?? 20260907);
-    queueMicrotask(() => void this.container.runner.start(run.testRunId, ownerId));
-    return { accepted: true, testRunId: run.testRunId, status: run.status };
+    await this.container.runner.start(run.testRunId, ownerId);
+    const completed = await this.container.repository.find(run.testRunId, ownerId);
+    return { accepted: true, testRunId: run.testRunId, status: completed?.status ?? run.status };
   }
 
   @Get("acceptance/runs/:testRunId")

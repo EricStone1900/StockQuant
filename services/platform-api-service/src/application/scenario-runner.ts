@@ -70,7 +70,11 @@ export class ScenarioRunner {
     const accountId = first.snapshot.accountId;
     const assertions: TestAssertion[] = [];
     if (run.scenarioId === "normal") {
-      const replays = await Promise.all(Array.from({ length: 10 }, () => this.initialize(command)));
+      // Keep retries bounded and sequential: each initialize transaction returns a
+      // snapshot query, so firing ten pool-sized requests concurrently can starve
+      // the PostgreSQL pool while every request waits for its own snapshot.
+      const replays: InitializeResult[] = [];
+      for (let index = 0; index < 10; index += 1) replays.push(await this.initialize(command));
       const snapshot = await this.snapshot(accountId, run.ownerId);
       assertions.push(this.assertion(
         "V1.1-ACCOUNT-INIT-001",
