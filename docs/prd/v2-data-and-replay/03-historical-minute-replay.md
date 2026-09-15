@@ -63,6 +63,8 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 
 2026-09-15 历史执行规则切片：交易执行域支持显式参与率、买卖方向滑点、限价 DAY 不可成交时的 `EXPIRED/LIMIT_NOT_MARKETABLE`，并拒绝非法参与率、滑点和订单规则；新增 3 个单元场景，交易执行服务单测 8/8、全仓 V2.3 code 套件通过。多窗口下一可用 Bar 编排、真实跨服务 E2E 和 Web 操作验收仍未完成。
 
+2026-09-15 Web E2E 复验：启动 `pnpm dev:web` 后执行 `pnpm test:e2e -- --stage V2.3`，Playwright 场景“V2.3 replay page shows deterministic matching and recovery evidence”通过 1/1（退出码 0）。本次仅覆盖现有验收页和 Fixture API 断言，不能替代真实跨服务历史回放验收。
+
 ## 8. 阶段验收操作手册
 
 ### 8.1 当前可执行性与验收准备
