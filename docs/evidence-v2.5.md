@@ -51,3 +51,8 @@ Ubuntu 实机人工验收（2026-09-12）：用户已确认 Ubuntu 实机验证�
 `errorCode=0`，Sina 三个标的均 HTTP 200 返回 1,970 行，探针总体 `PASS`。输出保存在
 `evidence/local/V2.5/minute-source-probe-20260915.json`（原始探针输出位于本机临时目录）；该结果证明历史读取能力，不替代真实盘中
 主源稳定性或 60 日备用源验收。
+
+Mac 50/80/100 监控池复验（2026-09-15）：受控执行 `pnpm v25:monitor-capacity`，平台
+`darwin/arm64`，Tencent LIVE_SOURCE 路径下 50、80、100 三档均配置数=采样数=LIVE 数，
+耗时分别约 55ms、61ms、64ms，最大池限制 100，全部 `pass=true`；原有 3 标的股票池已恢复。
+该结果仅覆盖在线快照监控池，不代表分钟历史全市场容量。
