@@ -40,7 +40,7 @@ export { isoDate, nonNegativeInt, positiveInt };
 async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? process.env.DATA_CLI_TIMEOUT_MS ?? 10000);
   const { timeoutMs: _timeout, ...fetchOptions } = options;
-  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: { "content-type": "application/json", ...(fetchOptions.headers ?? {}) } });
+  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: { "content-type": "application/json", "x-stockquant-control-token": process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control", ...(fetchOptions.headers ?? {}) } });
   const text = await response.text();
   let body;
   try { body = text ? JSON.parse(text) : {}; } catch { body = { raw: text }; }

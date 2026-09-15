@@ -37,7 +37,7 @@ export function verifyPromotedRuntime(ready, config) {
 }
 
 async function request(baseUrl, path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", ...(options.headers ?? {}) } });
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", "x-stockquant-control-token": process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control", ...(options.headers ?? {}) } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${options.method ?? "GET"} ${path} HTTP ${response.status}: ${JSON.stringify(body)}`);
   return body;

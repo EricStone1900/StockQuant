@@ -97,6 +97,15 @@ function quality(bars: Bar[], asOf: string) {
 }
 async function json(res: ServerResponse, body: unknown, status = 200) { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); }
 function validIso(value: unknown): value is string { return typeof value === "string" && !Number.isNaN(Date.parse(value)); }
+function validLocalDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toISOString().slice(0, 10) === value;
+}
+function authorizedCollectionControl(req: IncomingMessage): boolean {
+  const expected = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control";
+  return req.headers["x-stockquant-control-token"] === expected;
+}
 function isUuid(value: string): boolean { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }
 function shanghaiDate(value: string): string { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)); }
 function validHash(value: unknown): value is string { return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value); }
@@ -105,8 +114,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
     if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", collectionSecurityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean) });
     if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), nextExecutionAt: null, mode: "FIXTURE_PLAN_ONLY", note: "DC-03 scheduler plans persisted collection windows; worker activation remains an explicit deployment setting." });
-    if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
-    if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
+    if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
+    if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {
       const query = new URL(req.url, "http://localhost").searchParams;
       const subscriptionId = query.get("subscriptionId"); const from = query.get("from"); const to = query.get("to");
@@ -118,14 +127,16 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return json(res, { schedules: await collectionSchedules.enabled() });
     }
     if (req.url === "/v2/collection-schedules" && req.method === "POST") {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
       const required = ["subscriptionId", "subscriptionVersion", "fromDate", "toDate", "calendarVersion"];
-      if (required.some((key) => body[key] === undefined)) return json(res, { code: "INVALID_COLLECTION_SCHEDULE" }, 422);
+      if (required.some((key) => body[key] === undefined) || typeof body.subscriptionId !== "string" || !body.subscriptionId.trim() || !Number.isInteger(body.subscriptionVersion) || Number(body.subscriptionVersion) <= 0 || !validLocalDate(body.fromDate) || !validLocalDate(body.toDate) || String(body.toDate) < String(body.fromDate) || typeof body.calendarVersion !== "string" || !body.calendarVersion.trim()) return json(res, { code: "INVALID_COLLECTION_SCHEDULE" }, 422);
       const schedule = await collectionSchedules.upsert({ subscriptionId: String(body.subscriptionId), subscriptionVersion: Number(body.subscriptionVersion), fromDate: String(body.fromDate), toDate: String(body.toDate), calendarVersion: String(body.calendarVersion) });
       return json(res, schedule, 201);
     }
     if (req.url === "/v2/collection-schedules/switch" && req.method === "POST") {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
       if (typeof body.sourceSubscriptionId !== "string" || typeof body.targetSubscriptionId !== "string" || !body.sourceSubscriptionId || !body.targetSubscriptionId) return json(res, { code: "INVALID_SCHEDULE_SWITCH" }, 422);
@@ -139,11 +150,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return schedule ? json(res, schedule) : json(res, { code: "NOT_FOUND" }, 404);
     }
     if (scheduleMatch && req.method === "POST" && scheduleMatch[2]) {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const schedule = await collectionSchedules.setEnabled(scheduleMatch[1], scheduleMatch[2] === "enable");
       return json(res, schedule);
     }
     if (req.url === "/v2/collection-runs" && req.method === "POST") {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
       const required = ["subscriptionId", "subscriptionVersion", "windowStart", "windowEnd", "jobKind", "idempotencyKey", "requestHash"];
@@ -167,6 +180,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return run ? json(res, run) : json(res, { code: "NOT_FOUND" }, 404);
     }
     if (collectionRunMatch && req.method === "POST" && collectionRunMatch[2] === "resume") {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionRuns) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       if (!isUuid(collectionRunMatch[1])) return json(res, { code: "INVALID_RUN_ID" }, 422);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
@@ -248,9 +262,10 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return json(res, { subscriptionId: gapsMatch[1], open: await coverageRepository.open(gapsMatch[1]) });
     }
     if (req.url === "/v2/minute/backfills" && req.method === "POST") {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as { subscriptionId?: string; fromDate?: string; toDate?: string; idempotencyKey?: string };
-      if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey || !/^\d{4}-\d{2}-\d{2}$/.test(body.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(body.toDate) || body.toDate < body.fromDate) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
+      if (!body.subscriptionId || !body.fromDate || !body.toDate || !body.idempotencyKey || !validLocalDate(body.fromDate) || !validLocalDate(body.toDate) || body.toDate < body.fromDate) return json(res, { code: "INVALID_BACKFILL_INPUT" }, 422);
       try {
         const result = await coverageRepository.createBackfill(body.subscriptionId, body.fromDate, body.toDate, body.idempotencyKey);
         if (!collectionRuns || !collectionSchedules) return json(res, result, result.created ? 201 : 200);
@@ -281,6 +296,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return task ? json(res, task) : json(res, { code: "NOT_FOUND" }, 404);
     }
     if (backfillMatch && req.method === "POST" && backfillMatch[2]) {
+      if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!coverageRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const action = backfillMatch[2];
       const task = action === "claim" ? await coverageRepository.claimBackfill(backfillMatch[1]) : action === "complete" ? await coverageRepository.completeBackfill(backfillMatch[1]) : await coverageRepository.failBackfill(backfillMatch[1]);
