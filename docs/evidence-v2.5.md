@@ -56,3 +56,8 @@ Mac 50/80/100 监控池复验（2026-09-15）：受控执行 `pnpm v25:monitor-c
 `darwin/arm64`，Tencent LIVE_SOURCE 路径下 50、80、100 三档均配置数=采样数=LIVE 数，
 耗时分别约 55ms、61ms、64ms，最大池限制 100，全部 `pass=true`；原有 3 标的股票池已恢复。
 该结果仅覆盖在线快照监控池，不代表分钟历史全市场容量。
+
+BaoStock 稳定性探针（2026-09-15）：使用 `UV_CACHE_DIR=.uv-cache pnpm v25:probe-baostock-stability`
+执行 3 轮、3 个标的、每请求 30 秒上限及一次重连探针。9 次查询与重连均达到超时，结果为
+`PARTIAL`，未取得成功行数；该结果明确证明当前网络/会话条件下长期稳定性不能标记 PASS，
+BaoStock 主源仍需在可用网络和实际交易日继续观察。
