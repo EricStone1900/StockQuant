@@ -13,6 +13,14 @@ const portfolioUrl = process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0
 const governanceUrl = process.env.STOCKQUANT_GOVERNANCE_URL ?? "http://127.0.0.1:3007";
 const quantResearchUrl = process.env.STOCKQUANT_QUANT_RESEARCH_URL ?? "http://127.0.0.1:3003";
 const allowedService = process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-api-service";
+const maxReplayConcurrency = Math.max(1, Number(process.env.STOCKQUANT_REPLAY_MAX_CONCURRENCY ?? 2));
+let activeReplays = 0;
+const replayWaiters: Array<() => void> = [];
+async function withReplaySlot<T>(operation: () => Promise<T>): Promise<T> {
+  if (activeReplays >= maxReplayConcurrency) await new Promise<void>((resolve) => replayWaiters.push(resolve));
+  activeReplays += 1;
+  try { return await operation(); } finally { activeReplays -= 1; replayWaiters.shift()?.(); }
+}
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status,{"content-type":"application/json"}); res.end(JSON.stringify(body)); };
 await pool.query(`CREATE TABLE IF NOT EXISTS replay_worker_runs (
   test_run_id UUID PRIMARY KEY, namespace TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, scenario_id TEXT NOT NULL,
@@ -150,7 +158,7 @@ createServer(async(req,res)=>{
   }
   if (req.method === "POST" && req.url === "/internal/v1/replays/multi") {
     if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-    let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await startMulti(JSON.parse(body) as MultiCommand));}catch(error){return json(res,422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
+    let body="";for await(const chunk of req)body+=chunk;try{return json(res,200,await withReplaySlot(() => startMulti(JSON.parse(body) as MultiCommand)));}catch(error){return json(res,422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
   }
   if(req.method!=="POST"||req.url!=="/internal/v1/replays")return json(res,404,{error:"not found"});
   if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
