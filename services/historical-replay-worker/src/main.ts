@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { Pool } from "pg";
 import { checkpointForBars, checkpointForExecution } from "./domain/checkpoint.js";
 import { assertTransition, type ReplayStatus } from "./domain/lifecycle.js";
+import { eventsForExecution } from "./domain/events.js";
 
 type Command = { testRunId: string; namespace: string; ownerId: string; scenarioId: "normal" | "recovery"; seed: number; bar: { timestamp: string; open: string; volume: number } };
 type MultiCommand = Omit<Command, "bar"> & { bars: Array<{ timestamp: string; open: string; volume: number }> };
@@ -75,6 +76,7 @@ async function startMulti(command: MultiCommand) {
     if (!initialized.ok) throw new Error(`portfolio initialization failed: ${initialized.status}`);
     const account = await initialized.json() as { snapshot:{accountId:string} };
     const executions: any[] = [];
+    const eventLog: string[][] = [];
     for (let index = checkpoint.cursor; index < command.bars.length; index += 1) {
       await waitUntilRunnable(command.testRunId);
       const bar = command.bars[index];
@@ -84,7 +86,9 @@ async function startMulti(command: MultiCommand) {
       const authorization = await authorizationResponse.json() as { authorizationId:string };
       const response = await fetch(`${executionUrl}/internal/v1/historical-orders/execute`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"platform-api-service"}, body:JSON.stringify({...executionCommand,authorizationId:authorization.authorizationId}) });
       if (!response.ok) throw new Error(`execution failed: ${response.status} ${await response.text()}`);
-      executions.push(await response.json());
+      const execution = await response.json();
+      executions.push(execution);
+      eventLog.push(eventsForExecution(execution.status));
       checkpoint = checkpointForBars(command.bars, command.seed, index + 1, executions.map((_, completed) => `v2.3-order-${completed + 1}`));
       await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint)]);
     }
@@ -92,7 +96,7 @@ async function startMulti(command: MultiCommand) {
     if (!snapshotResponse.ok) throw new Error(`portfolio snapshot failed: ${snapshotResponse.status}`);
     const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ runId:command.testRunId, bars:command.bars, executions }) });
     if (!researchResponse.ok) throw new Error(`quant research runtime failed: ${researchResponse.status}`);
-    const result = { accountId:account.snapshot.accountId, executions, checkpoint, snapshot:await snapshotResponse.json(), research:await researchResponse.json(), replayedRun:false };
+    const result = { accountId:account.snapshot.accountId, executions, eventLog, checkpoint, snapshot:await snapshotResponse.json(), research:await researchResponse.json(), replayedRun:false };
     await pool.query("UPDATE replay_worker_runs SET status='COMPLETED',result=$2::jsonb,completed_at=now() WHERE test_run_id=$1", [command.testRunId, JSON.stringify(result)]);
     return result;
   } catch (error) {
