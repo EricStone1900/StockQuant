@@ -28,7 +28,7 @@
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
-| DC-08A 启用/短期验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-07后3只2实际交易日、20只1实际交易日，交接并恢复主项目 |
+| DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14、2026-09-15各完成48窗口/144根5分钟Bar、0缺口、0非取消待投递Outbox；20只切换门禁返回READY_TO_PROMOTE | NOT_RUN | `evidence/dc08a/daily-report-2026-09-14.json`、`daily-report-2026-09-15.json`、两日 coverage 报告 | 在2026-09-17开盘前切换20只冻结集合，并完成至少1个实际交易日 |
 | DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
 
 ## 3. 开发中断接续协议
@@ -165,3 +165,11 @@ collection outbox 只会在写入本地审计证据后按正式订阅的非取�
 服务健康、调度器/执行器均为 ENABLED；41个窗口已完成，剩余窗口和缺口保持 INCOMPLETE，
 不作为 DC-08A 通过证据。Codex 无人值守沙箱的最小外部命令规则尚需用户明确批准并重启
 Codex 后生效，因此自动任务的权限门禁仍待完成。
+
+2026-09-15 DC-08A短期真实运行复核：唯一正式短期订阅
+`dc08a-20260914-short-v1` 连续两个实际交易日完成采集。2026-09-14 初始日终报告曾在
+最后窗口发布前生成 `INCOMPLETE`，恢复后重新按数据库最终状态生成，结果为48/48运行、
+144/144 Bar、48个Artifact、0开放缺口、0非取消待投递Outbox、`PASS`；2026-09-15 同样为
+48/48、144/144、0缺口、`PASS`。两日完成运行的实际来源均为Sina，BaoStock主源成功率仍须
+单独观察。`pnpm dc08a:promote-20 -- --check-only` 返回 `READY_TO_PROMOTE`（20只）；人工
+验收保持NOT_RUN，实际切换安排在2026-09-17交易时段前，随后需完成20只至少一个实际交易日。

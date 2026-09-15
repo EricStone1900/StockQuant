@@ -69,3 +69,11 @@
 - Tencent 报价改用 GB18030 解码，中文证券名称恢复正确；预检新增30分钟来源时间新鲜度门禁。收盘后探针虽仍标注 `LIVE_SOURCE`，但因实际 `observedAt` 陈旧而正确返回失败，不能再产生假阳性。
 - 2026-09-14 观察日 `testRunId=19bf69b7-599c-49da-a432-48db85108b89` 保留日终超时错误并已更正为 `observationCounted=false`，因此不计入20个实际交易日。
 - 平台 API 与市场数据服务 TypeScript typecheck、V2.4 单元测试、行情预检和 DC-08A 脚本单元测试均通过。真实观察门禁仍为 `NOT_RUN`。
+
+## 2026-09-15 首个有效实际观察日
+
+- 日级 `testRunId=b7baf9b2-4e0f-4d24-8f73-5eaed662a4d6`：`END_OF_DAY` 独立FakeBroker
+  对账为`PASS`，无事件错误，`observationCounted=true`。
+- 所有30分钟采样槽位及09:31执行窗口均取得3只证券的 `LIVE_SOURCE` Tencent行情；策略为
+  `v24-conservative-hold-v1`，执行窗口记录`HOLD`、无模拟订单及无成交，符合PAPER+FAKE约束。
+- 当前有效实际观察日为1/20；2026-09-14仍因原始盘中超时错误保持不计数，不能由次日成功覆盖。
