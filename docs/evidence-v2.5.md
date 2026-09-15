@@ -67,3 +67,6 @@ BaoStock 主源仍需在可用网络和实际交易日继续观察。
 `errorCode=0`；Sina 三个标的均 HTTP 200、各返回 1,970 行（约覆盖 2026-07-20 至 2026-09-15）。
 该结果证明两条历史读取路径当前可用，但 Sina 回溯长度仍不足 60 个交易日，且 liveSession 保持
 `NOT_RUN`，不能替代 60 日备用源或盘中稳定性验收。
+
+PostgreSQL 数据采集集成复验（2026-09-15）：使用本地 Docker PostgreSQL 执行
+`MARKET_DATA_DATABASE_URL=postgresql://market_data:market_data_local_only@localhost:5433/market_data pnpm --filter @stockquant/market-data-service exec vitest run tests/integration/collection-run-postgres.spec.ts`，15/15 通过，覆盖分区运行、检查点、租约接管、恢复、配额和项目隔离；不代表分钟级全市场容量。
