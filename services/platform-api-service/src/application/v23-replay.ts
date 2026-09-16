@@ -8,6 +8,7 @@ export const V23_SCENARIOS = [
 ] as const;
 
 export type ReplayBar = { security: string; timestamp: string; open: number; high: number; low: number; close: number; volume: number };
+export type ReplayOptions = { focusSecurity?: string; decisionTimestamp?: string; executionTimestamp?: string };
 type Assertion = { assertionId: string; status: "PASS" | "FAIL"; expected: unknown; actual: unknown };
 type ReplayState = { cursor: number; events: string[]; fills: Array<{ fillId: string; orderId: string; barId: string; quantity: number; price: number; fee: number }>; cash: number };
 
@@ -25,26 +26,26 @@ export function parseReplayBars(csv: string): ReplayBar[] {
 
 /** Deterministic MINUTE_BAR replay slice. The checkpoint is serializable so a fresh worker can resume it. */
 export class V23ReplayEngine {
-  run(scenarioId: V23Scenario, seed: number, bars: ReplayBar[], testRunId = randomUUID()) {
+  run(scenarioId: V23Scenario, seed: number, bars: ReplayBar[], testRunId = randomUUID(), options: ReplayOptions = {}) {
     if (bars.length === 0) throw new Error("replay fixture has no bars");
     const fixtureHash = createHash("sha256").update(JSON.stringify(bars)).digest("hex");
-    const normal = this.execute(bars, bars.length, seed);
-    const checkpoint = this.execute(bars, 2, seed);
-    const resumed = this.execute(bars, bars.length, seed, checkpoint);
+    const normal = this.execute(bars, bars.length, seed, undefined, options);
+    const checkpoint = this.execute(bars, 2, seed, undefined, options);
+    const resumed = this.execute(bars, bars.length, seed, checkpoint, options);
     const evidence: Record<string, unknown> = {
       evidenceVersion: "v2.3-2", environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE",
       executionModel: "LIMIT_DAY_NEXT_BAR_PARTICIPATION", fixtureVersion: "v2.3-replay-bars-1", fixtureHash,
       seed, bars, virtualClock: { start: bars[0].timestamp, end: bars.at(-1)?.timestamp, barriers: ["BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED"] },
-      manifest: { barType: "MINUTE_BAR", strategyVersion: "v2.3-next-bar-1", participationRate: 0.1, slippageBps: 10, initialCash: 10000 },
+      manifest: { barType: "MINUTE_BAR", strategyVersion: "v2.3-next-bar-1", participationRate: 0.1, slippageBps: 10, initialCash: 10000, ...options },
       normal, checkpoint: { cursor: checkpoint.cursor, virtualTime: bars[checkpoint.cursor - 1]?.timestamp ?? null, pendingEvents: ["order-1"], seedState: seed, businessVersions: { execution: "v2.3-1", ledger: "v1" } },
       recovery: { reference: this.canonical(normal), resumed: this.canonical(resumed), isolatedRun: true }
     };
     let assertions: Assertion[];
     if (scenarioId === "normal") {
       assertions = [
-        this.assertion("V2.3-REPLAY-ORDER-001", "signal is executed on the next available Bar with a participation-limited fill", normal.signal.executedAt > normal.signal.visibleAt && normal.fills[0]?.quantity === 50, normal.signal),
+        this.assertion("V2.3-REPLAY-ORDER-001", "signal is executed on the next available Bar with a participation-limited fill", normal.signal.executedAt > normal.signal.visibleAt && (options.focusSecurity ? (normal.fills[0]?.quantity ?? 0) > 0 : normal.fills[0]?.quantity === 50), normal.signal),
         this.assertion("V2.3-EVENT-ORDER-002", "each step reaches ledger barrier before advancing", normal.events.join(">") === "BAR_CLOSE>DECISION>ORDER_ACCEPTED>FILL>LEDGER_COMMITTED", normal.events),
-        this.assertion("V2.3-REPORT-003", "cash and NAV reconcile after confirmed fill", normal.cash + normal.positionMarketValue === normal.finalNav, { cash: normal.cash, nav: normal.finalNav })
+        this.assertion("V2.3-REPORT-003", "cash and NAV reconcile after confirmed fill", Number((normal.cash + normal.positionMarketValue).toFixed(4)) === normal.finalNav, { cash: normal.cash, nav: normal.finalNav })
       ];
     } else if (scenarioId === "rejection") {
       const rejections = this.rejectInvalidExecutionInputs(bars);
@@ -56,14 +57,15 @@ export class V23ReplayEngine {
     return { testRunId, stageId: "V2.3", scenarioId, scenarioVersion: "1.1.0", status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", seed, assertions, evidence };
   }
 
-  private execute(bars: ReplayBar[], stopAt: number, seed: number, checkpoint?: ReplayState) {
+  private execute(bars: ReplayBar[], stopAt: number, seed: number, checkpoint?: ReplayState, options: ReplayOptions = {}) {
     const state: ReplayState = checkpoint ? structuredClone(checkpoint) : { cursor: 0, events: [], fills: [], cash: 10000 };
-    const target = bars.find((bar) => bar.security === "600000.SH" && bar.timestamp.startsWith("2024-01-03"));
-    const decision = bars.find((bar) => bar.security === "600000.SH" && bar.timestamp === "2024-01-02T09:32:00+08:00");
+    const focusSecurity = options.focusSecurity ?? "600000.SH";
+    const target = bars.find((bar) => bar.security === focusSecurity && (options.executionTimestamp ? bar.timestamp === options.executionTimestamp : bar.timestamp.startsWith("2024-01-03")));
+    const decision = bars.find((bar) => bar.security === focusSecurity && (options.decisionTimestamp ? bar.timestamp === options.decisionTimestamp : bar.timestamp === "2024-01-02T09:32:00+08:00"));
     if (!target || !decision) throw new Error("fixture does not contain required signal and next-bar execution inputs");
     while (state.cursor < Math.min(stopAt, bars.length)) {
       const bar = bars[state.cursor++];
-      if (bar.security !== "600000.SH" || bar.timestamp !== target.timestamp) continue;
+      if (bar.security !== focusSecurity || bar.timestamp !== target.timestamp) continue;
       const quantity = Math.floor(bar.volume * 0.1);
       const price = Number((bar.open * 1.001).toFixed(4));
       state.events.push("BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED");

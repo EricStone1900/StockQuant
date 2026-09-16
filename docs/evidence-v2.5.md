@@ -28,6 +28,10 @@ BaoStock 分区导入验证（2026-09-11）：新增 `scripts/import-baostock-da
 
 5 分钟 20×约60交易日真实导入验证（2026-09-12）：`scripts/import-baostock-minute-sample.py` 已修正跨进程队列读取顺序：父进程先消费行集再等待子进程退出，避免大结果集的队列馈送阻塞；同时加入每标的最多 3 次的有限重试并记录实际尝试。`sh.600000` 单标的返回 2,784 行；5 标的完成 13,920 行；同一 Manifest 从检查点续跑至 20/20 标的、55,680 行，每标的 2,784 行、58 个实际交易日。20 个 CSV 的 SHA-256、证券代码、重复时间戳和 OHLC 范围校验均通过；一次 `10001001 用户未登录` 在续跑时由独立会话重试恢复。产物位于 Git 忽略的 `data/local/baostock-minute-20x60-v1`。
 
+5 分钟 20×严格60交易日历史覆盖验证（2026-09-16）：使用既有只读入口 `pnpm v25:import-baostock-minute-sample -- --sample-size 20 --start-date 2024-01-02 --end-date 2024-04-02 --output-dir data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1 --continue-on-error`，不修改正式订阅、定时任务或既有58日样本。Manifest 为 `COMPLETED`：冻结的20只证券全部完成，合计57,600根5分钟 Bar；每只2,880根，覆盖相同的60个交易日（2024-01-02至2024-04-02）和每日48个窗口。逐文件复算 SHA-256 与 Manifest 记录20/20匹配；逐证券日期数、行数、每日窗口数和无重复 `date+time` 均为20/20通过。`pnpm data:test-coverage` 8/8通过。产物仍位于 Git 忽略的本地目录；它满足历史数据覆盖的技术证据，但不替代 DC-08A 的真实盘中运行，也不将V2.4的20个实际交易日观察缩短。
+
+DC-T23 真实归档回放（2026-09-16）：新增 `pnpm v25:replay-baostock-minute`，读取上述 Manifest 的20个分区文件，转换为既有 V2.3 MINUTE_BAR 回放输入，逐证券执行下一 Bar/10% 参与率/费用规则，并核对确定性回放结果。20/20 证券均 `PASS`，断点恢复无重复成交、资金与 NAV 校验通过；报告为 `evidence/dc08a/historical-replay-2026-09-16.json`，源 Manifest SHA-256 为 `729793b462b25951bae2f032ea2eefc3c1ef86689a1c7882b908a24b68417c5f`。该报告只证明历史归档回放和数据质量，不替代真实盘中观察。
+
 备用免费源实测（2026-09-12）：东方财富经 AKShare `stock_zh_a_hist_min_em(period="5")` 在本机被远端断开，未取得样本；新浪经 AKShare `stock_zh_a_minute(period="5")` 返回 1,970 行，覆盖 2026-07-16 至 2026-09-11，约 40 个交易日；腾讯公开分钟端点返回最近 320 根，覆盖 2026-09-03 至 2026-09-11，约 7 个交易日。新浪和腾讯可作为近期数据降级路径，但均不能满足 60 个交易日历史导入，当前没有经过本机实测且可替代 BaoStock 的免费 60 日备用源。
 
 本地通达信文件备用通道（2026-09-12）：新增 `pnpm v25:import-tdx-minute-sample -- --tdx-dir /绝对路径/通达信数据根目录 --symbols sh600000,sz000001 --start-date 2024-01-02 --end-date 2024-03-29 --output-dir data/local/tdx-minute-5`。该命令只读取用户既有的 `fzline/*.lc5`（或 `.5`）文件，逐证券输出规范 5 分钟 CSV 以及包含源文件/输出 SHA-256 的 Manifest；不会联网、下载或改写源数据。当前工作区未提供此类文件，已验证缺文件时以 `FAIL` 退出且不宣称导入成功，实际 60 个交易日导入状态为 `NOT_RUN`，待提供合法本地文件后执行。

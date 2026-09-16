@@ -16,7 +16,7 @@
 - [x] 完成新模块实现及自动测试（DC-00～DC-02 当前切片；调度/主备/部署仍待后续工作包）。
 - [ ] 验证盘中真实来源能力并启用正式采集任务。
 - [ ] 完成Mac/Ubuntu运行、备用切换、备份/恢复与人工验收。
-- [ ] 获得固定证券集合的严格60交易日真实覆盖并完成回放验收。
+- [x] 获得固定证券集合的严格60交易日历史覆盖并完成真实归档回放验收；真实盘中累计仍单独记录。
 
 | 工作包 | 开发状态 | 自动测试 | 人工验收 | 本包证据 | 下一动作 |
 |---|---|---|---|---|---|
@@ -25,13 +25,15 @@
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | DONE（本机范围） | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 真实交易日运行和 Web/验收中心观察归入 DC-08A；正式订阅仍默认关闭 |
 | DC-04 主备 | IN_PROGRESS | PASS：Python适配器6/6、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
-| DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md) | 实际补采执行、停牌权威核验、每日自动覆盖报告和真实60日覆盖 |
+| DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、历史归档逐日覆盖与回放20/20通过、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md)；[DC-T23真实归档回放](../../../evidence/dc08a/historical-replay-2026-09-16.json) | 实际补采执行、停牌权威核验、每日自动覆盖报告和盘中数据持续观察 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
 | DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14～2026-09-16各完成48窗口/144根5分钟Bar、0缺口、0非取消待投递Outbox；20只切换门禁返回READY_TO_PROMOTE；首个20只交易日待运行 | NOT_RUN | `evidence/dc08a/daily-report-2026-09-14.json`、`daily-report-2026-09-15.json`、`daily-report-2026-09-16.json`、[首日验收清单](../../../evidence/dc08a/acceptance-checklist-2026-09-17.md) | 2026-09-17开盘前切换20只冻结集合，收盘后按清单填写首日证据 |
-| DC-08B 60日数据验收 | TODO | NOT_RUN | NOT_RUN | 未启动本模块采集 | DC-08A后后台累计；到期严格覆盖/回放验收 |
+| DC-08B 60日数据验收 | IN_PROGRESS | PASS（历史覆盖） | NOT_RUN | `data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1/manifest.json`：20只×60交易日×48窗口=57,600根，逐文件 SHA-256 20/20匹配 | 历史分钟回放验收；真实盘中累计仍独立观察，不能以历史导入替代 |
 
-2026-09-15 代码与容量复核：20只证券隔离监控池测试使用 `V25_MONITOR_SIZES=20 pnpm v25:monitor-capacity`，返回 configured/sampled/live 均为20、耗时47ms，测试后 watchlist 恢复3只，未修改正式活动订阅。持久调度器状态接口新增 `lastSuccessfulTickAt`、`nextExecutionAt`、`lastSubmitted`，盘后无待执行窗口时仅保留低频健康轮询。market-data-service 单元35/35、PostgreSQL集成17/17、全仓 lint/typecheck/test、契约/Fixture、Docker DC-07、V2.5 Web E2E、ARM64兼容性均通过；`pnpm test:integration` 因既有验收服务等待超时未完成，保留为待重跑项。人工验收和真实交易日观察不因本次自动测试提前签署。
+2026-09-16 代码与容量复核：20只证券隔离监控池测试使用 `V25_MONITOR_SIZES=20 pnpm v25:monitor-capacity`，返回 configured/sampled/live 均为20、耗时47ms，测试后 watchlist 恢复3只，未修改正式活动订阅。持久调度器状态接口新增 `lastSuccessfulTickAt`、`nextExecutionAt`、`lastSubmitted`，盘后无待执行窗口时仅保留低频健康轮询。market-data-service 单元35/35、PostgreSQL集成17/17、全仓 lint/typecheck/test、契约/Fixture、Docker DC-07、V2.5 Web E2E、ARM64兼容性均通过；`pnpm test:integration` 在 Docker 服务启动且使用可访问宿主网络后通过，运行ID为 `9bf69efc-0922-44a7-a397-2f49a060da72`（normal）、`7caf6007-2a7e-4086-9b0a-e523ab43a96d`（rejection）、`0b77e43f-dd27-4b06-89f3-0816e2539452`（recovery）。人工验收和真实交易日观察不因本次自动测试提前签署。
+
+2026-09-16 DC-08B/DC-T23：20只冻结证券的 BaoStock 5分钟归档覆盖严格达到60个交易日、57,600根 Bar；逐文件完整性、逐日窗口与真实归档回放20/20通过。历史覆盖与回放证据已记录，但 DC-08A 真实盘中累计和 V2.4 20个实际交易日观察继续独立进行。
 
 ## 3. 开发中断接续协议
 
