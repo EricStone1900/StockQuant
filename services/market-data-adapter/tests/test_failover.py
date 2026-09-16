@@ -1,6 +1,9 @@
 import unittest
 import tempfile
 import os
+import subprocess
+import sys
+import time
 
 from market_data_adapter.failover import AllSourcesFailed, FailoverCollector, NormalizedBar, RateLimiter, SourceError
 
@@ -81,6 +84,18 @@ class FailoverTests(unittest.TestCase):
             clock[0] = 0.25
             second.wait()
             self.assertEqual(second_sleeps, [0.75])
+
+    def test_independent_python_processes_share_rate_limit_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "source-health.json.rate")
+            code = "from market_data_adapter.failover import RateLimiter; import sys; RateLimiter(0.2, state_path=sys.argv[1], key='rate:sina').wait()"
+            first = subprocess.run([sys.executable, "-c", code, path], check=True, capture_output=True, text=True)
+            self.assertEqual(first.returncode, 0)
+            started = time.monotonic()
+            second = subprocess.run([sys.executable, "-c", code, path], check=True, capture_output=True, text=True)
+            self.assertEqual(second.returncode, 0)
+            self.assertGreaterEqual(time.monotonic() - started, 0.15)
+            self.assertTrue(os.path.exists(path))
 
 
 if __name__ == "__main__":

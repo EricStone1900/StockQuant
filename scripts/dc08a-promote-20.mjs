@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -38,7 +38,7 @@ export function verifyPromotedRuntime(ready, config) {
   return ready?.status === "ready" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
 }
 
-export async function persistRuntimeConfig({ env = process.env, subscriptionId, securityIds, file = ".env.local" }) {
+export async function persistRuntimeConfig({ env = process.env, subscriptionId, securityIds, file = ".env.local", writeFileFn = writeFile, renameFn = rename }) {
   if (env.DC08A_PERSIST_RUNTIME_CONFIG === "0") return;
   const original = await readFile(file, "utf8");
   const values = {
@@ -51,7 +51,11 @@ export async function persistRuntimeConfig({ env = process.env, subscriptionId, 
     const pattern = new RegExp(`^${key}=.*$`, "m");
     updated = pattern.test(updated) ? updated.replace(pattern, line) : `${updated.trimEnd()}\n${line}\n`;
   }
-  if (updated !== original) await writeFile(file, updated, "utf8");
+  if (updated !== original) {
+    const temporary = `${file}.tmp`;
+    await writeFileFn(temporary, updated, "utf8");
+    await renameFn(temporary, file);
+  }
 }
 
 export function rollbackSql(shortId, targetId) {
@@ -90,7 +94,7 @@ async function loadReport(outputDir, date) {
   try { return JSON.parse(await readFile(`${outputDir}/daily-report-${date}.json`, "utf8")); } catch { return { status: "NOT_RUN", date }; }
 }
 
-export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", outputDir = env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", checkOnly = false, requestFn = request, command = run } = {}) {
+export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", outputDir = env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", checkOnly = false, requestFn = request, command = run, persistConfigFn = persistRuntimeConfig } = {}) {
   const config = promotionConfig(env);
   const schedules = [];
   for (const id of [config.shortId, config.targetId]) {
@@ -112,7 +116,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
     if (result.status !== 0) throw new Error(result.stderr.trim() || "promotion compose failed");
     const ready = await waitForReady(requestFn, baseUrl);
     if (!verifyPromotedRuntime(ready, config)) throw new Error("promoted service is not healthy with the frozen 20-security configuration");
-    await persistRuntimeConfig({ env, subscriptionId: config.targetId, securityIds: config.securityIds });
+    await persistConfigFn({ env, subscriptionId: config.targetId, securityIds: config.securityIds });
     return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
   } catch (error) {
     if (switched) {
@@ -128,7 +132,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
         const ready = await waitForReady(requestFn, baseUrl);
         const shortIds = (env.DC08A_SHORT_SECURITY_IDS ?? defaultShortSecurityIds.join(",")).split(",").map((item) => item.trim()).filter(Boolean);
         if (!verifyRuntime(ready, shortIds)) throw new Error("rollback runtime is not healthy with the short-security configuration");
-        await persistRuntimeConfig({ env, subscriptionId: config.shortId, securityIds: shortIds });
+        await persistConfigFn({ env, subscriptionId: config.shortId, securityIds: shortIds });
       } catch (rollbackError) { return { status: "FAILED", reasons: [String(error), `rollback failed: ${String(rollbackError)}`], exitCode: 1 }; }
     }
     return { status: "FAILED", reasons: [String(error)], exitCode: 1 };
