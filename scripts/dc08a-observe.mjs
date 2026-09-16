@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 
 export function parseRows(output, fields, delimiter = "\t") {
   const text = String(output ?? "").trim();

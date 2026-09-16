@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-export const composeArgs = ["compose", "-f", "infra/compose/docker-compose.yml"];
+export const composeArgs = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 
 export function classifyReady(body, httpStatus = 200) {
   if (httpStatus !== 200 || !body || body.status !== "ready") return "UNHEALTHY";
@@ -39,7 +39,9 @@ export async function supervise({ mode = "check-only", url = process.env.DC08A_M
   const actions = [];
   if (observation.state === "UNHEALTHY") {
     for (const [binary, args] of buildRepairPlan(observation.state, mode)) {
-      const repairEnv = preserveEnabled ? { ...process.env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: process.env.DC08A_SUBSCRIPTION_ID ?? "" } : undefined;
+      // Let Compose restart the existing container with its persisted environment. Never
+      // replace an active subscription with an empty or hard-coded fallback during repair.
+      const repairEnv = preserveEnabled ? { ...process.env, STOCKQUANT_SCHEDULER_WORKER: process.env.STOCKQUANT_SCHEDULER_WORKER ?? "1", STOCKQUANT_COLLECTION_EXECUTOR: process.env.STOCKQUANT_COLLECTION_EXECUTOR ?? "1" } : undefined;
       const result = command(binary, args, repairEnv ? { env: repairEnv } : undefined);
       actions.push({ command: [binary, ...args].join(" "), exitCode: result.status });
       if (result.status !== 0) return { state: "REPAIR_FAILED", observation, actions, exitCode: 1 };

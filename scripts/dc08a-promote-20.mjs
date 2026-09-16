@@ -1,8 +1,10 @@
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const defaultSecurityIds = ["600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH", "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH", "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH", "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"];
+const defaultShortSecurityIds = ["600000.SH", "000001.SZ", "600519.SH"];
 
 export function promotionConfig(env = process.env) {
   return {
@@ -36,11 +38,25 @@ export function verifyPromotedRuntime(ready, config) {
   return ready?.status === "ready" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
 }
 
+function verifyRuntime(ready, securityIds) {
+  const ids = Array.isArray(ready?.collectionSecurityIds) ? ready.collectionSecurityIds : [];
+  return ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === securityIds.length && ids.every((id, index) => id === securityIds[index]);
+}
+
 async function request(baseUrl, path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", "x-stockquant-control-token": process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control", ...(options.headers ?? {}) } });
+  const token = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(options.headers ?? {}) } });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${options.method ?? "GET"} ${path} HTTP ${response.status}: ${JSON.stringify(body)}`);
   return body;
+}
+
+async function waitForReady(requestFn, baseUrl, attempts = 20, delayMs = 1_000) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { return await requestFn(baseUrl, "/ready"); } catch (error) { lastError = error; if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs)); }
+  }
+  throw new Error(`service did not become ready: ${String(lastError)}`);
 }
 
 function run(args, options) {
@@ -72,12 +88,24 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
     switched = true;
     const result = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.targetId, STOCKQUANT_COLLECTION_SECURITY_IDS: config.securityIds.join(",") } });
     if (result.status !== 0) throw new Error(result.stderr.trim() || "promotion compose failed");
-    const ready = await requestFn(baseUrl, "/ready");
+    const ready = await waitForReady(requestFn, baseUrl);
     if (!verifyPromotedRuntime(ready, config)) throw new Error("promoted service is not healthy with the frozen 20-security configuration");
     return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
   } catch (error) {
     if (switched) {
-      try { await requestFn(baseUrl, "/v2/collection-schedules/switch", { method: "POST", body: JSON.stringify({ sourceSubscriptionId: config.targetId, targetSubscriptionId: config.shortId }) }); } catch (rollbackError) { return { status: "FAILED", reasons: [String(error), `rollback failed: ${String(rollbackError)}`], exitCode: 1 }; }
+      try {
+        try {
+          await requestFn(baseUrl, "/v2/collection-schedules/switch", { method: "POST", body: JSON.stringify({ sourceSubscriptionId: config.targetId, targetSubscriptionId: config.shortId }) });
+        } catch (apiRollbackError) {
+          const dbRollback = command([...compose, "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "market_data", "-d", "market_data", "-c", `BEGIN; UPDATE market_data_collection_schedules SET enabled = (subscription_id = '${config.shortId.replaceAll("'", "''")}') WHERE subscription_id IN ('${config.shortId.replaceAll("'", "''")}','${config.targetId.replaceAll("'", "''")}'); COMMIT;`], { env });
+          if (dbRollback.status !== 0) throw new Error(`API rollback failed (${String(apiRollbackError)}); DB rollback failed: ${dbRollback.stderr.trim()}`);
+        }
+        const rollbackRuntime = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.shortId, STOCKQUANT_COLLECTION_SECURITY_IDS: (env.DC08A_SHORT_SECURITY_IDS ?? defaultShortSecurityIds.join(",")) } });
+        if (rollbackRuntime.status !== 0) throw new Error(rollbackRuntime.stderr.trim() || "rollback compose failed");
+        const ready = await waitForReady(requestFn, baseUrl);
+        const shortIds = (env.DC08A_SHORT_SECURITY_IDS ?? defaultShortSecurityIds.join(",")).split(",").map((item) => item.trim()).filter(Boolean);
+        if (!verifyRuntime(ready, shortIds)) throw new Error("rollback runtime is not healthy with the short-security configuration");
+      } catch (rollbackError) { return { status: "FAILED", reasons: [String(error), `rollback failed: ${String(rollbackError)}`], exitCode: 1 }; }
     }
     return { status: "FAILED", reasons: [String(error)], exitCode: 1 };
   }

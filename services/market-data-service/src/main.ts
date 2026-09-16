@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import { resolve } from "node:path";
 import { Pool } from "pg";
 import { CollectionRunConflict, CollectionRunRepository } from "./application/collection-run-repository.js";
@@ -104,7 +105,9 @@ function validLocalDate(value: unknown): value is string {
 }
 function authorizedCollectionControl(req: IncomingMessage): boolean {
   const expected = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control";
-  return req.headers["x-stockquant-control-token"] === expected;
+  const supplied = req.headers["x-stockquant-control-token"];
+  if (typeof supplied !== "string" || supplied.length === 0 || expected.length === 0 || supplied.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
 }
 function isUuid(value: string): boolean { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }
 function shanghaiDate(value: string): string { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)); }
@@ -113,7 +116,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   try {
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
     if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", collectionSecurityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean) });
-    if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") return json(res, { status: collectionScheduler.status(), ...(persistentSchedulerWorker?.status() ?? { enabled: false, lastSuccessfulTickAt: null, nextExecutionAt: null, lastSubmitted: 0 }), mode: "FIXTURE_PLAN_ONLY", note: "健康检查包含最近成功 Tick 与下一触发时间；盘后无待执行窗口时保持低频轮询。" });
+    if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") { const persistent = persistentSchedulerWorker?.status() ?? { enabled: false, lastSuccessfulTickAt: null, nextExecutionAt: null, lastSubmitted: 0 }; return json(res, { status: persistent.enabled ? "ENABLED" : "DISABLED", enabled: persistent.enabled, lastSuccessfulTickAt: persistent.lastSuccessfulTickAt, nextExecutionAt: persistent.nextExecutionAt, lastSubmitted: persistent.lastSubmitted, mode: "FIXTURE_PLAN_ONLY", note: "健康检查包含最近成功 Tick 与下一触发时间；盘后无待执行窗口时保持低频轮询。" }); }
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {
@@ -139,7 +142,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401);
       if (!collectionSchedules) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
-      if (typeof body.sourceSubscriptionId !== "string" || typeof body.targetSubscriptionId !== "string" || !body.sourceSubscriptionId || !body.targetSubscriptionId) return json(res, { code: "INVALID_SCHEDULE_SWITCH" }, 422);
+      if (typeof body.sourceSubscriptionId !== "string" || typeof body.targetSubscriptionId !== "string" || !body.sourceSubscriptionId.trim() || !body.targetSubscriptionId.trim() || body.sourceSubscriptionId === body.targetSubscriptionId || body.sourceSubscriptionId.length > 128 || body.targetSubscriptionId.length > 128) return json(res, { code: "INVALID_SCHEDULE_SWITCH" }, 422);
       try { return json(res, await collectionSchedules.switchEnabled(body.sourceSubscriptionId, body.targetSubscriptionId)); }
       catch (error) { if (error instanceof CollectionScheduleConflict) return json(res, { code: "SCHEDULE_SWITCH_CONFLICT", message: error.message }, 409); throw error; }
     }

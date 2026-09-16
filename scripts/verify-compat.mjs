@@ -7,7 +7,7 @@ if (!/^linux\/(amd64|arm64)$/.test(platform ?? "")) {
   process.exit(2);
 }
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const run = (command, commandArgs) => {
   const result = spawnSync(command, commandArgs, {
     stdio: "inherit",

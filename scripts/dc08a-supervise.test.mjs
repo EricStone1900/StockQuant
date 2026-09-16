@@ -11,7 +11,7 @@ test("ready classification distinguishes disabled executor", () => {
 
 test("repair plan only starts market-data-service", () => {
   const plan = buildRepairPlan("UNHEALTHY", "repair");
-  assert.deepEqual(plan, [["docker", ["compose", "-f", "infra/compose/docker-compose.yml", "up", "-d", "market-data-service"]]]);
+  assert.deepEqual(plan, [["docker", ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", "up", "-d", "market-data-service"]]]);
   assert.deepEqual(buildRepairPlan("WAITING_CONFIGURATION", "repair"), []);
   assert.deepEqual(buildRepairPlan("UNHEALTHY", "check-only"), []);
 });

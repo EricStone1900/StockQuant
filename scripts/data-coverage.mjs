@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const defaultSecurityIds = ["600000.SH", "000001.SZ", "600519.SH"];
 
 function todayShanghai() { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date()); }

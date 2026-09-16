@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 
 export function expectedBars(securityCount, sessions = 2, barsPerSession = 24) {
   return Math.max(0, securityCount) * Math.max(0, sessions) * Math.max(0, barsPerSession);

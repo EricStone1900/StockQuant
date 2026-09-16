@@ -3,7 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
-const compose = ["compose", "-f", "infra/compose/docker-compose.yml"];
+const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const outputDir = resolve(process.env.DC07_OUTPUT_DIR ?? "/tmp/stockquant-dc07");
 const marketUrl = process.env.DC07_MARKET_URL ?? "http://127.0.0.1:3002";
 const platformUrl = process.env.DC07_PLATFORM_URL ?? "http://127.0.0.1:3000";

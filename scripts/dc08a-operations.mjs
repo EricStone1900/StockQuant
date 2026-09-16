@@ -25,13 +25,16 @@ export async function morningGuard() {
   const check = await activate({ dryRun: true });
   const activation = check.status === "READY_TO_ENABLE" ? await activate() : check;
   const final = await waitForHealthy();
-  return { status: final.state === "HEALTHY" ? "READY" : "BLOCKED", repair, activation, final, exitCode: final.exitCode };
+  const ok = activation.exitCode === 0 && final.state === "HEALTHY";
+  return { status: ok ? "READY" : "BLOCKED", repair, activation, final, exitCode: ok ? 0 : (activation.exitCode || final.exitCode || 2) };
 }
 
 export async function monitor({ recordGaps = false } = {}) {
   const readiness = await supervise({ mode: "repair" });
   if (readiness.state === "REPAIR_FAILED") return { status: "FAILED", readiness, exitCode: 1 };
   const active = await readActiveSubscription();
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", hour12: false }).format(new Date()));
+  if (!recordGaps && hour >= 18) return { status: "QUIET_AFTER_CLOSE", readiness, active, exitCode: 0 };
   const date = todayShanghai();
   const report = await coverage({ subscriptionId: active.subscriptionId, fromDate: date, toDate: date, securityIds: active.securityIds, recordGaps });
   const deliveries = await drainCollectionOutbox({ subscriptionId: active.subscriptionId });

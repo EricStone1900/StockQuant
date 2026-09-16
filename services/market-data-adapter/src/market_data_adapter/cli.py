@@ -47,7 +47,7 @@ def main() -> int:
             timeout_seconds=float(request.get("timeoutSeconds", 30)),
             max_attempts=int(request.get("maxAttempts", 3)),
             backoff_seconds=float(request.get("backoffSeconds", 5)),
-            health_path=request.get("healthPath"),
+            health_path=request.get("healthPath") or os.environ.get("STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH") or "/var/lib/stockquant/source-health.json",
         )
         source_id, bars, attempts = collector.collect(security_ids, start, end)
         print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))

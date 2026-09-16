@@ -12,5 +12,5 @@ const services = stage === 'V1.1'
   ? ["postgres", "portfolio-risk-service", "platform-api-service"]
   : ["postgres", "portfolio-risk-service", "platform-api-service", "market-data-service", "qlib-worker", "quant-research-service"];
 const profileArgs = stage.startsWith("V2.") ? ["--profile", "web"] : [];
-const result = spawnSync("docker", ["compose", "-f", "infra/compose/docker-compose.yml", ...profileArgs, "up", "--build", "-d", ...services, ...(stage.startsWith("V2.") ? ["web"] : [])], { stdio: "inherit" });
+const result = spawnSync("docker", ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", ...profileArgs, "up", "--build", "-d", ...services, ...(stage.startsWith("V2.") ? ["web"] : [])], { stdio: "inherit" });
 process.exit(result.status ?? 1);

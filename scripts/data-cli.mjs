@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 const baseUrl = process.env.MARKET_DATA_URL ?? "http://127.0.0.1:3002";
 
@@ -40,7 +41,8 @@ export { isoDate, nonNegativeInt, positiveInt };
 async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? process.env.DATA_CLI_TIMEOUT_MS ?? 10000);
   const { timeoutMs: _timeout, ...fetchOptions } = options;
-  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: { "content-type": "application/json", "x-stockquant-control-token": process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control", ...(fetchOptions.headers ?? {}) } });
+  const token = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
+  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(fetchOptions.headers ?? {}) } });
   const text = await response.text();
   let body;
   try { body = text ? JSON.parse(text) : {}; } catch { body = { raw: text }; }
