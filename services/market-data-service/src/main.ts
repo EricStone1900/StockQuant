@@ -104,7 +104,9 @@ function validLocalDate(value: unknown): value is string {
   return date.toISOString().slice(0, 10) === value;
 }
 function authorizedCollectionControl(req: IncomingMessage): boolean {
-  const expected = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "stockquant-local-control";
+  // Fail closed when the control token is not explicitly configured. A built-in
+  // development token would expose schedule mutation endpoints on direct runs.
+  const expected = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? "";
   const supplied = req.headers["x-stockquant-control-token"];
   if (typeof supplied !== "string" || supplied.length === 0 || expected.length === 0 || supplied.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));

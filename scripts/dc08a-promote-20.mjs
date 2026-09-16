@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -36,6 +36,28 @@ export function evaluatePromotion({ schedules, reports, config }) {
 export function verifyPromotedRuntime(ready, config) {
   const ids = Array.isArray(ready?.collectionSecurityIds) ? ready.collectionSecurityIds : [];
   return ready?.status === "ready" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
+}
+
+export async function persistRuntimeConfig({ env = process.env, subscriptionId, securityIds, file = ".env.local" }) {
+  if (env.DC08A_PERSIST_RUNTIME_CONFIG === "0") return;
+  const original = await readFile(file, "utf8");
+  const values = {
+    STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: subscriptionId,
+    STOCKQUANT_COLLECTION_SECURITY_IDS: securityIds.join(","),
+  };
+  let updated = original;
+  for (const [key, value] of Object.entries(values)) {
+    const line = `${key}=${value}`;
+    const pattern = new RegExp(`^${key}=.*$`, "m");
+    updated = pattern.test(updated) ? updated.replace(pattern, line) : `${updated.trimEnd()}\n${line}\n`;
+  }
+  if (updated !== original) await writeFile(file, updated, "utf8");
+}
+
+export function rollbackSql(shortId, targetId) {
+  const shortSql = shortId.replaceAll("'", "''");
+  const targetSql = targetId.replaceAll("'", "''");
+  return `BEGIN; DO $$ DECLARE changed_count integer; BEGIN UPDATE market_data_collection_schedules SET enabled = (subscription_id = '${shortSql}'), version = version + 1, updated_at = now() WHERE subscription_id IN ('${shortSql}','${targetSql}'); GET DIAGNOSTICS changed_count = ROW_COUNT; IF changed_count <> 2 THEN RAISE EXCEPTION 'rollback affected unexpected schedule rows'; END IF; IF (SELECT count(*) FROM market_data_collection_schedules WHERE enabled) <> 1 OR NOT EXISTS (SELECT 1 FROM market_data_collection_schedules WHERE subscription_id='${shortSql}' AND enabled) THEN RAISE EXCEPTION 'rollback active subscription postcondition failed'; END IF; END $$; COMMIT;`;
 }
 
 function verifyRuntime(ready, securityIds) {
@@ -90,6 +112,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
     if (result.status !== 0) throw new Error(result.stderr.trim() || "promotion compose failed");
     const ready = await waitForReady(requestFn, baseUrl);
     if (!verifyPromotedRuntime(ready, config)) throw new Error("promoted service is not healthy with the frozen 20-security configuration");
+    await persistRuntimeConfig({ env, subscriptionId: config.targetId, securityIds: config.securityIds });
     return { status: "PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
   } catch (error) {
     if (switched) {
@@ -97,7 +120,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
         try {
           await requestFn(baseUrl, "/v2/collection-schedules/switch", { method: "POST", body: JSON.stringify({ sourceSubscriptionId: config.targetId, targetSubscriptionId: config.shortId }) });
         } catch (apiRollbackError) {
-          const dbRollback = command([...compose, "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "market_data", "-d", "market_data", "-c", `BEGIN; UPDATE market_data_collection_schedules SET enabled = (subscription_id = '${config.shortId.replaceAll("'", "''")}') WHERE subscription_id IN ('${config.shortId.replaceAll("'", "''")}','${config.targetId.replaceAll("'", "''")}'); COMMIT;`], { env });
+          const dbRollback = command([...compose, "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "market_data", "-d", "market_data", "-c", rollbackSql(config.shortId, config.targetId)], { env });
           if (dbRollback.status !== 0) throw new Error(`API rollback failed (${String(apiRollbackError)}); DB rollback failed: ${dbRollback.stderr.trim()}`);
         }
         const rollbackRuntime = command([...compose, "up", "-d", "--force-recreate", "market-data-service"], { env: { ...env, STOCKQUANT_SCHEDULER_WORKER: "1", STOCKQUANT_COLLECTION_EXECUTOR: "1", STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: config.shortId, STOCKQUANT_COLLECTION_SECURITY_IDS: (env.DC08A_SHORT_SECURITY_IDS ?? defaultShortSecurityIds.join(",")) } });
@@ -105,6 +128,7 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
         const ready = await waitForReady(requestFn, baseUrl);
         const shortIds = (env.DC08A_SHORT_SECURITY_IDS ?? defaultShortSecurityIds.join(",")).split(",").map((item) => item.trim()).filter(Boolean);
         if (!verifyRuntime(ready, shortIds)) throw new Error("rollback runtime is not healthy with the short-security configuration");
+        await persistRuntimeConfig({ env, subscriptionId: config.shortId, securityIds: shortIds });
       } catch (rollbackError) { return { status: "FAILED", reasons: [String(error), `rollback failed: ${String(rollbackError)}`], exitCode: 1 }; }
     }
     return { status: "FAILED", reasons: [String(error)], exitCode: 1 };

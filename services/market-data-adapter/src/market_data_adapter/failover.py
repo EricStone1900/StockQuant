@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import json
 import os
+import fcntl
 from dataclasses import dataclass
 from typing import Callable, Protocol, Sequence
 
@@ -72,13 +73,40 @@ class CircuitBreaker:
 
 
 class RateLimiter:
-    def __init__(self, minimum_interval_seconds: float = 1.0, clock: Callable[[], float] = time.monotonic, sleeper: Callable[[float], None] = time.sleep) -> None:
+    def __init__(self, minimum_interval_seconds: float = 1.0, clock: Callable[[], float] = time.monotonic, sleeper: Callable[[float], None] = time.sleep, state_path: str | None = None, key: str = "default") -> None:
         self.minimum_interval_seconds = minimum_interval_seconds
         self.clock = clock
         self.sleeper = sleeper
         self.last_request: float | None = None
+        self.state_path = state_path
+        self.key = key
 
     def wait(self) -> None:
+        if self.state_path:
+            directory = os.path.dirname(self.state_path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(self.state_path, "a+", encoding="utf-8") as handle:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    handle.seek(0)
+                    try:
+                        state = json.load(handle)
+                    except (json.JSONDecodeError, OSError):
+                        state = {}
+                    previous = state.get(self.key)
+                    now = self.clock()
+                    if isinstance(previous, (int, float)):
+                        remaining = self.minimum_interval_seconds - (now - previous)
+                        if remaining > 0:
+                            self.sleeper(remaining)
+                    state[self.key] = self.clock()
+                    handle.seek(0)
+                    handle.truncate()
+                    json.dump(state, handle)
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            return
         now = self.clock()
         if self.last_request is not None:
             remaining = self.minimum_interval_seconds - (now - self.last_request)
@@ -103,7 +131,8 @@ class FailoverCollector:
         self.sleeper = sleeper
         self.clock = clock
         self.health_path = health_path
-        self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper)) for source, client in providers]
+        rate_path = f"{health_path}.rate" if health_path else None
+        self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper, state_path=rate_path, key=f"rate:{source}")) for source, client in providers]
         self._load_health()
 
     def _load_health(self) -> None:

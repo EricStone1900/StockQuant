@@ -154,7 +154,7 @@ async function main() {
   const accepted = await request("/api/v1/acceptance/v1/v1.1/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: Number(value("--seed") ?? 20260907) }) });
   let run = await waitForRun(accepted.testRunId);
   if (scenario === "recovery" && run.status === "WAITING") {
-    const restarted = runCommand("docker", ["compose", "-f", "infra/compose/docker-compose.yml", "restart", "portfolio-risk-service"]);
+    const restarted = runCommand("docker", ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", "restart", "portfolio-risk-service"]);
     if (restarted !== 0) process.exit(restarted);
     for (let attempt = 0; attempt < 40; attempt += 1) {
       try {
