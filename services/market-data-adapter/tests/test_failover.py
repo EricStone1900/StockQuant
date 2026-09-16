@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 
-from market_data_adapter.failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
+from market_data_adapter.failover import AllSourcesFailed, FailoverCollector, NormalizedBar, RateLimiter, SourceError
 
 
 def bar(source: str) -> NormalizedBar:
@@ -69,6 +69,18 @@ class FailoverTests(unittest.TestCase):
             with self.assertRaises(AllSourcesFailed) as failure:
                 restored.collect(["600000.SH"], "2026-09-11", "2026-09-11")
             self.assertEqual(failure.exception.attempts[0]["code"], "CIRCUIT_OPEN")
+
+    def test_rate_limit_state_is_shared_across_collector_processes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "source-health.json.rate")
+            clock = [0.0]
+            first = RateLimiter(1.0, clock=lambda: clock[0], sleeper=lambda seconds: None, state_path=path, key="rate:sina")
+            second_sleeps = []
+            second = RateLimiter(1.0, clock=lambda: clock[0], sleeper=second_sleeps.append, state_path=path, key="rate:sina")
+            first.wait()
+            clock[0] = 0.25
+            second.wait()
+            self.assertEqual(second_sleeps, [0.75])
 
 
 if __name__ == "__main__":
