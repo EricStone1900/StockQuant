@@ -154,18 +154,27 @@ class FailoverCollector:
     def _save_health(self) -> None:
         if not self.health_path:
             return
-        state = {}
-        for provider in self.providers:
-            opened_at = None
-            if provider.breaker.opened_at is not None:
-                opened_at = time.time() - max(0.0, self.clock() - provider.breaker.opened_at)
-            state[provider.source_id] = {"failures": provider.breaker.failures, "state": provider.breaker.state, "openedAt": opened_at}
         directory = os.path.dirname(self.health_path) or "."
         os.makedirs(directory, exist_ok=True)
-        temporary = self.health_path + ".tmp"
-        with open(temporary, "w", encoding="utf-8") as handle:
-            json.dump(state, handle, separators=(",", ":"))
-        os.replace(temporary, self.health_path)
+        lock_path = self.health_path + ".lock"
+        with open(lock_path, "a+", encoding="utf-8") as lock_handle:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+            state = {}
+            try:
+                with open(self.health_path, encoding="utf-8") as handle:
+                    state = json.load(handle)
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
+                state = {}
+            for provider in self.providers:
+                opened_at = None
+                if provider.breaker.opened_at is not None:
+                    opened_at = time.time() - max(0.0, self.clock() - provider.breaker.opened_at)
+                state[provider.source_id] = {"failures": provider.breaker.failures, "state": provider.breaker.state, "openedAt": opened_at}
+            temporary = f"{self.health_path}.{os.getpid()}.tmp"
+            with open(temporary, "w", encoding="utf-8") as handle:
+                json.dump(state, handle, separators=(",", ":"))
+            os.replace(temporary, self.health_path)
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
     def collect(self, security_ids: Sequence[str], start: str, end: str) -> tuple[str, list[NormalizedBar], list[dict[str, object]]]:
         attempts: list[dict[str, object]] = []

@@ -97,6 +97,18 @@ class FailoverTests(unittest.TestCase):
             self.assertGreaterEqual(time.monotonic() - started, 0.15)
             self.assertTrue(os.path.exists(path))
 
+    def test_concurrent_health_writes_keep_valid_merged_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            worker = "import sys; from market_data_adapter.failover import FailoverCollector, SourceError; c=FailoverCollector([('sina', type('S',(object,),{'fetch':lambda self,*a: (_ for _ in ()).throw(SourceError('TIMEOUT','x'))})())], max_attempts=1, backoff_seconds=0, sleeper=lambda _: None, health_path=sys.argv[1]);\ntry: c.collect(['600000.SH'],'2026-09-11','2026-09-11')\nexcept Exception: pass"
+            processes = [subprocess.Popen([sys.executable, "-c", worker, path]) for _ in range(2)]
+            for process in processes:
+                self.assertEqual(process.wait(timeout=5), 0)
+            with open(path, encoding="utf-8") as handle:
+                state = __import__("json").load(handle)
+            self.assertIn("sina", state)
+            self.assertFalse(os.path.exists(path + ".tmp"))
+
 
 if __name__ == "__main__":
     unittest.main()

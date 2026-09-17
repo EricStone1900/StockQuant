@@ -13,12 +13,13 @@ export function parseRows(output, fields, delimiter = "\t") {
   });
 }
 
-export function buildObservation({ ready, schedule, statusCounts, artifactSummary, pendingOutbox, openGaps, capturedAt }) {
+export function buildObservation({ ready, schedule, statusCounts, artifactSummary, pendingOutbox, openGaps, capturedAt, observationCounted = false }) {
   const totalRuns = statusCounts.reduce((sum, row) => sum + Number(row.count ?? 0), 0);
   const completedRuns = Number(statusCounts.find((row) => row.status === "COMPLETED")?.count ?? 0);
   return {
     schemaVersion: "dc08a-observation-v1",
     capturedAt,
+    observationCounted,
     subscription: schedule,
     ready,
     runs: { total: totalRuns, completed: completedRuns, byStatus: statusCounts },

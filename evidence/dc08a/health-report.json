@@ -1,7 +1,8 @@
 {
-  "schemaVersion": "dc08a-health-v1",
-  "capturedAt": "2026-09-17T11:50:05.373Z",
+  "schemaVersion": "dc08a-health-v2",
+  "capturedAt": "2026-09-17T11:57:56.648Z",
   "status": "HEALTHY",
+  "activeSubscription": "dc08a-20260917-20-v1",
   "ready": {
     "status": "ready",
     "persistence": "POSTGRES",
@@ -10,12 +11,53 @@
   },
   "scheduler": {
     "status": "ENABLED",
-    "lastSuccessfulTickAt": "2026-09-17T11:49:18.215Z",
+    "lastSuccessfulTickAt": "2026-09-17T11:57:18.257Z",
     "nextExecutionAt": "2026-09-18T01:37:00.000Z",
-    "lastSubmitted": 0
+    "lastSubmitted": 0,
+    "tickAgeSeconds": 38.391
+  },
+  "sources": [
+    {
+      "sourceId": "tencent-quote",
+      "kind": "QUOTE",
+      "url": "https://qt.gtimg.cn",
+      "status": "CONFIGURED",
+      "license": "public web endpoint; verify terms before production",
+      "circuit": "HEALTHY"
+    },
+    {
+      "sourceId": "sina-quote",
+      "kind": "QUOTE",
+      "url": "https://hq.sinajs.cn",
+      "status": "CONFIGURED",
+      "license": "public web endpoint; verify terms before production",
+      "circuit": "HEALTHY"
+    },
+    {
+      "sourceId": "eastmoney-rss",
+      "kind": "NEWS",
+      "url": "https://finance.eastmoney.com",
+      "status": "CONFIGURED",
+      "license": "public news pages; verify terms before production",
+      "circuit": "HEALTHY"
+    },
+    {
+      "sourceId": "cls-rss",
+      "kind": "NEWS",
+      "url": "https://www.cls.cn",
+      "status": "CONFIGURED",
+      "license": "public news pages; verify terms before production",
+      "circuit": "HEALTHY"
+    }
+  ],
+  "quality": {
+    "openGaps": 0,
+    "pendingOutbox": 0
   },
   "checks": {
     "recentSuccessRecorded": true,
-    "nextTriggerRecorded": true
+    "nextTriggerRecorded": true,
+    "sourceReady": true,
+    "qualityReady": true
   }
 }

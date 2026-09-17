@@ -1,14 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscription }) {
-  const healthy = ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && scheduler?.status === "ENABLED";
-  return { schemaVersion: "dc08a-health-v1", capturedAt, status: healthy ? "HEALTHY" : "UNHEALTHY", activeSubscription, ready: { status: ready?.status ?? "UNAVAILABLE", persistence: ready?.collectionPersistence ?? null, scheduler: ready?.collectionSchedulerWorker ?? null, executor: ready?.collectionExecutor ?? null }, scheduler: { status: scheduler?.status ?? "UNAVAILABLE", lastSuccessfulTickAt: scheduler?.lastSuccessfulTickAt ?? null, nextExecutionAt: scheduler?.nextExecutionAt ?? null, lastSubmitted: Number(scheduler?.lastSubmitted ?? 0) }, checks: { recentSuccessRecorded: Boolean(scheduler?.lastSuccessfulTickAt), nextTriggerRecorded: Boolean(scheduler?.nextExecutionAt) || scheduler?.nextExecutionAt === null } };
+export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscription, sources = [], quality = {}, now = new Date(capturedAt), maxTickAgeSeconds = 1800 }) {
+  const tickAgeSeconds = scheduler?.lastSuccessfulTickAt ? Math.max(0, (now.getTime() - Date.parse(scheduler.lastSuccessfulTickAt)) / 1000) : null;
+  const recent = tickAgeSeconds !== null && tickAgeSeconds <= maxTickAgeSeconds;
+  const sourceReady = sources.length === 0 || sources.some((source) => source.status === "PASS" || source.circuit === "HEALTHY");
+  const qualityReady = Number(quality.openGaps ?? 0) === 0 && Number(quality.pendingOutbox ?? 0) === 0;
+  const healthy = ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && scheduler?.status === "ENABLED" && recent && sourceReady && qualityReady;
+  return { schemaVersion: "dc08a-health-v2", capturedAt, status: healthy ? "HEALTHY" : "UNHEALTHY", activeSubscription: activeSubscription ?? null, ready: { status: ready?.status ?? "UNAVAILABLE", persistence: ready?.collectionPersistence ?? null, scheduler: ready?.collectionSchedulerWorker ?? null, executor: ready?.collectionExecutor ?? null }, scheduler: { status: scheduler?.status ?? "UNAVAILABLE", lastSuccessfulTickAt: scheduler?.lastSuccessfulTickAt ?? null, nextExecutionAt: scheduler?.nextExecutionAt ?? null, lastSubmitted: Number(scheduler?.lastSubmitted ?? 0), tickAgeSeconds: tickAgeSeconds === null ? null : Number(tickAgeSeconds.toFixed(3)) }, sources, quality: { openGaps: Number(quality.openGaps ?? 0), pendingOutbox: Number(quality.pendingOutbox ?? 0) }, checks: { recentSuccessRecorded: recent, nextTriggerRecorded: Boolean(scheduler?.nextExecutionAt) || scheduler?.nextExecutionAt === null, sourceReady, qualityReady } };
 }
 
-export async function createHealthReport({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", activeSubscription, output = "evidence/dc08a/health-report.json" } = {}) {
-  const [readyResponse, schedulerResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { signal: AbortSignal.timeout(3000) })]);
-  const report = buildHealthReport({ capturedAt: new Date().toISOString(), ready: await readyResponse.json(), scheduler: await schedulerResponse.json(), activeSubscription });
+export async function createHealthReport({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", activeSubscription = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260917-20-v1", output = "evidence/dc08a/health-report.json" } = {}) {
+  const [readyResponse, schedulerResponse, sourcesResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/sources`, { signal: AbortSignal.timeout(3000) })]);
+  const report = buildHealthReport({ capturedAt: new Date().toISOString(), ready: await readyResponse.json(), scheduler: await schedulerResponse.json(), sources: (await sourcesResponse.json()).sources ?? [], activeSubscription });
   await mkdir(resolve(output, ".."), { recursive: true });
   await writeFile(resolve(output), `${JSON.stringify(report, null, 2)}\n`);
   return { output: resolve(output), report };

@@ -28,6 +28,8 @@ async function run() {
   check(heartbeatRule.includes("BYMINUTE=0,15,30,45"), "heartbeat-quarter-hour", heartbeatRule, failures);
   check(heartbeatRule.includes("BYHOUR=8,9,10,11,12,13,14,15,16,17"), "heartbeat-hours", heartbeatRule, failures);
   check(files.heartbeat.includes("pnpm dc08a:monitor") && files.heartbeat.includes("pnpm dc08a:eod"), "heartbeat-commands", "monitor/eod commands missing", failures);
+  check(files.heartbeat.includes("pnpm dc08a:health-report") && files.heartbeat.includes("pnpm dc08a:observation-summary"), "heartbeat-health-commands", "health/observation summary commands missing", failures);
+  check(files.heartbeat.includes("退出码2") || files.heartbeat.includes("exit code 2"), "observation-waiting-code", "observation waiting exit code handling missing", failures);
   check(field(files.legacy, "status") === "PAUSED", "legacy-paused", "stockquant must remain PAUSED", failures);
   check(field(files.promotion, "status") === "ACTIVE", "promotion-active", "dc-08a-20 must be ACTIVE", failures);
   check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR"), "morning-trigger", morningRule, failures);

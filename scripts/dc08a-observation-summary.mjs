@@ -9,8 +9,8 @@ export function summarizeObservations(observations, { subscriptionId, targetDays
   for (const item of filtered) {
     const date = shanghaiDate(item.capturedAt);
     const current = byDate.get(date);
-    const complete = item.status === "ACTIVE" && item.runs?.total > 0 && item.runs?.total === item.runs?.completed && item.openGaps === 0 && item.pendingOutbox === 0;
-    byDate.set(date, { date, complete: Boolean(current?.complete || complete), capturedAt: item.capturedAt, status: item.status, runs: item.runs, openGaps: item.openGaps, pendingOutbox: item.pendingOutbox });
+    const complete = item.observationCounted === true && item.status === "ACTIVE" && item.runs?.total > 0 && item.runs?.total === item.runs?.completed && item.openGaps === 0 && item.pendingOutbox === 0;
+    byDate.set(date, { date, complete: Boolean(current?.complete || complete), observationCounted: Boolean(current?.observationCounted || item.observationCounted === true), capturedAt: item.capturedAt, status: item.status, runs: item.runs, openGaps: item.openGaps, pendingOutbox: item.pendingOutbox });
   }
   const dates = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   const completedDays = dates.filter((item) => item.complete).length;
