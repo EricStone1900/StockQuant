@@ -69,9 +69,22 @@ function verifyRuntime(ready, securityIds) {
   return ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === securityIds.length && ids.every((id, index) => id === securityIds[index]);
 }
 
-async function request(baseUrl, path, options = {}) {
+export async function request(baseUrl, path, options = {}) {
   const token = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
-  const response = await fetch(`${baseUrl}${path}`, { ...options, headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(options.headers ?? {}) } });
+  const requestOptions = { ...options, headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(options.headers ?? {}) } };
+  let response;
+  let lastError;
+  const attempts = options.method ? 1 : 3;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      response = await fetch(`${baseUrl}${path}`, { ...requestOptions, signal: AbortSignal.timeout(5_000) });
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolve) => setTimeout(resolve, 1_000 * (attempt + 1)));
+    }
+  }
+  if (!response) throw new Error(`GET ${path} failed after ${attempts} attempts: ${String(lastError)}`);
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${options.method ?? "GET"} ${path} HTTP ${response.status}: ${JSON.stringify(body)}`);
   return body;

@@ -1,6 +1,6 @@
 # 共享数据采集：进度、问题及接续记录
 
-日期：2026-09-16；计划版本1.3。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
+日期：2026-09-17；计划版本1.4。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
 
 ## 1. 状态规则
 
@@ -28,12 +28,14 @@
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、历史归档逐日覆盖与回放20/20通过、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md)；[DC-T23真实归档回放](../../../evidence/dc08a/historical-replay-2026-09-16.json) | 实际补采执行、停牌权威核验、每日自动覆盖报告和盘中数据持续观察 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
-| DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14～2026-09-16各完成48窗口/144根5分钟Bar、0缺口、0非取消待投递Outbox；20只切换门禁返回READY_TO_PROMOTE；首个20只交易日待运行 | NOT_RUN | `evidence/dc08a/daily-report-2026-09-14.json`、`daily-report-2026-09-15.json`、`daily-report-2026-09-16.json`、[首日验收清单](../../../evidence/dc08a/acceptance-checklist-2026-09-17.md) | 2026-09-17开盘前切换20只冻结集合，收盘后按清单填写首日证据 |
+| DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14～2026-09-16各完成48窗口/144根5分钟Bar；2026-09-17目标20只完成48/48窗口、960/960根Bar、0缺口、0待投递Outbox，日终质量报告PASS；切换发生在收盘后，全天盘中观察门槛仍WAITING | NOT_RUN | `evidence/dc08a/daily-report-2026-09-17.json`、[首日验收清单](../../../evidence/dc08a/acceptance-checklist-2026-09-17.md)、[观察记录](../../../evidence/dc08a/observation-2026-09-17T11-37-48-253Z.json) | 下一个实际交易日开盘前核对20只集合并完成全天盘中观察 |
 | DC-08B 60日数据验收 | IN_PROGRESS | PASS（历史覆盖） | NOT_RUN | `data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1/manifest.json`：20只×60交易日×48窗口=57,600根，逐文件 SHA-256 20/20匹配 | 历史分钟回放验收；真实盘中累计仍独立观察，不能以历史导入替代 |
 
 2026-09-16 代码与容量复核：20只证券隔离监控池测试使用 `V25_MONITOR_SIZES=20 pnpm v25:monitor-capacity`，返回 configured/sampled/live 均为20、耗时47ms，测试后 watchlist 恢复3只，未修改正式活动订阅。持久调度器状态接口新增 `lastSuccessfulTickAt`、`nextExecutionAt`、`lastSubmitted`，盘后无待执行窗口时仅保留低频健康轮询。market-data-service 单元35/35、PostgreSQL集成17/17、全仓 lint/typecheck/test、契约/Fixture、Docker DC-07、V2.5 Web E2E、ARM64兼容性均通过；`pnpm test:integration` 在 Docker 服务启动且使用可访问宿主网络后通过，运行ID为 `9bf69efc-0922-44a7-a397-2f49a060da72`（normal）、`7caf6007-2a7e-4086-9b0a-e523ab43a96d`（rejection）、`0b77e43f-dd27-4b06-89f3-0816e2539452`（recovery）。人工验收和真实交易日观察不因本次自动测试提前签署。
 
 2026-09-16 DC-08B/DC-T23：20只冻结证券的 BaoStock 5分钟归档覆盖严格达到60个交易日、57,600根 Bar；逐文件完整性、逐日窗口与真实归档回放20/20通过。历史覆盖与回放证据已记录，但 DC-08A 真实盘中累计和 V2.4 20个实际交易日观察继续独立进行。
+
+2026-09-17 DC-08A 首次20只收盘后补采：自动任务首次请求因 `TypeError: fetch failed` 退出1，受控重试后切换至 `dc08a-20260917-20-v1`；日终完成48/48窗口、960/960根Bar，来源Sina，开放缺口和待投递Outbox均为0。由于切换时间约19:22（收盘后），不计作全天盘中观察日；下一实际交易日继续观察。
 
 ## 3. 开发中断接续协议
 

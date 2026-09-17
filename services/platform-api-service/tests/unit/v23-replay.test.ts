@@ -36,6 +36,17 @@ describe("V2.3 deterministic replay", () => {
     expect(result.assertions[0].status).toBe("PASS");
   });
 
+  it("caps participation fills at the requested order quantity", async () => {
+    const bars = await fixture();
+    const target = bars.find((bar) => bar.timestamp === "2024-01-03T09:31:00+08:00" && bar.security === "600000.SH");
+    expect(target).toBeDefined();
+    target!.volume = 999999;
+    const result = new V23ReplayEngine().run("normal", 20260907, bars);
+    const normal = result.evidence.normal as { orders: Array<{ requestedQuantity: number; filledQuantity: number }> };
+    expect(normal.orders[0].filledQuantity).toBe(100);
+    expect(normal.orders[0].filledQuantity).toBeLessThanOrEqual(normal.orders[0].requestedQuantity);
+  });
+
   it("fails fast when the fixture contract is malformed", () => {
     expect(() => parseReplayBars("security,timestamp\n600000.SH,2024-01-02")).toThrow("V2.3 fixture header is invalid");
   });

@@ -66,7 +66,7 @@ export class V23ReplayEngine {
     while (state.cursor < Math.min(stopAt, bars.length)) {
       const bar = bars[state.cursor++];
       if (bar.security !== focusSecurity || bar.timestamp !== target.timestamp) continue;
-      const quantity = Math.floor(bar.volume * 0.1);
+      const quantity = Math.min(100, Math.floor(bar.volume * 0.1));
       const price = Number((bar.open * 1.001).toFixed(4));
       state.events.push("BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED");
       const fee = Number((quantity * price * 0.001).toFixed(4));
