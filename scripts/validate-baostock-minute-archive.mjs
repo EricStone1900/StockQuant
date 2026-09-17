@@ -8,6 +8,9 @@ const manifestPath = resolve(argument("--manifest", "data/local/baostock-minute-
 const outputPath = resolve(argument("--output", "evidence/dc08a/historical-coverage-2026-09-16.json"));
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
+const expectedSecurities = Number(argument("--expected-securities", manifest.sampleSize ?? 20));
+const expectedTradingDays = Number(argument("--expected-trading-days", 60));
+const barsPerTradingDay = Number(argument("--bars-per-trading-day", 48));
 const results = [];
 for (const code of manifest.selectedCodes ?? []) {
   const artifact = manifest.artifacts?.[code];
@@ -28,11 +31,12 @@ for (const code of manifest.selectedCodes ?? []) {
     const numeric = [open, high, low, close, volume, amount].map(Number);
     if (numeric.some((value) => !Number.isFinite(value)) || numeric[4] < 0 || numeric[0] > numeric[1] || numeric[2] > numeric[1] || numeric[0] < numeric[2]) badRows += 1;
   }
-  const dayCountsValid = [...dayCounts.values()].every((count) => count === 48);
+  const dayCountsValid = [...dayCounts.values()].every((count) => count === barsPerTradingDay);
   results.push({ code, rows: lines.length, tradingDays: dayCounts.size, dayCountsValid, duplicateRows, badRows, sha256Matches: createHash("sha256").update(bytes).digest("hex") === artifact.sha256 });
 }
-const expectedBars = results.length * 60 * 48;
-const report = { schemaVersion: "dc-t23-historical-coverage-v2", capturedAt: new Date().toISOString(), source: manifest.source, frequency: manifest.frequency, sourceManifest: manifestPath, sourceManifestSha256: createHash("sha256").update(manifestBytes).digest("hex"), status: manifest.status === "COMPLETED" && results.length === 20 && results.every((item) => item.rows === 2880 && item.tradingDays === 60 && item.dayCountsValid && item.duplicateRows === 0 && item.badRows === 0 && item.sha256Matches) ? "PASS" : "INCOMPLETE", scope: { securities: results.length, startDate: manifest.startDate, endDate: manifest.endDate, tradingDaysPerSecurity: 60, barsPerTradingDay: 48, expectedBars, actualBars: results.reduce((sum, item) => sum + item.rows, 0) }, assertions: { manifestCompleted: manifest.status === "COMPLETED" ? "PASS" : "FAIL", allSecuritiesCompleted: results.length === 20 ? "PASS" : "FAIL", rowsPerSecurity: results.every((item) => item.rows === 2880) ? "PASS" : "FAIL", tradingDaysPerSecurity: results.every((item) => item.tradingDays === 60) ? "PASS" : "FAIL", barsPerTradingDay: results.every((item) => item.dayCountsValid) ? "PASS" : "FAIL", duplicateDateTime: results.every((item) => item.duplicateRows === 0) ? "PASS" : "FAIL", manifestSha256: results.every((item) => item.sha256Matches) ? "PASS" : "FAIL", ohlcvQuality: results.every((item) => item.badRows === 0) ? "PASS" : "FAIL" }, securities: results, limitations: ["历史归档覆盖不代表已运行60个实际交易日", "不替代DC-08A盘中来源稳定性和V2.4实际交易日观察"] };
+const expectedRowsPerSecurity = expectedTradingDays * barsPerTradingDay;
+const expectedBars = expectedSecurities * expectedRowsPerSecurity;
+const report = { schemaVersion: "dc-t23-historical-coverage-v2", capturedAt: new Date().toISOString(), source: manifest.source, frequency: manifest.frequency, sourceManifest: manifestPath, sourceManifestSha256: createHash("sha256").update(manifestBytes).digest("hex"), status: manifest.status === "COMPLETED" && results.length === expectedSecurities && results.every((item) => item.rows === expectedRowsPerSecurity && item.tradingDays === expectedTradingDays && item.dayCountsValid && item.duplicateRows === 0 && item.badRows === 0 && item.sha256Matches) ? "PASS" : "INCOMPLETE", scope: { securities: results.length, startDate: manifest.startDate, endDate: manifest.endDate, tradingDaysPerSecurity: expectedTradingDays, barsPerTradingDay, expectedBars, actualBars: results.reduce((sum, item) => sum + item.rows, 0) }, assertions: { manifestCompleted: manifest.status === "COMPLETED" ? "PASS" : "FAIL", allSecuritiesCompleted: results.length === expectedSecurities ? "PASS" : "FAIL", rowsPerSecurity: results.every((item) => item.rows === expectedRowsPerSecurity) ? "PASS" : "FAIL", tradingDaysPerSecurity: results.every((item) => item.tradingDays === expectedTradingDays) ? "PASS" : "FAIL", barsPerTradingDay: results.every((item) => item.dayCountsValid) ? "PASS" : "FAIL", duplicateDateTime: results.every((item) => item.duplicateRows === 0) ? "PASS" : "FAIL", manifestSha256: results.every((item) => item.sha256Matches) ? "PASS" : "FAIL", ohlcvQuality: results.every((item) => item.badRows === 0) ? "PASS" : "FAIL" }, securities: results, limitations: ["历史归档覆盖不代表已运行60个实际交易日", "不替代DC-08A盘中来源稳定性和V2.4实际交易日观察"] };
 await mkdir(resolve(outputPath, ".."), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ outputPath, status: report.status, scope: report.scope }, null, 2));

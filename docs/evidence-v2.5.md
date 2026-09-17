@@ -50,6 +50,8 @@ Ubuntu 实机人工验收（2026-09-12）：用户已确认 Ubuntu 实机验证�
 
 已知限制：分钟级全市场多年导入/存储/恢复容量、BaoStock 长期限频/会话稳定性、可覆盖 60 个交易日的第二在线免费分钟源、TDX 本地文件的实际导入验证、带修订链的真实财务/行业 PIT、V2.5 整体人工验收和 V2.4 20 个实际交易日观察尚未完成；Ubuntu 实机人工子项已确认通过。
 
+100 只分钟容量分阶段验证（2026-09-17）：使用 `pnpm v25:import-baostock-minute-sample -- --sample-size 100 --start-date 2024-01-02 --end-date 2024-04-02 --output-dir data/local/baostock-minute-100x60-2024-01-02-2024-04-02-v1 --continue-on-error` 完成 100/100 个冻结证券、288,000 根 5 分钟 Bar；随后运行 `pnpm v25:validate-baostock-minute -- --manifest data/local/baostock-minute-100x60-2024-01-02-2024-04-02-v1/manifest.json --expected-securities 100 --output evidence/dc08a/historical-coverage-100x60-2024-01-02-2024-04-02.json`，逐文件 SHA、重复键、OHLCV 和每日48窗口全部 PASS。Manifest SHA-256 为 `5f80293b33ee23ad6ecd4a2141ea274eeb883d0215724ee0ed405d7596505e1b`，本地目录约 25 MiB。该结果仅通过 100 只分阶段容量门禁，不代表 500/1000 只或全市场分钟容量。
+
 来源诊断复核（2026-09-15）：只读探针对 `sh.600000`、`sz.000001`、`sh.600519` 执行
 2024-01-02 至 2024-01-10 的 5 分钟历史查询；BaoStock 三个标的均返回 336 行且
 `errorCode=0`，Sina 三个标的均 HTTP 200 返回 1,970 行，探针总体 `PASS`。输出保存在

@@ -28,3 +28,5 @@ pnpm --filter @stockquant/market-data-service exec vitest run tests/unit
 DC-03 当前状态为 `IN_PROGRESS`：确定性计划算法、持久调度配置、单活租约、可恢复 Worker、执行/发布链路和 HTTP 配置链路已完成并验证。Compose 默认将调度/执行器设为`0`，只有冻结订阅与来源能力报告后才显式设为`1`；这避免历史验证任务被误采集。仍需实际交易日运行、Web/验收中心接入和真实来源采集；本证据不能代替 DC-T25 或 DC-08A。
 
 2026-09-12 已新增 DC-08A 只读 Web/验收页面与平台 API 预览接口，可查看 `/ready`、正式订阅和开放缺口，不提供 Web 端启用采集操作。平台/Web 类型检查、单元测试和 Web 生产构建通过；容器化 Web/API 启动后，`dc08a-acceptance.spec.ts` 使用 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080` 实测 1/1 PASS。
+
+状态校准（2026-09-17）：上文“正式 Worker 保持显式禁用”属于 2026-09-12 的历史状态；当前唯一 20 只订阅已按受控任务启用，运行期健康和收盘后补采证据见 `evidence/dc08a/health-report.json` 与 `daily-report-2026-09-17.json`。全天盘中观察仍需实际交易日累计。
