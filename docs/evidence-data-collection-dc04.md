@@ -27,3 +27,5 @@ pnpm --filter @stockquant/market-data-service lint
 ## 未完成门槛
 
 DC-04 当前为 `IN_PROGRESS`。BaoStock/Sina 的真实盘中两日能力、许可核验、实际限频和 DC-T19 仍需在交易时段执行；真实源能力不以 Fixture 或模拟故障测试替代。正式 Worker 在冻结订阅和DC-00能力报告前保持显式禁用。
+
+状态校准（2026-09-17）：20 只订阅已完成一次收盘后真实采集（Sina 960/960），但这不替代盘中两日能力、BaoStock 盘中稳定性和许可核验；正式验收门槛仍为 `IN_PROGRESS`。
