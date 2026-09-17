@@ -46,7 +46,8 @@ export async function endOfDay() {
   const monitored = await monitor({ recordGaps: true });
   if (monitored.exitCode === 1) return monitored;
   const report = await createDailyReport({ subscriptionId: monitored.active.subscriptionId, securityCount: monitored.active.securityIds.length });
-  return { ...monitored, dailyReport: report.report, exitCode: finalReportExitCode(report.report) };
+  const counted = await capture({ subscriptionId: monitored.active.subscriptionId, observationCounted: report.report.status === "PASS" && report.report.tradingDay === true });
+  return { ...monitored, observation: counted.report, dailyReport: report.report, exitCode: finalReportExitCode(report.report) };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

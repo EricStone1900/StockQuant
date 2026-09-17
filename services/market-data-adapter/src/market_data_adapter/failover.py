@@ -169,7 +169,15 @@ class FailoverCollector:
                 opened_at = None
                 if provider.breaker.opened_at is not None:
                     opened_at = time.time() - max(0.0, self.clock() - provider.breaker.opened_at)
-                state[provider.source_id] = {"failures": provider.breaker.failures, "state": provider.breaker.state, "openedAt": opened_at}
+                # Merge failure observations made by another process while this
+                # worker was running.  Without this, a stale in-memory snapshot
+                # could erase a concurrent circuit-open event.
+                previous = state.get(provider.source_id, {})
+                previous_failures = int(previous.get("failures", 0) or 0)
+                failures = max(provider.breaker.failures, previous_failures)
+                previous_state = str(previous.get("state", "CLOSED"))
+                circuit_state = "OPEN" if provider.breaker.state == "OPEN" or previous_state == "OPEN" else "CLOSED"
+                state[provider.source_id] = {"failures": failures, "state": circuit_state, "openedAt": opened_at if circuit_state == "OPEN" else None}
             temporary = f"{self.health_path}.{os.getpid()}.tmp"
             with open(temporary, "w", encoding="utf-8") as handle:
                 json.dump(state, handle, separators=(",", ":"))

@@ -31,7 +31,7 @@ async function run() {
   check(files.heartbeat.includes("pnpm dc08a:health-report") && files.heartbeat.includes("pnpm dc08a:observation-summary"), "heartbeat-health-commands", "health/observation summary commands missing", failures);
   check(files.heartbeat.includes("退出码2") || files.heartbeat.includes("exit code 2"), "observation-waiting-code", "observation waiting exit code handling missing", failures);
   check(field(files.legacy, "status") === "PAUSED", "legacy-paused", "stockquant must remain PAUSED", failures);
-  check(field(files.promotion, "status") === "ACTIVE", "promotion-active", "dc-08a-20 must be ACTIVE", failures);
+  check(field(files.promotion, "status") === "PAUSED", "promotion-paused", "completed one-shot dc-08a-20 must be PAUSED", failures);
   check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR"), "morning-trigger", morningRule, failures);
   check(promotionRule.includes("DTSTART:20260917T000000") && promotionRule.includes("RRULE:FREQ=MINUTELY;COUNT=1"), "promotion-once", promotionRule, failures);
   for (const command of ["pnpm dc08a:promote-20 -- --check-only", "pnpm dc08a:active-subscription -- --field id", "pnpm dc08a:active-subscription -- --field count", "pnpm dc08a:supervise -- --check-only"]) {

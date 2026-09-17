@@ -119,6 +119,14 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
     if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: "LIVE_SOURCE", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", collectionSecurityIds: (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean) });
     if (req.url === "/v2/collection-scheduler/status" && req.method === "GET") { const persistent = persistentSchedulerWorker?.status() ?? { enabled: false, lastSuccessfulTickAt: null, nextExecutionAt: null, lastSubmitted: 0 }; return json(res, { status: persistent.enabled ? "ENABLED" : "DISABLED", enabled: persistent.enabled, lastSuccessfulTickAt: persistent.lastSuccessfulTickAt, nextExecutionAt: persistent.nextExecutionAt, lastSubmitted: persistent.lastSubmitted, mode: "FIXTURE_PLAN_ONLY", note: "健康检查包含最近成功 Tick 与下一触发时间；盘后无待执行窗口时保持低频轮询。" }); }
+    if (req.url?.startsWith("/v2/collection/health") && req.method === "GET") {
+      if (!coverageRepository || !databasePool) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const subscriptionId = new URL(req.url, "http://localhost").searchParams.get("subscriptionId");
+      if (!subscriptionId) return json(res, { code: "INVALID_SUBSCRIPTION_ID" }, 422);
+      const gaps = await coverageRepository.open(subscriptionId);
+      const outbox = await databasePool.query("SELECT count(*)::int AS count FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id=$1 AND r.status <> 'CANCELLED' AND o.sent_at IS NULL", [subscriptionId]);
+      return json(res, { subscriptionId, openGaps: gaps.length, pendingOutbox: outbox.rows[0]?.count ?? 0 });
+    }
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {
