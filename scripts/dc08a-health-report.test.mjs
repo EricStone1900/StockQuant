@@ -26,3 +26,8 @@ test("missing quality data is never treated as healthy", () => {
   assert.equal(report.status, "UNHEALTHY");
   assert.equal(report.quality.openGaps, null);
 });
+
+test("minute source CLOSED circuit is healthy", () => {
+  const report = buildHealthReport({ capturedAt: "2026-09-17T12:00:00.000Z", ready: { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }, scheduler: { status: "ENABLED", lastSuccessfulTickAt: "2026-09-17T11:59:00.000Z", nextExecutionAt: "2026-09-18T01:30:00.000Z" }, sources: [{ sourceId: "sina", circuit: "CLOSED" }], quality: { openGaps: 0, pendingOutbox: 0 } });
+  assert.equal(report.status, "HEALTHY");
+});

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscription, sources = [], quality = {}, now = new Date(capturedAt), maxTickAgeSeconds = 1800 }) {
   const tickAgeSeconds = scheduler?.lastSuccessfulTickAt ? Math.max(0, (now.getTime() - Date.parse(scheduler.lastSuccessfulTickAt)) / 1000) : null;
   const recent = tickAgeSeconds !== null && tickAgeSeconds <= maxTickAgeSeconds;
-  const sourceReady = sources.length > 0 && sources.every((source) => source.status === "PASS" || source.circuit === "HEALTHY");
+  const sourceReady = sources.length > 0 && sources.every((source) => source.status === "PASS" || source.circuit === "HEALTHY" || source.circuit === "CLOSED");
   const qualityKnown = quality.openGaps !== undefined && quality.pendingOutbox !== undefined;
   const qualityReady = qualityKnown && Number(quality.openGaps) === 0 && Number(quality.pendingOutbox) === 0;
   const nextTrigger = scheduler?.nextExecutionAt === null || (scheduler?.nextExecutionAt && Date.parse(scheduler.nextExecutionAt) > now.getTime());
@@ -13,7 +13,7 @@ export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscrip
 }
 
 export async function createHealthReport({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", activeSubscription = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260917-20-v1", output = "evidence/dc08a/health-report.json" } = {}) {
-  const [readyResponse, schedulerResponse, sourcesResponse, qualityResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/sources`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection/health?subscriptionId=${encodeURIComponent(activeSubscription)}`, { signal: AbortSignal.timeout(3000) })]);
+  const [readyResponse, schedulerResponse, sourcesResponse, qualityResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/minute/sources`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection/health?subscriptionId=${encodeURIComponent(activeSubscription)}`, { signal: AbortSignal.timeout(3000) })]);
   const quality = qualityResponse.ok ? await qualityResponse.json() : {};
   const report = buildHealthReport({ capturedAt: new Date().toISOString(), ready: await readyResponse.json(), scheduler: await schedulerResponse.json(), sources: (await sourcesResponse.json()).sources ?? [], activeSubscription, quality });
   await mkdir(resolve(output, ".."), { recursive: true });

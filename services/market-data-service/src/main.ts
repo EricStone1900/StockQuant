@@ -127,6 +127,15 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const outbox = await databasePool.query("SELECT count(*)::int AS count FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id=$1 AND r.status <> 'CANCELLED' AND o.sent_at IS NULL", [subscriptionId]);
       return json(res, { subscriptionId, openGaps: gaps.length, pendingOutbox: outbox.rows[0]?.count ?? 0 });
     }
+    if (req.url === "/v2/minute/sources" && req.method === "GET") {
+      const healthPath = process.env.STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH ?? "/var/lib/stockquant/source-health.json";
+      try {
+        const state = JSON.parse(await readFile(healthPath, "utf8")) as Record<string, { state?: string; failures?: number }>;
+        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: state[sourceId]?.state ?? "UNKNOWN", failures: Number(state[sourceId]?.failures ?? 0) })), checkedAt: new Date().toISOString() });
+      } catch {
+        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: "UNKNOWN", failures: null })), checkedAt: new Date().toISOString(), code: "SOURCE_HEALTH_UNAVAILABLE" }, 503);
+      }
+    }
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {

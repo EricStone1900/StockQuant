@@ -133,6 +133,7 @@ class FailoverCollector:
         self.health_path = health_path
         rate_path = f"{health_path}.rate" if health_path else None
         self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper, state_path=rate_path, key=f"rate:{source}")) for source, client in providers]
+        self._health_dirty: set[str] = set()
         self._load_health()
 
     def _load_health(self) -> None:
@@ -166,17 +167,24 @@ class FailoverCollector:
             except (FileNotFoundError, json.JSONDecodeError, OSError):
                 state = {}
             for provider in self.providers:
+                if provider.source_id not in self._health_dirty:
+                    continue
                 opened_at = None
                 if provider.breaker.opened_at is not None:
                     opened_at = time.time() - max(0.0, self.clock() - provider.breaker.opened_at)
-                # Merge failure observations made by another process while this
-                # worker was running.  Without this, a stale in-memory snapshot
-                # could erase a concurrent circuit-open event.
                 previous = state.get(provider.source_id, {})
                 previous_failures = int(previous.get("failures", 0) or 0)
-                failures = max(provider.breaker.failures, previous_failures)
-                previous_state = str(previous.get("state", "CLOSED"))
-                circuit_state = "OPEN" if provider.breaker.state == "OPEN" or previous_state == "OPEN" else "CLOSED"
+                if provider.breaker.state == "CLOSED":
+                    # A successful probe is an explicit recovery and must be
+                    # allowed to close a previously persisted circuit.
+                    failures = 0
+                    circuit_state = "CLOSED"
+                else:
+                    # Merge failure observations made by another process while
+                    # this worker was running so an older snapshot cannot erase
+                    # a concurrent circuit-open event.
+                    failures = max(provider.breaker.failures, previous_failures)
+                    circuit_state = "OPEN"
                 state[provider.source_id] = {"failures": failures, "state": circuit_state, "openedAt": opened_at if circuit_state == "OPEN" else None}
             temporary = f"{self.health_path}.{os.getpid()}.tmp"
             with open(temporary, "w", encoding="utf-8") as handle:
@@ -201,17 +209,20 @@ class FailoverCollector:
                     if any(bar.source_id != provider.source_id for bar in bars):
                         raise SourceError("SOURCE_MISMATCH", "normalized bar source does not match adapter", retryable=False)
                     provider.breaker.success()
+                    self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "status": "PASS", "rows": len(bars)})
                     self._save_health()
                     return provider.source_id, bars, attempts
                 except SourceError as error:
                     provider.breaker.failure()
+                    self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable})
                     if not error.retryable or attempt == self.max_attempts:
                         break
                     self.sleeper(self.backoff_seconds * attempt)
                 except Exception as error:  # noqa: BLE001
                     provider.breaker.failure()
+                    self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
                     if attempt < self.max_attempts:
                         self.sleeper(self.backoff_seconds * attempt)

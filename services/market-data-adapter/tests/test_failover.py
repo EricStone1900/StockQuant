@@ -73,6 +73,20 @@ class FailoverTests(unittest.TestCase):
                 restored.collect(["600000.SH"], "2026-09-11", "2026-09-11")
             self.assertEqual(failure.exception.attempts[0]["code"], "CIRCUIT_OPEN")
 
+    def test_successful_half_open_probe_persists_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with self.assertRaises(AllSourcesFailed):
+                FailoverCollector([("baostock", FakeSource([SourceError("TIMEOUT", "slow")] * 3))], max_attempts=3, backoff_seconds=0, sleeper=lambda _: None, health_path=path).collect(["600000.SH"], "2026-09-11", "2026-09-11")
+            clock = [time.monotonic()]
+            restored = FailoverCollector([("baostock", FakeSource([[bar("baostock")]]))], clock=lambda: clock[0], health_path=path)
+            clock[0] += 301.0
+            source, _, _ = restored.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+            self.assertEqual(source, "baostock")
+            with open(path, encoding="utf-8") as handle:
+                state = __import__("json").load(handle)
+            self.assertEqual(state["baostock"], {"failures": 0, "state": "CLOSED", "openedAt": None})
+
     def test_rate_limit_state_is_shared_across_collector_processes(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "source-health.json.rate")

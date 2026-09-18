@@ -1,7 +1,7 @@
 {
   "schemaVersion": "dc08a-health-v2",
-  "capturedAt": "2026-09-17T11:57:56.648Z",
-  "status": "HEALTHY",
+  "capturedAt": "2026-09-18T11:13:35.666Z",
+  "status": "UNHEALTHY",
   "activeSubscription": "dc08a-20260917-20-v1",
   "ready": {
     "status": "ready",
@@ -11,43 +11,23 @@
   },
   "scheduler": {
     "status": "ENABLED",
-    "lastSuccessfulTickAt": "2026-09-17T11:57:18.257Z",
-    "nextExecutionAt": "2026-09-18T01:37:00.000Z",
+    "lastSuccessfulTickAt": null,
+    "nextExecutionAt": null,
     "lastSubmitted": 0,
-    "tickAgeSeconds": 38.391
+    "tickAgeSeconds": null
   },
   "sources": [
     {
-      "sourceId": "tencent-quote",
-      "kind": "QUOTE",
-      "url": "https://qt.gtimg.cn",
-      "status": "CONFIGURED",
-      "license": "public web endpoint; verify terms before production",
-      "circuit": "HEALTHY"
+      "sourceId": "baostock",
+      "kind": "MINUTE_BAR",
+      "circuit": "OPEN",
+      "failures": 104
     },
     {
-      "sourceId": "sina-quote",
-      "kind": "QUOTE",
-      "url": "https://hq.sinajs.cn",
-      "status": "CONFIGURED",
-      "license": "public web endpoint; verify terms before production",
-      "circuit": "HEALTHY"
-    },
-    {
-      "sourceId": "eastmoney-rss",
-      "kind": "NEWS",
-      "url": "https://finance.eastmoney.com",
-      "status": "CONFIGURED",
-      "license": "public news pages; verify terms before production",
-      "circuit": "HEALTHY"
-    },
-    {
-      "sourceId": "cls-rss",
-      "kind": "NEWS",
-      "url": "https://www.cls.cn",
-      "status": "CONFIGURED",
-      "license": "public news pages; verify terms before production",
-      "circuit": "HEALTHY"
+      "sourceId": "sina",
+      "kind": "MINUTE_BAR",
+      "circuit": "CLOSED",
+      "failures": 0
     }
   ],
   "quality": {
@@ -55,9 +35,9 @@
     "pendingOutbox": 0
   },
   "checks": {
-    "recentSuccessRecorded": true,
+    "recentSuccessRecorded": false,
     "nextTriggerRecorded": true,
-    "sourceReady": true,
+    "sourceReady": false,
     "qualityReady": true
   }
 }
