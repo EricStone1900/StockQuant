@@ -20,7 +20,10 @@ export class PythonMinuteCollectionAdapter implements CollectionAdapter {
       timeoutSeconds: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS ?? 20),
       maxAttempts: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS ?? 2),
       backoffSeconds: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_BACKOFF_SECONDS ?? 2),
+      backoffJitterSeconds: Number(process.env.STOCKQUANT_COLLECTION_SOURCE_BACKOFF_JITTER_SECONDS ?? 0.5),
       perSecurityIntervalSeconds: Number(process.env.STOCKQUANT_COLLECTION_PER_SECURITY_INTERVAL_SECONDS ?? 0.2),
+      baostockIntervalSeconds: Number(process.env.STOCKQUANT_COLLECTION_BAOSTOCK_INTERVAL_SECONDS ?? 0.5),
+      baostockBatchSize: Number(process.env.STOCKQUANT_COLLECTION_BAOSTOCK_BATCH_SIZE ?? 5),
       healthPath: process.env.STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH ?? undefined,
     },
   ) {}

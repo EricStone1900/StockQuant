@@ -71,7 +71,7 @@ def filter_range(bars: Sequence[NormalizedBar], start: str, end: str) -> list[No
     return [bar for bar in bars if start <= bar.bar_start[:10] <= end]
 
 
-def _baostock_child(code: str, start: str, end: str, output: Any) -> None:
+def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> None:
     try:
         import baostock as bs  # type: ignore[import-not-found]
         login = bs.login()
@@ -79,11 +79,17 @@ def _baostock_child(code: str, start: str, end: str, output: Any) -> None:
             output.put({"error": "LOGIN_FAILED", "message": login.error_msg})
             return
         try:
-            query = bs.query_history_k_data_plus(code, FIELDS, start_date=start, end_date=end, frequency="5", adjustflag="3")
-            rows: list[list[str]] = []
-            while query.next():
-                rows.append(query.get_row_data())
-            output.put({"rows": rows, "errorCode": query.error_code, "message": query.error_msg})
+            results: dict[str, Any] = {}
+            for code in codes:
+                query = bs.query_history_k_data_plus(code, FIELDS, start_date=start, end_date=end, frequency="5", adjustflag="3")
+                rows: list[list[str]] = []
+                while query.next():
+                    rows.append(query.get_row_data())
+                if query.error_code != "0":
+                    output.put({"error": "QUERY_FAILED", "code": code, "errorCode": query.error_code, "message": query.error_msg})
+                    return
+                results[code] = rows
+            output.put({"results": results})
         finally:
             bs.logout()
     except Exception as error:  # noqa: BLE001
@@ -91,17 +97,19 @@ def _baostock_child(code: str, start: str, end: str, output: Any) -> None:
 
 
 class BaoStockMinuteClient:
-    def __init__(self, minimum_interval_seconds: float = 0.0, sleeper=None, clock=None) -> None:
+    def __init__(self, minimum_interval_seconds: float = 0.0, sleeper=None, clock=None, batch_size: int = 5) -> None:
         import time
         self.limiter = RateLimiter(minimum_interval_seconds, clock=clock or time.monotonic, sleeper=sleeper or time.sleep)
+        self.batch_size = max(1, int(batch_size))
 
     def fetch(self, security_ids: Sequence[str], start: str, end: str, timeout_seconds: float) -> list[NormalizedBar]:
         context = mp.get_context("spawn")
         bars: list[NormalizedBar] = []
-        for security_id in security_ids:
+        for offset in range(0, len(security_ids), self.batch_size):
+            batch = list(security_ids[offset : offset + self.batch_size])
             self.limiter.wait()
             queue = context.Queue()
-            process = context.Process(target=_baostock_child, args=(baostock_symbol(security_id), start, end, queue))
+            process = context.Process(target=_baostock_child, args=([baostock_symbol(item) for item in batch], start, end, queue))
             process.start()
             try:
                 response = queue.get(timeout=timeout_seconds)
@@ -114,9 +122,10 @@ class BaoStockMinuteClient:
                     process.terminate()
                     process.join(5)
                 queue.close()
-            if response.get("error") or response.get("errorCode") != "0":
-                raise SourceError(str(response.get("error") or "QUERY_FAILED"), str(response.get("message", "BaoStock query failed")))
-            bars.extend(normalize_baostock(response["rows"]))
+            if response.get("error"):
+                raise SourceError(str(response["error"]), str(response.get("message", "BaoStock query failed")))
+            for rows in response.get("results", {}).values():
+                bars.extend(normalize_baostock(rows))
         return filter_range(bars, start, end)
 
 

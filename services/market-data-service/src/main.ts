@@ -130,10 +130,10 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (req.url === "/v2/minute/sources" && req.method === "GET") {
       const healthPath = process.env.STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH ?? "/var/lib/stockquant/source-health.json";
       try {
-        const state = JSON.parse(await readFile(healthPath, "utf8")) as Record<string, { state?: string; failures?: number }>;
-        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: state[sourceId]?.state ?? "UNKNOWN", failures: Number(state[sourceId]?.failures ?? 0) })), checkedAt: new Date().toISOString() });
+        const state = JSON.parse(await readFile(healthPath, "utf8")) as Record<string, { state?: string; failures?: number; lastSuccessAt?: string | null; lastFailureAt?: string | null; lastErrorCode?: string | null }>;
+        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: state[sourceId]?.state ?? "UNKNOWN", failures: Number(state[sourceId]?.failures ?? 0), lastSuccessAt: state[sourceId]?.lastSuccessAt ?? null, lastFailureAt: state[sourceId]?.lastFailureAt ?? null, lastErrorCode: state[sourceId]?.lastErrorCode ?? null })), checkedAt: new Date().toISOString() });
       } catch {
-        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: "UNKNOWN", failures: null })), checkedAt: new Date().toISOString(), code: "SOURCE_HEALTH_UNAVAILABLE" }, 503);
+        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: "UNKNOWN", failures: null, lastSuccessAt: null, lastFailureAt: null, lastErrorCode: null })), checkedAt: new Date().toISOString(), code: "SOURCE_HEALTH_UNAVAILABLE" }, 503);
       }
     }
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }

@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscription, sources = [], quality = {}, now = new Date(capturedAt), maxTickAgeSeconds = 1800 }) {
   const tickAgeSeconds = scheduler?.lastSuccessfulTickAt ? Math.max(0, (now.getTime() - Date.parse(scheduler.lastSuccessfulTickAt)) / 1000) : null;
   const recent = tickAgeSeconds !== null && tickAgeSeconds <= maxTickAgeSeconds;
-  const sourceReady = sources.length > 0 && sources.every((source) => source.status === "PASS" || source.circuit === "HEALTHY" || source.circuit === "CLOSED");
+  // A configured primary may be OPEN while the persisted fallback is healthy;
+  // collection readiness requires at least one actually usable minute source.
+  const sourceReady = sources.length > 0 && sources.some((source) => source.status === "PASS" || source.circuit === "HEALTHY" || source.circuit === "CLOSED");
   const qualityKnown = quality.openGaps !== undefined && quality.pendingOutbox !== undefined;
   const qualityReady = qualityKnown && Number(quality.openGaps) === 0 && Number(quality.pendingOutbox) === 0;
   const nextTrigger = scheduler?.nextExecutionAt === null || (scheduler?.nextExecutionAt && Date.parse(scheduler.nextExecutionAt) > now.getTime());

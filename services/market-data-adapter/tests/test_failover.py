@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import fcntl
 
 from market_data_adapter.failover import AllSourcesFailed, FailoverCollector, NormalizedBar, RateLimiter, SourceError
 
@@ -85,7 +86,10 @@ class FailoverTests(unittest.TestCase):
             self.assertEqual(source, "baostock")
             with open(path, encoding="utf-8") as handle:
                 state = __import__("json").load(handle)
-            self.assertEqual(state["baostock"], {"failures": 0, "state": "CLOSED", "openedAt": None})
+            self.assertEqual(state["baostock"]["failures"], 0)
+            self.assertEqual(state["baostock"]["state"], "CLOSED")
+            self.assertIsNone(state["baostock"]["openedAt"])
+            self.assertIsNotNone(state["baostock"]["lastSuccessAt"])
 
     def test_rate_limit_state_is_shared_across_collector_processes(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -122,6 +126,23 @@ class FailoverTests(unittest.TestCase):
                 state = __import__("json").load(handle)
             self.assertIn("sina", state)
             self.assertFalse(os.path.exists(path + ".tmp"))
+
+    def test_half_open_probe_is_mutually_exclusive_across_processes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                __import__("json").dump({"baostock": {"failures": 3, "state": "OPEN", "openedAt": time.time() - 301}}, handle)
+            lock_path = path + ".baostock.probe.lock"
+            lock = open(lock_path, "a+", encoding="utf-8")
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                collector = FailoverCollector([("baostock", FakeSource([[bar("baostock")]]))], max_attempts=1, health_path=path)
+                with self.assertRaises(AllSourcesFailed) as failure:
+                    collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+                self.assertEqual(failure.exception.attempts[0]["code"], "CIRCUIT_PROBE_IN_PROGRESS")
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+                lock.close()
 
 
 if __name__ == "__main__":

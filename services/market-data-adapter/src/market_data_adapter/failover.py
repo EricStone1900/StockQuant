@@ -4,6 +4,8 @@ import time
 import json
 import os
 import fcntl
+import random
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Callable, Protocol, Sequence
 
@@ -121,16 +123,20 @@ class _Provider:
     client: SourceClient
     breaker: CircuitBreaker
     limiter: RateLimiter
+    last_success_at: float | None = None
+    last_failure_at: float | None = None
+    last_error_code: str | None = None
 
 
 class FailoverCollector:
-    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic, health_path: str | None = None) -> None:
+    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic, health_path: str | None = None, backoff_jitter_seconds: float = 0.0) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
         self.sleeper = sleeper
         self.clock = clock
         self.health_path = health_path
+        self.backoff_jitter_seconds = max(0.0, backoff_jitter_seconds)
         rate_path = f"{health_path}.rate" if health_path else None
         self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper, state_path=rate_path, key=f"rate:{source}")) for source, client in providers]
         self._health_dirty: set[str] = set()
@@ -149,6 +155,9 @@ class FailoverCollector:
                 if provider.breaker.state == "OPEN":
                     elapsed = max(0.0, time.time() - float(saved.get("openedAt", time.time())))
                     provider.breaker.opened_at = self.clock() - elapsed
+                provider.last_success_at = saved.get("lastSuccessAt")
+                provider.last_failure_at = saved.get("lastFailureAt")
+                provider.last_error_code = saved.get("lastErrorCode")
         except (OSError, ValueError, TypeError):
             return
 
@@ -185,18 +194,53 @@ class FailoverCollector:
                     # a concurrent circuit-open event.
                     failures = max(provider.breaker.failures, previous_failures)
                     circuit_state = "OPEN"
-                state[provider.source_id] = {"failures": failures, "state": circuit_state, "openedAt": opened_at if circuit_state == "OPEN" else None}
+                state[provider.source_id] = {
+                    "failures": failures,
+                    "state": circuit_state,
+                    "openedAt": opened_at if circuit_state == "OPEN" else None,
+                    "lastSuccessAt": provider.last_success_at,
+                    "lastFailureAt": provider.last_failure_at,
+                    "lastErrorCode": provider.last_error_code,
+                }
             temporary = f"{self.health_path}.{os.getpid()}.tmp"
             with open(temporary, "w", encoding="utf-8") as handle:
                 json.dump(state, handle, separators=(",", ":"))
             os.replace(temporary, self.health_path)
             fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
+    @contextmanager
+    def _half_open_guard(self, source_id: str):
+        """Allow only one process to run a persisted half-open probe."""
+        if not self.health_path:
+            yield True
+            return
+        path = f"{self.health_path}.{source_id}.probe.lock"
+        handle = open(path, "a+", encoding="utf-8")
+        acquired = False
+        try:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+            except BlockingIOError:
+                yield False
+                return
+            yield True
+        finally:
+            if acquired:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            handle.close()
+
     def collect(self, security_ids: Sequence[str], start: str, end: str) -> tuple[str, list[NormalizedBar], list[dict[str, object]]]:
         attempts: list[dict[str, object]] = []
         for provider in self.providers:
+            probe_guard = None
             try:
                 provider.breaker.allow()
+                if provider.breaker.state == "HALF_OPEN":
+                    probe_guard = self._half_open_guard(provider.source_id)
+                    if not probe_guard.__enter__():
+                        attempts.append({"sourceId": provider.source_id, "code": "CIRCUIT_PROBE_IN_PROGRESS", "retryable": False})
+                        continue
             except SourceError as error:
                 attempts.append({"sourceId": provider.source_id, "code": error.code, "retryable": error.retryable})
                 continue
@@ -209,22 +253,32 @@ class FailoverCollector:
                     if any(bar.source_id != provider.source_id for bar in bars):
                         raise SourceError("SOURCE_MISMATCH", "normalized bar source does not match adapter", retryable=False)
                     provider.breaker.success()
+                    provider.last_success_at = time.time()
+                    provider.last_error_code = None
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "status": "PASS", "rows": len(bars)})
                     self._save_health()
+                    if probe_guard is not None:
+                        probe_guard.__exit__(None, None, None)
                     return provider.source_id, bars, attempts
                 except SourceError as error:
                     provider.breaker.failure()
+                    provider.last_failure_at = time.time()
+                    provider.last_error_code = error.code
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable})
                     if not error.retryable or attempt == self.max_attempts:
                         break
-                    self.sleeper(self.backoff_seconds * attempt)
+                    self.sleeper(self.backoff_seconds * attempt + random.uniform(0.0, self.backoff_jitter_seconds))
                 except Exception as error:  # noqa: BLE001
                     provider.breaker.failure()
+                    provider.last_failure_at = time.time()
+                    provider.last_error_code = "ADAPTER_EXCEPTION"
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
                     if attempt < self.max_attempts:
-                        self.sleeper(self.backoff_seconds * attempt)
+                        self.sleeper(self.backoff_seconds * attempt + random.uniform(0.0, self.backoff_jitter_seconds))
+            if probe_guard is not None:
+                probe_guard.__exit__(None, None, None)
         self._save_health()
         raise AllSourcesFailed(attempts)

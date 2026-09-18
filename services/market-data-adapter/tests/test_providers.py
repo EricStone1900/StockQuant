@@ -3,7 +3,7 @@ import unittest
 
 from market_data_adapter.cli import wire_bar
 from market_data_adapter.failover import NormalizedBar
-from market_data_adapter.providers import baostock_symbol, normalize_baostock, normalize_sina, SinaMinuteClient, sina_symbol
+from market_data_adapter.providers import BaoStockMinuteClient, baostock_symbol, normalize_baostock, normalize_sina, SinaMinuteClient, sina_symbol
 
 
 class Response:
@@ -58,6 +58,10 @@ class ProviderTests(unittest.TestCase):
     def test_translates_public_symbols_for_each_provider(self):
         self.assertEqual(baostock_symbol("600000.SH"), "sh.600000")
         self.assertEqual(sina_symbol("000001.SZ"), "sz000001")
+
+    def test_baostock_uses_bounded_batches(self):
+        client = BaoStockMinuteClient(batch_size=4)
+        self.assertEqual(client.batch_size, 4)
 
 
 if __name__ == "__main__":
