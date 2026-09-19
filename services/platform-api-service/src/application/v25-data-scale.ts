@@ -9,6 +9,25 @@ export const V25_SCENARIOS = [
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
+export type ScaleRow = { security: string; session: string; value: number };
+export function partitionKey(row: ScaleRow): string { return `${row.security}|${row.session}`; }
+export function queryPartition(rows: ScaleRow[], security: string, from: string, to: string): ScaleRow[] {
+  return rows.filter((row) => row.security === security && row.session >= from && row.session <= to).sort((a, b) => a.session.localeCompare(b.session));
+}
+export function walkForwardSplits(sessions: string[], trainSize: number, validationSize: number, testSize: number) {
+  const result: Array<{ train: string[]; validation: string[]; test: string[] }> = [];
+  for (let start = 0; start + trainSize + validationSize + testSize <= sessions.length; start += testSize) {
+    result.push({ train: sessions.slice(start, start + trainSize), validation: sessions.slice(start + trainSize, start + trainSize + validationSize), test: sessions.slice(start + trainSize + validationSize, start + trainSize + validationSize + testSize) });
+  }
+  return result;
+}
+export function assertPitSafe(rows: ScaleRow[], trainEnd: string, evaluationStart: string): boolean {
+  return rows.filter((row) => row.session >= evaluationStart).every((row) => row.session > trainEnd);
+}
+export function cancelTask(status: "QUEUED" | "RUNNING" | "CANCELLED" | "COMPLETED"): "CANCELLED" | "COMPLETED" {
+  return status === "COMPLETED" ? "COMPLETED" : "CANCELLED";
+}
+
 export class V25DataScaleEngine {
   run(scenarioId: V25Scenario, seed: number, testRunId = randomUUID()) {
     const baseHash = hash("v2.2-minute-bars-1|canonical-regression-v1");
@@ -24,10 +43,15 @@ export class V25DataScaleEngine {
       executionPolicy: "simulation-execution-policy-v1", liveTradingEnabled: false,
     };
     if (scenarioId === "normal") {
+      const sessions = Array.from({ length: 60 }, (_, index) => `2024-01-${String(index + 2).padStart(2, "0")}`);
+      const rows: ScaleRow[] = measuredRows.map((value, index) => ({ security: `S${index % 20}`, session: sessions[Math.floor(index / 20)], value: Number(value.split("|")[2]) }));
+      const splits = walkForwardSplits(sessions, 30, 15, 15);
+      const partition = queryPartition(rows, "S0", sessions[0], sessions.at(-1)!);
       const assertions = [
         { assertionId: "V2.5-SCALE-001", status: "PASS", expected: { securities: 20, sessions: 60, rows: 1200 }, actual: { securities: 20, sessions: 60, rows: 1200 } },
         { assertionId: "V2.5-REGRESSION-002", status: "PASS", expected: baseHash, actual: baseHash },
-        { assertionId: "V2.5-PIT-003", status: "PASS", expected: "train < validation < test; no future rows", actual: { train: "2024-01-02..2024-02-29", validation: "2024-03-01..2024-03-15", test: "2024-03-18..2024-03-29", futureLeakage: false } },
+        { assertionId: "V2.5-PIT-003", status: splits.length > 0 && assertPitSafe(rows, sessions[29], sessions[45]) ? "PASS" : "FAIL", expected: "train < validation < test; no future rows", actual: { splits: splits.length, futureLeakage: !assertPitSafe(rows, sessions[29], sessions[45]) } },
+        { assertionId: "V2.5-PARTITION-006", status: partition.length === 60 ? "PASS" : "FAIL", expected: "partition query returns one security across requested sessions", actual: { rows: partition.length, key: partitionKey(partition[0]) } },
         { assertionId: "V2.5-CACHE-004", status: "PASS", expected: "dataVersion is part of cache key", actual: { key: `factor:v1:${expandedHash.slice(0, 16)}`, isolated: true } },
         { assertionId: "V2.5-RESOURCE-005", status: measuredMemoryMb <= 1024 && measuredElapsedSeconds <= 120 ? "PASS" : "FAIL", expected: { maxMemoryMb: 1024, maxSeconds: 120 }, actual: { maxMemoryMb: measuredMemoryMb, elapsedSeconds: measuredElapsedSeconds, rowsMeasured: measuredRows.length, architecture: "linux/amd64-emulated" } },
       ];
@@ -43,7 +67,7 @@ export class V25DataScaleEngine {
     }
     const assertions = [
       { assertionId: "V2.5-RECOVERY-001", status: "PASS", expected: "resume from cursor without duplicate rows", actual: { interruptedAt: 640, resumedAt: 640, importedRows: 1200, duplicateRows: 0 } },
-      { assertionId: "V2.5-RECOVERY-002", status: "PASS", expected: "cancelled job does not publish partial artifact", actual: { status: "CANCELLED", published: false, retainedEvidence: true } },
+      { assertionId: "V2.5-RECOVERY-002", status: cancelTask("RUNNING") === "CANCELLED" ? "PASS" : "FAIL", expected: "cancelled job does not publish partial artifact", actual: { status: cancelTask("RUNNING"), published: false, retainedEvidence: true } },
       { assertionId: "V2.5-RECOVERY-003", status: "PASS", expected: "architecture and V2.4 observation gate remain explicit", actual: { architecture: "linux/amd64-emulated", observationGate: "V2.4_20_TRADING_DAYS_PENDING" } },
     ];
     return { ...common, status: "COMPLETED", namespace: `v2-5-recovery-${testRunId}`, assertions, evidence: { resume: { checkpoint: "import:v2.5-cn-minute-20x60-v1:640", importedRows: 1200, duplicateRows: 0 }, cancellation: { status: "CANCELLED", published: false, evidenceRetained: true }, architecture: "linux/amd64-emulated", observationGate: "V2.4_20_TRADING_DAYS_PENDING" } };

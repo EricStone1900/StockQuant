@@ -8,9 +8,36 @@ export const V23_SCENARIOS = [
 ] as const;
 
 export type ReplayBar = { security: string; timestamp: string; open: number; high: number; low: number; close: number; volume: number };
-export type ReplayOptions = { focusSecurity?: string; decisionTimestamp?: string; executionTimestamp?: string };
+export type ReplayOptions = { focusSecurity?: string; decisionTimestamp?: string; executionTimestamp?: string; multiWindow?: boolean };
+export type ReplayFillWindow = { bar: ReplayBar; quantity: number; price: number; fee: number };
 type Assertion = { assertionId: string; status: "PASS" | "FAIL"; expected: unknown; actual: unknown };
 type ReplayState = { cursor: number; events: string[]; fills: Array<{ fillId: string; orderId: string; barId: string; quantity: number; price: number; fee: number }>; cash: number };
+
+/** Selects the first usable bar strictly after the decision timestamp. */
+export function nextAvailableBar(bars: ReplayBar[], security: string, decisionTimestamp: string): ReplayBar | undefined {
+  return bars.filter((bar) => bar.security === security && bar.timestamp > decisionTimestamp && bar.volume > 0)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))[0];
+}
+
+/** Deterministically consumes subsequent windows, preserving partial fills and a barrier per window. */
+export function fillAcrossWindows(bars: ReplayBar[], security: string, decisionTimestamp: string, requestedQuantity: number, participationRate = 0.1): { fills: ReplayFillWindow[]; barriers: string[] } {
+  const windows = bars.filter((bar) => bar.security === security && bar.timestamp > decisionTimestamp && bar.volume > 0)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  let remaining = requestedQuantity;
+  const fills: ReplayFillWindow[] = [];
+  const barriers: string[] = [];
+  for (const bar of windows) {
+    if (remaining <= 0) break;
+    const quantity = Math.min(remaining, Math.floor(bar.volume * participationRate));
+    if (quantity <= 0) continue;
+    const price = Number((bar.open * 1.001).toFixed(4));
+    const fee = Number((quantity * price * 0.001).toFixed(4));
+    fills.push({ bar, quantity, price, fee });
+    barriers.push(`BAR_CLOSE:${bar.timestamp}`, `FILL:${bar.timestamp}`, `LEDGER_COMMITTED:${bar.timestamp}`);
+    remaining -= quantity;
+  }
+  return { fills, barriers };
+}
 
 export function parseReplayBars(csv: string): ReplayBar[] {
   const lines = csv.trim().split(/\r?\n/);
@@ -60,18 +87,20 @@ export class V23ReplayEngine {
   private execute(bars: ReplayBar[], stopAt: number, seed: number, checkpoint?: ReplayState, options: ReplayOptions = {}) {
     const state: ReplayState = checkpoint ? structuredClone(checkpoint) : { cursor: 0, events: [], fills: [], cash: 10000 };
     const focusSecurity = options.focusSecurity ?? "600000.SH";
-    const target = bars.find((bar) => bar.security === focusSecurity && (options.executionTimestamp ? bar.timestamp === options.executionTimestamp : bar.timestamp.startsWith("2024-01-03")));
     const decision = bars.find((bar) => bar.security === focusSecurity && (options.decisionTimestamp ? bar.timestamp === options.decisionTimestamp : bar.timestamp === "2024-01-02T09:32:00+08:00"));
+    const target = options.executionTimestamp ? bars.find((bar) => bar.security === focusSecurity && bar.timestamp === options.executionTimestamp) : nextAvailableBar(bars, focusSecurity, decision?.timestamp ?? "");
     if (!target || !decision) throw new Error("fixture does not contain required signal and next-bar execution inputs");
     while (state.cursor < Math.min(stopAt, bars.length)) {
       const bar = bars[state.cursor++];
       if (bar.security !== focusSecurity || bar.timestamp !== target.timestamp) continue;
-      const quantity = Math.min(100, Math.floor(bar.volume * 0.1));
-      const price = Number((bar.open * 1.001).toFixed(4));
-      state.events.push("BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED");
-      const fee = Number((quantity * price * 0.001).toFixed(4));
-      state.fills.push({ fillId: `fill-${seed}-1`, orderId: "order-1", barId: `bar-${state.cursor}`, quantity, price, fee });
-      state.cash = Number((state.cash - quantity * price - fee).toFixed(4));
+      const windows = options.multiWindow ? fillAcrossWindows(bars.slice(state.cursor - 1), focusSecurity, decision.timestamp, 100, 0.1) : { fills: [{ bar, quantity: Math.min(100, Math.floor(bar.volume * 0.1)), price: Number((bar.open * 1.001).toFixed(4)), fee: Number((Math.min(100, Math.floor(bar.volume * 0.1)) * Number((bar.open * 1.001).toFixed(4)) * 0.001).toFixed(4)) }], barriers: [] };
+      state.events.push("BAR_CLOSE", "DECISION", "ORDER_ACCEPTED");
+      windows.fills.forEach((item, index) => {
+        state.events.push("FILL", "LEDGER_COMMITTED");
+        state.fills.push({ fillId: `fill-${seed}-${index + 1}`, orderId: "order-1", barId: `bar-${state.cursor + index}`, quantity: item.quantity, price: item.price, fee: item.fee });
+        state.cash = Number((state.cash - item.quantity * item.price - item.fee).toFixed(4));
+      });
+      if (!windows.fills.length) state.events.push("LEDGER_COMMITTED");
     }
     const fill = state.fills[0];
     const positionMarketValue = fill ? Number((fill.quantity * target.close).toFixed(4)) : 0;

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseReplayBars, V23ReplayEngine } from "../../src/application/v23-replay.js";
+import { fillAcrossWindows, nextAvailableBar, parseReplayBars, V23ReplayEngine } from "../../src/application/v23-replay.js";
 
 const fixturePath = resolve(process.cwd(), "../../fixtures/v2/v2.3/replay_bars.csv");
 async function fixture() { return parseReplayBars(await readFile(fixturePath, "utf8")); }
@@ -49,5 +49,18 @@ describe("V2.3 deterministic replay", () => {
 
   it("fails fast when the fixture contract is malformed", () => {
     expect(() => parseReplayBars("security,timestamp\n600000.SH,2024-01-02")).toThrow("V2.3 fixture header is invalid");
+  });
+
+  it("skips zero-volume windows and accumulates multi-window partial fills", async () => {
+    const bars = await fixture();
+    const decision = "2024-01-02T09:32:00+08:00";
+    expect(nextAvailableBar(bars, "600000.SH", decision)?.timestamp).toBe("2024-01-03T09:31:00+08:00");
+    const result = fillAcrossWindows([
+      ...bars,
+      { security: "600000.SH", timestamp: "2024-01-03T09:32:00+08:00", open: 10.3, high: 10.5, low: 10.2, close: 10.4, volume: 800 }
+    ], "600000.SH", decision, 130, 0.1);
+    expect(result.fills.length).toBeGreaterThan(1);
+    expect(result.fills.reduce((sum, item) => sum + item.quantity, 0)).toBe(130);
+    expect(result.barriers.every((item) => /^(BAR_CLOSE|FILL|LEDGER_COMMITTED):/.test(item))).toBe(true);
   });
 });

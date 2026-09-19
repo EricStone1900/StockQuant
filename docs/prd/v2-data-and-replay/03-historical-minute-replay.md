@@ -1,5 +1,7 @@
 # V2.3 日频决策、分钟撮合与历史事件回放
 
+2026-09-19 技术复核：平台回放切片已补齐确定性 `nextAvailableBar`、多窗口参与率部分成交及逐窗口 `LEDGER_COMMITTED` 屏障；对应单元测试已通过。跨服务真实来源与人工验收仍按下表保持独立状态。
+
 状态：PARTIALLY_IMPLEMENTED。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围

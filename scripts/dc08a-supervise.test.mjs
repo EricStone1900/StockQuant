@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRepairPlan, classifyReady, supervise } from "./dc08a-supervise.mjs";
+import { buildRepairPlan, classifyReady, expectedRuntime, runtimeMatches, supervise } from "./dc08a-supervise.mjs";
 
 test("ready classification distinguishes disabled executor", () => {
   assert.equal(classifyReady({ status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }), "HEALTHY");
@@ -39,4 +39,11 @@ test("enabled repair preserves the approved worker configuration", async () => {
   assert.equal(result.exitCode, 1);
   assert.equal(options.env.STOCKQUANT_SCHEDULER_WORKER, "1");
   assert.equal(options.env.STOCKQUANT_COLLECTION_EXECUTOR, "1");
+});
+
+test("runtime inspection detects restart configuration drift before patrol reports healthy", () => {
+  const expected = expectedRuntime({}, "STOCKQUANT_COLLECTION_SUBSCRIPTION_ID=sub-20\nSTOCKQUANT_COLLECTION_SECURITY_IDS=S0,S1");
+  assert.equal(runtimeMatches({ collectionSecurityIds: ["S0", "S1"] }, [{ enabled: true, subscriptionId: "sub-20" }], expected).ok, true);
+  assert.equal(runtimeMatches({ collectionSecurityIds: ["S0", "S1", "S2"] }, [{ enabled: true, subscriptionId: "sub-20" }], expected).ok, false);
+  assert.equal(runtimeMatches({ collectionSecurityIds: ["S0", "S1"] }, [{ enabled: true, subscriptionId: "wrong" }], expected).ok, false);
 });
