@@ -95,13 +95,26 @@ class FailoverTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "source-health.json.rate")
             clock = [0.0]
-            first = RateLimiter(1.0, clock=lambda: clock[0], sleeper=lambda seconds: None, state_path=path, key="rate:sina")
+            first = RateLimiter(1.0, clock=lambda: clock[0], wall_clock=lambda: clock[0], sleeper=lambda seconds: None, state_path=path, key="rate:sina")
             second_sleeps = []
-            second = RateLimiter(1.0, clock=lambda: clock[0], sleeper=second_sleeps.append, state_path=path, key="rate:sina")
+            second = RateLimiter(1.0, clock=lambda: clock[0], wall_clock=lambda: clock[0], sleeper=second_sleeps.append, state_path=path, key="rate:sina")
             first.wait()
             clock[0] = 0.25
             second.wait()
             self.assertEqual(second_sleeps, [0.75])
+
+    def test_persisted_rate_state_does_not_sleep_after_clock_rewind(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "source-health.json.rate")
+            with open(path, "w", encoding="utf-8") as handle:
+                __import__("json").dump({"rate:sina": 10_000.0}, handle)
+            rebooted_sleeps = []
+            rebooted = RateLimiter(1.0, clock=lambda: 5.0, wall_clock=lambda: 5.0, sleeper=rebooted_sleeps.append, state_path=path, key="rate:sina")
+            rebooted.wait()
+            self.assertEqual(rebooted_sleeps, [])
+            with open(path, encoding="utf-8") as handle:
+                state = __import__("json").load(handle)
+            self.assertEqual(state["rate:sina"]["clock"], "unix")
 
     def test_independent_python_processes_share_rate_limit_state(self):
         with tempfile.TemporaryDirectory() as directory:

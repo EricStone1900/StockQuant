@@ -350,7 +350,7 @@ export class V23AcceptanceController {
   constructor(private readonly container: PlatformContainer) {}
   @Get("scenarios") scenarios() { return V23_SCENARIOS; }
   @Get("preview") preview() { return { fixtureVersion: "v2.3-replay-bars-1", barType: "MINUTE_BAR", barCount: 4, securities: ["600000.SH", "000001.SZ"], dates: ["2024-01-02", "2024-01-03"], mode: "BACKTEST" }; }
-  @Post("runs") @HttpCode(202) async run(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V23Scenario; seed?: number }) {
+  @Post("runs") @HttpCode(202) async run(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V23Scenario; seed?: number; defer?: boolean }) {
     const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId ?? "normal";
     if (!V23_SCENARIOS.some((s) => s.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.3");
     const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
@@ -359,13 +359,23 @@ export class V23AcceptanceController {
     const result = this.engine.run(scenarioId, body.seed ?? 20260907, bars, testRunId);
     if (scenarioId !== "rejection") {
       const namespace = `v2-3-${scenarioId}-${testRunId}`;
-      const target = bars.find((bar) => bar.security === "600000.SH" && bar.timestamp.startsWith("2024-01-03"));
-      if (!target) throw new ServiceUnavailableException("replay fixture lacks next-bar execution input");
-      const workerResponse = await fetch(`${this.container.replayWorkerUrl}/internal/v1/replays`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service" }, body: JSON.stringify({ testRunId, namespace, ownerId, scenarioId, seed: body.seed ?? 20260907, bar: { timestamp: target.timestamp, open: target.open.toFixed(4), volume: target.volume } }) });
+      const baseReplayBars = bars.filter((bar) => bar.security === "600000.SH").map((bar) => ({ timestamp: bar.timestamp, open: bar.open.toFixed(4), volume: bar.volume }));
+      const replayBars = body.defer ? Array.from({ length: 40 }, (_, index) => ({ ...baseReplayBars[index % baseReplayBars.length], timestamp: new Date(Date.parse(baseReplayBars[index % baseReplayBars.length].timestamp) + index * 60_000).toISOString() })) : baseReplayBars;
+      if (replayBars.length < 2) throw new ServiceUnavailableException("replay fixture lacks multi-bar execution inputs");
+      const workerPath = body.defer ? "/internal/v1/replays/multi?async=true" : "/internal/v1/replays/multi";
+      const workerResponse = await fetch(`${this.container.replayWorkerUrl}${workerPath}`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service" }, body: JSON.stringify({ testRunId, namespace, ownerId, scenarioId, seed: body.seed ?? 20260907, bars: replayBars }) });
       if (!workerResponse.ok) throw new ServiceUnavailableException(`historical replay worker failed: ${workerResponse.status}`);
+      if (body.defer) {
+        result.status = "RUNNING";
+        (result.evidence as any).crossService = { namespace, worker: "historical-replay-worker", deferred: true, bars: replayBars.length };
+        await this.container.stageRuns.save({ ...result, ownerId });
+        return { accepted: true, testRunId: result.testRunId, status: result.status };
+      }
       const worker = await workerResponse.json() as any;
-      const consistent = worker.execution?.result?.fill?.quantity === 50 && worker.execution?.result?.fill?.price === "10.2102" && worker.execution?.result?.fill?.fee === "0.5105" && worker.snapshot?.cash?.amount === "9488.9795" && worker.research?.status === "COMPLETED" && worker.research?.adapter === "qlib" && worker.research?.dataMode === "FIXTURE" && worker.research?.environmentMode === "BACKTEST" && worker.research?.modelCalls === "NOT_RUN" && worker.research?.assertions?.every((item: any) => item.status === "PASS" || item.status === "NOT_APPLICABLE") && (!worker.recovery || worker.recovery.replayed === true);
-      result.assertions.push({ assertionId: "V2.3-CROSS-SERVICE-004", status: consistent ? "PASS" : "FAIL", expected: "isolated FakeBroker fill and idempotent portfolio ledger", actual: worker });
+      const executions = Array.isArray(worker.executions) ? worker.executions : [];
+      const barriers = Array.isArray(worker.eventLog) ? worker.eventLog : [];
+      const consistent = executions.length === replayBars.length && barriers.length === replayBars.length && barriers.every((events: string[]) => events.at(-1) === "LEDGER_COMMITTED") && worker.checkpoint?.cursor === replayBars.length && worker.checkpoint?.eventSequence === replayBars.length * 5 && worker.snapshot?.ledgerVersion === 1 + replayBars.length && worker.ledgerVersion === worker.snapshot?.ledgerVersion && worker.research?.status === "COMPLETED" && worker.research?.adapter === "qlib" && worker.research?.dataMode === "FIXTURE" && worker.research?.environmentMode === "BACKTEST" && worker.research?.modelCalls === "NOT_RUN" && worker.research?.assertions?.every((item: any) => item.status === "PASS" || item.status === "NOT_APPLICABLE");
+      result.assertions.push({ assertionId: "V2.3-CROSS-SERVICE-004", status: consistent ? "PASS" : "FAIL", expected: "multi-bar FakeBroker fills commit an ordered portfolio ledger barrier", actual: worker });
       result.status = result.assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
       (result.evidence as any).crossService = { ...worker, namespace, worker: "historical-replay-worker" };
     }

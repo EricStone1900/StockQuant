@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { Pool } from "pg";
 import { checkpointForBars, checkpointForExecution } from "./domain/checkpoint.js";
 import { assertTransition, type ReplayStatus } from "./domain/lifecycle.js";
-import { eventsForExecution } from "./domain/events.js";
+import { assertCausalBarrier, eventsForExecution } from "./domain/events.js";
 
 type Command = { testRunId: string; namespace: string; ownerId: string; scenarioId: "normal" | "recovery"; seed: number; bar: { timestamp: string; open: string; volume: number } };
 type MultiCommand = Omit<Command, "bar"> & { bars: Array<{ timestamp: string; open: string; volume: number }> };
@@ -97,6 +97,11 @@ async function startMulti(command: MultiCommand) {
   let checkpoint = checkpointForBars(command.bars, command.seed);
   if (found.rowCount === 1 && found.rows[0].checkpoint) checkpoint = found.rows[0].checkpoint;
   if (found.rowCount === 1 && checkpoint.cursor > 0 && !Array.isArray(found.rows[0].result?.executions)) throw new ReplayConflict("persisted checkpoint has no cumulative execution evidence");
+  if (checkpoint.totalBars !== command.bars.length || checkpoint.eventSequence !== checkpoint.cursor * 5 || checkpoint.ledgerVersion !== 1 + checkpoint.cursor) throw new ReplayConflict("persisted checkpoint barrier metadata is inconsistent");
+  if (found.rowCount === 1 && found.rows[0].result) {
+    const prior = found.rows[0].result as { executions?: unknown[]; eventLog?: unknown[][] };
+    if ((prior.executions?.length ?? 0) !== checkpoint.cursor || (prior.eventLog?.length ?? 0) !== checkpoint.cursor) throw new ReplayConflict("persisted checkpoint does not match cumulative event evidence");
+  }
   if (found.rowCount === 0) await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb)`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, hash, JSON.stringify(checkpoint)]);
   else await pool.query("UPDATE replay_worker_runs SET status='RUNNING', request_hash=COALESCE(request_hash,$2) WHERE test_run_id=$1 AND status IN ('PAUSED','FAILED')", [command.testRunId, hash]);
   try {
@@ -116,15 +121,24 @@ async function startMulti(command: MultiCommand) {
       if (!response.ok) throw new Error(`execution failed: ${response.status} ${await response.text()}`);
       const execution = await response.json();
       executions.push(execution);
-      eventLog.push(eventsForExecution(execution.status));
-      checkpoint = checkpointForBars(command.bars, command.seed, index + 1, executions.map((_, completed) => `v2.3-order-${completed + 1}`));
-      await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb, result=$3::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint), JSON.stringify({ executions, eventLog })]);
+      const events = eventsForExecution(execution.status);
+      assertCausalBarrier(events);
+      eventLog.push(events);
+      const committedSnapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId} });
+      if (!committedSnapshotResponse.ok) throw new Error(`portfolio ledger barrier failed: ${committedSnapshotResponse.status}`);
+      const committedSnapshot = await committedSnapshotResponse.json() as { ledgerVersion:number };
+      const expectedLedgerVersion = 1 + index + 1;
+      if (committedSnapshot.ledgerVersion !== expectedLedgerVersion) throw new Error(`portfolio ledger barrier mismatch: expected ${expectedLedgerVersion}, got ${committedSnapshot.ledgerVersion}`);
+      checkpoint = checkpointForBars(command.bars, command.seed, index + 1, executions.map((_, completed) => `v2.3-order-${completed + 1}`), (index + 1) * 5, committedSnapshot.ledgerVersion);
+      await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb, result=$3::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint), JSON.stringify({ executions, eventLog, ledgerVersion: committedSnapshot.ledgerVersion })]);
     }
     const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId} });
     if (!snapshotResponse.ok) throw new Error(`portfolio snapshot failed: ${snapshotResponse.status}`);
     const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ runId:command.testRunId, bars:command.bars, executions }) });
     if (!researchResponse.ok) throw new Error(`quant research runtime failed: ${researchResponse.status}`);
-    const result = { accountId:account.snapshot.accountId, executions, eventLog, checkpoint, snapshot:await snapshotResponse.json(), research:await researchResponse.json(), replayedRun:false };
+    const snapshot = await snapshotResponse.json() as { ledgerVersion:number };
+    if (snapshot.ledgerVersion !== checkpoint.ledgerVersion) throw new Error(`final ledger version mismatch: expected ${checkpoint.ledgerVersion}, got ${snapshot.ledgerVersion}`);
+    const result = { accountId:account.snapshot.accountId, executions, eventLog, checkpoint, ledgerVersion:snapshot.ledgerVersion, snapshot, research:await researchResponse.json(), replayedRun:false };
     await pool.query("UPDATE replay_worker_runs SET status='COMPLETED',result=$2::jsonb,completed_at=now() WHERE test_run_id=$1", [command.testRunId, JSON.stringify(result)]);
     return result;
   } catch (error) {
@@ -175,9 +189,17 @@ createServer(async(req,res)=>{
       return json(res, 200, await getRun(actionMatch[1]));
     } catch (error) { return json(res, 409, { error: error instanceof Error ? error.message : "invalid replay transition" }); }
   }
-  if (req.method === "POST" && req.url === "/internal/v1/replays/multi") {
+  if (req.method === "POST" && (req.url === "/internal/v1/replays/multi" || req.url === "/internal/v1/replays/multi?async=true")) {
     if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-    let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as MultiCommand;return json(res,200,await withReplaySlot(() => withRunLock(command.testRunId, () => startMulti(command))));}catch(error){return json(res,error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
+    let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as MultiCommand;
+      if (req.url.endsWith("?async=true")) {
+        const hash = requestHash(command);
+        await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb) ON CONFLICT (test_run_id) DO NOTHING`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, hash, JSON.stringify(checkpointForBars(command.bars, command.seed))]);
+        void withReplaySlot(() => withRunLock(command.testRunId, () => startMulti(command))).catch(() => undefined);
+        return json(res,202,{accepted:true,testRunId:command.testRunId,status:"RUNNING"});
+      }
+      return json(res,200,await withReplaySlot(() => withRunLock(command.testRunId, () => startMulti(command))));
+    }catch(error){return json(res,error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
   }
   if(req.method!=="POST"||req.url!=="/internal/v1/replays")return json(res,404,{error:"not found"});
   if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});

@@ -13,6 +13,42 @@ export type ReplayFillWindow = { bar: ReplayBar; quantity: number; price: number
 type Assertion = { assertionId: string; status: "PASS" | "FAIL"; expected: unknown; actual: unknown };
 type ReplayState = { cursor: number; events: string[]; fills: Array<{ fillId: string; orderId: string; barId: string; quantity: number; price: number; fee: number }>; cash: number };
 
+/** Enforces the causal barrier before a virtual clock can advance. */
+export function assertReplayBarriers(events: string[]): void {
+  let orderAccepted = false;
+  let fillSeen = false;
+  let ledgerCommitted = false;
+  for (const event of events) {
+    if (event === "BAR_CLOSE") {
+      if (fillSeen && !ledgerCommitted) throw new Error("replay advanced before ledger barrier");
+      fillSeen = false;
+      ledgerCommitted = false;
+      continue;
+    }
+    if (event === "DECISION") {
+      if (fillSeen && !ledgerCommitted) throw new Error("decision observed before ledger barrier");
+      continue;
+    }
+    if (event === "ORDER_ACCEPTED") {
+      orderAccepted = true;
+      continue;
+    }
+    if (event === "FILL") {
+      if (!orderAccepted) throw new Error("fill observed before order acceptance");
+      fillSeen = true;
+      ledgerCommitted = false;
+      continue;
+    }
+    if (event === "LEDGER_COMMITTED") {
+      if (!fillSeen) throw new Error("ledger committed without a fill");
+      ledgerCommitted = true;
+      continue;
+    }
+    throw new Error(`unknown replay event: ${event}`);
+  }
+  if (fillSeen && !ledgerCommitted) throw new Error("replay ended before ledger barrier");
+}
+
 /** Selects the first usable bar strictly after the decision timestamp. */
 export function nextAvailableBar(bars: ReplayBar[], security: string, decisionTimestamp: string): ReplayBar | undefined {
   return bars.filter((bar) => bar.security === security && bar.timestamp > decisionTimestamp && bar.volume > 0)
@@ -96,12 +132,14 @@ export class V23ReplayEngine {
       const windows = options.multiWindow ? fillAcrossWindows(bars.slice(state.cursor - 1), focusSecurity, decision.timestamp, 100, 0.1) : { fills: [{ bar, quantity: Math.min(100, Math.floor(bar.volume * 0.1)), price: Number((bar.open * 1.001).toFixed(4)), fee: Number((Math.min(100, Math.floor(bar.volume * 0.1)) * Number((bar.open * 1.001).toFixed(4)) * 0.001).toFixed(4)) }], barriers: [] };
       state.events.push("BAR_CLOSE", "DECISION", "ORDER_ACCEPTED");
       windows.fills.forEach((item, index) => {
+        if (options.multiWindow && index > 0) state.events.push("BAR_CLOSE");
         state.events.push("FILL", "LEDGER_COMMITTED");
         state.fills.push({ fillId: `fill-${seed}-${index + 1}`, orderId: "order-1", barId: `bar-${state.cursor + index}`, quantity: item.quantity, price: item.price, fee: item.fee });
         state.cash = Number((state.cash - item.quantity * item.price - item.fee).toFixed(4));
       });
       if (!windows.fills.length) state.events.push("LEDGER_COMMITTED");
     }
+    assertReplayBarriers(state.events);
     const fill = state.fills[0];
     const positionMarketValue = fill ? Number((fill.quantity * target.close).toFixed(4)) : 0;
     return { ...state, signal: { signalId: "signal-1", visibleAt: decision.timestamp, executedAt: target.timestamp, orderId: "order-1" }, orders: [{ orderId: "order-1", type: "LIMIT", tif: "DAY", requestedQuantity: 100, filledQuantity: fill?.quantity ?? 0, participationRate: 0.1, status: fill ? "PARTIALLY_FILLED" : "OPEN", limitPrice: 10.35 }], positionMarketValue, finalNav: Number((state.cash + positionMarketValue).toFixed(4)) };

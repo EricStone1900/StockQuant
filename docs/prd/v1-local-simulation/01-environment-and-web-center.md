@@ -1,6 +1,6 @@
 # V1.1 环境、账户初始化与 Web 验收中心
 
-状态：PASS（用户人工验收已确认，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（已有人工作业证据，2026-09-09；契约生成、Artifact 存储和正式账户详情仍未完成）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 

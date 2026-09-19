@@ -75,13 +75,17 @@ class CircuitBreaker:
 
 
 class RateLimiter:
-    def __init__(self, minimum_interval_seconds: float = 1.0, clock: Callable[[], float] = time.monotonic, sleeper: Callable[[float], None] = time.sleep, state_path: str | None = None, key: str = "default") -> None:
+    def __init__(self, minimum_interval_seconds: float = 1.0, clock: Callable[[], float] = time.monotonic, sleeper: Callable[[float], None] = time.sleep, state_path: str | None = None, key: str = "default", wall_clock: Callable[[], float] = time.time) -> None:
         self.minimum_interval_seconds = minimum_interval_seconds
         self.clock = clock
         self.sleeper = sleeper
         self.last_request: float | None = None
         self.state_path = state_path
         self.key = key
+        # The in-process clock remains monotonic, but persisted timestamps must
+        # survive a host/container reboot.  Callers can inject this clock for
+        # deterministic tests.
+        self.wall_clock = wall_clock
 
     def wait(self) -> None:
         if self.state_path:
@@ -97,12 +101,28 @@ class RateLimiter:
                     except (json.JSONDecodeError, OSError):
                         state = {}
                     previous = state.get(self.key)
-                    now = self.clock()
-                    if isinstance(previous, (int, float)):
-                        remaining = self.minimum_interval_seconds - (now - previous)
+                    previous_at = None
+                    if isinstance(previous, dict) and previous.get("clock") == "unix":
+                        candidate = previous.get("at")
+                        if isinstance(candidate, (int, float)):
+                            previous_at = float(candidate)
+                        now = self.wall_clock()
+                    elif isinstance(previous, (int, float)):
+                        # Migrate the old monotonic format safely.  A reboot
+                        # can make the new monotonic value smaller than the
+                        # persisted one; that old value must not cause a
+                        # multi-hour sleep.
+                        previous_at = float(previous)
+                        now = self.clock()
+                        if now < previous_at:
+                            previous_at = None
+                    else:
+                        now = self.wall_clock()
+                    if previous_at is not None:
+                        remaining = self.minimum_interval_seconds - (now - previous_at)
                         if remaining > 0:
                             self.sleeper(remaining)
-                    state[self.key] = self.clock()
+                    state[self.key] = {"at": self.wall_clock(), "clock": "unix"}
                     handle.seek(0)
                     handle.truncate()
                     json.dump(state, handle)

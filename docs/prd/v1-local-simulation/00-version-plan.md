@@ -16,7 +16,7 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 
 | 阶段 | 交付 | 依赖 | 状态 |
 |---|---|---|---|
-| [V1.1](./01-environment-and-web-center.md) | 环境、账户初始化与 Web 验收中心 | 本文件前置条件；详细依赖见阶段文件 | NOT_RUN |
+| [V1.1](./01-environment-and-web-center.md) | 环境、账户初始化与 Web 验收中心 | 本文件前置条件；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（自动与人工验收范围已通过；契约生成、Artifact 存储和正式账户详情仍未完成） |
 | [V1.2](./02-small-data-and-qlib.md) | 小样本数据、真实 Qlib 与环境探针 | V1.1；详细依赖见阶段文件 | PASS（自动+人工确认；amd64 仿真） |
 | [V1.3](./03-fake-broker-trading-loop.md) | 治理、风控与模拟券商完整交易链路 | V1.2；详细依赖见阶段文件 | PASS（自动+人工确认；2026-09-09） |
 | [V1.4](./04-daily-backtest.md) | 日线历史回测与可核对报告 | V1.3；详细依赖见阶段文件 | PASS（自动+人工确认；2026-09-09） |

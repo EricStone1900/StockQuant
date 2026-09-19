@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { fillAcrossWindows, nextAvailableBar, parseReplayBars, V23ReplayEngine } from "../../src/application/v23-replay.js";
+import { assertReplayBarriers, fillAcrossWindows, nextAvailableBar, parseReplayBars, V23ReplayEngine } from "../../src/application/v23-replay.js";
 
 const fixturePath = resolve(process.cwd(), "../../fixtures/v2/v2.3/replay_bars.csv");
 async function fixture() { return parseReplayBars(await readFile(fixturePath, "utf8")); }
@@ -62,5 +62,10 @@ describe("V2.3 deterministic replay", () => {
     expect(result.fills.length).toBeGreaterThan(1);
     expect(result.fills.reduce((sum, item) => sum + item.quantity, 0)).toBe(130);
     expect(result.barriers.every((item) => /^(BAR_CLOSE|FILL|LEDGER_COMMITTED):/.test(item))).toBe(true);
+  });
+
+  it("rejects a virtual clock advance before the ledger barrier", () => {
+    expect(() => assertReplayBarriers(["BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "BAR_CLOSE"])).toThrow("replay advanced before ledger barrier");
+    expect(() => assertReplayBarriers(["BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED", "BAR_CLOSE"])).not.toThrow();
   });
 });

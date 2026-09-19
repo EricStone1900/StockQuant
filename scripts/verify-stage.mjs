@@ -43,7 +43,10 @@ function runCodeSuite() {
     ["pnpm", ["lint"]],
     ["pnpm", ["typecheck"]],
     ["pnpm", ["test"]],
-    ["pnpm", ["test:contract"]]
+    ["pnpm", ["test:contract"]],
+    ["pnpm", ["test:python-adapter"]],
+    ["pnpm", ["test:ops"]],
+    ["pnpm", ["test:integration:market-data"]],
   ];
   for (const [command, commandArgs] of commands) {
     const exitCode = runCommand(command, commandArgs);

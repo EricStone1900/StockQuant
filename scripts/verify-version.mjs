@@ -26,14 +26,19 @@ if (stageRows.length === 0) {
 }
 
 const unresolved = stageRows.filter(({ status }) => !/^PASS(?:\s|\(|（|$)/.test(status));
-const hasAcceptancePlaceholder = /待填写|NOT_RUN|FAIL|PARTIALLY_IMPLEMENTED/.test(acceptance);
+const acceptanceStageRows = [...acceptance.matchAll(/^\| \[(V\d+\.\d+)[^|]*\]\([^|]*\)\|\s*([^|]+)\|\s*([^|]+)\|/gm)]
+  .map((match) => ({ stageId: match[1], backend: match[2].trim(), web: match[3].trim() }));
+const unresolvedAcceptance = acceptanceStageRows.filter(({ backend, web }) => /NOT_RUN|FAIL|PARTIALLY_IMPLEMENTED/.test(`${backend} ${web}`));
+const hasFailure = [...stageRows.map(({ status }) => status), ...acceptanceStageRows.flatMap(({ backend, web }) => [backend, web])]
+  .some((status) => /\bFAIL\b/.test(status));
+const incomplete = unresolved.length > 0 || unresolvedAcceptance.length > 0;
 const result = {
   version,
-  status: unresolved.length === 0 && !hasAcceptancePlaceholder ? "PASS" : "NOT_PASS",
+  status: hasFailure ? "FAIL" : incomplete ? "INCOMPLETE" : "PASS",
   stages: stageRows,
   unresolvedStages: unresolved,
-  acceptancePlaceholders: hasAcceptancePlaceholder,
+  unresolvedAcceptance,
 };
 
 console.log(JSON.stringify(result, null, 2));
-process.exit(result.status === "PASS" ? 0 : 1);
+process.exit(result.status === "PASS" ? 0 : result.status === "INCOMPLETE" ? 2 : 1);

@@ -12,3 +12,13 @@ export function assertEventOrder(events: ReplayEvent[]): void {
   }
 }
 
+/** Validate one bar's causal barrier; no later bar may observe a partial sequence. */
+export function assertCausalBarrier(events: ReplayEvent[]): void {
+  assertEventOrder(events);
+  const expectedRejected: ReplayEvent[] = ["BAR_CLOSE", "DECISION", "ORDER_REJECTED"];
+  const expectedFilled: ReplayEvent[] = ["BAR_CLOSE", "DECISION", "ORDER_ACCEPTED", "FILL", "LEDGER_COMMITTED"];
+  const expected = events.includes("ORDER_REJECTED") ? expectedRejected : expectedFilled;
+  if (events.length !== expected.length || events.some((event, index) => event !== expected[index])) {
+    throw new Error("replay causal barrier is incomplete");
+  }
+}

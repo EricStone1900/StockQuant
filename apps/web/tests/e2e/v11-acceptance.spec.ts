@@ -81,6 +81,27 @@ test("V2.3 replay page shows deterministic matching and recovery evidence", asyn
   await expect(page.getByTestId("v23-evidence")).toContainText('"status": "PASS"');
   await page.getByRole("button", { name: "查询状态" }).click();
   await expect(page.getByTestId("v23-worker-status")).toContainText("COMPLETED");
+  // Lifecycle controls are wired to the real platform/worker endpoints. A completed
+  // run must reject every non-terminal transition instead of silently mutating state.
+  for (const action of ["暂停", "恢复", "取消"]) {
+    await page.getByRole("button", { name: action, exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("invalid replay status transition");
+  }
+});
+
+test("V2.3 long replay pauses and resumes from a committed checkpoint", async ({ page }) => {
+  await page.goto("/acceptance/v2/v2.3");
+  await page.getByRole("button", { name: "启动可暂停长回放", exact: true }).click();
+  await expect(page.getByTestId("v23-evidence")).toContainText('"status": "RUNNING"', { timeout: 10_000 });
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect(page.getByTestId("v23-worker-status")).toContainText('"status": "PAUSED"', { timeout: 10_000 });
+  await page.getByRole("button", { name: "恢复", exact: true }).click();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.getByRole("button", { name: "查询状态", exact: true }).click();
+    if (await page.getByTestId("v23-worker-status").textContent().then((text) => text?.includes('"status": "COMPLETED"'))) break;
+    await page.waitForTimeout(250);
+  }
+  await expect(page.getByTestId("v23-worker-status")).toContainText('"status": "COMPLETED"', { timeout: 10_000 });
 });
 
 test("V2.4 continuous paper page shows stale and recovery evidence", async ({ page }) => {
