@@ -1,5 +1,7 @@
 # V2.5 历史数据扩容与 V2 验收证据
 
+2026-09-19 计划复核：V2.5 code suite 重新通过；5分钟历史备用源探针 PASS，BaoStock 与 Sina 均返回 3 个样本证券的有效结果，证据为 `evidence/local/V2.5/minute-source-probe-20260919.json`。该探针的 `liveSession` 明确为 `NOT_RUN`，因此不替代真实交易日观察。BaoStock PIT 探针仍为 `PARTIAL`：财务字段存在公告日期，但缺少修订链、来源 Artifact/溯源和历史证券集合；行业分类缺少历史有效区间、修订链及历史成分，不能解除真实 PIT 门禁。
+
 验证日期：2026-09-12（Asia/Shanghai）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
 
 - normal：`fe37c045-962f-40be-84b1-36d33df08184`，`COMPLETED`；20 只证券 × 60 交易日、1200 行，扩容前后规范结果 Hash 一致，PIT/Walk-forward、缓存隔离和资源预算断言通过。

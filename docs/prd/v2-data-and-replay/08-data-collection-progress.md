@@ -47,6 +47,8 @@
 
 2026-09-19 运行可靠性与门禁复核：修复 Python 适配器持久限频状态在宿主机重启后可能因 monotonic 时钟回退而产生超长等待的问题；新状态使用 wall-clock 并兼容旧数值格式，新增时钟回退测试，适配器 unittest 17/17 通过。根级新增 `test:python-adapter`、`test:ops` 和 `test:integration:market-data` 入口；运维脚本 61/61、market-data PostgreSQL 集成 17/17 通过。`verify-version` 现在区分 `PASS`/`FAIL`/`INCOMPLETE`，未完成门禁返回退出码2，并忽略通用证据模板中的占位词。V1/V2 README、版本计划、V1.1/V2.4阶段状态和未决事项已按最新证据校准。V2.3 回放 Runner、事件屏障和多窗口执行模型已完成技术收口并通过 code suite；用户已于 2026-09-19 对 V2.3 新收口范围人工确认通过，后续继续累计 DC-08A/V2.4 实际交易日。
 
+2026-09-19 计划1～5执行复核：DC-08A 健康检查与活动订阅检查均 PASS，订阅仍为 `dc08a-20260917-20-v1`；因当天为交易日历 CLOSED，morning/monitor/eod 均正确返回 `NOT_RUN`，未虚增 V2.4 或 DC-08A 有效日，观察计数保持 V2.4 `4/20`、DC-08A `1/20`。V2.5 code suite 重新通过；BaoStock/Sina 5分钟历史能力探针 PASS（证据 `evidence/local/V2.5/minute-source-probe-20260919.json`，live session 仍 NOT_RUN）；BaoStock PIT 探针仍为 PARTIAL，财务/行业修订链和历史有效区间不足，不能解除 PIT 门禁。
+
 ## 3. 开发中断接续协议
 
 每完成一个子任务、遇到失败、切换工作包或结束工作时更新此文件：当前Git分支/commit及未提交文件、工作包/子任务、已执行命令/退出码、证据路径、运行ID、剩余任务、阻塞及下一条操作。计划更改先增加版本和变更原因；不得重编号已存在的测试/任务。
