@@ -116,7 +116,11 @@ export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_UR
   const reports = await Promise.all(config.acceptanceDates.map((date) => loadReport(outputDir, date)));
   const decision = evaluatePromotion({ schedules, reports, config });
   if (!decision.ok) return { status: "BLOCKED", reasons: decision.reasons, exitCode: 2 };
-  if (decision.alreadyPromoted) return { status: "ALREADY_PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
+  if (decision.alreadyPromoted) {
+    const ready = await requestFn(baseUrl, "/ready");
+    if (!verifyPromotedRuntime(ready, config)) return { status: "BLOCKED", reasons: ["target subscription is active but runtime does not expose the frozen 20-security configuration"], exitCode: 2 };
+    return { status: "ALREADY_PROMOTED", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
+  }
   if (checkOnly) return { status: "READY_TO_PROMOTE", subscriptionId: config.targetId, securityCount: config.securityIds.length, exitCode: 0 };
   const build = command([...compose, "build", "market-data-service"], { env });
   if (build.status !== 0) return { status: "FAILED", reasons: [build.stderr.trim() || "promotion image build failed"], exitCode: 1 };

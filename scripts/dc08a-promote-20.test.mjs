@@ -26,6 +26,19 @@ test("already promoted target is idempotent", () => {
   assert.equal(result.alreadyPromoted, true);
 });
 
+test("already promoted target is blocked when runtime exposes the wrong universe", async () => {
+  const env = { DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "2026-09-14,2026-09-15", STOCKQUANT_COLLECTION_CONTROL_TOKEN: "test" };
+  const requestFn = async (_base, path) => {
+    if (path.includes("/short")) return { subscriptionId: "short", enabled: false, fromDate: "2026-09-14", toDate: "2026-09-16", calendarVersion: "sse-cn-a-share-2026-1" };
+    if (path.includes("/target")) return { subscriptionId: "target", enabled: true, fromDate: "2026-09-17", toDate: "2026-12-31", calendarVersion: "sse-cn-a-share-2026-1" };
+    if (path === "/ready") return { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: ["600000.SH", "000001.SZ", "600519.SH"] };
+    return {};
+  };
+  const result = await promote({ env, baseUrl: "http://test", outputDir: "/tmp/does-not-exist", requestFn });
+  assert.equal(result.status, "BLOCKED");
+  assert.equal(result.exitCode, 2);
+});
+
 test("promotion runtime must expose the frozen 20-security configuration", () => {
   assert.equal(verifyPromotedRuntime({ status: "ready", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: config.securityIds }, config), true);
   assert.equal(verifyPromotedRuntime({ status: "ready", collectionSchedulerWorker: "ENABLED", collectionExecutor: "DISABLED", collectionSecurityIds: config.securityIds }, config), false);

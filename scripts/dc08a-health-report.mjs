@@ -6,10 +6,16 @@ export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscrip
   const recent = tickAgeSeconds !== null && tickAgeSeconds <= maxTickAgeSeconds;
   // A configured primary may be OPEN while the persisted fallback is healthy;
   // collection readiness requires at least one actually usable minute source.
-  const sourceReady = sources.length > 0 && sources.some((source) => source.status === "PASS" || source.circuit === "HEALTHY" || source.circuit === "CLOSED");
+  const sourceReady = sources.length > 0 && sources.some((source) => {
+    if (source.status === "PASS" || source.circuit === "HEALTHY") return true;
+    if (source.circuit !== "CLOSED") return false;
+    if (source.lastSuccessAt === undefined || source.lastSuccessAt === null) return false;
+    const timestamp = typeof source.lastSuccessAt === "number" ? source.lastSuccessAt * 1000 : Date.parse(String(source.lastSuccessAt));
+    return Number.isFinite(timestamp) && now.getTime() - timestamp <= maxTickAgeSeconds * 1000;
+  });
   const qualityKnown = quality.openGaps !== undefined && quality.pendingOutbox !== undefined;
   const qualityReady = qualityKnown && Number(quality.openGaps) === 0 && Number(quality.pendingOutbox) === 0;
-  const nextTrigger = scheduler?.nextExecutionAt === null || (scheduler?.nextExecutionAt && Date.parse(scheduler.nextExecutionAt) > now.getTime());
+  const nextTrigger = Boolean(scheduler?.nextExecutionAt && Date.parse(scheduler.nextExecutionAt) > now.getTime());
   const healthy = ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && scheduler?.status === "ENABLED" && recent && nextTrigger && sourceReady && qualityReady;
   return { schemaVersion: "dc08a-health-v2", capturedAt, status: healthy ? "HEALTHY" : "UNHEALTHY", activeSubscription: activeSubscription ?? null, ready: { status: ready?.status ?? "UNAVAILABLE", persistence: ready?.collectionPersistence ?? null, scheduler: ready?.collectionSchedulerWorker ?? null, executor: ready?.collectionExecutor ?? null }, scheduler: { status: scheduler?.status ?? "UNAVAILABLE", lastSuccessfulTickAt: scheduler?.lastSuccessfulTickAt ?? null, nextExecutionAt: scheduler?.nextExecutionAt ?? null, lastSubmitted: Number(scheduler?.lastSubmitted ?? 0), tickAgeSeconds: tickAgeSeconds === null ? null : Number(tickAgeSeconds.toFixed(3)) }, sources, quality: { openGaps: qualityKnown ? Number(quality.openGaps) : null, pendingOutbox: qualityKnown ? Number(quality.pendingOutbox) : null }, checks: { recentSuccessRecorded: recent, nextTriggerRecorded: Boolean(nextTrigger), sourceReady, qualityReady } };
 }

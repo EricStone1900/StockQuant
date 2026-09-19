@@ -28,6 +28,11 @@ test("missing quality data is never treated as healthy", () => {
 });
 
 test("minute source CLOSED circuit is healthy", () => {
-  const report = buildHealthReport({ capturedAt: "2026-09-17T12:00:00.000Z", ready: { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }, scheduler: { status: "ENABLED", lastSuccessfulTickAt: "2026-09-17T11:59:00.000Z", nextExecutionAt: "2026-09-18T01:30:00.000Z" }, sources: [{ sourceId: "sina", circuit: "CLOSED" }], quality: { openGaps: 0, pendingOutbox: 0 } });
+  const report = buildHealthReport({ capturedAt: "2026-09-17T12:00:00.000Z", ready: { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }, scheduler: { status: "ENABLED", lastSuccessfulTickAt: "2026-09-17T11:59:00.000Z", nextExecutionAt: "2026-09-18T01:30:00.000Z" }, sources: [{ sourceId: "sina", circuit: "CLOSED", lastSuccessAt: "2026-09-17T11:59:30.000Z" }], quality: { openGaps: 0, pendingOutbox: 0 } });
   assert.equal(report.status, "HEALTHY");
+});
+
+test("missing next trigger is not reported as recorded", () => {
+  const report = buildHealthReport({ capturedAt: "2026-09-17T12:00:00.000Z", ready: { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }, scheduler: { status: "ENABLED", lastSuccessfulTickAt: "2026-09-17T11:59:00.000Z", nextExecutionAt: null }, sources: [{ status: "PASS", circuit: "HEALTHY" }], quality: { openGaps: 0, pendingOutbox: 0 } });
+  assert.equal(report.checks.nextTriggerRecorded, false);
 });

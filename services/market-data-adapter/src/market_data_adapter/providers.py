@@ -116,7 +116,7 @@ class BaoStockMinuteClient:
             except Empty:
                 process.terminate()
                 process.join(5)
-                raise SourceError("TIMEOUT", f"BaoStock query timed out for {security_id}")
+                raise SourceError("TIMEOUT", f"BaoStock query timed out for batch {','.join(batch)}")
             finally:
                 if process.is_alive():
                     process.terminate()

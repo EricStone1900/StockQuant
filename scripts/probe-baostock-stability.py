@@ -107,4 +107,4 @@ def run() -> dict[str, object]:
 if __name__ == "__main__":
     output = run()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if output.get("status") in {"PASS", "PARTIAL", "NOT_RUN"} else 1)
+    raise SystemExit(0 if output.get("status") == "PASS" else 2 if output.get("status") in {"PARTIAL", "NOT_RUN"} else 1)

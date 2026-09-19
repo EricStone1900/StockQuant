@@ -1,6 +1,17 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 export const composeArgs = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
+
+function expectedRuntime(env = process.env) {
+  let local = {};
+  try {
+    local = Object.fromEntries(readFileSync(".env.local", "utf8").split(/\r?\n/).filter((line) => /^[A-Z_]+=/.test(line)).map((line) => { const index = line.indexOf("="); return [line.slice(0, index), line.slice(index + 1)]; }));
+  } catch { /* .env.local is optional in unit-test environments */ }
+  const subscriptionId = env.STOCKQUANT_COLLECTION_SUBSCRIPTION_ID ?? local.STOCKQUANT_COLLECTION_SUBSCRIPTION_ID;
+  const rawIds = env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? local.STOCKQUANT_COLLECTION_SECURITY_IDS;
+  return { subscriptionId, securityIds: rawIds ? rawIds.split(",").map((value) => value.trim()).filter(Boolean) : [] };
+}
 
 export function classifyReady(body, httpStatus = 200) {
   if (httpStatus !== 200 || !body || body.status !== "ready") return "UNHEALTHY";
@@ -24,7 +35,25 @@ async function ready(url) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
     const body = await response.json().catch(() => ({}));
-    return { state: classifyReady(body, response.status), status: response.status, body };
+    const state = classifyReady(body, response.status);
+    if (state !== "HEALTHY") return { state, status: response.status, body };
+    const expected = expectedRuntime();
+    const baseUrl = url.replace(/\/ready\/?$/, "");
+    if (expected.securityIds.length > 0) {
+      const actualIds = Array.isArray(body.collectionSecurityIds) ? body.collectionSecurityIds : [];
+      if (actualIds.length !== expected.securityIds.length || actualIds.some((id, index) => id !== expected.securityIds[index])) {
+        return { state: "UNHEALTHY", status: response.status, body, error: `runtime security universe mismatch: expected ${expected.securityIds.length}, got ${actualIds.length}` };
+      }
+    }
+    if (expected.subscriptionId) {
+      const schedulesResponse = await fetch(`${baseUrl}/v2/collection-schedules`, { signal: AbortSignal.timeout(3000) });
+      const schedules = schedulesResponse.ok ? (await schedulesResponse.json()).schedules ?? [] : [];
+      const active = schedules.filter((schedule) => schedule.enabled === true);
+      if (active.length !== 1 || active[0].subscriptionId !== expected.subscriptionId) {
+        return { state: "UNHEALTHY", status: response.status, body, error: `active subscription mismatch: expected ${expected.subscriptionId}` };
+      }
+    }
+    return { state, status: response.status, body };
   } catch (error) {
     return { state: "UNHEALTHY", status: 0, body: {}, error: String(error) };
   }
