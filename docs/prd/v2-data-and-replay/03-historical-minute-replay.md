@@ -1,8 +1,8 @@
 # V2.3 日频决策、分钟撮合与历史事件回放
 
-2026-09-19 技术复核：平台回放切片已补齐确定性 `nextAvailableBar`、多窗口参与率部分成交及逐窗口 `LEDGER_COMMITTED` 屏障；对应单元测试已通过。跨服务真实来源与人工验收仍按下表保持独立状态。
+2026-09-19 技术复核：平台回放切片已补齐确定性 `nextAvailableBar`、多窗口参与率部分成交及逐窗口 `LEDGER_COMMITTED` 屏障；对应单元测试已通过。跨服务真实来源与人工验收已按本页收口范围完成复核。
 
-状态：PARTIALLY_IMPLEMENTED。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（本页定义的 Fixture/Backtest 技术收口范围，用户人工确认 2026-09-19；不包含真实模型、LIVE 或容量观察门禁）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -58,7 +58,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 - [x] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
 - [x] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
 - [x] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
-- [x] 历史人工验收记录已保留（2026-09-09）；本次技术复核后，完整 V2.3 阶段结论仍为 PARTIALLY_IMPLEMENTED，不能以该记录代替未完成的跨域验收。
+- [x] 历史人工验收记录已保留（2026-09-09）；用户已于 2026-09-19 对本页定义的完整跨域技术收口范围人工确认通过。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
 
 2026-09-15 V2.3 生命周期切片：historical-replay-worker 新增受服务身份保护的运行查询、暂停、恢复、取消接口；多 Bar 推进在每个 Bar 前读取持久状态，暂停时不推进虚拟游标，取消时保留检查点并以 `CANCELLED` 终态收口。新增生命周期状态机单测（5/5），全仓 V2.3 code 套件通过；完整跨服务 Runner、历史执行模型和 Web 实际操作仍保持未完成。
@@ -77,7 +77,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（自动检查已实现；人工验收待用户确认）。
+手册状态：VERIFIED_EXECUTABLE（自动检查已实现；用户人工验收已于 2026-09-19 确认通过）。
 
 前置服务：V2.2数据、量化ReplayRunner、历史执行Adapter、组合/治理/执行、运行Clock与检查点存储。
 
@@ -166,6 +166,8 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 2026-09-19 V2.3 完整闭环：平台回放引擎与 Worker 均强制检查 `FILL→LEDGER_COMMITTED` 屏障；Worker 每个 Bar 持久化事件序号、账本版本、虚拟时间和游标，并在重启时校验累计执行/事件日志一致后从最后已提交屏障继续。Web 生命周期按钮通过平台代理调用真实暂停/恢复/取消接口；新增完成态转换拒绝的浏览器断言。
 2026-09-19 V2.3 收口复验：正式平台验收已切换至 3 Bar 跨服务回放，`testRunId=4db177da-6f2f-46c1-adb5-8e75f7a33309`，3/3 Fill、3/3 `LEDGER_COMMITTED`，checkpoint `cursor=3,eventSequence=15,ledgerVersion=4`；长任务 Web E2E 实测暂停为 `PAUSED`、恢复后 `COMPLETED`。证据导出目录 `evidence/local/V2.3/4db177da-6f2f-46c1-adb5-8e75f7a33309`，Manifest Hash `54aba03f4885e63bcf4e154350e82acda01fd886b6644d66644be341bd778036`。
 
+2026-09-19 V2.3 人工验收复核：按执行顺序重新完成 normal `ca0678f9-7c24-4f99-ad58-59054dfac2f9`、rejection `79f5af32-9ede-492d-94b2-3a554394a06f`、recovery `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0`；三场景均 `COMPLETED` 且断言全 PASS，recovery 对比无重复 Fill。Web E2E 2/2 通过；完整 code suite、同 run `--check-only` 和证据导出均退出 0。normal 证据目录 `evidence/local/V2.3/ca0678f9-7c24-4f99-ad58-59054dfac2f9`，Manifest Hash `f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e`。用户已人工确认本收口范围通过。
+
 ### 8.5 交叉核对、失败定位与恢复
 
 交叉核对：游标/虚拟时间/事件序号、订单/Fill/账本版本及净值与不中断参考对照；检查点恢复不是新建运行重头再算。
@@ -178,11 +180,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario normal --seed 20260907`，退出码 0 | `6522c574-fc20-472b-8eba-1a0b59024d9c` | PASS |
-| rejection（含全部子场景） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario rejection --seed 20260907`，退出码 0；FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `3d361eb3-e1cd-4517-9de8-5eccb88776dc` | PASS |
-| recovery（含实际外部动作） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario recovery --seed 20260907`，退出码 0；检查点恢复无重复 Fill | `49b5dc51-1a1d-40ad-9100-d290c423f386` | PASS |
-| Web同run只读核对与证据导出 | Web E2E 1/1 通过；V2.3 同run GET 通过 | `--check-only` 与 `pnpm evidence:export`，均退出码 0；Manifest `02293ca437201a36096a7e04631f5be837869a49f9bb9be490f4b64a9995002a` | `6522c574-fc20-472b-8eba-1a0b59024d9c`；`evidence/local/V2.3/6522c574-fc20-472b-8eba-1a0b59024d9c` | PASS |
-| 本阶段代码测试/实际观察适用项 | 构建、单元测试、Compose 健康检查通过 | `pnpm build`、`pnpm test`，均退出码 0 | 见 `docs/evidence-v2.3.md` | PASS |
-| 用户人工验收 | 用户明确确认通过；2026-09-11 完整复核一致 | 不由脚本代签 | 本会话确认 / 2026-09-11 | PASS |
+| normal | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario normal --seed 20260907`，退出码 0 | `ca0678f9-7c24-4f99-ad58-59054dfac2f9` | PASS |
+| rejection（含全部子场景） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario rejection --seed 20260907`，退出码 0；FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `79f5af32-9ede-492d-94b2-3a554394a06f` | PASS |
+| recovery（含实际外部动作） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario recovery --seed 20260907`，退出码 0；检查点恢复无重复 Fill | `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0` | PASS |
+| Web同run只读核对与证据导出 | Web E2E 2/2 通过；V2.3 同run GET 通过 | `--check-only` 与 `pnpm evidence:export`，均退出码 0；Manifest `f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e` | `ca0678f9-7c24-4f99-ad58-59054dfac2f9`；`evidence/local/V2.3/ca0678f9-7c24-4f99-ad58-59054dfac2f9` | PASS |
+| 本阶段代码测试/实际观察适用项 | 构建、类型、单元、契约、Fixture、运维和 market-data 集成检查通过；DC-08A 运行态未改变 | `pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0；`pnpm dc08a:supervise -- --check-only`，退出码 0 | 代码套件日志 `/tmp/v23-code-final.log`；运行态订阅 `dc08a-20260917-20-v1` | PASS |
+| 用户人工验收 | 用户明确确认本页收口范围通过；完整复核一致 | 不由脚本代签 | 本会话确认 / 2026-09-19 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。

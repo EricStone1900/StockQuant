@@ -45,7 +45,7 @@
 
 2026-09-18 DC-08A/V2.4观察：20只订阅首个完整交易日完成48/48窗口、960/960根Bar、0缺口、0待投递Outbox，来源均为Sina（BaoStock熔断状态为OPEN）；DC-08A有效日累计1/20。V2.4数据库日终最终记录已累计2026-09-15至2026-09-18共4/20，文档和健康报告仍需保持来源熔断与服务重启后的真实状态。
 
-2026-09-19 运行可靠性与门禁复核：修复 Python 适配器持久限频状态在宿主机重启后可能因 monotonic 时钟回退而产生超长等待的问题；新状态使用 wall-clock 并兼容旧数值格式，新增时钟回退测试，适配器 unittest 17/17 通过。根级新增 `test:python-adapter`、`test:ops` 和 `test:integration:market-data` 入口；运维脚本 61/61、market-data PostgreSQL 集成 17/17 通过。`verify-version` 现在区分 `PASS`/`FAIL`/`INCOMPLETE`，未完成门禁返回退出码2，并忽略通用证据模板中的占位词。V1/V2 README、版本计划、V1.1/V2.4阶段状态和未决事项已按最新证据校准。V2.3 回放 Runner、事件屏障和多窗口执行模型已完成技术收口并通过 code suite；下一动作是保留证据、等待用户对新收口范围人工确认，并继续累计 DC-08A/V2.4 实际交易日。
+2026-09-19 运行可靠性与门禁复核：修复 Python 适配器持久限频状态在宿主机重启后可能因 monotonic 时钟回退而产生超长等待的问题；新状态使用 wall-clock 并兼容旧数值格式，新增时钟回退测试，适配器 unittest 17/17 通过。根级新增 `test:python-adapter`、`test:ops` 和 `test:integration:market-data` 入口；运维脚本 61/61、market-data PostgreSQL 集成 17/17 通过。`verify-version` 现在区分 `PASS`/`FAIL`/`INCOMPLETE`，未完成门禁返回退出码2，并忽略通用证据模板中的占位词。V1/V2 README、版本计划、V1.1/V2.4阶段状态和未决事项已按最新证据校准。V2.3 回放 Runner、事件屏障和多窗口执行模型已完成技术收口并通过 code suite；用户已于 2026-09-19 对 V2.3 新收口范围人工确认通过，后续继续累计 DC-08A/V2.4 实际交易日。
 
 ## 3. 开发中断接续协议
 
