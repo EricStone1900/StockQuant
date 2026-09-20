@@ -4,6 +4,8 @@
 
 2026-09-20 BaoStock 修复诊断：原适配器固定的 `baostock==0.8.9` 使用旧 `www.baostock.com:10030` 端点并在登录阶段返回 `10002007`；临时验证 `baostock==0.9.3` 已切换至 `public-api.baostock.com:10030`，匿名登录返回 `errorCode=0`。项目已升级并重新生成 `uv.lock`/`requirements.lock`，适配器同时保留原始登录/查询错误码。新版单证券历史查询仍需在有界超时内继续验证，因此本条只证明旧版端点兼容问题已修复，不将 BaoStock 稳定性门禁改为 PASS。
 
+2026-09-20 BaoStock 修复复核：此前稳定性探针的 `TIMEOUT` 根因是循环遗漏 `query.get_row_data()`，不是接口分页失败；修复后两轮×三证券×60交易日及独立恢复查询均 `PASS`，每次返回2,784条。正式适配器容器同窗口查询也返回2,784条，且时间字段已从 0.9.3 的 `YYYYMMDDHHMMSSmmm` 正确归一化为 09:30–15:00 的5分钟窗口。容器持久健康状态已恢复为 `baostock=CLOSED, failures=0`；实际交易时段观察仍为 `NOT_RUN`。
+
 验证日期：2026-09-19（Asia/Shanghai，自动复核批次；早期批次仍保留在本文件历史记录中）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
 
 - normal：`3bee90bc-2c75-4ebb-989e-07be04b80069`，`COMPLETED`；断言 6/6 PASS。
@@ -12,7 +14,7 @@
 - 同 Run 只读核对：normal `--check-only` 退出码 0，未创建新业务副作用。
 - 证据导出：`evidence/local/3bee90bc-2c75-4ebb-989e-07be04b80069`；Manifest SHA-256 `0603d5260a4c2007c3fd6b807e4934ccb8d53d8f2956852041b5b4e1fc28e885`。
 - Web E2E：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.5`，1/1 通过。
-- 代码/基础检查：类型检查、构建、适配器单元测试 29/29、平台单元测试、`verify:stage --suite code`、契约/Fixture/Markdown 检查通过。
+- 代码/基础检查：类型检查、构建、适配器单元测试 32/32、平台单元测试、`verify:stage --suite code`、契约/Fixture/Markdown 检查通过。
 - 架构证据：`linux/amd64-emulated`；S2 资源预算 1024 MB / 120 秒，最新运行时测量见下文。
 - V2.4 20 个实际交易日观察仍由独立定时任务累计，当前门禁保持 `V2.4_20_TRADING_DAYS_PENDING`；V2.5 不据此宣称 V2 全部通过。
 

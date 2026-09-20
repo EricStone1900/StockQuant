@@ -26,13 +26,28 @@ def _bar_window(endpoint: str) -> tuple[str, str]:
     return start.isoformat().replace("+00:00", "Z"), end.isoformat().replace("+00:00", "Z")
 
 
+def _baostock_endpoint(date_value: str, clock: str) -> str:
+    """Normalize BaoStock's legacy and current intraday time fields."""
+    normalized_date = date_value.replace("-", "")
+    normalized_clock = str(clock).strip()
+    if len(normalized_clock) == 17 and normalized_clock.isdigit():
+        if normalized_clock[:8] != normalized_date:
+            raise SourceError("SCHEMA_INVALID", "BaoStock time field date does not match its date field", retryable=False)
+        normalized_clock = normalized_clock[8:14]
+    elif len(normalized_clock) >= 6 and normalized_clock[:6].isdigit():
+        normalized_clock = normalized_clock[:6]
+    else:
+        raise SourceError("SCHEMA_INVALID", "BaoStock time field is not HHMMSS or YYYYMMDDHHMMSSmmm", retryable=False)
+    return f"{date_value}T{normalized_clock[:2]}:{normalized_clock[2:4]}:{normalized_clock[4:6]}+08:00"
+
+
 def normalize_baostock(rows: Sequence[Sequence[str]], source_id: str = "baostock") -> list[NormalizedBar]:
     result: list[NormalizedBar] = []
     for row in rows:
         if len(row) != 9:
             raise SourceError("SCHEMA_INVALID", "BaoStock row does not contain the required 9 fields", retryable=False)
         date, clock, code, open_, high, low, close, volume, amount = row
-        endpoint = f"{date}T{clock[:2]}:{clock[2:4]}:{clock[4:6]}+08:00"
+        endpoint = _baostock_endpoint(date, clock)
         start, end = _bar_window(endpoint)
         market, number = code.split(".", 1)
         result.append(NormalizedBar(f"{number}.{market.upper()}", start, end, None, open_, high, low, close, volume, amount, "raw", source_id))

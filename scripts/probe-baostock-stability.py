@@ -7,6 +7,8 @@ session recovery. It is not a substitute for a long-term production soak.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import multiprocessing as mp
 import os
@@ -21,28 +23,36 @@ DEFAULT_SYMBOLS = "sh.600000,sh.600004,sh.600006"
 FIELDS = "date,time,code,open,high,low,close,volume,amount"
 
 
+def consume_query_rows(query: Any) -> int:
+    """Advance BaoStock's cursor for every row, including later pages."""
+    rows = 0
+    while query.next():
+        query.get_row_data()
+        rows += 1
+    return rows
+
+
 def _query_in_isolated_session(code: str, start_date: str, end_date: str, output: Any) -> None:
     """Run one query in a fresh BaoStock session and return JSON-safe facts."""
     try:
         import baostock as bs  # type: ignore[import-not-found]
 
-        login = bs.login()
-        if login.error_code != "0":
-            output.put({"code": code, "outcome": "LOGIN_ERROR", "errorCode": login.error_code, "message": login.error_msg})
-            return
-        try:
-            query = bs.query_history_k_data_plus(code, FIELDS, start_date=start_date, end_date=end_date, frequency="5", adjustflag="3")
-            rows = 0
-            while query.next():
-                rows += 1
-            if query.error_code != "0":
-                output.put({"code": code, "outcome": "QUERY_ERROR", "errorCode": query.error_code, "message": query.error_msg, "rows": rows})
-            elif rows == 0:
-                output.put({"code": code, "outcome": "EMPTY", "rows": 0})
-            else:
-                output.put({"code": code, "outcome": "SUCCESS", "rows": rows})
-        finally:
-            bs.logout()
+        with contextlib.redirect_stdout(io.StringIO()):
+            login = bs.login()
+            if login.error_code != "0":
+                output.put({"code": code, "outcome": "LOGIN_ERROR", "errorCode": login.error_code, "message": login.error_msg})
+                return
+            try:
+                query = bs.query_history_k_data_plus(code, FIELDS, start_date=start_date, end_date=end_date, frequency="5", adjustflag="3")
+                rows = consume_query_rows(query)
+                if query.error_code != "0":
+                    output.put({"code": code, "outcome": "QUERY_ERROR", "errorCode": query.error_code, "message": query.error_msg, "rows": rows})
+                elif rows == 0:
+                    output.put({"code": code, "outcome": "EMPTY", "rows": 0})
+                else:
+                    output.put({"code": code, "outcome": "SUCCESS", "rows": rows})
+            finally:
+                bs.logout()
     except Exception as exc:  # noqa: BLE001  # pragma: no cover - external SDK boundary
         output.put({"code": code, "outcome": "EXCEPTION", "message": repr(exc)})
 

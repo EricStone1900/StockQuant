@@ -79,6 +79,16 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(baostock[0].bar_end, sina[0].bar_end)
         self.assertEqual(baostock[0].adjustment, "raw")
 
+    def test_normalizes_current_baostock_timestamp_with_embedded_date(self):
+        bars = normalize_baostock([["2024-01-02", "20240102093500000", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
+        self.assertEqual(bars[0].bar_start, "2024-01-02T09:30:00+08:00")
+        self.assertEqual(bars[0].bar_end, "2024-01-02T09:35:00+08:00")
+
+    def test_rejects_baostock_timestamp_with_mismatched_embedded_date(self):
+        with self.assertRaises(SourceError) as failure:
+            normalize_baostock([["2024-01-02", "20240103093500000", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
+        self.assertEqual(failure.exception.code, "SCHEMA_INVALID")
+
     def test_sina_client_parses_jsonp_and_preserves_amount(self):
         payload = [{"day": "2026-09-11 09:30:00", "open": "10", "high": "11", "low": "9", "close": "10", "volume": "100", "amount": "1000"}]
         client = SinaMinuteClient(opener=lambda request, timeout: Response("=(" + json.dumps(payload) + ");"))
