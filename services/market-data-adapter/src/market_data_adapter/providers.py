@@ -111,7 +111,7 @@ def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> 
         import baostock as bs  # type: ignore[import-not-found]
         login = bs.login()
         if login.error_code != "0":
-            output.put({"error": "LOGIN_FAILED", "message": login.error_msg})
+            output.put({"error": "LOGIN_FAILED", "errorCode": login.error_code, "message": login.error_msg})
             return
         try:
             results: dict[str, Any] = {}
@@ -129,6 +129,14 @@ def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> 
             bs.logout()
     except Exception as error:  # noqa: BLE001
         output.put({"error": "ADAPTER_EXCEPTION", "message": repr(error)})
+
+
+def baostock_source_error(response: dict[str, Any]) -> SourceError:
+    """Convert a child response while retaining BaoStock's original error code."""
+    code = str(response.get("errorCode") or response.get("error") or "BAOSTOCK_UNKNOWN")
+    category = str(response.get("error") or "BAOSTOCK_ERROR")
+    message = str(response.get("message") or "BaoStock query failed")
+    return SourceError(code, f"{category}: {message}")
 
 
 class BaoStockMinuteClient:
@@ -158,7 +166,7 @@ class BaoStockMinuteClient:
                     process.join(5)
                 queue.close()
             if response.get("error"):
-                raise SourceError(str(response["error"]), str(response.get("message", "BaoStock query failed")))
+                raise baostock_source_error(response)
             for rows in response.get("results", {}).values():
                 bars.extend(normalize_baostock(rows))
         return filter_range(bars, start, end)

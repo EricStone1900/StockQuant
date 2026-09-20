@@ -4,7 +4,7 @@
 
 ## 实现
 
-- `services/market-data-adapter/`：独立 Python 包，`pyproject.toml`、`uv.lock`及带哈希`requirements.lock`固定`baostock==0.8.9`、`requests==2.32.5`和传递依赖；镜像构建期安装，不在每次任务执行时下载。
+- `services/market-data-adapter/`：独立 Python 包，`pyproject.toml`、`uv.lock`及带哈希`requirements.lock`固定`baostock==0.9.3`、`requests==2.32.5`和传递依赖；镜像构建期安装，不在每次任务执行时下载。
 - `providers.py`：BaoStock 子进程隔离和超时回收；Sina JSONP 解析；东方财富公开 JSON K 线解析；公共代码正确转换为 BaoStock `sh.600000`/新浪 `sh600000`/东方财富 `1.600000` 格式，并按请求本地日期过滤滚动结果；三者统一为明确的 OHLCV、amount、RAW 复权和来源字段，东方财富成交量手数转换为股。
 - `failover.py`：每源独立限流、最多 3 次有限重试、退避、连续 3 次失败熔断 5 分钟、单探针半开恢复和来源切换审计；顺序为 BaoStock→Sina→Eastmoney。
 - 空结果、缺字段、来源标识不一致均拒绝，不用 close×volume 伪造成交额。
@@ -18,7 +18,7 @@ cd ../..
 pnpm --filter @stockquant/market-data-service lint
 ```
 
-结果：新增实现后 Python unittest 19/19通过；market-data-service TypeScript typecheck通过；语法编译检查通过。测试覆盖 BaoStock/Sina/Eastmoney 规范化、代码转换、Sina JSONP、Eastmoney JSON、主源超时后切换备用、熔断冷却与半开恢复、空结果/字段不匹配隔离。
+结果：当前实现 Python unittest 29/29通过；market-data-service TypeScript typecheck通过；语法编译检查通过。测试覆盖 BaoStock/Sina/Eastmoney 规范化、代码转换、Sina JSONP、Eastmoney JSON、主源超时后切换备用、熔断冷却与半开恢复、空结果/字段不匹配隔离，以及 BaoStock 原始错误码保留。
 
 ## 真实盘后探针（不写库）
 

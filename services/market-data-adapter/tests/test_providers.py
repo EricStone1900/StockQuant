@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from market_data_adapter.cli import source_ids_from_request, wire_bar
 from market_data_adapter.failover import NormalizedBar, SourceError
-from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
+from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
 
 
 class Response:
@@ -32,6 +32,16 @@ class Response:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_baostock_source_error_preserves_provider_error_code(self):
+        failure = baostock_source_error({"error": "LOGIN_FAILED", "errorCode": "10002007", "message": "网络接收错误。"})
+        self.assertEqual(failure.code, "10002007")
+        self.assertIn("LOGIN_FAILED", str(failure))
+        self.assertIn("网络接收错误", str(failure))
+
+    def test_baostock_source_error_falls_back_to_category_when_code_missing(self):
+        failure = baostock_source_error({"error": "ADAPTER_EXCEPTION", "message": "socket closed"})
+        self.assertEqual(failure.code, "ADAPTER_EXCEPTION")
+
     def test_source_selection_rejects_explicit_empty_values(self):
         for value in ([], ""):
             with self.subTest(value=value), self.assertRaises(SourceError) as failure:
