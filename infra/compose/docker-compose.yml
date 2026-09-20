@@ -72,6 +72,7 @@ services:
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_MARKET_DATA_URL: http://market-data-service:3002
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
+      STOCKQUANT_RESEARCH_AUTOMATION_URL: http://research-automation-service:3008
       STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
       STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: http://historical-replay-worker:3006
       STOCKQUANT_PROJECT_ROOT: /workspace
@@ -93,6 +94,8 @@ services:
       trade-execution-service:
         condition: service_healthy
       historical-replay-worker:
+        condition: service_healthy
+      research-automation-service:
         condition: service_healthy
       nats:
         condition: service_started
@@ -251,6 +254,29 @@ services:
       - "127.0.0.1:3003:3003"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3003/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  research-automation-service:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: services/research-automation-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3008
+      STOCKQUANT_DATABASE_URL: postgresql://research_automation@postgres:5432/research_automation
+      STOCKQUANT_RUNNER_MODE: NOT_CONFIGURED
+      STOCKQUANT_MODEL_GATEWAY_MODE: NOT_CONFIGURED
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3008:3008"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3008/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
       timeout: 3s
       retries: 20

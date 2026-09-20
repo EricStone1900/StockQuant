@@ -1,6 +1,6 @@
 # V3.1 真实 RD-Agent 小样本实验闭环
 
-状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：NOT_RUN；并行准备：`PREPARATION_READY_WITH_BLOCKERS`（[准备证据](../../evidence-v3.1-preparation.md)）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -49,7 +49,7 @@ V1环境探针缺口已处理；V2数据/回放小样本通过；实际模型Pro
 
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
 
-- [ ] 契约、数据结构、场景定义和预期结果已冻结。
+- [x] 契约、数据结构、场景定义和预期结果已冻结（V3.1 preparation manifest v1；真实模型输出仍未运行）。
 - [ ] 第2节后端任务完成，真实依赖与替身明确。
 - [ ] 正式Web功能页及验收中心正常/异常场景完成。
 - [ ] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。

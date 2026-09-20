@@ -4,6 +4,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
 COPY apps/web/package.json apps/web/package.json
 COPY services/platform-api-service/package.json services/platform-api-service/package.json
 COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
+COPY services/research-automation-service/package.json services/research-automation-service/package.json
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY fixtures fixtures

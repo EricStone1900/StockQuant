@@ -41,6 +41,7 @@ export class PlatformContainer {
   readonly executionUrl = process.env.STOCKQUANT_TRADE_EXECUTION_URL ?? "http://127.0.0.1:3005";
   readonly replayWorkerUrl = process.env.STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL ?? "http://127.0.0.1:3006";
   readonly marketDataUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+  readonly researchAutomationUrl = process.env.STOCKQUANT_RESEARCH_AUTOMATION_URL ?? "http://127.0.0.1:3008";
   readonly v24Observation = new PostgresV24ObservationRepository(this.pool);
   readonly scheduler = new ContinuousPaperScheduler(new SystemClock(), this.v24Observation, new V24LiveObservationHandler(this.v24Observation, this.marketDataUrl, this.executionUrl));
 
@@ -396,5 +397,67 @@ export class RealIntegrationController {
   async temporalProbe() { return runTemporalProbe(); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, Dc06AcceptanceController, Dc08AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+type V31Scenario = "normal" | "rejection" | "recovery";
+const V31_SCENARIOS = [
+  { scenarioId: "normal", version: "1.0.0", title: "研究实验前置检查", expected: "缺少真实模型/Runner时保持 PENDING_PREREQUISITES" },
+  { scenarioId: "rejection", version: "1.0.0", title: "LIVE 与非法参数拒绝", expected: "RESEARCH + FAKE 边界拒绝 LIVE" },
+  { scenarioId: "recovery", version: "1.0.0", title: "取消与幂等恢复", expected: "重复请求不重复创建，取消状态保留" },
+] as const;
+
+@Controller("api/v1/acceptance/v3/v3.1")
+export class V31AcceptanceController {
+  private readonly runs = new Map<string, any>();
+  constructor(private readonly container: PlatformContainer) {}
+
+  @Get("scenarios") scenarios() { return V31_SCENARIOS; }
+
+  @Get("preview")
+  async preview() {
+    const response = await fetch(`${this.container.researchAutomationUrl}/ready`, { signal: AbortSignal.timeout(3000) });
+    const service = await response.json().catch(() => ({ status: "UNAVAILABLE" }));
+    return { stageId: "V3.1", fixtureId: "v3.1-research-small-sample-1", dataMode: "FIXTURE", environmentMode: "RESEARCH", brokerMode: "FAKE", modelCalls: "NOT_RUN", service };
+  }
+
+  @Post("runs")
+  @HttpCode(202)
+  async run(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V31Scenario; seed?: number }) {
+    const ownerId = identity(cookie, testHeader);
+    const scenarioId = body.scenarioId ?? "normal";
+    if (!V31_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V3.1");
+    const testRunId = randomUUID();
+    const base = { testRunId, stageId: "V3.1", scenarioId, ownerId, seed: body.seed ?? 20260907, status: "COMPLETED", assertions: [] as any[], evidence: { dataMode: "FIXTURE", environmentMode: "RESEARCH", brokerMode: "FAKE", modelCalls: "NOT_RUN" } as Record<string, unknown> };
+    const request = { fixtureId: "v3.1-research-small-sample-1", modelProfile: "UNSET", rounds: 1, budgetCents: 100, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: `v31-${scenarioId}-${testRunId}` };
+    if (scenarioId === "normal") {
+      const response = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+      const experiment = await response.json();
+      base.assertions.push({ assertionId: "V3.1-PREP-NORMAL-001", status: response.status === 202 && experiment.status === "PENDING_PREREQUISITES" ? "PASS" : "FAIL", expected: "PENDING_PREREQUISITES without model or Runner", actual: experiment });
+      base.evidence.experiment = experiment;
+    } else if (scenarioId === "rejection") {
+      const response = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...request, brokerMode: "LIVE" }) });
+      const bodyResult = await response.json();
+      base.assertions.push({ assertionId: "V3.1-PREP-REJECTION-001", status: response.status === 422 && String(bodyResult.error).includes("brokerMode") ? "PASS" : "FAIL", expected: "LIVE rejected with 422", actual: { status: response.status, body: bodyResult } });
+    } else {
+      const firstResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+      const first = await firstResponse.json();
+      const secondResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+      const second = await secondResponse.json();
+      const cancelResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments/${encodeURIComponent(first.experimentId)}/cancel`, { method: "POST" });
+      const cancelled = await cancelResponse.json();
+      base.assertions.push({ assertionId: "V3.1-PREP-RECOVERY-001", status: first.experimentId === second.experimentId && secondResponse.status === 200 && cancelled.status === "CANCELLED" ? "PASS" : "FAIL", expected: "idempotent create followed by cancellation", actual: { first, second, cancelled } });
+      base.evidence.experiment = { first, second, cancelled };
+    }
+    base.status = base.assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
+    this.runs.set(testRunId, base);
+    return { accepted: true, testRunId, status: base.status };
+  }
+
+  @Get("runs/:testRunId")
+  get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
+    const ownerId = identity(cookie, testHeader); const run = this.runs.get(id);
+    if (!run || run.ownerId !== ownerId) throw new NotFoundException("V3.1 run was not found");
+    return run;
+  }
+}
+
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, V31AcceptanceController, Dc06AcceptanceController, Dc08AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}

@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../fixtures/manifests/fixture-manifest.schema.json",
+  "fixtureId": "v3.1-research-small-sample",
+  "fixtureVersion": "v3.1-research-small-sample-1",
+  "stageId": "V3.1",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "RESEARCH_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Existing frozen V1.2 daily bars and V2.3 minute replay bars reused for V3.1 orchestration preparation; no real model output is implied",
+    "license": "Internal synthetic fixtures",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-20T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v1/v1.2/cn_daily.csv",
+      "sha256": "2d799e0fc18dbb8d312c394ad61afbe009570bc4a5e9cec0b43231d669a66f78",
+      "mediaType": "text/csv",
+      "schemaRef": "daily-bar-v1"
+    },
+    {
+      "path": "fixtures/v2/v2.3/replay_bars.csv",
+      "sha256": "778daf9e202b3522472a1ebe3d6a1f1e70c27ddde769df585a31ca9d5310dbf4",
+      "mediaType": "text/csv",
+      "schemaRef": "minute-bar-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V3.1-PREP-001",
+      "description": "The experiment input references only frozen, hashed fixtures and remains research-only"
+    },
+    {
+      "assertionId": "V3.1-NORMAL-001",
+      "description": "A future implementation must preserve model, generated-code, Qlib and evaluation evidence for a normal run"
+    },
+    {
+      "assertionId": "V3.1-REJECTION-001",
+      "description": "A future implementation must reject unauthorized file, socket, network or resource access in the Runner"
+    },
+    {
+      "assertionId": "V3.1-RECOVERY-001",
+      "description": "A future implementation must retain failed artifacts and retry with idempotent run evidence"
+    }
+  ]
+}
