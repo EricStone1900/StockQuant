@@ -121,9 +121,52 @@ def filter_range(bars: Sequence[NormalizedBar], start: str, end: str) -> list[No
     return [bar for bar in bars if start <= bar.bar_start[:10] <= end]
 
 
+def _validate_baostock_results(results: Any, codes: Sequence[str]) -> None:
+    """Reject missing batches or malformed rows before they look successful."""
+    if not isinstance(results, dict):
+        raise SourceError("PAGINATION_INVALID", "BaoStock response did not contain a result map", retryable=False)
+    expected = set(codes)
+    actual = set(results)
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        details = []
+        if missing:
+            details.append(f"missing={','.join(missing)}")
+        if unexpected:
+            details.append(f"unexpected={','.join(unexpected)}")
+        raise SourceError("PAGINATION_INCOMPLETE", f"BaoStock result batches are incomplete ({'; '.join(details)})", retryable=False)
+    for code in codes:
+        rows = results[code]
+        if not isinstance(rows, list):
+            raise SourceError("PAGINATION_INVALID", f"BaoStock result batch is not a row list for {code}", retryable=False)
+        for row in rows:
+            if not isinstance(row, (list, tuple)) or len(row) != len(FIELDS.split(",")):
+                raise SourceError("SCHEMA_INVALID", f"BaoStock row is malformed for {code}", retryable=False)
+            if str(row[2]).lower() != code.lower():
+                raise SourceError("SCHEMA_INVALID", f"BaoStock row code does not match batch {code}", retryable=False)
+
+
+def _normalize_baostock_result(code: str, rows: Sequence[Sequence[str]]) -> list[NormalizedBar]:
+    _validate_baostock_results({code: list(rows)}, [code])
+    try:
+        normalized = normalize_baostock(rows)
+    except SourceError:
+        raise
+    except (IndexError, TypeError, ValueError) as error:
+        raise SourceError("SCHEMA_INVALID", f"BaoStock response could not be normalized for {code}: {error}", retryable=False) from error
+    seen: set[tuple[str, str]] = set()
+    for bar in normalized:
+        key = (bar.security_id, bar.bar_end)
+        if key in seen:
+            raise SourceError("DUPLICATE_BAR", f"BaoStock returned a duplicate bar for {code} at {bar.bar_end}", retryable=False)
+        seen.add(key)
+    return normalized
+
+
 def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> None:
     try:
-        import baostock as bs  # type: ignore[import-not-found]
+        import baostock as bs  # type: ignore[import-not-found,import-untyped]
         login = bs.login()
         if login.error_code != "0":
             output.put({"error": "LOGIN_FAILED", "errorCode": login.error_code, "message": login.error_msg})
@@ -133,8 +176,14 @@ def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> 
             for code in codes:
                 query = bs.query_history_k_data_plus(code, FIELDS, start_date=start, end_date=end, frequency="5", adjustflag="3")
                 rows: list[list[str]] = []
-                while query.next():
-                    rows.append(query.get_row_data())
+                while True:
+                    if not query.next():
+                        break
+                    row = query.get_row_data()
+                    if not isinstance(row, (list, tuple)) or len(row) != len(FIELDS.split(",")):
+                        output.put({"error": "PAGINATION_INVALID", "code": code, "message": "BaoStock returned a malformed row"})
+                        return
+                    rows.append([str(value) for value in row])
                 if query.error_code != "0":
                     output.put({"error": "QUERY_FAILED", "code": code, "errorCode": query.error_code, "message": query.error_msg})
                     return
@@ -182,8 +231,11 @@ class BaoStockMinuteClient:
                 queue.close()
             if response.get("error"):
                 raise baostock_source_error(response)
-            for rows in response.get("results", {}).values():
-                bars.extend(normalize_baostock(rows))
+            provider_codes = [baostock_symbol(item) for item in batch]
+            results = response.get("results")
+            _validate_baostock_results(results, provider_codes)
+            for code in provider_codes:
+                bars.extend(_normalize_baostock_result(code, results[code]))
         return filter_range(bars, start, end)
 
 

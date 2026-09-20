@@ -1,7 +1,7 @@
 {
   "schemaVersion": "dc08a-health-v2",
-  "capturedAt": "2026-09-18T11:36:01.839Z",
-  "status": "HEALTHY",
+  "capturedAt": "2026-09-20T12:22:05.313Z",
+  "status": "UNHEALTHY",
   "activeSubscription": "dc08a-20260917-20-v1",
   "ready": {
     "status": "ready",
@@ -11,27 +11,39 @@
   },
   "scheduler": {
     "status": "ENABLED",
-    "lastSuccessfulTickAt": "2026-09-18T11:35:11.876Z",
+    "lastSuccessfulTickAt": "2026-09-20T12:22:04.355Z",
     "nextExecutionAt": "2026-09-21T01:37:00.000Z",
     "lastSubmitted": 0,
-    "tickAgeSeconds": 49.963
+    "tickAgeSeconds": 0.958
   },
   "sources": [
     {
       "sourceId": "baostock",
       "kind": "MINUTE_BAR",
-      "circuit": "OPEN",
-      "failures": 106,
-      "lastSuccessAt": null,
-      "lastFailureAt": 1789731294.0409863,
-      "lastErrorCode": "ADAPTER_EXCEPTION"
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1789904844.2521365,
+      "lastFailureAt": 1789733454.5032575,
+      "lastErrorCode": null
     },
     {
       "sourceId": "sina",
       "kind": "MINUTE_BAR",
+      "enabled": true,
       "circuit": "CLOSED",
       "failures": 0,
-      "lastSuccessAt": 1789731323.4070988,
+      "lastSuccessAt": 1789733715.9917562,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "eastmoney",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
       "lastFailureAt": null,
       "lastErrorCode": null
     }
@@ -43,7 +55,7 @@
   "checks": {
     "recentSuccessRecorded": true,
     "nextTriggerRecorded": true,
-    "sourceReady": true,
+    "sourceReady": false,
     "qualityReady": true
   }
 }

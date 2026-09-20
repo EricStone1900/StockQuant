@@ -26,7 +26,7 @@
 | DC-01 契约设计 | DONE（设计与冻结输入） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 生成客户端/迁移设计已纳入服务实现；人工验收仍待补 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | DONE（本机范围） | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 真实交易日运行和 Web/验收中心观察归入 DC-08A；正式订阅仍默认关闭 |
-| DC-04 主备 | IN_PROGRESS | PASS：Python适配器29/29、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
+| DC-04 主备 | IN_PROGRESS | PASS：Python适配器32/32、Linux ARM64容器导入、盘后真实探针；BaoStock 两轮×三证券有界稳定性与恢复探针通过，Sina历史读取可用 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、长期限频/恢复、许可/限频核验和真实源审计；60日第二源仍未满足 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、历史归档逐日覆盖与回放20/20通过、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md)；[DC-T23真实归档回放](../../../evidence/dc08a/historical-replay-2026-09-16.json) | 实际补采执行、停牌权威核验、每日自动覆盖报告和盘中数据持续观察 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
@@ -99,7 +99,7 @@
 
 2026-09-19 东方财富候选备用接入：`market-data-adapter` 新增直接公开 JSON 端点的 `EastmoneyMinuteClient`，主备顺序固定为 BaoStock→Sina→Eastmoney；`market-data-service` 来源健康接口同步展示 `eastmoney`。东方财富成交量按公开 K 线手数转换为规范股数，所有请求仍受统一超时、限流、重试和熔断保护。代码检查与适配器单测通过；真实请求仍观察到间歇性断连，故不标记 DC-04/08A 或 60 日备用源门禁通过。
 
-2026-09-20 计划1～7执行：采集 CLI 现在区分缺省来源与显式空来源，且只初始化实际启用的客户端；来源健康接口报告 `configuredSources`、`enabled` 和 `DISABLED` 状态，并兼容数字/字符串时间戳；`.env.example` 与 Compose 已补齐 `STOCKQUANT_COLLECTION_SOURCES`。历史覆盖/回放脚本默认生成带 UTC 执行时间的新证据文件，并拒绝覆盖已有文件；此前被重复运行改写的 2026-09-16 历史时间戳已恢复。稳定性探针新增全局预算和 stderr 进度，仍只以有界样本判定，不能解除长期稳定性门禁。适配器 unittest 29/29、market-data-service typecheck、`uv lock --check`、容器构建和容器内 BaoStock 0.9.3 登录均通过；单证券 5分钟查询探针两次均在15秒上限超时，结果为 `PARTIAL`，查询稳定性仍未通过。
+2026-09-20 计划1～7执行：采集 CLI 现在区分缺省来源与显式空来源，且只初始化实际启用的客户端；来源健康接口报告 `configuredSources`、`enabled` 和 `DISABLED` 状态，并兼容数字/字符串时间戳；`.env.example` 与 Compose 已补齐 `STOCKQUANT_COLLECTION_SOURCES`。历史覆盖/回放脚本默认生成带 UTC 执行时间的新证据文件，并拒绝覆盖已有文件；此前被重复运行改写的 2026-09-16 历史时间戳已恢复。稳定性探针新增全局预算和 stderr 进度；BaoStock 两轮×三证券有界查询及独立恢复探针全部 `SUCCESS`，但该结果不能解除真实交易时段长期稳定性门禁。分页结果映射、行结构、证券代码和重复 Bar 校验已加入适配器；适配器 unittest 35/35、market-data-service typecheck、`uv lock --check`、容器构建和容器内 BaoStock 0.9.3 登录均通过。健康报告已于 2026-09-20 刷新：BaoStock/Sina 均 `CLOSED` 且失败数为0，质量缺口和待投递 Outbox 均为0；报告整体因休市日来源最近成功时间超过30分钟而标记 `UNHEALTHY`，不等同于来源熔断或查询失败。
 
 2026-09-20 BaoStock 兼容性修复：适配器依赖由 `baostock==0.8.9` 升级至 `0.9.3`，`uv.lock` 与带哈希 `requirements.lock` 已同步；新版客户端登录验证返回成功。子进程边界现在将 BaoStock 原始 `errorCode` 传递到 `SourceError` 和熔断审计，便于区分登录、查询和网络错误。随后确认旧稳定性探针因遗漏 `get_row_data()` 将查询误判为超时，现已修正并新增分页游标测试；适配器同步兼容 0.9.3 的17位时间字段。
 

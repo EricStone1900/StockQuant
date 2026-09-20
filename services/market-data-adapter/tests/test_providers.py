@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from market_data_adapter.cli import source_ids_from_request, wire_bar
 from market_data_adapter.failover import NormalizedBar, SourceError
-from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
+from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
 
 
 class Response:
@@ -154,6 +154,27 @@ class ProviderTests(unittest.TestCase):
     def test_baostock_uses_bounded_batches(self):
         client = BaoStockMinuteClient(batch_size=4)
         self.assertEqual(client.batch_size, 4)
+
+    def test_baostock_rejects_missing_result_batch(self):
+        with self.assertRaises(SourceError) as failure:
+            _validate_baostock_results({"sh.600000": []}, ["sh.600000", "sz.000001"])
+        self.assertEqual(failure.exception.code, "PAGINATION_INCOMPLETE")
+
+    def test_baostock_rejects_malformed_or_mismatched_rows(self):
+        row = ["2026-09-11", "093500", "sz.000001", "10", "11", "9", "10", "100", "1000"]
+        with self.assertRaises(SourceError) as failure:
+            _validate_baostock_results({"sh.600000": [row]}, ["sh.600000"])
+        self.assertEqual(failure.exception.code, "SCHEMA_INVALID")
+
+        with self.assertRaises(SourceError) as failure:
+            _validate_baostock_results({"sh.600000": [["2026-09-11"]]}, ["sh.600000"])
+        self.assertEqual(failure.exception.code, "SCHEMA_INVALID")
+
+    def test_baostock_rejects_duplicate_bar_in_batch(self):
+        row = ["2026-09-11", "093500", "sh.600000", "10", "11", "9", "10", "100", "1000"]
+        with self.assertRaises(SourceError) as failure:
+            _normalize_baostock_result("sh.600000", [row, row])
+        self.assertEqual(failure.exception.code, "DUPLICATE_BAR")
 
 
 if __name__ == "__main__":

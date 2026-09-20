@@ -2,9 +2,11 @@
 
 2026-09-19 计划复核：V2.5 code suite 重新通过；5分钟历史备用源探针 PASS，BaoStock 与 Sina 均返回 3 个样本证券的有效结果，证据为 `evidence/local/V2.5/minute-source-probe-20260919.json`。该探针的 `liveSession` 明确为 `NOT_RUN`，因此不替代真实交易日观察。BaoStock PIT 探针仍为 `PARTIAL`：财务字段存在公告日期，但缺少修订链、来源 Artifact/溯源和历史证券集合；行业分类缺少历史有效区间、修订链及历史成分，不能解除真实 PIT 门禁。
 
+2026-09-20 V2.5 阶段证据刷新：当前 HEAD 上 `verify:stage --suite code` 通过，V2.5 Web E2E 1/1 通过；normal `e033c817-d521-40a8-892c-3c5b8098ea4c` 的 6/6 断言、rejection `17057748-135a-4337-a726-e654f97ed565` 的 3/3 断言、recovery `d3fefb85-2fb9-42c2-9cc1-adefba08af77` 的 3/3 断言全部通过。normal 同 Run `--check-only` 退出码 0，未创建新业务副作用；正式导出目录为 `evidence/local/V2.5/e033c817-d521-40a8-892c-3c5b8098ea4c`，Manifest SHA-256 为 `f2a8f76cfe03fb5f4a76988812d20c46ff1eca562dadb5027344bd277ff1f575`。自动证据仍不替代 V2.5 人工验收、V2.4 20 个实际交易日观察或真实交易时段长期稳定性门禁。
+
 2026-09-20 BaoStock 修复诊断：原适配器固定的 `baostock==0.8.9` 使用旧 `www.baostock.com:10030` 端点并在登录阶段返回 `10002007`；临时验证 `baostock==0.9.3` 已切换至 `public-api.baostock.com:10030`，匿名登录返回 `errorCode=0`。项目已升级并重新生成 `uv.lock`/`requirements.lock`，适配器同时保留原始登录/查询错误码。新版单证券历史查询仍需在有界超时内继续验证，因此本条只证明旧版端点兼容问题已修复，不将 BaoStock 稳定性门禁改为 PASS。
 
-2026-09-20 BaoStock 修复复核：此前稳定性探针的 `TIMEOUT` 根因是循环遗漏 `query.get_row_data()`，不是接口分页失败；修复后两轮×三证券×60交易日及独立恢复查询均 `PASS`，每次返回2,784条。正式适配器容器同窗口查询也返回2,784条，且时间字段已从 0.9.3 的 `YYYYMMDDHHMMSSmmm` 正确归一化为 09:30–15:00 的5分钟窗口。容器持久健康状态已恢复为 `baostock=CLOSED, failures=0`；实际交易时段观察仍为 `NOT_RUN`。
+2026-09-20 BaoStock 修复复核：此前稳定性探针的 `TIMEOUT` 根因是循环遗漏 `query.get_row_data()`，不是接口分页失败；修复后两轮×三证券×60交易日及独立恢复查询均 `PASS`，每次返回2,784条。正式适配器容器同窗口查询也返回2,784条，且时间字段已从 0.9.3 的 `YYYYMMDDHHMMSSmmm` 正确归一化为 09:30–15:00 的5分钟窗口。适配器现对批次映射、行结构、证券代码、重复 Bar 和分页错误进行显式校验；容器持久健康状态已恢复为 `baostock=CLOSED, failures=0`。该有界结果证明查询、分页和恢复路径可用，但不替代真实交易时段长期限频/恢复观察，后者仍为 `NOT_RUN`。
 
 验证日期：2026-09-19（Asia/Shanghai，自动复核批次；早期批次仍保留在本文件历史记录中）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
 

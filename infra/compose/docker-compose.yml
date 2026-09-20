@@ -188,6 +188,11 @@ services:
     restart: unless-stopped
     cpus: "1.0"
     mem_limit: 1g
+    # Load local collection credentials for direct `docker compose` commands.
+    # `.env.local` is ignored by Git; the service still fails closed when the
+    # control token is absent, so this does not introduce a built-in secret.
+    env_file:
+      - ../../.env.local
     build:
       context: ../..
       dockerfile: services/market-data-service/Dockerfile
@@ -199,23 +204,16 @@ services:
       # Kept disabled until DC-00 freezes a real-source capability report and
       # DC-08A creates the approved subscription.  Enabling either is an
       # explicit operational action, never a side effect of `stack:up`.
-      STOCKQUANT_SCHEDULER_WORKER: "${STOCKQUANT_SCHEDULER_WORKER:-0}"
-      STOCKQUANT_COLLECTION_EXECUTOR: "${STOCKQUANT_COLLECTION_EXECUTOR:-0}"
-      STOCKQUANT_COLLECTION_SECURITY_IDS: "${STOCKQUANT_COLLECTION_SECURITY_IDS:-600000.SH,000001.SZ,600519.SH}"
       STOCKQUANT_COLLECTION_PROJECT_ID: stockquant-local
       STOCKQUANT_COLLECTION_DATA_VERSION: cn-5m-raw-v1
-      STOCKQUANT_COLLECTION_SUBSCRIPTION_ID: "${STOCKQUANT_COLLECTION_SUBSCRIPTION_ID:-}"
       STOCKQUANT_COLLECTION_TIMEOUT_MS: "${STOCKQUANT_COLLECTION_TIMEOUT_MS:-180000}"
       STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS: "${STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS:-20}"
       STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS: "${STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS:-2}"
       STOCKQUANT_COLLECTION_SOURCE_BACKOFF_SECONDS: "${STOCKQUANT_COLLECTION_SOURCE_BACKOFF_SECONDS:-2}"
       STOCKQUANT_COLLECTION_SOURCE_BACKOFF_JITTER_SECONDS: "${STOCKQUANT_COLLECTION_SOURCE_BACKOFF_JITTER_SECONDS:-0.5}"
-      STOCKQUANT_COLLECTION_PER_SECURITY_INTERVAL_SECONDS: "${STOCKQUANT_COLLECTION_PER_SECURITY_INTERVAL_SECONDS:-0.2}"
       STOCKQUANT_COLLECTION_BAOSTOCK_INTERVAL_SECONDS: "${STOCKQUANT_COLLECTION_BAOSTOCK_INTERVAL_SECONDS:-0.5}"
       STOCKQUANT_COLLECTION_BAOSTOCK_BATCH_SIZE: "${STOCKQUANT_COLLECTION_BAOSTOCK_BATCH_SIZE:-5}"
       STOCKQUANT_COLLECTION_SOURCES: "${STOCKQUANT_COLLECTION_SOURCES:-baostock,sina}"
-      STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH: "${STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH:-/var/lib/stockquant/source-health.json}"
-      STOCKQUANT_COLLECTION_CONTROL_TOKEN: "${STOCKQUANT_COLLECTION_CONTROL_TOKEN:?Set STOCKQUANT_COLLECTION_CONTROL_TOKEN in .env.local}"
     volumes:
       - market-data-health:/var/lib/stockquant
     depends_on:

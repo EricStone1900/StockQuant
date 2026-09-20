@@ -31,11 +31,11 @@
     "v24:preflight": "node scripts/v24-preflight.mjs",
     "v24:test-preflight": "node --test scripts/v24-preflight.test.mjs",
     "v25:monitor-capacity": "node scripts/v25-monitor-capacity.mjs",
-    "v25:probe-baostock": "uv run --with baostock python scripts/probe-baostock.py",
-    "v25:probe-baostock-stability": "uv run --with baostock python scripts/probe-baostock-stability.py",
-    "v25:probe-baostock-pit": "uv run --with baostock python scripts/probe-baostock-pit.py",
-    "v25:probe-minute-sources": "uv run --with baostock python scripts/probe-minute-source-capability.py",
-    "v25:import-baostock-minute-sample": "uv run --with baostock python scripts/import-baostock-minute-sample.py",
+    "v25:probe-baostock": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/probe-baostock.py",
+    "v25:probe-baostock-stability": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/probe-baostock-stability.py",
+    "v25:probe-baostock-pit": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/probe-baostock-pit.py",
+    "v25:probe-minute-sources": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/probe-minute-source-capability.py",
+    "v25:import-baostock-minute-sample": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/import-baostock-minute-sample.py",
     "v25:import-tdx-minute-sample": "uv run --with mootdx python scripts/import-tdx-minute-sample.py",
     "dc07:verify": "node scripts/dc07-verify-deployment.mjs",
     "dc08a:supervise": "node scripts/dc08a-supervise.mjs",
@@ -72,7 +72,7 @@
     "dc08a:health-report": "node scripts/dc08a-health-report.mjs",
     "dc08a:test-health-report": "node --test scripts/dc08a-health-report.test.mjs",
     "dc08a:eod": "node scripts/dc08a-operations.mjs eod",
-    "v25:import-baostock": "uv run --with baostock python scripts/import-baostock-daily.py",
+    "v25:import-baostock": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/import-baostock-daily.py",
     "evidence:export": "node scripts/evidence-export.mjs"
   }
 }
