@@ -164,10 +164,10 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 后端场景通过；Web E2E 已通过 | `pnpm verify:stage -- --stage V2.5 --scenario normal --seed 20260907`，退出码 0 | `fe37c045-962f-40be-84b1-36d33df08184` | PASS（自动） |
-| rejection（含全部子场景） | 后端场景通过 | `pnpm verify:stage -- --stage V2.5 --scenario rejection --seed 20260907`，退出码 0 | `9996f785-fd7c-4912-b839-c6e0389f4c9f` | PASS（自动） |
-| recovery（含实际外部动作） | 后端场景通过 | `pnpm verify:stage -- --stage V2.5 --scenario recovery --seed 20260907`，退出码 0 | `0727a1c4-ed36-4ae8-9a94-543d287cdc68` | PASS（自动） |
-| Web同run只读核对与证据导出 | 同 Run 核对和导出通过 | `--check-only`、`pnpm evidence:export` 均退出码 0；Manifest `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e` | `fe37c045-962f-40be-84b1-36d33df08184` | PASS |
+| normal | 后端场景通过；Web E2E 已通过 | `pnpm verify:stage -- --stage V2.5 --scenario normal --seed 20260907`，退出码 0 | `3bee90bc-2c75-4ebb-989e-07be04b80069` | PASS（自动） |
+| rejection（含全部子场景） | 后端场景通过 | `pnpm verify:stage -- --stage V2.5 --scenario rejection --seed 20260907`，退出码 0 | `4f3de864-8604-4efb-8118-a54fffea3742` | PASS（自动） |
+| recovery（含实际外部动作） | 后端场景通过 | `pnpm verify:stage -- --stage V2.5 --scenario recovery --seed 20260907`，退出码 0 | `0391745a-de9d-4e37-a0c9-0110e5052e9d` | PASS（自动） |
+| Web同run只读核对与证据导出 | 同 Run 核对和导出通过 | `--check-only`、`pnpm evidence:export` 均退出码 0；Manifest `0603d5260a4c2007c3fd6b807e4934ccb8d53d8f2956852041b5b4e1fc28e885` | `3bee90bc-2c75-4ebb-989e-07be04b80069` | PASS |
 | 本阶段代码测试/实际观察适用项 | 代码套件和 Web E2E 通过；全量容量与 V2.4 观察未完成 | `pnpm verify:stage -- --stage V2.5 --suite code`、`pnpm test:e2e -- --stage V2.5`，均退出码 0 | 见 `docs/evidence-v2.5.md` | PASS（代码）/ NOT_RUN（全量观察） |
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 

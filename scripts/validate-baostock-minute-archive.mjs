@@ -5,7 +5,16 @@ import { resolve } from "node:path";
 const argv = process.argv.slice(2);
 const argument = (name, fallback) => { const index = argv.indexOf(name); return index >= 0 ? argv[index + 1] : fallback; };
 const manifestPath = resolve(argument("--manifest", "data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1/manifest.json"));
-const outputPath = resolve(argument("--output", "evidence/dc08a/historical-coverage-2026-09-16.json"));
+const runStamp = new Date().toISOString().replace(/[.:]/g, "-");
+const outputPath = resolve(argument("--output", `evidence/dc08a/historical-coverage-${runStamp}.json`));
+if (!argv.includes("--allow-overwrite")) {
+  try {
+    await readFile(outputPath);
+    throw new Error(`refusing to overwrite existing evidence: ${outputPath}; choose a new --output or pass --allow-overwrite`);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 const expectedSecurities = Number(argument("--expected-securities", manifest.sampleSize ?? 20));

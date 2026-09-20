@@ -204,9 +204,13 @@ class FailoverCollector:
                 previous = state.get(provider.source_id, {})
                 previous_failures = int(previous.get("failures", 0) or 0)
                 if provider.breaker.state == "CLOSED":
-                    # A successful probe is an explicit recovery and must be
-                    # allowed to close a previously persisted circuit.
-                    failures = 0
+                    # CLOSED also covers failures below the threshold. Only a
+                    # real success may reset persisted failures.
+                    succeeded = (
+                        provider.last_success_at is not None
+                        and (provider.last_failure_at is None or provider.last_success_at >= provider.last_failure_at)
+                    )
+                    failures = 0 if succeeded else max(provider.breaker.failures, previous_failures)
                     circuit_state = "CLOSED"
                 else:
                     # Merge failure observations made by another process while
@@ -289,7 +293,7 @@ class FailoverCollector:
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable})
                     if not error.retryable or attempt == self.max_attempts:
                         break
-                    self.sleeper(self.backoff_seconds * attempt + random.uniform(0.0, self.backoff_jitter_seconds))
+                    self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
                 except Exception as error:  # noqa: BLE001
                     provider.breaker.failure()
                     provider.last_failure_at = time.time()
@@ -297,7 +301,7 @@ class FailoverCollector:
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
                     if attempt < self.max_attempts:
-                        self.sleeper(self.backoff_seconds * attempt + random.uniform(0.0, self.backoff_jitter_seconds))
+                        self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
             if probe_guard is not None:
                 probe_guard.__exit__(None, None, None)
         self._save_health()

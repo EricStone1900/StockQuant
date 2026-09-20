@@ -4,7 +4,8 @@ import json
 import multiprocessing as mp
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from queue import Empty
 from typing import Any, Sequence
 
@@ -47,6 +48,40 @@ def normalize_sina(items: Sequence[dict[str, Any]], security_id: str, source_id:
         endpoint = str(item["day"]).replace(" ", "T") + "+08:00"
         start, end = _bar_window(endpoint)
         result.append(NormalizedBar(security_id, start, end, None, str(item["open"]), str(item["high"]), str(item["low"]), str(item["close"]), str(item["volume"]), str(item["amount"]), "raw", source_id))
+    return result
+
+
+def eastmoney_symbol(security_id: str) -> str:
+    """Convert the public 600000.SH form to Eastmoney's numeric secid."""
+    number, market = security_id.upper().split(".", 1)
+    if market not in {"SH", "SZ"} or not number.isdigit() or len(number) != 6:
+        raise SourceError("SYMBOL_INVALID", f"unsupported A-share security id: {security_id}", retryable=False)
+    return f"{1 if market == 'SH' else 0}.{number}"
+
+
+def _eastmoney_volume(value: str) -> str:
+    """Eastmoney stock K-lines report volume in lots; canonical bars use shares."""
+    try:
+        normalized = Decimal(value) * Decimal(100)
+    except (InvalidOperation, ValueError) as error:
+        raise SourceError("SCHEMA_INVALID", f"Eastmoney volume is not numeric: {value!r}", retryable=False) from error
+    return format(normalized, "f")
+
+
+def normalize_eastmoney(items: Sequence[str], security_id: str, source_id: str = "eastmoney") -> list[NormalizedBar]:
+    """Normalize Eastmoney kline strings: time, OHLC, volume(lots), amount, ..."""
+    result: list[NormalizedBar] = []
+    for item in items:
+        fields = item.split(",")
+        if len(fields) < 7:
+            raise SourceError("SCHEMA_INVALID", "Eastmoney row misses OHLCV/amount fields", retryable=False)
+        timestamp, opening, close, high, low, volume, amount = fields[:7]
+        try:
+            endpoint = datetime.fromisoformat(timestamp.replace(" ", "T")).replace(tzinfo=None).isoformat() + "+08:00"
+        except ValueError as error:
+            raise SourceError("SCHEMA_INVALID", f"Eastmoney timestamp is invalid: {timestamp!r}", retryable=False) from error
+        start, end = _bar_window(endpoint)
+        result.append(NormalizedBar(security_id, start, end, None, opening, high, low, close, _eastmoney_volume(volume), amount, "raw", source_id))
     return result
 
 
@@ -150,5 +185,62 @@ class SinaMinuteClient:
             except SourceError:
                 raise
             except Exception as error:  # noqa: BLE001
+                raise SourceError("HTTP_OR_PARSE_FAILED", repr(error)) from error
+        return bars
+
+
+class EastmoneyMinuteClient:
+    """Read-only Eastmoney 5-minute klines through its public JSON endpoint."""
+
+    def __init__(self, requester=None, minimum_interval_seconds: float = 0.0, sleeper=None, clock=None) -> None:
+        import time
+        if requester is None:
+            import requests
+            requester = requests.get
+        self.requester = requester
+        self.limiter = RateLimiter(minimum_interval_seconds, clock=clock or time.monotonic, sleeper=sleeper or time.sleep)
+
+    def fetch(self, security_ids: Sequence[str], start: str, end: str, timeout_seconds: float) -> list[NormalizedBar]:
+        bars: list[NormalizedBar] = []
+        try:
+            beg = date.fromisoformat(start).strftime("%Y%m%d")
+            finish = date.fromisoformat(end).strftime("%Y%m%d")
+        except ValueError as error:
+            raise SourceError("INVALID_DATE_RANGE", f"Eastmoney dates must be ISO dates: {start!r}, {end!r}", retryable=False) from error
+        if finish < beg:
+            raise SourceError("INVALID_DATE_RANGE", f"Eastmoney end date precedes start date: {start!r}, {end!r}", retryable=False)
+        for security_id in security_ids:
+            self.limiter.wait()
+            params = {
+                "fields1": "f1,f2,f3,f4,f5,f6",
+                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+                "ut": "7eea3edcaed734bea9cbfc24409ed989",
+                "klt": "5",
+                "fqt": "0",
+                "secid": eastmoney_symbol(security_id),
+                # Bound the provider query to the requested window.  The API
+                # closes connections for the unbounded 0..20500000 range.
+                "beg": beg,
+                "end": finish,
+            }
+            url = "https://push2his.eastmoney.com/api/qt/stock/kline/get?" + urllib.parse.urlencode(params)
+            try:
+                response = self.requester(url, params=None, headers={"User-Agent": "StockQuant-DC04/1.0", "Referer": "https://quote.eastmoney.com/"}, timeout=timeout_seconds)
+                response.raise_for_status()
+                payload = response.json()
+                rows = ((payload.get("data") or {}).get("klines") or [])
+                if not rows:
+                    raise SourceError("EMPTY_RESULT", f"Eastmoney returned no bars for {security_id}")
+                bars.extend(filter_range(normalize_eastmoney(rows, security_id), start, end))
+            except SourceError:
+                raise
+            except Exception as error:
+                # Eastmoney intermittently closes the connection (especially
+                # under rate limiting).  Preserve this as a retryable network
+                # failure so FailoverCollector applies backoff instead of
+                # recording a generic adapter defect.
+                error_name = type(error).__name__
+                if error_name in {"ConnectionError", "ConnectTimeout", "ReadTimeout", "Timeout"} or isinstance(error, (TimeoutError, OSError)):
+                    raise SourceError("HTTP_CONNECTION_FAILED", repr(error)) from error
                 raise SourceError("HTTP_OR_PARSE_FAILED", repr(error)) from error
         return bars

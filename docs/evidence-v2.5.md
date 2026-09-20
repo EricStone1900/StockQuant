@@ -2,13 +2,13 @@
 
 2026-09-19 计划复核：V2.5 code suite 重新通过；5分钟历史备用源探针 PASS，BaoStock 与 Sina 均返回 3 个样本证券的有效结果，证据为 `evidence/local/V2.5/minute-source-probe-20260919.json`。该探针的 `liveSession` 明确为 `NOT_RUN`，因此不替代真实交易日观察。BaoStock PIT 探针仍为 `PARTIAL`：财务字段存在公告日期，但缺少修订链、来源 Artifact/溯源和历史证券集合；行业分类缺少历史有效区间、修订链及历史成分，不能解除真实 PIT 门禁。
 
-验证日期：2026-09-12（Asia/Shanghai）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
+验证日期：2026-09-19（Asia/Shanghai，自动复核批次；早期批次仍保留在本文件历史记录中）。本次包含小规模确定性扩容切片、BaoStock 全市场多年日线导入和分钟抽样；Fixture 数据执行模式为 `BACKTEST`，券商为 `FAKE`，不代表分钟级全市场容量或收益有效性。
 
-- normal：`fe37c045-962f-40be-84b1-36d33df08184`，`COMPLETED`；20 只证券 × 60 交易日、1200 行，扩容前后规范结果 Hash 一致，PIT/Walk-forward、缓存隔离和资源预算断言通过。
-- rejection：`9996f785-fd7c-4912-b839-c6e0389f4c9f`，`COMPLETED`；超并发、跨 DataVersion 缓存和资源预算超限均拒绝，未发布半成品。
-- recovery：`0727a1c4-ed36-4ae8-9a94-543d287cdc68`，`COMPLETED`；从游标 640 恢复，重复行 0，取消任务不发布半成品并保留证据。
+- normal：`3bee90bc-2c75-4ebb-989e-07be04b80069`，`COMPLETED`；断言 6/6 PASS。
+- rejection：`4f3de864-8604-4efb-8118-a54fffea3742`，`COMPLETED`；断言 3/3 PASS。
+- recovery：`0391745a-de9d-4e37-a0c9-0110e5052e9d`，`COMPLETED`；断言 3/3 PASS。
 - 同 Run 只读核对：normal `--check-only` 退出码 0，未创建新业务副作用。
-- 证据导出：`evidence/local/V2.5/fe37c045-962f-40be-84b1-36d33df08184`；Manifest SHA-256 `2b82e57e7c54a04b9628adbf39ad856274d68c90093c8a4ed119b93b9c3b690e`。
+- 证据导出：`evidence/local/3bee90bc-2c75-4ebb-989e-07be04b80069`；Manifest SHA-256 `0603d5260a4c2007c3fd6b807e4934ccb8d53d8f2956852041b5b4e1fc28e885`。
 - Web E2E：`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm test:e2e -- --stage V2.5`，1/1 通过。
 - 代码/基础检查：类型检查、构建、平台单元测试 19/19、`verify:stage --suite code`、契约/Fixture/Markdown 检查通过。
 - 架构证据：`linux/amd64-emulated`；S2 资源预算 1024 MB / 120 秒，最新运行时测量见下文。

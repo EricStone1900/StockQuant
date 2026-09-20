@@ -1,6 +1,6 @@
 # 共享数据采集：测试案例与中断恢复手册
 
-版本1.1，2026-09-12。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。DC-03确定性单元测试已PASS；真实交易日、后台进程和人工验收仍NOT_RUN。采集 CLI 入口已补齐并完成类型/单元回归；真实交易日操作手册仍需实测后才能改为可执行。
+版本1.6，2026-09-20。关联[开发计划](./06-shared-data-collection-plan.md)和[进度表](./08-data-collection-progress.md)。DC-00～DC-07 的确定性、数据库、容器和 Web 检查已有对应 PASS 证据；真实交易日、来源长期稳定性、外部备份和人工验收仍按适用项保持 NOT_RUN 或 WAITING。采集 CLI 已完成来源选择、错误边界和类型/单元回归；真实交易日操作手册仍需实测后才能改为可执行。
 
 ## 1. 测试输入和证据约定
 
@@ -12,7 +12,7 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 
 ## 2. 用例矩阵
 
-所有用例当前为NOT_RUN。表中“恢复”必须操作实际隔离任务/组件，不能只修改状态字段使断言通过。
+表中用例按工作包和证据分别记录 PASS、NOT_RUN 或 WAITING；尚未取得真实交易日或人工证据的用例不能因确定性测试通过而自动签署。表中“恢复”必须操作实际隔离任务/组件，不能只修改状态字段使断言通过。
 
 | ID/层级 | 输入与操作 | 独立预期断言 |
 |---|---|---|
@@ -76,7 +76,11 @@ DC-01新增不可变Fixture（目标位置 fixtures/v2/data-collection/v1），M
 - `pnpm data:backfill -- --subscription ID --from DATE --to DATE --idempotency-key KEY` 创建幂等补采任务；
 - `pnpm data:schedule -- --subscription ID --action status|enable|disable` 查询或变更订阅状态。
 
-命令契约通过 market-data-service TypeScript typecheck、31 个服务单元测试、覆盖 7/7、DC-08A 保护链测试和 `pnpm docs:check` 验证。回填任务现会展开逐窗口 `BACKFILL` runs，在执行器完成全部窗口后自动收口 task/缺口，连续失败达到3次后进入 `FAILED`；正式 Docker URL、认证方式、备份目标、Web 按钮和 DC-T25 实际交易日输出仍需在真实运行后补录；因此本手册继续保持 `DRAFT_NOT_EXECUTABLE`，不代表命令实现缺失。
+命令契约通过 market-data-service TypeScript typecheck、35 个服务单元测试、覆盖 7/7、DC-08A 保护链测试和 `pnpm docs:check` 验证。回填任务现会展开逐窗口 `BACKFILL` runs，在执行器完成全部窗口后自动收口 task/缺口，连续失败达到3次后进入 `FAILED`。
+
+2026-09-19 可复核运行信息：项目根目录为 `/Users/huangbosong/Documents/ChatGPT/StockQuant`；本地 Compose 平台 API 为 `http://127.0.0.1:3000`，Web 容器映射为 `http://127.0.0.1:8080`；阶段 E2E 包装脚本未设置 `PLAYWRIGHT_BASE_URL` 时默认使用该 Web 地址。V2.5 normal `3bee90bc-2c75-4ebb-989e-07be04b80069`、rejection `4f3de864-8604-4efb-8118-a54fffea3742`、recovery `0391745a-de9d-4e37-a0c9-0110e5052e9d` 均 COMPLETED 且断言全 PASS；normal 同 Run check-only PASS；证据目录为 `evidence/local/3bee90bc-2c75-4ebb-989e-07be04b80069`，Manifest Hash 为 `0603d5260a4c2007c3fd6b807e4934ccb8d53d8f2956852041b5b4e1fc28e885`。normal 资源断言记录 linux/amd64-emulated、1200 行、216 MiB、0 秒（该结果只覆盖小样本，不代表全量容量）。V2.5 Web E2E 使用上述 Web URL，1/1 PASS。
+
+DC-T25 实际交易日输出、外部备份目标和用户人工签署仍需后续真实运行后补录，因此本手册继续保持 `DRAFT_NOT_EXECUTABLE`，不代表命令实现缺失。
 
 ## 5. 人工验收与终止条件
 

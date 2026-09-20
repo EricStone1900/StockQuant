@@ -24,6 +24,10 @@ const fixture = resolve(root, "fixtures/v1/v1.2/cn_daily.csv");
 const badFixture = resolve(root, "fixtures/v1/v1.2/cn_daily_bad_future.csv");
 const minuteFixture = resolve(root, "fixtures/v2/v2.2/minute_bars.csv");
 const minuteBadFixture = resolve(root, "fixtures/v2/v2.2/minute_bars_bad.csv");
+const minuteSourceIds = ["baostock", "sina", "eastmoney"] as const;
+function configuredMinuteSources(): Set<string> {
+  return new Set((process.env.STOCKQUANT_COLLECTION_SOURCES ?? "baostock,sina").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean));
+}
 const artifactTasks = new Map<string, { status: "RUNNING" | "CANCELLED" | "PUBLISHED"; artifactId?: string }>();
 const minuteImports = new Map<string, { importId: string; version: string; status: string; accepted: number; errors: unknown[]; sha256: string }>();
 let watchlist: string[] = ["600000.SH", "000001.SZ", "600519.SH"];
@@ -129,11 +133,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/minute/sources" && req.method === "GET") {
       const healthPath = process.env.STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH ?? "/var/lib/stockquant/source-health.json";
+      const configured = configuredMinuteSources();
+      const sourceState = (sourceId: string, state: Record<string, { state?: string; failures?: number; lastSuccessAt?: number | string | null; lastFailureAt?: number | string | null; lastErrorCode?: string | null }>) => ({ sourceId, kind: "MINUTE_BAR", enabled: configured.has(sourceId), circuit: configured.has(sourceId) ? state[sourceId]?.state ?? "UNKNOWN" : "DISABLED", failures: configured.has(sourceId) ? Number(state[sourceId]?.failures ?? 0) : 0, lastSuccessAt: configured.has(sourceId) ? state[sourceId]?.lastSuccessAt ?? null : null, lastFailureAt: configured.has(sourceId) ? state[sourceId]?.lastFailureAt ?? null : null, lastErrorCode: configured.has(sourceId) ? state[sourceId]?.lastErrorCode ?? null : null });
       try {
-        const state = JSON.parse(await readFile(healthPath, "utf8")) as Record<string, { state?: string; failures?: number; lastSuccessAt?: string | null; lastFailureAt?: string | null; lastErrorCode?: string | null }>;
-        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: state[sourceId]?.state ?? "UNKNOWN", failures: Number(state[sourceId]?.failures ?? 0), lastSuccessAt: state[sourceId]?.lastSuccessAt ?? null, lastFailureAt: state[sourceId]?.lastFailureAt ?? null, lastErrorCode: state[sourceId]?.lastErrorCode ?? null })), checkedAt: new Date().toISOString() });
+        const state = JSON.parse(await readFile(healthPath, "utf8")) as Record<string, { state?: string; failures?: number; lastSuccessAt?: number | string | null; lastFailureAt?: number | string | null; lastErrorCode?: string | null }>;
+        return json(res, { configuredSources: minuteSourceIds.filter((sourceId) => configured.has(sourceId)), sources: minuteSourceIds.map((sourceId) => sourceState(sourceId, state)), checkedAt: new Date().toISOString() });
       } catch {
-        return json(res, { sources: ["baostock", "sina"].map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", circuit: "UNKNOWN", failures: null, lastSuccessAt: null, lastFailureAt: null, lastErrorCode: null })), checkedAt: new Date().toISOString(), code: "SOURCE_HEALTH_UNAVAILABLE" }, 503);
+        return json(res, { configuredSources: minuteSourceIds.filter((sourceId) => configured.has(sourceId)), sources: minuteSourceIds.map((sourceId) => ({ sourceId, kind: "MINUTE_BAR", enabled: configured.has(sourceId), circuit: configured.has(sourceId) ? "UNKNOWN" : "DISABLED", failures: configured.has(sourceId) ? null : 0, lastSuccessAt: null, lastFailureAt: null, lastErrorCode: null })), checkedAt: new Date().toISOString(), code: "SOURCE_HEALTH_UNAVAILABLE" }, 503);
       }
     }
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }

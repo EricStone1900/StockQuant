@@ -12,5 +12,7 @@ if (stage && !implementedStages.includes(stage)) {
 const playwrightArgs = stage
   ? ["--filter", "@stockquant/web", "exec", "playwright", "test", "-g", stage.replace(".", "\\.")]
   : ["--filter", "@stockquant/web", "test:e2e"];
-const result = spawnSync("pnpm", playwrightArgs, { stdio: "inherit", env: process.env });
+const env = { ...process.env };
+if (stage && !env.PLAYWRIGHT_BASE_URL) env.PLAYWRIGHT_BASE_URL = "http://127.0.0.1:8080";
+const result = spawnSync("pnpm", playwrightArgs, { stdio: "inherit", env });
 process.exit(result.status ?? 1);

@@ -27,6 +27,24 @@ class FakeSource:
 
 
 class FailoverTests(unittest.TestCase):
+    def test_persisted_failures_accumulate_across_collectors_before_opening(self):
+        with tempfile.TemporaryDirectory() as directory:
+            health_path = os.path.join(directory, "health.json")
+            for expected in (1, 2, 3):
+                collector = FailoverCollector(
+                    [("baostock", FakeSource([SourceError("TIMEOUT", "slow")]))],
+                    max_attempts=1,
+                    backoff_seconds=0,
+                    sleeper=lambda _: None,
+                    health_path=health_path,
+                )
+                with self.assertRaises(AllSourcesFailed):
+                    collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+                with open(health_path, encoding="utf-8") as handle:
+                    state = __import__("json").load(handle)["baostock"]
+                self.assertEqual(state["failures"], expected)
+            self.assertEqual(state["state"], "OPEN")
+
     def test_primary_failure_switches_to_backup_and_records_audit(self):
         primary = FakeSource([SourceError("TIMEOUT", "slow"), SourceError("TIMEOUT", "slow"), SourceError("TIMEOUT", "slow")])
         backup = FakeSource([[bar("sina")]])
@@ -36,6 +54,22 @@ class FailoverTests(unittest.TestCase):
         self.assertEqual(len(bars), 1)
         self.assertEqual(primary.calls, 3)
         self.assertEqual(attempts[-1]["sourceId"], "sina")
+
+    def test_retry_backoff_is_exponential(self):
+        sleeps = []
+        primary = FakeSource([SourceError("HTTP_CONNECTION_FAILED", "remote closed")] * 3)
+        collector = FailoverCollector(
+            [("eastmoney", primary)],
+            max_attempts=3,
+            backoff_seconds=2,
+            sleeper=sleeps.append,
+            backoff_jitter_seconds=0,
+        )
+        with self.assertRaises(AllSourcesFailed):
+            collector.collect(["600000.SH"], "2026-09-18", "2026-09-18")
+        # The provider limiter may add its own one-second spacing sleeps; the
+        # larger entries are the collector's exponential backoff delays.
+        self.assertEqual([round(value) for value in sleeps if value >= 1.5], [2, 4])
 
     def test_circuit_opens_after_three_failures_and_half_open_recovers(self):
         clock = [0.0]

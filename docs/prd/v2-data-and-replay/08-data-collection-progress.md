@@ -1,6 +1,6 @@
 # 共享数据采集：进度、问题及接续记录
 
-日期：2026-09-19；计划版本1.5。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
+日期：2026-09-20；计划版本1.6。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
 
 ## 1. 状态规则
 
@@ -15,7 +15,7 @@
 两项交付分别记录：本次模块开发交付TODO；后续60日数据验收TODO。启用累积后后者可变WAITING；本次交付依据计划2.1及DC-T25，不能因后台观察未满误认为代码未完成，也不能跳过短期真实运行。
 
 - [x] 梳理用户需求、当前代码结构及仓库已有证据，形成版本化计划、测试矩阵和接续机制。
-- [x] 完成新模块实现及自动测试（DC-00～DC-02 当前切片；调度/主备/部署仍待后续工作包）。
+- [x] 完成新模块实现及自动测试（DC-00～DC-07 本机范围；真实来源长期稳定性、实际交易日和外部灾备仍按门禁单独记录）。
 - [ ] 验证盘中真实来源能力并启用正式采集任务。
 - [ ] 完成Mac/Ubuntu运行、备用切换、备份/恢复与人工验收。
 - [x] 获得固定证券集合的严格60交易日历史覆盖并完成真实归档回放验收；真实盘中累计仍单独记录。
@@ -26,7 +26,7 @@
 | DC-01 契约设计 | DONE（设计与冻结输入） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 生成客户端/迁移设计已纳入服务实现；人工验收仍待补 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | DONE（本机范围） | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 真实交易日运行和 Web/验收中心观察归入 DC-08A；正式订阅仍默认关闭 |
-| DC-04 主备 | IN_PROGRESS | PASS：Python适配器6/6、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
+| DC-04 主备 | IN_PROGRESS | PASS：Python适配器23/23、Linux ARM64容器导入、盘后真实探针；BaoStock超时后Sina返回3只×48条 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、许可/限频核验和真实源审计，再启用正式采集 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、历史归档逐日覆盖与回放20/20通过、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md)；[DC-T23真实归档回放](../../../evidence/dc08a/historical-replay-2026-09-16.json) | 实际补采执行、停牌权威核验、每日自动覆盖报告和盘中数据持续观察 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
@@ -88,6 +88,18 @@
 文档校验：`pnpm docs:check`退出0，391个本地Markdown链接、0失败；`git diff --check`退出0。DC-00探针静态检查、contracts、fixtures和文档检查退出0；DC-T01～DC-T25均有输入、操作和预期。DC-01设计检查PASS；新模块持久化/调度业务测试和人工验收仍NOT_RUN。
 
 ## 6. 计划1.1变更及后续交接
+
+2026-09-19 P0 修复与回归：版本验收脚本修正验收表解析，新增计划/验收阶段缺失与多余行检查；V2 现能解析 5 条验收记录并按实际未完成状态返回退出码2。Python 适配器持久熔断状态修正为只有真实成功才清零，失败次数可跨 Collector/进程累计至 OPEN；新增跨进程累计失败测试，适配器 unittest 20/20、运维测试 62/62、全仓 lint/typecheck/test、baseline 检查通过。采集 CLI 新增 `sources` 请求字段及 `STOCKQUANT_COLLECTION_SOURCES` 配置，默认仍为已验证的 `baostock,sina`，东方财富必须显式启用；未知、重复来源被拒绝。真实来源能力、盘中稳定性、许可和人工验收门槛未因本次代码修复改变。
+
+2026-09-19 V2.5 执行批次：Compose 重新构建并启动成功；normal `3bee90bc-2c75-4ebb-989e-07be04b80069`、rejection `4f3de864-8604-4efb-8118-a54fffea3742`、recovery `0391745a-de9d-4e37-a0c9-0110e5052e9d` 均 COMPLETED，断言分别为 6/6、3/3、3/3 PASS。normal 同 Run check-only PASS，证据导出目录 `evidence/local/3bee90bc-2c75-4ebb-989e-07be04b80069`，Manifest Hash `0603d5260a4c2007c3fd6b807e4934ccb8d53d8f2956852041b5b4e1fc28e885`。V2.5 code suite、Web E2E 1/1（Web `127.0.0.1:8080`）通过。normal 资源证据为 linux/amd64-emulated、1200 行、216 MiB、0 秒；不能外推全量容量。BaoStock PIT 探针返回 `PARTIAL`：财务公告日期可读，但缺修订链、来源 Artifact 和历史证券范围；行业历史有效区间、修订链和历史成分均缺失，继续保持 PIT 门禁。DC-08A/V2.4 仍只读观察，未因 Fixture 场景通过而增加有效交易日。
+
+2026-09-19 交易日入口复核：`dc08a:morning` 返回 READY、正式订阅 `dc08a-20260917-20-v1` 已启用且20只集合一致；`dc08a:monitor` 返回 `QUIET_AFTER_CLOSE`；`dc08a:eod` 根据日历 `sse-cn-a-share-2026-1` 判定 2026-09-19 为 CLOSED，返回 `NOT_RUN`，expected/actual 均为0，观察 `observationCounted=false`，未增加 DC-08A/V2.4 有效日。来源健康接口显示 BaoStock OPEN（累计失败118）、Sina CLOSED 且有最近成功、Eastmoney UNKNOWN；默认正式来源仍未启用 Eastmoney，主备盘中能力和许可门禁保持未完成。
+
+2026-09-19 探针与容量复核：`v25:probe-minute-sources` 返回历史 5 分钟能力 PASS（BaoStock、Sina 各3只样本），实时盘中部分 NOT_RUN；`v25:validate-baostock-minute` 返回20只×60日×48窗口、57,600/57,600 PASS；`v25:replay-baostock-minute` 返回20只、57,600行、每证券60交易日 PASS；`v25:monitor-capacity` 在 darwin/arm64 对50/80/100只在线监控池均 PASS（configured/sampled/live一致，48/49/49ms，测试后恢复3只）。`v25:probe-baostock-stability` 因单次外部查询超过约3分钟无输出被中断，保留为超时/未完成证据，不标记稳定性 PASS。阶段 E2E 包装脚本现在在未设置 `PLAYWRIGHT_BASE_URL` 时自动使用 Compose 的 `http://127.0.0.1:8080`；V2.5 E2E 1/1、运维测试62/62通过。
+
+2026-09-19 东方财富候选备用接入：`market-data-adapter` 新增直接公开 JSON 端点的 `EastmoneyMinuteClient`，主备顺序固定为 BaoStock→Sina→Eastmoney；`market-data-service` 来源健康接口同步展示 `eastmoney`。东方财富成交量按公开 K 线手数转换为规范股数，所有请求仍受统一超时、限流、重试和熔断保护。代码检查与适配器单测通过；真实请求仍观察到间歇性断连，故不标记 DC-04/08A 或 60 日备用源门禁通过。
+
+2026-09-20 计划1～7执行：采集 CLI 现在区分缺省来源与显式空来源，且只初始化实际启用的客户端；来源健康接口报告 `configuredSources`、`enabled` 和 `DISABLED` 状态，并兼容数字/字符串时间戳；`.env.example` 与 Compose 已补齐 `STOCKQUANT_COLLECTION_SOURCES`。历史覆盖/回放脚本默认生成带 UTC 执行时间的新证据文件，并拒绝覆盖已有文件；此前被重复运行改写的 2026-09-16 历史时间戳已恢复。稳定性探针新增全局预算和 stderr 进度，仍只以有界样本判定，不能解除长期稳定性门禁。适配器、TypeScript、运维和文档回归待本次执行收尾后追加原始退出码。
 
 2026-09-12：根据用户先完成本次任务再进入主项目的安排，明确开发范围与交付门槛；DC-08拆为A/B，新增DC-T25，本次开发与长期数据验收分别签署。未修改业务代码，未启动采集/调度，未暂停现有观察任务。下一动作仍为DC-00；等待交易日时仅推进本模块独立子项。
 

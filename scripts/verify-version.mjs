@@ -26,18 +26,24 @@ if (stageRows.length === 0) {
 }
 
 const unresolved = stageRows.filter(({ status }) => !/^PASS(?:\s|\(|（|$)/.test(status));
-const acceptanceStageRows = [...acceptance.matchAll(/^\| \[(V\d+\.\d+)[^|]*\]\([^|]*\)\|\s*([^|]+)\|\s*([^|]+)\|/gm)]
+const acceptanceStageRows = [...acceptance.matchAll(/^\|\s*\[(V\d+\.\d+)[^\]]*\]\([^)]*\)\s*\|\s*([^|]+)\|\s*([^|]+)\|/gm)]
   .map((match) => ({ stageId: match[1], backend: match[2].trim(), web: match[3].trim() }));
+const stageIds = new Set(stageRows.map(({ stageId }) => stageId));
+const acceptanceIds = new Set(acceptanceStageRows.map(({ stageId }) => stageId));
+const missingAcceptance = stageRows.filter(({ stageId }) => !acceptanceIds.has(stageId));
+const unexpectedAcceptance = acceptanceStageRows.filter(({ stageId }) => !stageIds.has(stageId));
 const unresolvedAcceptance = acceptanceStageRows.filter(({ backend, web }) => /NOT_RUN|FAIL|PARTIALLY_IMPLEMENTED/.test(`${backend} ${web}`));
 const hasFailure = [...stageRows.map(({ status }) => status), ...acceptanceStageRows.flatMap(({ backend, web }) => [backend, web])]
   .some((status) => /\bFAIL\b/.test(status));
-const incomplete = unresolved.length > 0 || unresolvedAcceptance.length > 0;
+const incomplete = unresolved.length > 0 || unresolvedAcceptance.length > 0 || missingAcceptance.length > 0 || unexpectedAcceptance.length > 0;
 const result = {
   version,
   status: hasFailure ? "FAIL" : incomplete ? "INCOMPLETE" : "PASS",
   stages: stageRows,
   unresolvedStages: unresolved,
   unresolvedAcceptance,
+  missingAcceptance,
+  unexpectedAcceptance,
 };
 
 console.log(JSON.stringify(result, null, 2));

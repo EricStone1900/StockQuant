@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import multiprocessing as mp
 import os
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -46,7 +47,12 @@ def _query_in_isolated_session(code: str, start_date: str, end_date: str, output
         output.put({"code": code, "outcome": "EXCEPTION", "message": repr(exc)})
 
 
-def _run_one(context: Any, code: str, start_date: str, end_date: str, timeout_seconds: float) -> dict[str, object]:
+def _run_one(context: Any, code: str, start_date: str, end_date: str, timeout_seconds: float, deadline: float | None = None) -> dict[str, object]:
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {"code": code, "outcome": "BUDGET_EXCEEDED", "budgetSeconds": 0}
+        timeout_seconds = min(timeout_seconds, remaining)
     queue = context.Queue()
     process = context.Process(target=_query_in_isolated_session, args=(code, start_date, end_date, queue))
     started = time.monotonic()
@@ -80,27 +86,39 @@ def run() -> dict[str, object]:
     sample_size = min(max(1, int(os.environ.get("BAOSTOCK_STABILITY_SAMPLE", str(len(requested_symbols))))), len(requested_symbols))
     timeout_seconds = max(1.0, float(os.environ.get("BAOSTOCK_STABILITY_QUERY_TIMEOUT_SECONDS", "30")))
     interval_seconds = max(0.0, float(os.environ.get("BAOSTOCK_STABILITY_INTERVAL_SECONDS", "1")))
+    budget_seconds = max(timeout_seconds, float(os.environ.get("BAOSTOCK_STABILITY_MAX_SECONDS", "180")))
     start_date = os.environ.get("BAOSTOCK_STABILITY_START_DATE", "2024-01-02")
     end_date = os.environ.get("BAOSTOCK_STABILITY_END_DATE", "2024-03-29")
     symbols = requested_symbols[:sample_size]
     context = mp.get_context("spawn")
-    result: dict[str, object] = {"source": "baostock", "mode": "READ_ONLY", "frequency": "5m", "startDate": start_date, "endDate": end_date, "rounds": rounds, "sampleSize": len(symbols), "symbols": symbols, "queryTimeoutSeconds": timeout_seconds, "intervalSeconds": interval_seconds, "queries": []}
+    started = time.monotonic()
+    deadline = started + budget_seconds
+    result: dict[str, object] = {"source": "baostock", "mode": "READ_ONLY", "frequency": "5m", "startDate": start_date, "endDate": end_date, "rounds": rounds, "sampleSize": len(symbols), "symbols": symbols, "queryTimeoutSeconds": timeout_seconds, "intervalSeconds": interval_seconds, "budgetSeconds": budget_seconds, "queries": []}
 
     for round_index in range(rounds):
         round_results: list[dict[str, object]] = []
         for code in symbols:
-            round_results.append(_run_one(context, code, start_date, end_date, timeout_seconds))
-            if interval_seconds:
+            if time.monotonic() >= deadline:
+                round_results.append({"code": code, "outcome": "BUDGET_EXCEEDED", "budgetSeconds": 0})
+                continue
+            print(f"[stability] round {round_index + 1}/{rounds}, querying {code}", file=sys.stderr, flush=True)
+            round_results.append(_run_one(context, code, start_date, end_date, timeout_seconds, deadline))
+            if interval_seconds and time.monotonic() < deadline:
                 time.sleep(interval_seconds)
         result["queries"].append({"round": round_index + 1, "results": round_results})  # type: ignore[union-attr]
 
-    result["recoveryProbe"] = _run_one(context, symbols[0], start_date, end_date, timeout_seconds) if symbols else {"outcome": "NO_SYMBOLS"}
+    if symbols and time.monotonic() < deadline:
+        print(f"[stability] recovery probe {symbols[0]}", file=sys.stderr, flush=True)
+        result["recoveryProbe"] = _run_one(context, symbols[0], start_date, end_date, timeout_seconds, deadline)
+    else:
+        result["recoveryProbe"] = {"outcome": "BUDGET_EXCEEDED" if symbols else "NO_SYMBOLS"}
     query_results = [item for round_item in result["queries"] for item in round_item["results"]]  # type: ignore[index, union-attr]
     all_success = bool(query_results) and all(item.get("outcome") == "SUCCESS" for item in query_results)
     recovered = result["recoveryProbe"].get("outcome") == "SUCCESS"  # type: ignore[index, union-attr]
     result["status"] = "PASS" if all_success and recovered else "PARTIAL"
+    result["elapsedSeconds"] = round(time.monotonic() - started, 3)
     result["probedAt"] = datetime.now().astimezone().isoformat()
-    result["note"] = "Each request uses a fresh session and has a parent-enforced timeout. PASS covers only this bounded sample, not long-term rate limits, production SLA, licensing, or 20-trading-day observation."
+    result["note"] = "Each request uses a fresh session, a parent-enforced timeout, and a global budget. PASS covers only this bounded sample, not long-term rate limits, production SLA, licensing, or 20-trading-day observation."
     return result
 
 

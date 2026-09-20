@@ -12,7 +12,29 @@ import sys
 from typing import Any
 
 from .failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
-from .providers import BaoStockMinuteClient, SinaMinuteClient
+from .providers import BaoStockMinuteClient, EastmoneyMinuteClient, SinaMinuteClient
+
+ALLOWED_SOURCES = frozenset(("baostock", "sina", "eastmoney"))
+
+
+def source_ids_from_request(request: dict[str, Any]) -> list[str]:
+    """Resolve and validate source order without silently replacing explicit input."""
+    if "sources" in request:
+        configured_sources = request["sources"]
+    else:
+        configured_sources = os.environ.get("STOCKQUANT_COLLECTION_SOURCES", "baostock,sina")
+    if isinstance(configured_sources, str):
+        source_ids: Any = [item.strip().lower() for item in configured_sources.split(",")]
+    else:
+        source_ids = configured_sources
+    if (
+        not isinstance(source_ids, list)
+        or not source_ids
+        or any(not isinstance(item, str) or item not in ALLOWED_SOURCES for item in source_ids)
+        or len(set(source_ids)) != len(source_ids)
+    ):
+        raise SourceError("INVALID_REQUEST", "sources must be a unique list of baostock,sina,eastmoney", retryable=False)
+    return source_ids
 
 
 def wire_bar(bar: NormalizedBar) -> dict[str, Any]:
@@ -43,8 +65,16 @@ def main() -> int:
             raise SourceError("INVALID_REQUEST", "securityIds must be a non-empty string array", retryable=False)
         if not isinstance(start, str) or not isinstance(end, str) or len(start) != 10 or len(end) != 10:
             raise SourceError("INVALID_REQUEST", "startDate and endDate must be ISO local dates", retryable=False)
+        source_ids = source_ids_from_request(request)
+        clients: dict[str, Any] = {}
+        if "baostock" in source_ids:
+            clients["baostock"] = BaoStockMinuteClient(float(request.get("baostockIntervalSeconds", request.get("perSecurityIntervalSeconds", 0.0))), batch_size=int(request.get("baostockBatchSize", 5)))
+        if "sina" in source_ids:
+            clients["sina"] = SinaMinuteClient(minimum_interval_seconds=float(request.get("perSecurityIntervalSeconds", 0.0)))
+        if "eastmoney" in source_ids:
+            clients["eastmoney"] = EastmoneyMinuteClient(minimum_interval_seconds=float(request.get("perSecurityIntervalSeconds", 0.0)))
         collector = FailoverCollector(
-            [("baostock", BaoStockMinuteClient(float(request.get("baostockIntervalSeconds", request.get("perSecurityIntervalSeconds", 0.0))), batch_size=int(request.get("baostockBatchSize", 5)))), ("sina", SinaMinuteClient(minimum_interval_seconds=float(request.get("perSecurityIntervalSeconds", 0.0))))],
+            [(source_id, clients[source_id]) for source_id in source_ids],
             timeout_seconds=float(request.get("timeoutSeconds", 30)),
             max_attempts=int(request.get("maxAttempts", 3)),
             backoff_seconds=float(request.get("backoffSeconds", 5)),
