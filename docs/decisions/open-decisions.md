@@ -12,8 +12,8 @@
 | OD-006 | Qlib source commit、Python/数值栈和 ARM64 镜像 | 开发者 | V1.2 实现前 | Qlib 0.9.6 与 amd64 仿真已验证；原生 ARM64 构建和完整数值栈仍待确认 | PARTIAL |
 | OD-007 | 策略持有期、再平衡、基准和组合数量（PRD Q05） | 项目所有者 | V1.2 策略验证前 | 使用计划中的低换手样例且不晋升 | OPEN |
 | OD-008 | A股 V2 免费行情/新闻来源、许可、限流和留存 | 项目所有者、开发者 | V2.1 来源实现前 | 只使用明确 Fixture，真实来源 NOT_RUN | OPEN |
-| OD-009 | RD-Agent source commit、模型 Provider、预算和外发限制 | 项目所有者、开发者 | V3.1 实验前 | 不调用真实模型、不声称 RD-Agent 闭环 | OPEN |
-| OD-010 | 目标 Ubuntu CPU/资源/网络与部署位置 | 项目所有者 | V3.4 兼容计划冻结前 | Mac/模拟架构证据不能替代发布 | OPEN |
+| OD-009 | RD-Agent source commit、模型 Provider、预算和外发限制 | 项目所有者、开发者 | V3.1 实验前 | 不调用真实模型、不声称 RD-Agent 闭环 | PARTIAL（source commit、Provider/模型、预算已冻结；凭证、外发和 Runner 兼容性仍待完成） |
+| OD-010 | 目标 Ubuntu CPU/资源/网络与部署位置 | 项目所有者 | V3.4 兼容计划冻结前 | 目标架构已确认见 ADR-0007；具体主机、资源、网络和实际部署证据未完成前保持 NOT_RUN | PARTIAL（Ubuntu x86_64 CPU 目标已确认，主机规格/网络/部署位置待实测） |
 | OD-011 | 备份位置、保留期、RPO/RTO（PRD Q11） | 项目所有者、开发者 | V3.4 发布前 | 未完成隔离恢复演练则阻塞发布 | ACCEPTED（ADR-0006；部署环境仍需实测） |
 | OD-012 | 首个市场优先顺序与阶段排期（PRD Q12） | 项目所有者 | V1.2 排期前 | V1.1 仍保持双市场基础契约 | OPEN |
 

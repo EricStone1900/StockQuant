@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryExperimentRepository } from "../../src/adapters/in-memory-experiment-repository.js";
 import { ExperimentService } from "../../src/application/experiment-service.js";
 
-const request = { fixtureId: "v3.1-research-small-sample-1", modelProfile: "UNSET", rounds: 1, budgetCents: 100, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: "service-test-1" };
+const request = { fixtureId: "v3.1-research-small-sample-1", modelProfile: "UNSET", rounds: 1, budgetCurrency: "USD", budgetCents: 300, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: "service-test-1" };
 
 describe("V3.1 preparation service", () => {
   it("does not create a second experiment for the same idempotency key", async () => {
@@ -25,6 +25,6 @@ describe("V3.1 preparation service", () => {
   it("rejects reusing an idempotency key with different inputs", async () => {
     const service = new ExperimentService(new InMemoryExperimentRepository());
     await service.create({ ...request, idempotencyKey: "service-test-conflict" });
-    await expect(service.create({ ...request, budgetCents: 101, idempotencyKey: "service-test-conflict" })).rejects.toThrow("idempotency key was reused");
+    await expect(service.create({ ...request, budgetCents: 301, idempotencyKey: "service-test-conflict" })).rejects.toThrow("idempotency key was reused");
   });
 });

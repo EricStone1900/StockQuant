@@ -271,6 +271,13 @@ services:
       STOCKQUANT_DATABASE_URL: postgresql://research_automation@postgres:5432/research_automation
       STOCKQUANT_RUNNER_MODE: NOT_CONFIGURED
       STOCKQUANT_MODEL_GATEWAY_MODE: NOT_CONFIGURED
+      STOCKQUANT_RESEARCH_EMBEDDING_MODEL: "${STOCKQUANT_RESEARCH_EMBEDDING_MODEL:-litellm_proxy/Qwen/Qwen3-Embedding-4B}"
+      STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS: "${STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS:-1024}"
+      # Explicit secret pass-through. Values come from the ignored `.env.local`
+      # when Compose is invoked with `--env-file .env.local`; no other local
+      # environment variables are exposed to the research service.
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      SILICONFLOW_API_KEY: "${SILICONFLOW_API_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy

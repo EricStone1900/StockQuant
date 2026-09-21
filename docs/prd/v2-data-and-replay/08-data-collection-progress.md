@@ -49,7 +49,9 @@
 
 2026-09-19 计划1～5执行复核：DC-08A 健康检查与活动订阅检查均 PASS，订阅仍为 `dc08a-20260917-20-v1`；因当天为交易日历 CLOSED，morning/monitor/eod 均正确返回 `NOT_RUN`，未虚增 V2.4 或 DC-08A 有效日，观察计数保持 V2.4 `4/20`、DC-08A `1/20`。V2.5 code suite 重新通过；BaoStock/Sina 5分钟历史能力探针 PASS（证据 `evidence/local/V2.5/minute-source-probe-20260919.json`，live session 仍 NOT_RUN）；BaoStock PIT 探针仍为 PARTIAL，财务/行业修订链和历史有效区间不足，不能解除 PIT 门禁。
 
-2026-09-21 观察口径修复与运行复核：自动化配置校验 `pnpm dc08a:verify-automation` 退出0；`dc08a:supervise -- --check-only` 返回 HEALTHY，20只证券顺序、唯一活动订阅 `dc08a-20260917-20-v1`、调度器/执行器均正常，下一触发为2026-09-22T01:37:00Z。观察汇总逻辑升级为 `dc08a-observation-summary-v2`：同一交易日只要历史观察快照曾出现未完成运行、FAILED/QUEUED 或开放缺口，即标记 `hadFailure=true`，即使盘后补齐也计入 `recoveredDays`，不计入连续稳定 `completedDays`。当前汇总为连续稳定日 `0/20`、恢复后完整日 `2`（2026-09-18、2026-09-21）、观察日 `2`；原始快照和盘后补采证据全部保留。单元测试3/3、`git diff --check`通过。下一实际交易日按DC-T19验证BaoStock故障→Sina切换→600秒冷却半开探测→成功切回，并逐日累计连续稳定观察。
+2026-09-21 观察口径修复与运行复核：自动化配置校验 `pnpm dc08a:verify-automation` 退出0；`dc08a:supervise -- --check-only` 返回 HEALTHY，20只证券顺序、唯一活动订阅 `dc08a-20260917-20-v1`、调度器/执行器均正常，下一触发为2026-09-22T01:37:00Z。观察汇总逻辑升级为 `dc08a-observation-summary-v2`：盘中暂时 `QUEUED` 或开放缺口在日终前收口时不标记失败，只有历史快照出现终态 `FAILED` 才将完整日计入 `recoveredDays`。当前汇总为连续稳定日 `1/20`（2026-09-18）、恢复后完整日 `1`（2026-09-21）、观察日 `2`；原始快照和盘后补采证据全部保留。单元测试4/4、`git diff --check`通过。下一实际交易日按DC-T19验证BaoStock故障→Sina切换→600秒冷却半开探测→成功切回，并逐日累计连续稳定观察。
+
+2026-09-21 DC-T19证据链补齐：`dc08a:morning`、盘中`dc08a:monitor`和`dc08a:eod`会将每次观测归档到 `evidence/dc08a/dc-t19/YYYY-MM-DD/`，同时保留根目录兼容证据。观测快照新增当日运行明细（窗口、状态、创建/更新时间、重试时间、checkpoint/来源尝试）和最多3条规范字段样本；日终归档包含日报、健康报告和观察汇总。证据模板与归档规则见 `evidence/dc08a/dc-t19/README.md`。`dc08a:observe`与观察汇总相关测试8/8通过；真实交易日的 BaoStock→Sina→半开探测→切回仍待下一交易日。
 
 ## 3. 开发中断接续协议
 

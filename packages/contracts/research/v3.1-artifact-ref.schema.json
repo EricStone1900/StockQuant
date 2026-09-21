@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-artifact-ref.schema.json",
+  "title": "V3.1ResearchArtifactRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "artifactId", "kind", "namespace", "sha256", "status", "sourceRef"],
+  "properties": {
+    "schemaVersion": { "const": "v3.1-artifact-ref-v1" },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["INPUT", "GENERATED_CODE", "RUN_LOG", "METRICS", "ERROR", "CANDIDATE"] },
+    "namespace": { "type": "string", "pattern": "^research/[^/]+/[^/]+/(inputs|outputs)$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["PENDING", "PUBLISHED", "FAILED", "RETAINED"] },
+    "sourceRef": { "type": "string", "minLength": 1 }
+  }
+}

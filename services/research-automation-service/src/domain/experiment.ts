@@ -4,11 +4,14 @@ export type ExperimentRequest = {
   fixtureId: string;
   modelProfile: string;
   rounds: number;
+  budgetCurrency: "USD";
   budgetCents: number;
   environmentMode: "RESEARCH";
   brokerMode: "FAKE";
   idempotencyKey: string;
 };
+
+export const MAX_EXPERIMENT_BUDGET_CENTS = 1000;
 
 export type Experiment = ExperimentRequest & {
   experimentId: string;
@@ -18,7 +21,7 @@ export type Experiment = ExperimentRequest & {
   cancelledAt: string | null;
 };
 
-export function validateRequest(input: unknown): ExperimentRequest {
+export function validateRequest(input: unknown, maxBudgetCents = MAX_EXPERIMENT_BUDGET_CENTS): ExperimentRequest {
   if (!input || typeof input !== "object") throw new Error("request body must be an object");
   const body = input as Record<string, unknown>;
   const requiredString = (name: string) => {
@@ -32,9 +35,11 @@ export function validateRequest(input: unknown): ExperimentRequest {
   if (idempotencyKey.length < 8) throw new Error("idempotencyKey must be at least 8 characters");
   if (body.environmentMode !== "RESEARCH") throw new Error("environmentMode must be RESEARCH");
   if (body.brokerMode !== "FAKE") throw new Error("brokerMode must be FAKE");
+  if (body.budgetCurrency !== "USD") throw new Error("budgetCurrency must be USD");
   if (!Number.isInteger(body.rounds) || Number(body.rounds) < 1 || Number(body.rounds) > 3) throw new Error("rounds must be an integer from 1 to 3");
   if (!Number.isInteger(body.budgetCents) || Number(body.budgetCents) < 1) throw new Error("budgetCents must be a positive integer");
-  return { fixtureId, modelProfile, rounds: Number(body.rounds), budgetCents: Number(body.budgetCents), environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey };
+  if (Number(body.budgetCents) > maxBudgetCents) throw new Error(`budgetCents must not exceed ${maxBudgetCents} USD cents`);
+  return { fixtureId, modelProfile, rounds: Number(body.rounds), budgetCurrency: "USD", budgetCents: Number(body.budgetCents), environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey };
 }
 
 export function createExperiment(request: ExperimentRequest, now = new Date(), experimentId = crypto.randomUUID()): Experiment {

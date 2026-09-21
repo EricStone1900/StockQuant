@@ -9,15 +9,16 @@ export class ExperimentIdempotencyConflict extends Error {
 }
 
 export class ExperimentService {
-  constructor(private readonly repository: ExperimentRepository) {}
+  constructor(private readonly repository: ExperimentRepository, private readonly maxBudgetCents = 1000) {}
 
   async create(input: unknown): Promise<{ experiment: Experiment; existing: boolean }> {
-    const request = validateRequest(input);
+    const request = validateRequest(input, this.maxBudgetCents);
     const existing = await this.repository.findByIdempotencyKey(request.idempotencyKey);
     if (existing) {
       const same = existing.fixtureId === request.fixtureId
         && existing.modelProfile === request.modelProfile
         && existing.rounds === request.rounds
+        && existing.budgetCurrency === request.budgetCurrency
         && existing.budgetCents === request.budgetCents
         && existing.environmentMode === request.environmentMode
         && existing.brokerMode === request.brokerMode;

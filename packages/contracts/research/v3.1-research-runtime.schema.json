@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-research-runtime.schema.json",
+  "title": "V3.1ResearchRuntimeConfiguration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "environmentMode", "brokerMode", "runner", "modelGateway", "execution", "security", "artifacts"],
+  "properties": {
+    "schemaVersion": { "const": "v3.1-research-runtime-v1" },
+    "environmentMode": { "const": "RESEARCH" },
+    "brokerMode": { "const": "FAKE" },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "imageDigest"],
+      "properties": {
+        "mode": { "enum": ["NOT_CONFIGURED", "ISOLATED"] },
+        "imageDigest": { "type": ["string", "null"] }
+      }
+    },
+    "modelGateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "provider", "model", "baseUrl", "credentialRef", "embedding"],
+      "properties": {
+        "mode": { "enum": ["NOT_CONFIGURED", "LIVE"] },
+        "provider": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "baseUrl": { "type": ["string", "null"] },
+        "credentialRef": { "type": ["string", "null"] },
+        "embedding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "model", "dimensions", "baseUrl", "credentialRef"],
+          "properties": {
+            "provider": { "type": ["string", "null"] },
+            "model": { "type": ["string", "null"] },
+            "dimensions": { "const": 1024 },
+            "baseUrl": { "type": ["string", "null"] },
+            "credentialRef": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetCurrency", "defaultRounds", "maxRounds", "defaultBudgetCents", "maxExperimentBudgetCents", "stageBudgetCents", "budgetWarningPercent", "workerConcurrency"],
+      "properties": {
+        "budgetCurrency": { "const": "USD" },
+        "defaultRounds": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "maxRounds": { "const": 3 },
+        "defaultBudgetCents": { "type": "integer", "minimum": 1 },
+        "maxExperimentBudgetCents": { "const": 1000 },
+        "stageBudgetCents": { "const": 3000 },
+        "budgetWarningPercent": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "workerConcurrency": { "const": 1 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outboundPolicy", "outboundAllowlist", "dockerSocket", "brokerWrites"],
+      "properties": {
+        "outboundPolicy": { "enum": ["DENY", "ALLOWLIST"] },
+        "outboundAllowlist": { "type": "array", "items": { "type": "string" } },
+        "dockerSocket": { "const": "DENY" },
+        "brokerWrites": { "const": "FAKE_ONLY" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hashAlgorithm", "namespacePattern", "retainFailed"],
+      "properties": {
+        "hashAlgorithm": { "const": "SHA-256" },
+        "namespacePattern": { "const": "research/{testRunId}/{experimentId}" },
+        "retainFailed": { "const": true }
+      }
+    }
+  }
+}

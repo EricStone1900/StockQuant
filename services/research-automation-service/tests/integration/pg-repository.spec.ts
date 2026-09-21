@@ -6,7 +6,7 @@ import { PgExperimentRepository } from "../../src/adapters/pg-experiment-reposit
 
 const connectionString = process.env.RESEARCH_AUTOMATION_DATABASE_URL;
 const run = connectionString ? describe : describe.skip;
-const request = { fixtureId: "v3.1-research-small-sample-1", modelProfile: "UNSET", rounds: 1, budgetCents: 100, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: `integration-${randomUUID()}` };
+const request = { fixtureId: "v3.1-research-small-sample-1", modelProfile: "UNSET", rounds: 1, budgetCurrency: "USD", budgetCents: 300, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: `integration-${randomUUID()}` };
 
 run("PostgreSQL experiment repository", () => {
   const pool = new Pool({ connectionString });

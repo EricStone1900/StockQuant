@@ -10,7 +10,10 @@ export function summarizeObservations(observations, { subscriptionId, targetDays
     const date = shanghaiDate(item.capturedAt);
     const current = byDate.get(date);
     const complete = item.observationCounted === true && item.status === "ACTIVE" && item.runs?.total > 0 && item.runs?.total === item.runs?.completed && item.openGaps === 0 && item.pendingOutbox === 0;
-    const failed = item.runs?.byStatus?.some(({ status, count }) => status === "FAILED" && Number(count) > 0) || item.openGaps > 0 || (item.runs?.total > 0 && item.runs?.completed < item.runs?.total);
+    // A mid-session QUEUED run or an open gap is an in-progress observation,
+    // not a failed day. Only a persisted terminal FAILED run invalidates an
+    // otherwise complete day; the final snapshot still decides completeness.
+    const failed = item.runs?.byStatus?.some(({ status, count }) => status === "FAILED" && Number(count) > 0);
     byDate.set(date, {
       date,
       complete: Boolean(current?.complete || complete),
@@ -18,7 +21,13 @@ export function summarizeObservations(observations, { subscriptionId, targetDays
       observationCounted: Boolean(current?.observationCounted || item.observationCounted === true),
       capturedAt: item.capturedAt,
       status: item.status,
-      runs: item.runs,
+      // Keep the summary compact. Full window/checkpoint/source-attempt
+      // details remain in the per-observation archive files.
+      runs: item.runs ? {
+        total: item.runs.total,
+        completed: item.runs.completed,
+        byStatus: item.runs.byStatus
+      } : null,
       openGaps: item.openGaps,
       pendingOutbox: item.pendingOutbox
     });

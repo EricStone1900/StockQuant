@@ -28,3 +28,13 @@ test("separates a recovered day from a continuously stable day", () => {
   assert.equal(result.observedDays, 1);
   assert.equal(result.dates[0].hadFailure, true);
 });
+
+test("does not downgrade a day whose temporary queue and gap both close", () => {
+  const result = summarizeObservations([
+    { capturedAt: "2026-09-18T06:47:46.000Z", subscription: { subscriptionId: "sub" }, observationCounted: false, status: "ACTIVE", runs: { total: 45, completed: 44, byStatus: [{ status: "COMPLETED", count: "44" }, { status: "QUEUED", count: "1" }] }, openGaps: 20, pendingOutbox: 0 },
+    { capturedAt: "2026-09-18T07:30:48.000Z", subscription: { subscriptionId: "sub" }, observationCounted: true, status: "ACTIVE", runs: { total: 48, completed: 48, byStatus: [{ status: "COMPLETED", count: "48" }] }, openGaps: 0, pendingOutbox: 0 }
+  ], { subscriptionId: "sub", targetDays: 20 });
+  assert.equal(result.completedDays, 1);
+  assert.equal(result.recoveredDays, 0);
+  assert.equal(result.dates[0].hadFailure, false);
+});

@@ -17,11 +17,16 @@ test("observation summarizes run and operational state", () => {
     artifactSummary: { artifactCount: 2, rowCount: 96, latestCreatedAt: "2026-09-14T01:00:00.000Z" },
     pendingOutbox: "1",
     openGaps: "3",
+    runDetails: [{ runId: "run-1", checkpoint: { attempts: [{ sourceId: "sina", status: "PASS" }] } }],
+    fieldEvidence: [{ securityId: "600000.SH", sourceId: "sina", open: 1 }],
   });
   assert.equal(report.runs.total, 3);
   assert.equal(report.runs.completed, 2);
   assert.equal(report.status, "ACTIVE");
   assert.equal(report.openGaps, 3);
+  assert.equal(report.schemaVersion, "dc08a-observation-v2");
+  assert.equal(report.runs.details[0].checkpoint.attempts[0].sourceId, "sina");
+  assert.equal(report.fieldEvidence[0].securityId, "600000.SH");
 });
 
 test("disabled service is not reported active", () => {

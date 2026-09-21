@@ -1,6 +1,6 @@
 # Mac M1开发、Ubuntu部署与运维设计
 
-状态：设计/NOT_RUN。依据[三版计划](../docs/prd/05-three-version-delivery.md)。
+状态：目标架构已确认，部署实证 NOT_RUN。依据[三版计划](../docs/prd/05-three-version-delivery.md)和 [ADR-0007](../docs/decisions/ADR-0007-v3-cpu-target-architecture.md)。
 
 ## 1. 运行单元
 
@@ -17,9 +17,9 @@ core/data/research为按能力启用的配置分组；stack:up --stage解析阶�
 
 ## 2. 双架构开发和发布
 
-Mac优先linux/arm64，固定Qlib/RD-Agent commit和各自依赖锁，在Linux编译扩展。源码可bind mount，虚拟环境和编译产物留容器；大数据用命名卷或对象存储并测I/O。
+Mac M1用于开发和小样本验证，优先linux/arm64；固定Qlib/RD-Agent commit和各自依赖锁，在Linux编译扩展。源码可bind mount，虚拟环境和编译产物留容器；大数据用命名卷或对象存储并测I/O。
 
-Ubuntu为x86时构建linux/amd64，为ARM则对应构建。ARM依赖失败时记录原因，选择AMD64小样本模拟或实际Ubuntu远程开发；不默认所有上游场景都原生支持。证据包含hostArchitecture/containerPlatform/emulated、镜像Digest。
+正式 Ubuntu 目标暂定为 x86_64，构建linux/amd64 CPU-only Controller、RD-Agent Runner和Qlib Runner。Mac上的amd64模拟只用于功能烟测；Ubuntu ARM64另行评估，不由本架构推定兼容。证据包含hostArchitecture/containerPlatform/emulated、镜像Digest。
 
 V1/V2目标架构烟测，V3必须实际Ubuntu安装/恢复/Qlib/真实RD-Agent/Web E2E及持续Paper。镜像迁移不搬运命名卷，数据/模型/配置与秘密引用分别恢复和验证。
 

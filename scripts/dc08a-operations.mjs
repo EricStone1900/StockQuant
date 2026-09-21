@@ -1,3 +1,5 @@
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { activate } from "./dc08a-activate.mjs";
 import { readActiveSubscription } from "./dc08a-active-subscription.mjs";
 import { coverage, coverageExitCode } from "./data-coverage.mjs";
@@ -10,7 +12,22 @@ import { createHealthReport } from "./dc08a-health-report.mjs";
 import { createObservationSummary } from "./dc08a-observation-summary.mjs";
 
 const todayShanghai = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
+const evidenceDirectory = (date) => resolve(process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", "dc-t19", date);
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function writeEvidenceJson(directory, name, value) {
+  await mkdir(directory, { recursive: true });
+  const path = resolve(directory, name);
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+  return path;
+}
+
+async function archiveReport(directory, sourcePath, name) {
+  await mkdir(directory, { recursive: true });
+  const path = resolve(directory, name);
+  await copyFile(sourcePath, path);
+  return path;
+}
 
 async function waitForHealthy(attempts = 20) {
   let final = await supervise({ mode: "check-only" });
@@ -28,7 +45,9 @@ export async function morningGuard() {
   const activation = check.status === "READY_TO_ENABLE" ? await activate() : check;
   const final = await waitForHealthy();
   const ok = activation.exitCode === 0 && final.state === "HEALTHY";
-  return { status: ok ? "READY" : "BLOCKED", repair, activation, final, exitCode: ok ? 0 : (activation.exitCode || final.exitCode || 2) };
+  const result = { status: ok ? "READY" : "BLOCKED", repair, activation, final, exitCode: ok ? 0 : (activation.exitCode || final.exitCode || 2) };
+  result.evidencePath = await writeEvidenceJson(evidenceDirectory(todayShanghai()), "morning.json", result);
+  return result;
 }
 
 export async function monitor({ recordGaps = false } = {}) {
@@ -38,23 +57,32 @@ export async function monitor({ recordGaps = false } = {}) {
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", hour12: false }).format(new Date()));
   if (!recordGaps && hour >= 18) return { status: "QUIET_AFTER_CLOSE", readiness, active, exitCode: 0 };
   const date = todayShanghai();
+  const archiveDir = evidenceDirectory(date);
   const report = await coverage({ subscriptionId: active.subscriptionId, fromDate: date, toDate: date, securityIds: active.securityIds, recordGaps });
   const deliveries = await drainCollectionOutbox({ subscriptionId: active.subscriptionId });
-  const observation = await capture({ subscriptionId: active.subscriptionId });
-  return { status: report.report.status, readiness, active, report: report.report, deliveries, observation: observation.report, exitCode: coverageExitCode(report.report) };
+  const observation = await capture({ subscriptionId: active.subscriptionId, archiveDir });
+  return { status: report.report.status, readiness, active, report: report.report, deliveries, observation: observation.report, evidence: { directory: archiveDir, observationPath: observation.archivePath }, exitCode: coverageExitCode(report.report) };
 }
 
 export async function endOfDay() {
   const monitored = await monitor({ recordGaps: true });
   if (monitored.exitCode === 1) return monitored;
+  const archiveDir = evidenceDirectory(todayShanghai());
   const report = await createDailyReport({ subscriptionId: monitored.active.subscriptionId, securityCount: monitored.active.securityIds.length });
-  const counted = await capture({ subscriptionId: monitored.active.subscriptionId, observationCounted: report.report.status === "PASS" && report.report.tradingDay === true });
+  const counted = await capture({ subscriptionId: monitored.active.subscriptionId, archiveDir, observationCounted: report.report.status === "PASS" && report.report.tradingDay === true });
   // Refresh derived evidence only after gap reconciliation and outbox delivery.
   // This keeps the daily report, health report and observation summary on the
   // same post-recovery view while preserving the earlier evidence files.
   const health = await createHealthReport({ activeSubscription: monitored.active.subscriptionId });
   const observations = await createObservationSummary({ subscriptionId: monitored.active.subscriptionId });
-  return { ...monitored, observation: counted.report, dailyReport: report.report, health: health.report, observationSummary: observations.summary, exitCode: finalReportExitCode(report.report) };
+  const evidence = {
+    directory: archiveDir,
+    observationPath: counted.archivePath,
+    dailyReportPath: await archiveReport(archiveDir, report.path, "daily-report.json"),
+    healthReportPath: await archiveReport(archiveDir, health.output, "health-report.json"),
+    observationSummaryPath: await archiveReport(archiveDir, observations.output, "observation-summary.json")
+  };
+  return { ...monitored, observation: counted.report, dailyReport: report.report, health: health.report, observationSummary: observations.summary, evidence, exitCode: finalReportExitCode(report.report) };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

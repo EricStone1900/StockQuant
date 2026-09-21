@@ -10,7 +10,7 @@
 
 复用已签署的小数据版本；真实模型调用先1～3轮、计算并发1。冻结训练/验证/测试区间及预热，研究晋升优先用未用于搜索的验证窗口/独立保留集，反复看过的测试集不能继续称未见测试集。
 
-Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD64作为目标Ubuntu为x86时的验证平台，Ubuntu ARM64则按实际目标调整。按[共同规则](../05-three-version-delivery.md)分别记录本地、模拟架构及真实Ubuntu证据。Web开发服务器可原生热更新，阶段验收必须覆盖容器服务。
+Mac M1用于开发和小样本验证，优先Linux ARM64容器；Mac上的Linux AMD64只做功能烟测。正式 Ubuntu 目标暂定为 x86_64，使用 Linux AMD64 CPU-only 镜像；Ubuntu ARM64需另行验证。按[共同规则](../05-three-version-delivery.md)分别记录本地、模拟架构及真实Ubuntu证据。Web开发服务器可原生热更新，阶段验收必须覆盖容器服务。
 
 ## 3. 阶段顺序
 

@@ -4,16 +4,30 @@ import { Pool } from "pg";
 import { InMemoryExperimentRepository } from "../adapters/in-memory-experiment-repository.js";
 import { PgExperimentRepository } from "../adapters/pg-experiment-repository.js";
 import { ExperimentIdempotencyConflict, ExperimentService } from "../application/experiment-service.js";
+import { loadResearchAutomationConfig } from "./config.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3008);
+const config = loadResearchAutomationConfig();
 const repository = process.env.STOCKQUANT_DATABASE_URL ? new PgExperimentRepository(new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL })) : new InMemoryExperimentRepository();
 if (repository instanceof PgExperimentRepository) await repository.initialize();
-const service = new ExperimentService(repository);
+const service = new ExperimentService(repository, config.maxExperimentBudgetCents);
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
 
 const server = createServer(async (req, res) => {
   if (req.url === "/live") return json(res, 200, { status: "live", service: "research-automation-service" });
-  if (req.url === "/ready") return json(res, 200, { status: "ready", service: "research-automation-service", runner: "NOT_CONFIGURED", modelGateway: "NOT_CONFIGURED" });
+  if (req.url === "/ready") return json(res, 200, {
+    status: "ready",
+    service: "research-automation-service",
+    environmentMode: config.environmentMode,
+    brokerMode: config.brokerMode,
+    runner: config.runnerMode,
+    modelGateway: config.modelGatewayMode,
+    model: { provider: config.chatProvider, name: config.chatModel, baseUrl: config.chatBaseUrl, credentialRef: config.chatCredentialRef },
+    embedding: { provider: config.embeddingProvider, name: config.embeddingModel, dimensions: config.embeddingDimensions, baseUrl: config.embeddingBaseUrl, credentialRef: config.embeddingCredentialRef },
+    outboundPolicy: config.outboundPolicy,
+    execution: { budgetCurrency: config.budgetCurrency, defaultRounds: config.defaultRounds, maxRounds: config.maxRounds, defaultBudgetCents: config.defaultBudgetCents, maxExperimentBudgetCents: config.maxExperimentBudgetCents, stageBudgetCents: config.stageBudgetCents, budgetWarningPercent: config.budgetWarningPercent, workerConcurrency: config.workerConcurrency },
+    prerequisiteStatus: config.prerequisiteStatus
+  });
   let raw = "";
   for await (const chunk of req) raw += chunk;
   try {
