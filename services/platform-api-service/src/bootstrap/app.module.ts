@@ -406,7 +406,6 @@ const V31_SCENARIOS = [
 
 @Controller("api/v1/acceptance/v3/v3.1")
 export class V31AcceptanceController {
-  private readonly runs = new Map<string, any>();
   constructor(private readonly container: PlatformContainer) {}
 
   @Get("scenarios") scenarios() { return V31_SCENARIOS; }
@@ -447,14 +446,25 @@ export class V31AcceptanceController {
       base.evidence.experiment = { first, second, cancelled };
     }
     base.status = base.assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
-    this.runs.set(testRunId, base);
+    await this.container.stageRuns.save({
+      testRunId,
+      stageId: "V3.1",
+      scenarioId,
+      scenarioVersion: "1.0.0",
+      ownerId,
+      status: base.status,
+      seed: base.seed,
+      assertions: base.assertions,
+      evidence: base.evidence,
+      namespace: `v3-1-${scenarioId}-${testRunId}`,
+    });
     return { accepted: true, testRunId, status: base.status };
   }
 
   @Get("runs/:testRunId")
-  get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
-    const ownerId = identity(cookie, testHeader); const run = this.runs.get(id);
-    if (!run || run.ownerId !== ownerId) throw new NotFoundException("V3.1 run was not found");
+  async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
+    const ownerId = identity(cookie, testHeader); const run = await this.container.stageRuns.find(id, ownerId);
+    if (!run || run.stageId !== "V3.1") throw new NotFoundException("V3.1 run was not found");
     return run;
   }
 }

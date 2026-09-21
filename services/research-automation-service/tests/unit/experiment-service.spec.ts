@@ -21,4 +21,10 @@ describe("V3.1 preparation service", () => {
     expect(cancelled?.status).toBe("CANCELLED");
     await expect(service.get(created.experiment.experimentId)).resolves.toMatchObject({ status: "CANCELLED" });
   });
+
+  it("rejects reusing an idempotency key with different inputs", async () => {
+    const service = new ExperimentService(new InMemoryExperimentRepository());
+    await service.create({ ...request, idempotencyKey: "service-test-conflict" });
+    await expect(service.create({ ...request, budgetCents: 101, idempotencyKey: "service-test-conflict" })).rejects.toThrow("idempotency key was reused");
+  });
 });

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { InMemoryExperimentRepository } from "../adapters/in-memory-experiment-repository.js";
 import { PgExperimentRepository } from "../adapters/pg-experiment-repository.js";
-import { ExperimentService } from "../application/experiment-service.js";
+import { ExperimentIdempotencyConflict, ExperimentService } from "../application/experiment-service.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3008);
 const repository = process.env.STOCKQUANT_DATABASE_URL ? new PgExperimentRepository(new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL })) : new InMemoryExperimentRepository();
@@ -32,7 +32,8 @@ const server = createServer(async (req, res) => {
     }
     return json(res, 404, { error: "not found" });
   } catch (error) {
-    return json(res, 422, { error: error instanceof Error ? error.message : "invalid request", traceId: randomUUID() });
+    const status = error instanceof ExperimentIdempotencyConflict ? 409 : 422;
+    return json(res, status, { error: error instanceof Error ? error.message : "invalid request", traceId: randomUUID() });
   }
 });
 

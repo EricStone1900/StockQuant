@@ -80,6 +80,7 @@ def main() -> int:
             backoff_seconds=float(request.get("backoffSeconds", 5)),
             health_path=request.get("healthPath") or os.environ.get("STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH") or "/var/lib/stockquant/source-health.json",
             backoff_jitter_seconds=float(request.get("backoffJitterSeconds", 0.5)),
+            cooldown_seconds=float(request.get("recoveryCooldownSeconds", os.environ.get("STOCKQUANT_COLLECTION_SOURCE_RECOVERY_COOLDOWN_SECONDS", 600))),
         )
         source_id, bars, attempts = collector.collect(security_ids, start, end)
         print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))

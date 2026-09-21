@@ -49,6 +49,8 @@
 
 2026-09-19 计划1～5执行复核：DC-08A 健康检查与活动订阅检查均 PASS，订阅仍为 `dc08a-20260917-20-v1`；因当天为交易日历 CLOSED，morning/monitor/eod 均正确返回 `NOT_RUN`，未虚增 V2.4 或 DC-08A 有效日，观察计数保持 V2.4 `4/20`、DC-08A `1/20`。V2.5 code suite 重新通过；BaoStock/Sina 5分钟历史能力探针 PASS（证据 `evidence/local/V2.5/minute-source-probe-20260919.json`，live session 仍 NOT_RUN）；BaoStock PIT 探针仍为 PARTIAL，财务/行业修订链和历史有效区间不足，不能解除 PIT 门禁。
 
+2026-09-21 观察口径修复与运行复核：自动化配置校验 `pnpm dc08a:verify-automation` 退出0；`dc08a:supervise -- --check-only` 返回 HEALTHY，20只证券顺序、唯一活动订阅 `dc08a-20260917-20-v1`、调度器/执行器均正常，下一触发为2026-09-22T01:37:00Z。观察汇总逻辑升级为 `dc08a-observation-summary-v2`：同一交易日只要历史观察快照曾出现未完成运行、FAILED/QUEUED 或开放缺口，即标记 `hadFailure=true`，即使盘后补齐也计入 `recoveredDays`，不计入连续稳定 `completedDays`。当前汇总为连续稳定日 `0/20`、恢复后完整日 `2`（2026-09-18、2026-09-21）、观察日 `2`；原始快照和盘后补采证据全部保留。单元测试3/3、`git diff --check`通过。下一实际交易日按DC-T19验证BaoStock故障→Sina切换→600秒冷却半开探测→成功切回，并逐日累计连续稳定观察。
+
 ## 3. 开发中断接续协议
 
 每完成一个子任务、遇到失败、切换工作包或结束工作时更新此文件：当前Git分支/commit及未提交文件、工作包/子任务、已执行命令/退出码、证据路径、运行ID、剩余任务、阻塞及下一条操作。计划更改先增加版本和变更原因；不得重编号已存在的测试/任务。
@@ -104,6 +106,14 @@
 2026-09-20 BaoStock 兼容性修复：适配器依赖由 `baostock==0.8.9` 升级至 `0.9.3`，`uv.lock` 与带哈希 `requirements.lock` 已同步；新版客户端登录验证返回成功。子进程边界现在将 BaoStock 原始 `errorCode` 传递到 `SourceError` 和熔断审计，便于区分登录、查询和网络错误。随后确认旧稳定性探针因遗漏 `get_row_data()` 将查询误判为超时，现已修正并新增分页游标测试；适配器同步兼容 0.9.3 的17位时间字段。
 
 2026-09-20 BaoStock 修复验收：两轮×三证券、2024-01-02至2024-03-29 的稳定性探针 6 次查询及恢复探针全部 `SUCCESS`，每次2,784条；容器正式适配器同窗口返回2,784条，时间戳为09:30–15:00，持久健康状态为 `CLOSED / failures=0`。能力探针三证券历史读取 `PASS`，但 `liveSession=NOT_RUN`；长期限频、真实交易时段观察和人工验收仍未签署。
+
+2026-09-21 DC-08A 故障恢复：当日 12 个五分钟窗口全部失败，数据库 checkpoint 均为 `Unexpected token 'l', "login fail"... is not valid JSON`；BaoStock 子进程的登录诊断写入适配器 stdout，破坏单 JSON 边界，使已配置的 Sina 备用源无法接管。将第三方 SDK 诊断定向到 stderr，并将半开熔断探针限制为单次尝试；适配器 unittest 37/37、Ruff、Linux ARM64 容器构建通过。容器内一只证券真实探针得到 BaoStock `TIMEOUT` 后 Sina `PASS`（48根）；受控恢复接口将 12 个失败运行逐一恢复，数据库 48/48 `COMPLETED`。重新执行 `pnpm dc08a:eod` 退出0：当日 960/960 根唯一 Bar、缺口0、重复0、待投递 Outbox 0，关闭旧缺口240，日报 `PASS`。修复后 BaoStock 熔断仍为 `OPEN`、最近错误 `TIMEOUT`，Sina 为 `CLOSED`；本次恢复依赖备用源，未证明 BaoStock 本身恢复。修复前覆盖/日报/健康快照保留为 `*-before-recovery.json`；这次补采不追认原定时执行成功，也不代替后续交易日的 BaoStock 稳定性观察或用户验收。
+
+2026-09-21 运维与 V3.1 执行：`pnpm dc08a:recover-failed -- --check-only --subscription dc08a-20260917-20-v1 --from 2026-09-21 --to 2026-09-21 --limit 20` 返回候选0，证明失败批次已收口且检查模式不产生新运行。`dc08a:eod` 现在在缺口关闭和 Outbox 投递后重新生成 health/observation summary；当日覆盖 960/960、缺口0、重复0、Outbox0、日报 PASS，观察摘要同步记录 2 个已完成日。V3.1 代码套件通过（contracts 21/21、research 单测5/5、PostgreSQL集成1/1、platform API 单测27/27、类型检查通过）；normal `290a08d0-93cc-4147-a072-a7e1f8bb8f8b`、rejection `fdb827dc-b426-48f5-981e-8825813caccf`、recovery `057bc825-9bc5-4b5a-8df5-9e2361dea2b0` 均 COMPLETED 且断言 PASS，normal 同 Run `check-only` PASS，Web Playwright 1/1 通过。V3.1 仍为准备阶段：真实模型凭证、隔离 Runner 和 OD-009 决策未完成，三个场景只证明 RESEARCH/FIXTURE/FAKE 的编排、LIVE 拒绝和取消幂等。
+
+2026-09-21 BaoStock 恢复策略优化：半开熔断冷却时间新增 `STOCKQUANT_COLLECTION_SOURCE_RECOVERY_COOLDOWN_SECONDS` 配置，Compose 默认600秒。BaoStock连续失败后仍由Sina立即接管；每个后续采集窗口最多触发一次半开探测，成功即关闭熔断并切回BaoStock，失败继续使用Sina，不启动独立高频重连线程。适配器单测38/38通过，容器内配置读取为600秒，重建后的market-data-service健康检查通过；该策略不改变当前BaoStock `OPEN/TIMEOUT`事实，仍需后续实际盘中窗口观察。
+
+2026-09-21 DC-T19 自动化接入：复用现有 `a-20` 心跳任务（工作日08:00–17:45，每15分钟），将DC-T19证据目录、BaoStock/Sina切换、600秒半开探测、切回/继续降级、延迟、原始字段和日终质量项加入任务提示；未创建重复任务，`dc08a`晨间守卫和`dc-08a-2`盘后任务保持不变。`pnpm dc08a:verify-automation` 返回PASS，服务健康和活动订阅复核通过。自动任务仍禁止删除数据、切换订阅、手工补采、启用LIVE或连接真实券商。
 
 2026-09-12：根据用户先完成本次任务再进入主项目的安排，明确开发范围与交付门槛；DC-08拆为A/B，新增DC-T25，本次开发与长期数据验收分别签署。未修改业务代码，未启动采集/调度，未暂停现有观察任务。下一动作仍为DC-00；等待交易日时仅推进本模块独立子项。
 

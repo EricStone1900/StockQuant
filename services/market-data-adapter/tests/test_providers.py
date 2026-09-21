@@ -1,12 +1,15 @@
 import json
+import io
 import os
+import sys
+import types
 import unittest
 import urllib.parse
 from unittest.mock import patch
 
 from market_data_adapter.cli import source_ids_from_request, wire_bar
 from market_data_adapter.failover import NormalizedBar, SourceError
-from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
+from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, _baostock_child, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
 
 
 class Response:
@@ -32,6 +35,26 @@ class Response:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_baostock_login_diagnostics_do_not_pollute_json_stdout(self):
+        class Output:
+            response = None
+
+            def put(self, value):
+                self.response = value
+
+        def login():
+            print("login failed: upstream unavailable")
+            return types.SimpleNamespace(error_code="10001011", error_msg="upstream unavailable")
+
+        output = Output()
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with patch.dict(sys.modules, {"baostock": types.SimpleNamespace(login=login)}), patch("sys.stdout", stdout), patch("sys.stderr", stderr):
+            _baostock_child(["sh.600000"], "2026-09-21", "2026-09-21", output)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("login failed", stderr.getvalue())
+        self.assertEqual(output.response["errorCode"], "10001011")
+
     def test_baostock_source_error_preserves_provider_error_code(self):
         failure = baostock_source_error({"error": "LOGIN_FAILED", "errorCode": "10002007", "message": "网络接收错误。"})
         self.assertEqual(failure.code, "10002007")

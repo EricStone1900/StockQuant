@@ -6,6 +6,8 @@ import { finalReportExitCode } from "./dc08a-eod-report.mjs";
 import { capture } from "./dc08a-observe.mjs";
 import { drainCollectionOutbox } from "./dc08a-drain-outbox.mjs";
 import { supervise } from "./dc08a-supervise.mjs";
+import { createHealthReport } from "./dc08a-health-report.mjs";
+import { createObservationSummary } from "./dc08a-observation-summary.mjs";
 
 const todayShanghai = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -47,7 +49,12 @@ export async function endOfDay() {
   if (monitored.exitCode === 1) return monitored;
   const report = await createDailyReport({ subscriptionId: monitored.active.subscriptionId, securityCount: monitored.active.securityIds.length });
   const counted = await capture({ subscriptionId: monitored.active.subscriptionId, observationCounted: report.report.status === "PASS" && report.report.tradingDay === true });
-  return { ...monitored, observation: counted.report, dailyReport: report.report, exitCode: finalReportExitCode(report.report) };
+  // Refresh derived evidence only after gap reconciliation and outbox delivery.
+  // This keeps the daily report, health report and observation summary on the
+  // same post-recovery view while preserving the earlier evidence files.
+  const health = await createHealthReport({ activeSubscription: monitored.active.subscriptionId });
+  const observations = await createObservationSummary({ subscriptionId: monitored.active.subscriptionId });
+  return { ...monitored, observation: counted.report, dailyReport: report.report, health: health.report, observationSummary: observations.summary, exitCode: finalReportExitCode(report.report) };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

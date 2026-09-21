@@ -149,7 +149,7 @@ class _Provider:
 
 
 class FailoverCollector:
-    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic, health_path: str | None = None, backoff_jitter_seconds: float = 0.0) -> None:
+    def __init__(self, providers: Sequence[tuple[str, SourceClient]], timeout_seconds: float = 30.0, max_attempts: int = 3, backoff_seconds: float = 5.0, sleeper: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic, health_path: str | None = None, backoff_jitter_seconds: float = 0.0, cooldown_seconds: float = 300.0) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
@@ -157,8 +157,9 @@ class FailoverCollector:
         self.clock = clock
         self.health_path = health_path
         self.backoff_jitter_seconds = max(0.0, backoff_jitter_seconds)
+        self.cooldown_seconds = max(0.0, float(cooldown_seconds))
         rate_path = f"{health_path}.rate" if health_path else None
-        self.providers = [_Provider(source, client, CircuitBreaker(clock=clock), RateLimiter(clock=clock, sleeper=sleeper, state_path=rate_path, key=f"rate:{source}")) for source, client in providers]
+        self.providers = [_Provider(source, client, CircuitBreaker(clock=clock, cooldown_seconds=self.cooldown_seconds), RateLimiter(clock=clock, sleeper=sleeper, state_path=rate_path, key=f"rate:{source}")) for source, client in providers]
         self._health_dirty: set[str] = set()
         self._load_health()
 
@@ -268,7 +269,11 @@ class FailoverCollector:
             except SourceError as error:
                 attempts.append({"sourceId": provider.source_id, "code": error.code, "retryable": error.retryable})
                 continue
-            for attempt in range(1, self.max_attempts + 1):
+            # A half-open probe only needs one bounded attempt. On failure,
+            # switch to the backup immediately instead of retrying the sick
+            # primary and delaying the current collection window.
+            attempt_limit = 1 if provider.breaker.state == "HALF_OPEN" else self.max_attempts
+            for attempt in range(1, attempt_limit + 1):
                 provider.limiter.wait()
                 try:
                     bars = provider.client.fetch(security_ids, start, end, self.timeout_seconds)
@@ -291,7 +296,7 @@ class FailoverCollector:
                     provider.last_error_code = error.code
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable})
-                    if not error.retryable or attempt == self.max_attempts:
+                    if not error.retryable or attempt == attempt_limit:
                         break
                     self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
                 except Exception as error:  # noqa: BLE001
@@ -300,7 +305,7 @@ class FailoverCollector:
                     provider.last_error_code = "ADAPTER_EXCEPTION"
                     self._health_dirty.add(provider.source_id)
                     attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
-                    if attempt < self.max_attempts:
+                    if attempt < attempt_limit:
                         self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
             if probe_guard is not None:
                 probe_guard.__exit__(None, None, None)

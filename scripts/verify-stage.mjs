@@ -31,8 +31,8 @@ async function waitForRun(id) {
   throw new Error(`timed out waiting 120s for ${id}`);
 }
 
-function runCommand(command, commandArgs) {
-  const result = spawnSync(command, commandArgs, { stdio: "inherit", env: process.env });
+function runCommand(command, commandArgs, extraEnv = {}) {
+  const result = spawnSync(command, commandArgs, { stdio: "inherit", env: { ...process.env, ...extraEnv } });
   return result.status ?? 1;
 }
 
@@ -86,15 +86,16 @@ async function runV2Stage() {
 async function runV31Stage() {
   const route = "/api/v1/acceptance/v3/v3.1/runs";
   if (value("--suite") === "code") {
-    for (const [command, commandArgs] of [
+    for (const [command, commandArgs, commandEnv] of [
       ["pnpm", ["contracts:check"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "test"]],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "test:integration"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation" }],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "test"]],
       ["pnpm", ["--filter", "@stockquant/web", "typecheck"]]
     ]) {
-      const exitCode = runCommand(command, commandArgs);
+      const exitCode = runCommand(command, commandArgs, commandEnv);
       if (exitCode !== 0) process.exit(exitCode);
     }
     return;

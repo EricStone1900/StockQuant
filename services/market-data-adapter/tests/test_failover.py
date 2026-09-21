@@ -83,6 +83,41 @@ class FailoverTests(unittest.TestCase):
         source, _, _ = collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
         self.assertEqual(source, "baostock")
 
+    def test_failed_half_open_probe_switches_to_backup_without_retry(self):
+        clock = [0.0]
+        primary = FakeSource([SourceError("TIMEOUT", "slow")] * 5)
+        backup = FakeSource([[bar("sina")]] * 2)
+        collector = FailoverCollector(
+            [("baostock", primary), ("sina", backup)],
+            max_attempts=3, backoff_seconds=0, sleeper=lambda _: None,
+            clock=lambda: clock[0],
+        )
+        collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+        self.assertEqual(primary.calls, 3)
+        clock[0] = 301.0
+        source, _, attempts = collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+        self.assertEqual(source, "sina")
+        self.assertEqual(primary.calls, 4)
+        self.assertEqual([attempt["sourceId"] for attempt in attempts], ["baostock", "sina"])
+
+    def test_recovery_cooldown_is_configurable(self):
+        clock = [0.0]
+        primary = FakeSource([SourceError("TIMEOUT", "slow")] * 3 + [[bar("baostock")]])
+        collector = FailoverCollector(
+            [("baostock", primary)], max_attempts=1, backoff_seconds=0,
+            sleeper=lambda _: None, clock=lambda: clock[0], cooldown_seconds=600,
+        )
+        for _ in range(3):
+            with self.assertRaises(AllSourcesFailed):
+                collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+        clock[0] = 599
+        with self.assertRaises(AllSourcesFailed) as failure:
+            collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+        self.assertEqual(failure.exception.attempts[0]["code"], "CIRCUIT_OPEN")
+        clock[0] = 600
+        source, _, _ = collector.collect(["600000.SH"], "2026-09-11", "2026-09-11")
+        self.assertEqual(source, "baostock")
+
     def test_empty_or_mismatched_bars_are_not_accepted(self):
         primary = FakeSource([[]])
         backup = FakeSource([[bar("wrong-source")]])

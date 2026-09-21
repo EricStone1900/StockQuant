@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import multiprocessing as mp
+import sys
 import urllib.parse
 import urllib.request
+from contextlib import redirect_stdout
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from queue import Empty
@@ -165,34 +167,38 @@ def _normalize_baostock_result(code: str, rows: Sequence[Sequence[str]]) -> list
 
 
 def _baostock_child(codes: Sequence[str], start: str, end: str, output: Any) -> None:
-    try:
-        import baostock as bs  # type: ignore[import-not-found,import-untyped]
-        login = bs.login()
-        if login.error_code != "0":
-            output.put({"error": "LOGIN_FAILED", "errorCode": login.error_code, "message": login.error_msg})
-            return
+    # BaoStock prints login/logout diagnostics. A spawned worker inherits the
+    # CLI's stdout, which must contain exactly one JSON response for the TS
+    # executor. Keep SDK diagnostics on stderr even when login fails.
+    with redirect_stdout(sys.stderr):
         try:
-            results: dict[str, Any] = {}
-            for code in codes:
-                query = bs.query_history_k_data_plus(code, FIELDS, start_date=start, end_date=end, frequency="5", adjustflag="3")
-                rows: list[list[str]] = []
-                while True:
-                    if not query.next():
-                        break
-                    row = query.get_row_data()
-                    if not isinstance(row, (list, tuple)) or len(row) != len(FIELDS.split(",")):
-                        output.put({"error": "PAGINATION_INVALID", "code": code, "message": "BaoStock returned a malformed row"})
+            import baostock as bs  # type: ignore[import-not-found,import-untyped]
+            login = bs.login()
+            if login.error_code != "0":
+                output.put({"error": "LOGIN_FAILED", "errorCode": login.error_code, "message": login.error_msg})
+                return
+            try:
+                results: dict[str, Any] = {}
+                for code in codes:
+                    query = bs.query_history_k_data_plus(code, FIELDS, start_date=start, end_date=end, frequency="5", adjustflag="3")
+                    rows: list[list[str]] = []
+                    while True:
+                        if not query.next():
+                            break
+                        row = query.get_row_data()
+                        if not isinstance(row, (list, tuple)) or len(row) != len(FIELDS.split(",")):
+                            output.put({"error": "PAGINATION_INVALID", "code": code, "message": "BaoStock returned a malformed row"})
+                            return
+                        rows.append([str(value) for value in row])
+                    if query.error_code != "0":
+                        output.put({"error": "QUERY_FAILED", "code": code, "errorCode": query.error_code, "message": query.error_msg})
                         return
-                    rows.append([str(value) for value in row])
-                if query.error_code != "0":
-                    output.put({"error": "QUERY_FAILED", "code": code, "errorCode": query.error_code, "message": query.error_msg})
-                    return
-                results[code] = rows
-            output.put({"results": results})
-        finally:
-            bs.logout()
-    except Exception as error:  # noqa: BLE001
-        output.put({"error": "ADAPTER_EXCEPTION", "message": repr(error)})
+                    results[code] = rows
+                output.put({"results": results})
+            finally:
+                bs.logout()
+        except Exception as error:  # noqa: BLE001
+            output.put({"error": "ADAPTER_EXCEPTION", "message": repr(error)})
 
 
 def baostock_source_error(response: dict[str, Any]) -> SourceError:
