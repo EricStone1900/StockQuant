@@ -1,6 +1,6 @@
 # V3.1 并行准备证据
 
-日期：2026-09-21（Asia/Shanghai）
+日期：2026-09-22（Asia/Shanghai）
 阶段：V3.1 真实 RD-Agent 小样本实验闭环  
 准备结论：`PREPARATION_READY_WITH_BLOCKERS`  
 真实阶段结论：`NOT_RUN`
@@ -19,16 +19,16 @@
 | V3.1 code suite | PASS | `pnpm verify:stage -- --stage V3.1 --suite code`；契约21/21、research 单元5/5、PostgreSQL 集成1/1、platform API 单元27/27、Web 类型检查均通过 |
 | 真实 RD-Agent 闭环 | NOT_RUN | 当前服务只执行 V3.1 前置编排和 V1.2/V2.3 兼容边界，不执行真实模型调用 |
 | Web V3.1 页面/验收路由 | PASS（准备范围） | `/acceptance/v3/v3.1` 已接入平台 API；Playwright 1/1 实际点击并检查前置检查、LIVE 拒绝、取消与幂等恢复场景 |
-| 隔离 Runner | BLOCKED | 当前没有 V3.1 Runner 镜像或资源策略 |
+| 隔离 Runner | PASS（CPU-only smoke） | `evidence/local/V3.1/runner-image-2026-09-22.json`；Linux amd64 镜像、冻结 RD-Agent/Qlib、无网络/无 Socket/密钥剥离 smoke 通过 |
 | TestRun 持久化与复核 | PASS（准备范围） | normal `290a08d0-93cc-4147-a072-a7e1f8bb8f8b`；同一 Run `--check-only` 返回 COMPLETED/PASS，未创建新实验 |
 | 取消与幂等恢复 | PASS（准备范围） | recovery `057bc825-9bc5-4b5a-8df5-9e2361dea2b0`；重复幂等键返回同一 experimentId，取消状态为 `CANCELLED` |
 
 ## 当前前置门禁
 
-- `OD-009` 整体仍未关闭：RD-Agent source commit、模型 Provider、预算已冻结；凭证、外发限制和 Runner 兼容性仍待完成。
-- V3.1 的正式研究页面、Artifact 引用和 Runner 协议尚未实现；当前验收页面和 TestRun 准备编排已建立，实验请求的 PostgreSQL 持久化边界已建立，但不会自行启动 Runner。
-- 本轮已在本机 Docker Compose 中启动研究服务、平台 API 和 Web，并完成 V3.1 Web E2E 与 PostgreSQL 集成测试；这不等同于容器化 RD-Agent/Qlib 真实运行通过。
-- 真实模型调用、Runner 沙箱和资源隔离仍未运行；当前环境只验证编排、边界拒绝、持久化和取消恢复。
+- `OD-009` 整体仍未关闭：RD-Agent source commit、模型 Provider、预算已冻结；凭证、外发限制、原生 Ubuntu 兼容性和控制器接线仍待完成。
+- V3.1 的正式研究页面和 Artifact 持久化尚未实现；Runner 任务协议、校验边界和 CPU-only smoke 已建立，实验请求的 PostgreSQL 持久化边界已建立，但不会自行启动 Runner。
+- 本轮已在本机 Docker Compose 中启动研究服务、平台 API 和 Web，并完成 V3.1 Web E2E 与 PostgreSQL 集成测试；amd64 Runner 仅完成 Docker Desktop smoke，不等同于原生 Ubuntu 运行通过。
+- 真实模型调用、控制器到 Runner 的正式编排、OOM/超时和预算故障仍未运行；当前 Runner smoke 只验证导入、密钥剥离、Socket 缺失和输出写入。
 - 当前证据只证明 Fixture/现有量化服务的准备状态，不证明真实模型生成、真实 RD-Agent、沙箱拒绝或资源隔离。
 
 ## 下一步可并行执行
@@ -37,7 +37,7 @@
 2. 在现有 S0 切片上补齐 TestRun 编排、Artifact 引用和控制器/Runner 端口。
 3. 保持 `/acceptance/v3/v3.1` 与同一 TestRun API 的 normal/rejection/recovery 回归，发现持久化或幂等回归时先修复。
 4. 以当前 manifest 为输入继续运行无模型的编排/拒绝/恢复测试；获得凭证后再执行真实模型闭环。
-5. 在目标 Linux 容器中构建并验证固定 RD-Agent、Qlib 和 Runner 镜像，记录 digest、资源限制和权限拒绝证据。
+5. 在原生 Ubuntu x86_64 重放镜像构建与同一 runtime policy，再执行控制器编排、越权/网络/OOM/超时和预算故障证据。
 
 ## 2026-09-21 配置准备复核
 
@@ -82,6 +82,12 @@
 ## 2026-09-22 执行复核
 
 `pnpm verify:stage -- --stage V3.1 --suite code` 继续通过：研究服务类型检查、单元测试 11/11、PostgreSQL 集成 1/1、平台 API 单元测试 28/28、Web 类型检查和契约检查均通过。当前运行配置仍为 `RUNNER_MODE=NOT_CONFIGURED`、`MODEL_GATEWAY_MODE=NOT_CONFIGURED`，所以本次只更新准备范围证据，不改变真实闭环 `NOT_RUN`、OD-009 或人工验收状态。
+
+## 2026-09-22 CPU Runner 镜像复核
+
+`services/research-automation-service/runner/` 新增 CPU-only Runner Dockerfile、70 包哈希依赖锁、冻结版本清单和受限入口。镜像 `sha256:9752c80d5b7a40d6f327888b5d9bca06c0996a1ce7507ce99410b138fe0f169e` 为 `linux/amd64`，基础镜像摘要、RD-Agent `274e274d...`、Qlib `3e72593b...` 和资源策略均记录在 [`runner-image-2026-09-22.json`](../evidence/local/V3.1/runner-image-2026-09-22.json)。
+
+受限 smoke 使用 `--network none`、只读根文件系统、`cap-drop ALL`、`no-new-privileges`、2 CPU、2 GiB、128 PIDs 和 `10001:10001` 用户运行，通过了 Qlib/RD-Agent 导入、Docker Socket 缺失、继承密钥剥离与 V3.1 输出写入。该结果来自 Docker Desktop 的 amd64 模拟，不能替代原生 Ubuntu、真实模型调用或完整 RD-Agent 闭环。
 
 ## 2026-09-21 启动前置审计
 
