@@ -30,6 +30,33 @@ export type ObservationRecord = {
   evidence: Record<string, unknown>;
 };
 
+export type ObservationFinalization = {
+  observationDate: string;
+  finalizedAt: string;
+  observationCounted: boolean;
+  record: ObservationRecord;
+  sourceEventId: string;
+};
+
+export type ObservationSummary = {
+  targetDays: number;
+  countedDays: number;
+  remainingDays: number;
+  status: "WAITING" | "PASS";
+  dates: ObservationFinalization[];
+};
+
+export function summarizeObservationFinalizations(dates: ObservationFinalization[], targetDays = 20): ObservationSummary {
+  const countedDays = dates.filter((item) => item.observationCounted).length;
+  return {
+    targetDays,
+    countedDays,
+    remainingDays: Math.max(0, targetDays - countedDays),
+    status: countedDays >= targetDays ? "PASS" : "WAITING",
+    dates,
+  };
+}
+
 export class PostgresV24ObservationRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -191,5 +218,24 @@ export class PostgresV24ObservationRepository {
   async listEvents(limit = 1000): Promise<Array<{ recordedAt: string; record: ObservationRecord }>> {
     const result = await this.pool.query("SELECT recorded_at, record FROM v24_observation_events ORDER BY recorded_at DESC LIMIT $1", [limit]);
     return result.rows.map((row) => ({ recordedAt: row.recorded_at.toISOString(), record: row.record as ObservationRecord }));
+  }
+
+  async listFinalizations(limit = 30): Promise<ObservationFinalization[]> {
+    const result = await this.pool.query("SELECT observation_date, finalized_at, final_observation_counted, final_record, source_event_id FROM v24_observation_day_finalizations ORDER BY observation_date DESC LIMIT $1", [limit]);
+    return result.rows.map((row) => ({
+      observationDate: row.observation_date.toISOString().slice(0, 10),
+      finalizedAt: row.finalized_at.toISOString(),
+      observationCounted: row.final_observation_counted === true,
+      record: row.final_record as ObservationRecord,
+      sourceEventId: row.source_event_id,
+    }));
+  }
+
+  async observationSummary(targetDays = 20): Promise<ObservationSummary> {
+    // Finalizations also contain closed calendar days. Read the bounded audit
+    // history rather than only the newest targetDays rows, otherwise weekends
+    // and holidays could hide older valid trading days from the gate.
+    const dates = await this.listFinalizations(5000);
+    return summarizeObservationFinalizations(dates, targetDays);
   }
 }

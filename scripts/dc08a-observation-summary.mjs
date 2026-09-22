@@ -35,7 +35,8 @@ export function summarizeObservations(observations, { subscriptionId, targetDays
   const dates = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   const completedDays = dates.filter((item) => item.complete && !item.hadFailure).length;
   const recoveredDays = dates.filter((item) => item.complete && item.hadFailure).length;
-  return { schemaVersion: "dc08a-observation-summary-v2", subscriptionId: subscriptionId ?? null, targetDays, completedDays, recoveredDays, observedDays: completedDays + recoveredDays, remainingDays: Math.max(0, targetDays - completedDays), status: completedDays >= targetDays ? "PASS" : "WAITING", dates, latest: dates.at(-1) ?? null };
+  const observedDays = completedDays + recoveredDays;
+  return { schemaVersion: "dc08a-observation-summary-v2", subscriptionId: subscriptionId ?? null, targetDays, completedDays, recoveredDays, observedDays, remainingDays: Math.max(0, targetDays - observedDays), status: observedDays >= targetDays ? "PASS" : "WAITING", dates, latest: dates.at(-1) ?? null };
 }
 
 export async function createObservationSummary({ inputDir = "evidence/dc08a", output = "evidence/dc08a/observation-summary.json", subscriptionId = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260917-20-v1", targetDays = Number(process.env.DC08A_OBSERVATION_TARGET_DAYS ?? 20) } = {}) {

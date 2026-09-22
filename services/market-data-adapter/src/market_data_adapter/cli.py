@@ -22,7 +22,7 @@ def source_ids_from_request(request: dict[str, Any]) -> list[str]:
     if "sources" in request:
         configured_sources = request["sources"]
     else:
-        configured_sources = os.environ.get("STOCKQUANT_COLLECTION_SOURCES", "baostock,sina")
+        configured_sources = os.environ.get("STOCKQUANT_COLLECTION_SOURCES", "sina,baostock")
     if isinstance(configured_sources, str):
         source_ids: Any = [item.strip().lower() for item in configured_sources.split(",")]
     else:

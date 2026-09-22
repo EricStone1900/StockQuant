@@ -223,6 +223,7 @@ export class V24AcceptanceController {
   @Get("preview") preview() { return { stageId: "V2.4", environmentMode: "PAPER", dataMode: "LIVE_SOURCE_SMOKE", brokerMode: "FAKE", samplingIntervalMinutes: 30, executionWindow: "09:31-09:35", observationDays: 0, liveTradingEnabled: false }; }
   @Get("scheduler/status") schedulerStatus() { return this.scheduler.status(); }
   @Get("observations") observations() { return this.container.v24Observation.listObservations(); }
+  @Get("observation-summary") observationSummary() { return this.container.v24Observation.observationSummary(20); }
   @Get("observation-events") observationEvents(@Query("limit") limit?: string) { const parsed = Number(limit); return this.container.v24Observation.listEvents(Number.isFinite(parsed) && parsed > 0 ? Math.min(5000, Math.floor(parsed)) : 1000); }
   @Post("scheduler/start") @HttpCode(202) async schedulerStart() { return { accepted: true, scheduler: await this.scheduler.start() }; }
   @Post("scheduler/stop") async schedulerStop() { return this.scheduler.stop(); }

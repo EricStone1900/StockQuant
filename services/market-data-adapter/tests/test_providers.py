@@ -79,6 +79,10 @@ class ProviderTests(unittest.TestCase):
         with patch.dict(os.environ, {"STOCKQUANT_COLLECTION_SOURCES": "eastmoney,sina"}):
             self.assertEqual(source_ids_from_request({}), ["eastmoney", "sina"])
 
+    def test_source_selection_defaults_to_verified_intraday_backup_first_order(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(source_ids_from_request({}), ["sina", "baostock"])
+
     def test_source_selection_rejects_non_strings_unknown_and_duplicate_values(self):
         for value in (["sina", "sina"], ["unknown"], [1]):
             with self.subTest(value=value), self.assertRaises(SourceError) as failure:

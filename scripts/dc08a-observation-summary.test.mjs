@@ -26,6 +26,7 @@ test("separates a recovered day from a continuously stable day", () => {
   assert.equal(result.completedDays, 0);
   assert.equal(result.recoveredDays, 1);
   assert.equal(result.observedDays, 1);
+  assert.equal(result.remainingDays, 19);
   assert.equal(result.dates[0].hadFailure, true);
 });
 

@@ -41,7 +41,11 @@ export class PersistentCollectionSchedulerWorker {
 
   start(intervalMs = 60_000): void {
     if (this.timer) return;
+    // Establish a real post-restart health snapshot immediately. Waiting for
+    // the first interval made a healthy worker appear stale after every
+    // container restart, even though the durable schedule was available.
     this.timer = setInterval(() => { void this.tick(); }, intervalMs);
+    void this.tick();
   }
 
   async stop(): Promise<void> {

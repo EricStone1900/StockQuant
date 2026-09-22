@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "dc08a-health-v2",
+  "capturedAt": "2026-09-22T09:45:41.003Z",
+  "status": "UNHEALTHY",
+  "activeSubscription": "dc08a-20260917-20-v1",
+  "ready": {
+    "status": "ready",
+    "persistence": "POSTGRES",
+    "scheduler": "ENABLED",
+    "executor": "ENABLED"
+  },
+  "scheduler": {
+    "status": "ENABLED",
+    "lastSuccessfulTickAt": "2026-09-22T09:45:25.491Z",
+    "nextExecutionAt": "2026-09-23T01:37:00.000Z",
+    "lastSubmitted": 0,
+    "tickAgeSeconds": 15.512
+  },
+  "sources": [
+    {
+      "sourceId": "baostock",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "OPEN",
+      "failures": 92,
+      "lastSuccessAt": 1789904844.2521365,
+      "lastFailureAt": 1790060012.7247427,
+      "lastErrorCode": "EMPTY_RESULT"
+    },
+    {
+      "sourceId": "sina",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1790060614.3604417,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "eastmoney",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    }
+  ],
+  "quality": {
+    "openGaps": 0,
+    "pendingOutbox": 0
+  },
+  "checks": {
+    "recentSuccessRecorded": true,
+    "nextTriggerRecorded": true,
+    "sourceReady": false,
+    "qualityReady": true
+  }
+}

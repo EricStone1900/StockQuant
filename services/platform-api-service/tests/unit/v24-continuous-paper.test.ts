@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { V24ContinuousPaperEngine } from "../../src/application/v24-continuous-paper.js";
 import { ContinuousPaperScheduler, type Clock } from "../../src/application/v24-scheduler.js";
 import { shouldCountDailyObservation } from "../../src/application/v24-live-observation.js";
+import { summarizeObservationFinalizations, type ObservationFinalization } from "../../src/adapters/postgres-v24-observation-repository.js";
 
 describe("V2.4 continuous paper scenarios", () => {
   const engine = new V24ContinuousPaperEngine();
@@ -34,5 +35,13 @@ describe("V2.4 continuous paper scenarios", () => {
     expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [] })).toBe(true);
     expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"] })).toBe(false);
     expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "SAMPLING_SLOT", reconciliationStatus: "PASS", errors: [] })).toBe(false);
+  });
+
+  it("counts immutable end-of-day finalizations even when a later recovery event exists", () => {
+    const finalizations = [
+      { observationDate: "2026-09-21", observationCounted: true },
+      { observationDate: "2026-09-20", observationCounted: false },
+    ] as ObservationFinalization[];
+    expect(summarizeObservationFinalizations(finalizations, 20)).toMatchObject({ countedDays: 1, remainingDays: 19, status: "WAITING" });
   });
 });

@@ -107,6 +107,10 @@ test("V2.3 long replay pauses and resumes from a committed checkpoint", async ({
 test("V2.4 continuous paper page shows stale and recovery evidence", async ({ page }) => {
   await page.goto("/acceptance/v2/v2.4");
   await expect(page.getByRole("heading", { name: "V2.4 真实时钟下持续模拟交易" })).toBeVisible();
+  await page.getByRole("button", { name: "查看日终观察进度" }).click();
+  await expect(page.getByTestId("v24-observed-days")).toContainText("6/20");
+  await expect(page.getByTestId("v24-remaining-days")).toHaveText("14");
+  await expect(page.getByTestId("v24-observation-status")).toHaveText("WAITING");
   await page.getByRole("button", { name: "运行陈旧/重复拒绝" }).click();
   await expect(page.getByTestId("v24-evidence")).toContainText("STALE_SNAPSHOT");
   await page.getByRole("button", { name: "运行断网恢复" }).click();

@@ -1,8 +1,13 @@
 {
-  "schemaVersion": "dc08a-health-v2",
-  "capturedAt": "2026-09-21T12:28:02.845Z",
-  "status": "UNHEALTHY",
+  "schemaVersion": "dc08a-health-v3",
+  "capturedAt": "2026-09-22T12:00:07.165Z",
+  "status": "HEALTHY",
   "activeSubscription": "dc08a-20260917-20-v1",
+  "calendar": {
+    "status": "TRADING",
+    "calendarVersion": "sse-cn-a-share-2026-1",
+    "sourceFreshnessExpected": false
+  },
   "ready": {
     "status": "ready",
     "persistence": "POSTGRES",
@@ -11,10 +16,10 @@
   },
   "scheduler": {
     "status": "ENABLED",
-    "lastSuccessfulTickAt": "2026-09-21T12:27:15.745Z",
-    "nextExecutionAt": "2026-09-22T01:37:00.000Z",
+    "lastSuccessfulTickAt": "2026-09-22T11:59:42.198Z",
+    "nextExecutionAt": "2026-09-23T01:37:00.000Z",
     "lastSubmitted": 0,
-    "tickAgeSeconds": 47.1
+    "tickAgeSeconds": 24.967
   },
   "sources": [
     {
@@ -22,10 +27,10 @@
       "kind": "MINUTE_BAR",
       "enabled": true,
       "circuit": "OPEN",
-      "failures": 76,
+      "failures": 92,
       "lastSuccessAt": 1789904844.2521365,
-      "lastFailureAt": 1789987947.9638405,
-      "lastErrorCode": "TIMEOUT"
+      "lastFailureAt": 1790060012.7247427,
+      "lastErrorCode": "EMPTY_RESULT"
     },
     {
       "sourceId": "sina",
@@ -33,7 +38,7 @@
       "enabled": true,
       "circuit": "CLOSED",
       "failures": 0,
-      "lastSuccessAt": 1789988155.3330026,
+      "lastSuccessAt": 1790060614.3604417,
       "lastFailureAt": null,
       "lastErrorCode": null
     },
@@ -55,7 +60,7 @@
   "checks": {
     "recentSuccessRecorded": true,
     "nextTriggerRecorded": true,
-    "sourceReady": false,
+    "sourceReady": true,
     "qualityReady": true
   }
 }

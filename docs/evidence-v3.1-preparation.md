@@ -66,6 +66,10 @@
 
 以上准备不修改 V3.1 验收表的人工签署或真实闭环结论。
 
+## 2026-09-22 执行复核
+
+`pnpm verify:stage -- --stage V3.1 --suite code` 继续通过：研究服务类型检查、单元测试 11/11、PostgreSQL 集成 1/1、平台 API 单元测试 28/28、Web 类型检查和契约检查均通过。当前运行配置仍为 `RUNNER_MODE=NOT_CONFIGURED`、`MODEL_GATEWAY_MODE=NOT_CONFIGURED`，所以本次只更新准备范围证据，不改变真实闭环 `NOT_RUN`、OD-009 或人工验收状态。
+
 ## 2026-09-21 启动前置审计
 
 | 检查项 | 当前结果 | 后续动作 |
