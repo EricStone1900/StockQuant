@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import { InMemoryExperimentRepository } from "../adapters/in-memory-experiment-repository.js";
 import { PgExperimentRepository } from "../adapters/pg-experiment-repository.js";
 import { ExperimentIdempotencyConflict, ExperimentService } from "../application/experiment-service.js";
+import { validateArtifactRef, validateRunnerJob } from "../application/v31-runtime-guards.js";
 import { loadResearchAutomationConfig } from "./config.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3008);
@@ -34,6 +35,14 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/v1/experiments") {
       const result = await service.create(JSON.parse(raw));
       return json(res, result.existing ? 200 : 202, result.experiment);
+    }
+    if (req.method === "POST" && req.url === "/v1/runner/jobs/validate") {
+      validateRunnerJob(JSON.parse(raw));
+      return json(res, 200, { status: "VALID", execution: "NOT_STARTED", runner: config.runnerMode });
+    }
+    if (req.method === "POST" && req.url === "/v1/artifacts/validate") {
+      validateArtifactRef(JSON.parse(raw));
+      return json(res, 200, { status: "VALID", persisted: false, reason: "validation-only boundary" });
     }
     const match = req.url?.match(/^\/v1\/experiments\/([^/]+)(\/cancel)?$/);
     if (match && req.method === "GET" && !match[2]) {

@@ -64,6 +64,19 @@
 
 这些证据只证明安全配置门禁、编排、拒绝和恢复准备可用；OD-009 整体仍未关闭，V3.1 真实闭环仍为 `NOT_RUN`。
 
+## 2026-09-22 运行边界实现复核
+
+新增 `v31-runtime-guards`：Runner Job 校验不可变 `sha256` 镜像、`testRunId/experimentId` 隔离 namespace、CPU/内存/超时/PID 正整数资源和 DENY/ALLOWLIST 网络策略；ArtifactRef 校验研究 namespace、输入/输出目录和 SHA-256；BudgetLedger 校验单实验硬上限、阶段预算、80% 警告阈值，并将未知实际费用标记为 `UNKNOWN`，不得自动重试。
+
+| 检查 | 结果 | 证据 |
+|---|---|---|
+| runtime guard 单元测试 | PASS | research-automation-service 4 个测试文件、15/15；含跨 run、可变 digest、错误 namespace、未知费用和阶段预算耗尽 |
+| Runner 校验 HTTP 边界 | PASS（validation-only） | `POST /v1/runner/jobs/validate` 返回 `VALID`、`execution=NOT_STARTED` |
+| Artifact 校验 HTTP 边界 | PASS（validation-only） | `POST /v1/artifacts/validate` 返回 `VALID`、`persisted=false` |
+| 容器运行门禁 | 仍阻塞 | `/ready` 为 `runner=NOT_CONFIGURED`、`modelGateway=NOT_CONFIGURED`、`PENDING_PREREQUISITES` |
+
+本次只完成可验证的安全边界和预算规则，未声称真实 Runner、真实模型调用、Artifact 持久化或 Ubuntu 运行已通过。
+
 以上准备不修改 V3.1 验收表的人工签署或真实闭环结论。
 
 ## 2026-09-22 执行复核
