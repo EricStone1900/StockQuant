@@ -93,6 +93,8 @@
 
 宿主适配 smoke `pnpm v31:runner-smoke` 已通过：先核对本地 Runner image ID，再使用 `--pull=never` 和同一资源/网络策略启动；normal 容器返回 `COMPLETED/0`，Qlib `0.9.6.99`、RD-Agent 导入、网络拒绝、Socket 缺失、密钥剥离和输出写入均通过；timeout 与路径越权场景返回 `REJECTED`；独立 128MiB cgroup 场景按预期以 OOM 退出。该 smoke 仍运行于 Mac Docker Desktop 的 amd64 模拟环境，不代表原生 Ubuntu 或真实模型闭环。
 
+模型网关 preflight 已接入 `/ready` 的 `modelGatewayPreflight` 字段和 `GET /v1/model-gateway/preflight`。重建后的研究服务实测返回 `BLOCKED`、`modelCalls=NOT_RUN`，缺失项包括 `ISOLATED` Runner、LIVE 网关模式、两项凭证和两个 Provider 精确主机 allowlist；接口不发送模型请求，也不返回凭证值。
+
 ## 2026-09-21 启动前置审计
 
 | 检查项 | 当前结果 | 后续动作 |

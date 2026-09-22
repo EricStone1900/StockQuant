@@ -16,6 +16,8 @@ pnpm --filter @stockquant/research-automation-service test:integration
 
 `src/application/v31-runner-launch.ts` 现在提供无副作用的受控 Docker 启动计划：固定 `linux/amd64`、`network none`、只读根文件系统、无能力、非 root、CPU/内存/PID 限制和仅输入/输出两个挂载；它只接受 `image@sha256`，拒绝 ALLOWLIST（尚未实现域名级网络隔离），且不会携带继承环境或 Docker Socket。实际执行仍需部署在可信宿主适配器中，API 容器不挂载 Docker Socket。
 
+`GET /v1/model-gateway/preflight` 和 `/ready.modelGatewayPreflight` 只检查模式、凭证引用是否存在和 Provider 主机是否精确命中外发 allowlist，不发送模型请求，也不返回凭证值。默认环境会明确返回 `BLOCKED`/`modelCalls=NOT_RUN`。
+
 当前容器仍明确报告 `runner=NOT_CONFIGURED`、`modelGateway=NOT_CONFIGURED` 和 `PENDING_PREREQUISITES`。真实 RD-Agent、模型网关、Artifact 持久化和 Ubuntu Runner 验收不能用这些校验接口替代。
 
 集成测试需要设置 `RESEARCH_AUTOMATION_DATABASE_URL`，只使用唯一测试 `experiment_id`，结束后删除本次测试行，不清理共享数据库或数据卷。

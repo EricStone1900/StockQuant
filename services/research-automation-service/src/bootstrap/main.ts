@@ -5,6 +5,7 @@ import { InMemoryExperimentRepository } from "../adapters/in-memory-experiment-r
 import { PgExperimentRepository } from "../adapters/pg-experiment-repository.js";
 import { ExperimentIdempotencyConflict, ExperimentService } from "../application/experiment-service.js";
 import { validateArtifactRef, validateRunnerJob } from "../application/v31-runtime-guards.js";
+import { evaluateModelGatewayPreflight } from "../application/v31-model-gateway-preflight.js";
 import { loadResearchAutomationConfig } from "./config.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3008);
@@ -12,6 +13,10 @@ const config = loadResearchAutomationConfig();
 const repository = process.env.STOCKQUANT_DATABASE_URL ? new PgExperimentRepository(new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL })) : new InMemoryExperimentRepository();
 if (repository instanceof PgExperimentRepository) await repository.initialize();
 const service = new ExperimentService(repository, config.maxExperimentBudgetCents);
+const modelGatewayPreflight = () => evaluateModelGatewayPreflight(config, {
+  [config.chatCredentialRef]: process.env[config.chatCredentialRef],
+  [config.embeddingCredentialRef]: process.env[config.embeddingCredentialRef],
+});
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
 
 const server = createServer(async (req, res) => {
@@ -27,7 +32,8 @@ const server = createServer(async (req, res) => {
     embedding: { provider: config.embeddingProvider, name: config.embeddingModel, dimensions: config.embeddingDimensions, baseUrl: config.embeddingBaseUrl, credentialRef: config.embeddingCredentialRef },
     outboundPolicy: config.outboundPolicy,
     execution: { budgetCurrency: config.budgetCurrency, defaultRounds: config.defaultRounds, maxRounds: config.maxRounds, defaultBudgetCents: config.defaultBudgetCents, maxExperimentBudgetCents: config.maxExperimentBudgetCents, stageBudgetCents: config.stageBudgetCents, budgetWarningPercent: config.budgetWarningPercent, workerConcurrency: config.workerConcurrency },
-    prerequisiteStatus: config.prerequisiteStatus
+    prerequisiteStatus: config.prerequisiteStatus,
+    modelGatewayPreflight: modelGatewayPreflight()
   });
   let raw = "";
   for await (const chunk of req) raw += chunk;
@@ -43,6 +49,9 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/v1/artifacts/validate") {
       validateArtifactRef(JSON.parse(raw));
       return json(res, 200, { status: "VALID", persisted: false, reason: "validation-only boundary" });
+    }
+    if (req.method === "GET" && req.url === "/v1/model-gateway/preflight") {
+      return json(res, 200, modelGatewayPreflight());
     }
     const match = req.url?.match(/^\/v1\/experiments\/([^/]+)(\/cancel)?$/);
     if (match && req.method === "GET" && !match[2]) {
