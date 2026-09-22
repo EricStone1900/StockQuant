@@ -89,6 +89,8 @@
 
 受限 smoke 使用 `--network none`、只读根文件系统、`cap-drop ALL`、`no-new-privileges`、2 CPU、2 GiB、128 PIDs 和 `10001:10001` 用户运行，通过了 Qlib/RD-Agent 导入、Docker Socket 缺失、继承密钥剥离与 V3.1 输出写入。该结果来自 Docker Desktop 的 amd64 模拟，不能替代原生 Ubuntu、真实模型调用或完整 RD-Agent 闭环。
 
+同日新增 `v31-runner-launch` 纯函数适配边界：只接受 `image@sha256`，将任务资源转换为固定 Docker 参数，强制 `linux/amd64`、`network none`、只读根文件系统、无能力、非 root 和输入/输出双挂载；ALLOWLIST、继承密钥、Docker Socket 和任意宿主挂载均被拒绝或不传递。research 单元测试更新为 5 个文件、17/17 通过。该模块只生成无副作用启动计划，尚未把 Docker Socket 接入 API 容器，也未启动真实研究任务。
+
 ## 2026-09-21 启动前置审计
 
 | 检查项 | 当前结果 | 后续动作 |
