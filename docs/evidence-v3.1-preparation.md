@@ -91,6 +91,8 @@
 
 同日新增 `v31-runner-launch` 纯函数适配边界：只接受 `image@sha256`，将任务资源转换为固定 Docker 参数，强制 `linux/amd64`、`network none`、只读根文件系统、无能力、非 root 和输入/输出双挂载；ALLOWLIST、继承密钥、Docker Socket 和任意宿主挂载均被拒绝或不传递。research 单元测试更新为 5 个文件、17/17 通过。该模块只生成无副作用启动计划，尚未把 Docker Socket 接入 API 容器，也未启动真实研究任务。
 
+宿主适配 smoke `pnpm v31:runner-smoke` 已通过：先核对本地 Runner image ID，再使用 `--pull=never` 和同一资源/网络策略启动；容器返回 `COMPLETED/0`，Qlib `0.9.6.99`、RD-Agent 导入、网络拒绝、Socket 缺失、密钥剥离和输出写入均通过。该 smoke 仍运行于 Mac Docker Desktop 的 amd64 模拟环境，不代表原生 Ubuntu 或真实模型闭环。
+
 ## 2026-09-21 启动前置审计
 
 | 检查项 | 当前结果 | 后续动作 |

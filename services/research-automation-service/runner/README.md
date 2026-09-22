@@ -23,3 +23,10 @@ entrypoint strips the inherited environment before running the script. A
 successful image build still does not constitute a real model acceptance run;
 the model gateway and outbound allowlist remain disabled until their separate
 approval and evidence gates are met.
+
+The host-side smoke command verifies the locally built image ID before running
+the same policy and never pulls an image:
+
+```sh
+pnpm v31:runner-smoke
+```

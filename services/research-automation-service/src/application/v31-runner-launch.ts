@@ -37,8 +37,8 @@ export function buildRunnerLaunchPlan(job: RunnerJob, config: RunnerLaunchConfig
     "--security-opt", "no-new-privileges", "--pids-limit", String(job.resources.pidsLimit),
     "--cpus", String(job.resources.cpuMilli / 1000), "--memory", `${job.resources.memoryMiB}m`,
     "--user", "10001:10001", "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-    "--mount", `type=bind,src=${config.inputRoot},dst=/run/input,readonly`,
-    "--mount", `type=bind,src=${config.outputRoot},dst=/run/output,rw`,
+    "--mount", `type=bind,src=${config.inputRoot},dst=/run/input,readonly=true`,
+    "--mount", `type=bind,src=${config.outputRoot},dst=/run/output,readonly=false`,
     "--env", "STOCKQUANT_RUNNER_JOB=/run/input/job.json",
     config.imageRef,
   ];
