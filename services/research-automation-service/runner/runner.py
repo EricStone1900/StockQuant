@@ -61,7 +61,8 @@ def main() -> int:
         )
     except subprocess.TimeoutExpired:
         return fail("runner timeout")
-    print(json.dumps({"status": "COMPLETED", "exit_code": completed.returncode}, sort_keys=True))
+    status = "COMPLETED" if completed.returncode == 0 else "FAILED"
+    print(json.dumps({"status": status, "exit_code": completed.returncode}, sort_keys=True))
     return completed.returncode
 
 

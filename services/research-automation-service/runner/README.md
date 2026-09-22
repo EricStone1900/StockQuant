@@ -25,8 +25,8 @@ the model gateway and outbound allowlist remain disabled until their separate
 approval and evidence gates are met.
 
 The host-side smoke command verifies the locally built image ID before running
-the same policy and never pulls an image. It covers normal execution, timeout
-rejection and path escape rejection:
+the same policy and never pulls an image. It covers normal execution, timeout,
+path escape, and a bounded 128MiB OOM termination:
 
 ```sh
 pnpm v31:runner-smoke
