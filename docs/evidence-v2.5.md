@@ -1,5 +1,12 @@
 # V2.5 历史数据扩容与 V2 验收证据
 
+2026-09-23 TDX 候选源适配与复核：新增可选 easy-tdx 分钟适配器，锁定 Git commit
+`4820b4a0496899ece0b8ca4d7f4d66a5159da7f8`，默认正式来源仍为 `sina,baostock`。适配器
+48/48、ruff、mypy、全仓 lint/typecheck/test 和文档检查通过；3 只证券只读探针返回
+144/144 根 Bar，20 只证券盘后批量烟测返回 960/960 根 Bar。该候选源尚未完成实际交易日、
+限频恢复和正式调度门禁，不能替代 V2.4/DC-08A 观察或 60 日第二在线免费源验收。详细服务器、
+延迟、Hash 和未完成门禁见[TDX候选源审计](../evidence/audits/2026-09-23-tdx-source-switch.md)。
+
 2026-09-19 计划复核：V2.5 code suite 重新通过；5分钟历史备用源探针 PASS，BaoStock 与 Sina 均返回 3 个样本证券的有效结果，证据为 `evidence/local/V2.5/minute-source-probe-20260919.json`。该探针的 `liveSession` 明确为 `NOT_RUN`，因此不替代真实交易日观察。BaoStock PIT 探针仍为 `PARTIAL`：财务字段存在公告日期，但缺少修订链、来源 Artifact/溯源和历史证券集合；行业分类缺少历史有效区间、修订链及历史成分，不能解除真实 PIT 门禁。
 
 2026-09-20 V2.5 阶段证据刷新：当前 HEAD 上 `verify:stage --suite code` 通过，V2.5 Web E2E 1/1 通过；normal `e033c817-d521-40a8-892c-3c5b8098ea4c` 的 6/6 断言、rejection `17057748-135a-4337-a726-e654f97ed565` 的 3/3 断言、recovery `d3fefb85-2fb9-42c2-9cc1-adefba08af77` 的 3/3 断言全部通过。normal 同 Run `--check-only` 退出码 0，未创建新业务副作用；正式导出目录为 `evidence/local/V2.5/e033c817-d521-40a8-892c-3c5b8098ea4c`，Manifest SHA-256 为 `f2a8f76cfe03fb5f4a76988812d20c46ff1eca562dadb5027344bd277ff1f575`。自动证据仍不替代 V2.5 人工验收、V2.4 20 个实际交易日观察或真实交易时段长期稳定性门禁。
