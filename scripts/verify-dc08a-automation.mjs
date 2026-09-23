@@ -19,6 +19,8 @@ async function run() {
     ["legacy", "stockquant"],
     ["promotion", "dc-08a-20"],
     ["eod", "dc-08a-2"],
+    ["tdxAm", "stockquant-tdx"],
+    ["tdxPm", "stockquant-tdx-2"],
   ].map(async ([key, id]) => [key, await readFile(path.join(automationDir, id, "automation.toml"), "utf8")])));
   const failures = [];
   const heartbeatRule = field(files.heartbeat, "rrule");
@@ -36,6 +38,11 @@ async function run() {
   check(field(morning, "status") === "ACTIVE", "morning-active", "dc-08a must be ACTIVE", failures);
   check(field(files.legacy, "status") === "PAUSED", "legacy-paused", "stockquant must remain PAUSED", failures);
   check(field(files.promotion, "status") === "PAUSED", "promotion-paused", "completed one-shot dc-08a-20 must be PAUSED", failures);
+  check(field(files.tdxAm, "status") === "ACTIVE", "tdx-am-active", "stockquant-tdx must be ACTIVE", failures);
+  check(field(files.tdxPm, "status") === "ACTIVE", "tdx-pm-active", "stockquant-tdx-2 must be ACTIVE", failures);
+  check(field(files.tdxAm, "rrule").includes("BYHOUR=11;BYMINUTE=35"), "tdx-am-schedule", field(files.tdxAm, "rrule"), failures);
+  check(field(files.tdxPm, "rrule").includes("BYHOUR=15;BYMINUTE=20"), "tdx-pm-schedule", field(files.tdxPm, "rrule"), failures);
+  check(files.tdxAm.includes("pnpm v25:probe-tdx") && files.tdxPm.includes("pnpm v25:probe-tdx"), "tdx-probe-commands", "TDX probe command missing", failures);
   check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR") && morningRule.includes("UNTIL=20261020T004500Z"), "morning-trigger-and-expiry", morningRule, failures);
   check(!heartbeatRule.includes("UNTIL=") && !field(files.heartbeat, "rrule").includes("COUNT="), "heartbeat-unbounded-by-design", heartbeatRule, failures);
   check(promotionRule.includes("DTSTART:20260917T000000") && promotionRule.includes("RRULE:FREQ=MINUTELY;COUNT=1"), "promotion-once", promotionRule, failures);
@@ -51,6 +58,8 @@ async function run() {
       { id: "dc-08a-2", status: field(files.eod, "status"), expiry: "none (daily recurrence)" },
       { id: "dc-08a-20", status: field(files.promotion, "status"), expiry: "paused one-shot; COUNT=1" },
       { id: "stockquant", status: field(files.legacy, "status"), expiry: "paused legacy task" },
+      { id: "stockquant-tdx", status: field(files.tdxAm, "status"), expiry: "weekday 11:35 local" },
+      { id: "stockquant-tdx-2", status: field(files.tdxPm, "status"), expiry: "weekday 15:20 local" },
     ],
     failures,
   };

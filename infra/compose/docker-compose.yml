@@ -203,6 +203,8 @@ services:
     build:
       context: ../..
       dockerfile: services/market-data-service/Dockerfile
+      args:
+        STOCKQUANT_INSTALL_TDX: "${STOCKQUANT_INSTALL_TDX:-0}"
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3002

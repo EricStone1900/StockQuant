@@ -261,3 +261,11 @@ BaoStock 仍为 `OPEN/TIMEOUT`；正式订阅健康接口返回 `openGaps=0`、`
 同日盘后20只证券批量只读烟测返回 `960/960` 根 Bar，服务器 `123.60.47.136`，结果 Hash
 为 `826b8f6689376ceda42410e5f211be0c18f4e003dc3d1f9110ed4addfee10c38`。该结果仅作为容量
 和分页边界证据，不计入实际交易时段观察或 DC-08A 门禁。
+
+2026-09-23 TDX 定时观察接入：新增工作日 11:35 和 15:20 两个只读候选源任务，交易日先由
+`pnpm v24:preflight` 判断，再运行20只证券 `pnpm v25:probe-tdx`，分别归档上午和收盘观察。
+任务不修改正式来源、不创建采集运行、不写数据库；`pnpm dc08a:verify-automation` 已扩展检查
+两个任务并返回 PASS。Dockerfile 增加 `STOCKQUANT_INSTALL_TDX=1` 可选构建参数，默认值为0，
+默认镜像和 `sina,baostock` 正式来源保持不变。显式启用该参数的镜像构建返回0，镜像内
+`import easy_tdx` 通过；这只是可选依赖安装验证，未替换当前运行容器。实际交易日 TDX
+证据尚未产生，门禁仍为 `NOT_RUN`。
