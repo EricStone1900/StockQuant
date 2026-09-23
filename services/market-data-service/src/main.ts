@@ -24,7 +24,7 @@ const fixture = resolve(root, "fixtures/v1/v1.2/cn_daily.csv");
 const badFixture = resolve(root, "fixtures/v1/v1.2/cn_daily_bad_future.csv");
 const minuteFixture = resolve(root, "fixtures/v2/v2.2/minute_bars.csv");
 const minuteBadFixture = resolve(root, "fixtures/v2/v2.2/minute_bars_bad.csv");
-const minuteSourceIds = ["baostock", "sina", "eastmoney"] as const;
+const minuteSourceIds = ["baostock", "sina", "eastmoney", "tdx"] as const;
 function configuredMinuteSources(): string[] {
   return (process.env.STOCKQUANT_COLLECTION_SOURCES ?? "sina,baostock").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
 }

@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from market_data_adapter.cli import source_ids_from_request, wire_bar
 from market_data_adapter.failover import NormalizedBar, SourceError
-from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, _baostock_child, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, SinaMinuteClient, sina_symbol
+from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, TdxMinuteClient, _baostock_child, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, normalize_tdx, sina_symbol, tdx_symbol, SinaMinuteClient
 
 
 class Response:
@@ -84,10 +84,15 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(source_ids_from_request({}), ["sina", "baostock"])
 
     def test_source_selection_rejects_non_strings_unknown_and_duplicate_values(self):
-        for value in (["sina", "sina"], ["unknown"], [1]):
+        for value in (["sina", "sina"], ["unknown"], ["tdx", "tdx"], [1]):
             with self.subTest(value=value), self.assertRaises(SourceError) as failure:
                 source_ids_from_request({"sources": value})
             self.assertEqual(failure.exception.code, "INVALID_REQUEST")
+
+    def test_source_selection_accepts_tdx_without_changing_default_order(self):
+        self.assertEqual(source_ids_from_request({"sources": ["sina", "tdx"]}), ["sina", "tdx"])
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(source_ids_from_request({}), ["sina", "baostock"])
 
     def test_serializes_adapter_boundary_with_camel_case_field_names(self):
         payload = wire_bar(NormalizedBar("600000.SH", "2026-09-11T09:30:00+08:00", "2026-09-11T09:35:00+08:00", None, "10", "11", "9", "10", "100", "1000", "raw", "sina"))
@@ -110,6 +115,57 @@ class ProviderTests(unittest.TestCase):
         bars = normalize_baostock([["2024-01-02", "20240102093500000", "sh.600000", "10", "11", "9", "10", "100", "1000"]])
         self.assertEqual(bars[0].bar_start, "2024-01-02T09:30:00+08:00")
         self.assertEqual(bars[0].bar_end, "2024-01-02T09:35:00+08:00")
+
+    def test_normalizes_tdx_end_timestamp_to_existing_half_open_bar(self):
+        bars = normalize_tdx([{"datetime": "2026-09-11 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 100, "amount": 1000}], "600000.SH")
+        self.assertEqual(bars[0].bar_start, "2026-09-11T09:30:00+08:00")
+        self.assertEqual(bars[0].bar_end, "2026-09-11T09:35:00+08:00")
+        self.assertEqual(bars[0].source_id, "tdx")
+
+    def test_tdx_symbol_and_client_use_bounded_five_minute_request(self):
+        self.assertEqual(tdx_symbol("600000.SH"), ("SH", "600000"))
+        calls = []
+
+        class Market:
+            SH = "SH"
+
+        class Period:
+            MIN_5 = "MIN_5"
+
+        class Client:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def get_stock_kline(self, market, code, period, **kwargs):
+                calls.append((market, code, period, kwargs))
+                return [{"datetime": "2026-09-11 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 100, "amount": 1000}]
+
+        with patch.dict(sys.modules, {"easy_tdx": types.SimpleNamespace(Market=Market, Period=Period)}):
+            bars = TdxMinuteClient(client_factory=Client, minimum_interval_seconds=0).fetch(["600000.SH"], "2026-09-11", "2026-09-11", 3)
+        self.assertEqual(len(bars), 1)
+        self.assertEqual(calls[0][0:3], ("SH", "600000", "MIN_5"))
+        self.assertEqual(calls[0][3]["count"], 800)
+
+    def test_tdx_legacy_kline_api_uses_close_timestamp_semantics(self):
+        class Market:
+            SH = "SH"
+
+        class Period:
+            MIN_5 = "MIN_5"
+
+        class LegacyClient:
+            _host = "198.51.100.10"
+
+            def get_stock_kline(self, market, code, period, count=800):
+                return [{"datetime": "2026-09-11 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 100}]
+
+        with patch.dict(sys.modules, {"easy_tdx": types.SimpleNamespace(Market=Market, Period=Period)}):
+            bars = TdxMinuteClient(client_factory=LegacyClient, minimum_interval_seconds=0).fetch(["600000.SH"], "2026-09-11", "2026-09-11", 3)
+        self.assertEqual(bars[0].bar_start, "2026-09-11T09:30:00+08:00")
+        self.assertEqual(bars[0].bar_end, "2026-09-11T09:35:00+08:00")
 
     def test_rejects_baostock_timestamp_with_mismatched_embedded_date(self):
         with self.assertRaises(SourceError) as failure:

@@ -163,6 +163,18 @@ class FailoverCollector:
         self._health_dirty: set[str] = set()
         self._load_health()
 
+    @staticmethod
+    def _provider_metadata(provider: _Provider) -> dict[str, object]:
+        """Expose optional transport evidence without changing other providers."""
+        metadata: dict[str, object] = {}
+        host = getattr(provider.client, "last_host", None)
+        latency = getattr(provider.client, "last_latency_ms", None)
+        if host:
+            metadata["server"] = str(host)
+        if latency is not None:
+            metadata["latencyMs"] = latency
+        return metadata
+
     def _load_health(self) -> None:
         if not self.health_path or not os.path.exists(self.health_path):
             return
@@ -289,19 +301,19 @@ class FailoverCollector:
                     provider.last_success_at = time.time()
                     provider.last_error_code = None
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "status": "PASS", "rows": len(bars)})
+                    attempts.append({"sourceId": provider.source_id, "status": "PASS", "rows": len(bars), **self._provider_metadata(provider)})
                 except SourceError as error:
                     provider.breaker.failure()
                     provider.last_failure_at = time.time()
                     provider.last_error_code = error.code
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": error.code, "retryable": error.retryable})
+                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": error.code, "retryable": error.retryable, **self._provider_metadata(provider)})
                 except Exception as error:  # noqa: BLE001
                     provider.breaker.failure()
                     provider.last_failure_at = time.time()
                     provider.last_error_code = "ADAPTER_EXCEPTION"
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
+                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True, **self._provider_metadata(provider)})
         self._save_health()
         return attempts
 
@@ -335,7 +347,7 @@ class FailoverCollector:
                     provider.last_success_at = time.time()
                     provider.last_error_code = None
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "status": "PASS", "rows": len(bars)})
+                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "status": "PASS", "rows": len(bars), **self._provider_metadata(provider)})
                     self._save_health()
                     if probe_guard is not None:
                         probe_guard.__exit__(None, None, None)
@@ -345,7 +357,7 @@ class FailoverCollector:
                     provider.last_failure_at = time.time()
                     provider.last_error_code = error.code
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable})
+                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": error.code, "retryable": error.retryable, **self._provider_metadata(provider)})
                     if not error.retryable or attempt == attempt_limit:
                         break
                     self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
@@ -354,7 +366,7 @@ class FailoverCollector:
                     provider.last_failure_at = time.time()
                     provider.last_error_code = "ADAPTER_EXCEPTION"
                     self._health_dirty.add(provider.source_id)
-                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
+                    attempts.append({"sourceId": provider.source_id, "attempt": attempt, "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True, **self._provider_metadata(provider)})
                     if attempt < attempt_limit:
                         self.sleeper(self.backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, self.backoff_jitter_seconds))
             if probe_guard is not None:

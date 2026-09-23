@@ -18,6 +18,13 @@
 
 2026-09-19 V2.3 人工验收复核：用户确认按执行顺序重新完成 normal `ca0678f9-7c24-4f99-ad58-59054dfac2f9`、rejection `79f5af32-9ede-492d-94b2-3a554394a06f`、recovery `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0`；三场景、Web E2E 2/2、code suite、同 run check-only 和证据导出均 PASS。fresh Manifest Hash：`f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e`。本结论仅覆盖 V2.3 技术收口范围，不代表真实模型、LIVE 或 V2.4/V2.5 门禁。
 
+2026-09-23 TDX 候选源复核：新增可选 easy-tdx 适配器并锁定 Git commit
+`4820b4a0496899ece0b8ca4d7f4d66a5159da7f8`。离线质量检查和适配器 48/48 单元测试通过；
+真实只读探针对3只跨沪深证券返回144根5分钟Bar，服务器为 `121.37.207.165`，结果 Hash
+为 `12ae2df345ae6939568b55a700ea8a2d24bc14bb7a32ab96354240441d2ff0ef`。该证据只证明候选
+源的单日小样本可读性，正式来源仍为 `sina,baostock`；2个实际交易日、20只证券、持续限频、
+窗口完整性及恢复观察继续为 `NOT_RUN`，不改变 V2.4 7/20 或 DC-08A 4/20 门禁。
+
 ## 2. 版本门禁
 
 2026-09-23 运行快照：V2.4 `/api/v1/acceptance/v2/v2.4/observation-summary` 返回 `WAITING`、7/20、剩余13日；调度器 `RUNNING`，采样30分钟、Paper/FakeBroker，下一采样为2026-09-24 09:30（Asia/Shanghai）。DC-08A 健康接口返回 `HEALTHY`，20只订阅、调度器/执行器 `ENABLED`，无开放缺口/待投递 Outbox；BaoStock 熔断仍为 `OPEN`（92次失败、`EMPTY_RESULT`），Sina 为 `CLOSED`。本快照记录在[阶段六健康报告](../../../evidence/audits/2026-09-23-phase-6-health-report.json)及[阶段六观察汇总](../../../evidence/audits/2026-09-23-phase-6-observation-summary.json)；健康只代表当前可用回退来源和质量状态，不表示 BaoStock 已恢复。

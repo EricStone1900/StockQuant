@@ -5,10 +5,11 @@ import multiprocessing as mp
 import sys
 import urllib.parse
 import urllib.request
-from contextlib import redirect_stdout
-from datetime import date, datetime, timedelta
+from contextlib import nullcontext, redirect_stdout
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from queue import Empty
+from collections.abc import Mapping
 from typing import Any, Sequence
 
 from .failover import NormalizedBar, SourceError, RateLimiter
@@ -99,6 +100,78 @@ def normalize_eastmoney(items: Sequence[str], security_id: str, source_id: str =
             raise SourceError("SCHEMA_INVALID", f"Eastmoney timestamp is invalid: {timestamp!r}", retryable=False) from error
         start, end = _bar_window(endpoint)
         result.append(NormalizedBar(security_id, start, end, None, opening, high, low, close, _eastmoney_volume(volume), amount, "raw", source_id))
+    return result
+
+
+def tdx_symbol(security_id: str) -> tuple[str, str]:
+    """Convert the canonical security id to the TDX market/code pair."""
+    number, market = security_id.upper().split(".", 1)
+    if market not in {"SH", "SZ", "BJ"} or not number.isdigit() or len(number) != 6:
+        raise SourceError("SYMBOL_INVALID", f"unsupported A-share security id: {security_id}", retryable=False)
+    return market, number
+
+
+def _tdx_timestamp(value: Any, row: Mapping[str, Any]) -> datetime:
+    candidate = value
+    if candidate is None:
+        candidate = row.get("date")
+        clock = row.get("time") or row.get("minute")
+        if clock is not None:
+            candidate = f"{candidate} {clock}"
+    if isinstance(candidate, datetime):
+        parsed = candidate
+    else:
+        text = str(candidate).strip().replace("/", "-")
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone(timedelta(hours=8)))
+    return parsed
+
+
+def _tdx_records(items: Any) -> list[Mapping[str, Any]]:
+    if hasattr(items, "to_dict"):
+        items = items.to_dict(orient="records")
+    if not isinstance(items, (list, tuple)):
+        raise SourceError("SCHEMA_INVALID", "TDX response is not a row collection", retryable=False)
+    if not all(isinstance(item, Mapping) for item in items):
+        raise SourceError("SCHEMA_INVALID", "TDX response rows are not mappings", retryable=False)
+    return list(items)
+
+
+def normalize_tdx(items: Any, security_id: str, source_id: str = "tdx", bar_time: str = "end") -> list[NormalizedBar]:
+    """Normalize easy-tdx rows into the existing half-open minute contract."""
+    result: list[NormalizedBar] = []
+    for row in _tdx_records(items):
+        timestamp = _tdx_timestamp(row.get("datetime") or row.get("date_time") or row.get("time"), row)
+        if bar_time == "end":
+            start = timestamp - timedelta(minutes=5)
+            end = timestamp
+        elif bar_time == "start":
+            start = timestamp
+            end = timestamp + timedelta(minutes=5)
+        else:
+            raise SourceError("SCHEMA_INVALID", f"unsupported TDX bar time mode: {bar_time}", retryable=False)
+        def required(name: str, *aliases: str) -> str:
+            for key in (name, *aliases):
+                value = row.get(key)
+                if value is not None:
+                    return str(value)
+            raise SourceError("SCHEMA_INVALID", f"TDX row misses {name}", retryable=False)
+        amount = row.get("amount")
+        result.append(NormalizedBar(
+            security_id,
+            start.isoformat(),
+            end.isoformat(),
+            None,
+            required("open"),
+            required("high"),
+            required("low"),
+            required("close"),
+            required("vol", "volume"),
+            None if amount is None else str(amount),
+            "raw",
+            source_id,
+        ))
     return result
 
 
@@ -325,3 +398,93 @@ class EastmoneyMinuteClient:
                     raise SourceError("HTTP_CONNECTION_FAILED", repr(error)) from error
                 raise SourceError("HTTP_OR_PARSE_FAILED", repr(error)) from error
         return bars
+
+
+class TdxMinuteClient:
+    """Read-only 5-minute bars through the optional easy-tdx client."""
+
+    def __init__(self, client_factory=None, minimum_interval_seconds: float = 1.0, sleeper=None, clock=None, count: int = 800) -> None:
+        import time
+        self.client_factory = client_factory
+        self.count = max(48, min(int(count), 800))
+        self.limiter = RateLimiter(minimum_interval_seconds, clock=clock or time.monotonic, sleeper=sleeper or time.sleep)
+        self.last_host: str | None = None
+        self.last_latency_ms: float | None = None
+
+    def _default_client_factory(self, timeout_seconds: float = 15.0):
+        try:
+            from easy_tdx import MacClient  # type: ignore[import-not-found]
+        except ImportError as error:
+            raise SourceError("DEPENDENCY_MISSING", "easy-tdx is not installed", retryable=False) from error
+        return MacClient.from_best_host(timeout=timeout_seconds, ping_timeout=min(timeout_seconds, 3.0))
+
+    def fetch(self, security_ids: Sequence[str], start: str, end: str, timeout_seconds: float) -> list[NormalizedBar]:
+        try:
+            start_date = date.fromisoformat(start)
+            end_date = date.fromisoformat(end)
+        except ValueError as error:
+            raise SourceError("INVALID_DATE_RANGE", f"TDX dates must be ISO dates: {start!r}, {end!r}", retryable=False) from error
+        if end_date < start_date:
+            raise SourceError("INVALID_DATE_RANGE", f"TDX end date precedes start date: {start!r}, {end!r}", retryable=False)
+        factory = self.client_factory or (lambda: self._default_client_factory(timeout_seconds))
+        import time
+        self.last_host = None
+        self.last_latency_ms = None
+        started = time.monotonic()
+        client = factory()
+        self.last_latency_ms = round((time.monotonic() - started) * 1000, 3)
+        host = getattr(client, "_host", None)
+        if host is not None:
+            self.last_host = str(host)
+        context = client if hasattr(client, "__enter__") else nullcontext(client)
+        bars: list[NormalizedBar] = []
+        try:
+            with context as connection:
+                for security_id in security_ids:
+                    self.limiter.wait()
+                    market, number = tdx_symbol(security_id)
+                    try:
+                        frame, bar_time = self._fetch_kline(connection, market, number, timeout_seconds)
+                        normalized = normalize_tdx(frame, security_id, bar_time=bar_time)
+                        filtered = filter_range(normalized, start, end)
+                        if not filtered:
+                            raise SourceError("EMPTY_RESULT", f"TDX returned no bars for {security_id}")
+                        bars.extend(filtered)
+                    except SourceError:
+                        raise
+                    except Exception as error:  # noqa: BLE001
+                        error_name = type(error).__name__
+                        if error_name in {"TimeoutError", "Timeout", "TdxConnectionError", "ConnectionError"} or isinstance(error, (TimeoutError, OSError)):
+                            raise SourceError("TCP_CONNECTION_FAILED", repr(error)) from error
+                        raise SourceError("TDX_PROTOCOL_ERROR", repr(error)) from error
+        finally:
+            close = getattr(client, "close", None)
+            if callable(close) and not hasattr(client, "__exit__"):
+                close()
+        return bars
+
+    def _fetch_kline(self, client: Any, market: str, number: str, timeout_seconds: float) -> tuple[Any, str]:
+        # easy-tdx exposes both the newer MacClient API and the standard TDX
+        # client. Keep the provider boundary tolerant while the exact package
+        # version is frozen and verified in the environment.
+        try:
+            from easy_tdx import Market, Period  # type: ignore[import-not-found]
+            market_value = getattr(Market, market)
+            period = getattr(Period, "MIN_5")
+        except ImportError as error:
+            raise SourceError("DEPENDENCY_MISSING", "easy-tdx is not installed", retryable=False) from error
+        if hasattr(client, "get_stock_kline"):
+            try:
+                return client.get_stock_kline(market_value, number, period, count=self.count, bar_time="end"), "end"
+            except TypeError:
+                # easy-tdx's MacClient returns MAC K-line timestamps at the
+                # bar close (09:35 ... 15:00 for a normal A-share session).
+                return client.get_stock_kline(market_value, number, period, count=self.count), "end"
+        if hasattr(client, "get_security_bars"):
+            try:
+                from easy_tdx import KlineCategory  # type: ignore[import-not-found]
+                category = getattr(KlineCategory, "MIN_5")
+                return client.get_security_bars(market_value, number, category, 0, self.count, bar_time="end"), "end"
+            except TypeError:
+                return client.get_security_bars(market_value, number, category, 0, self.count), "end"
+        raise SourceError("DEPENDENCY_API_UNSUPPORTED", "easy-tdx client has no supported K-line method", retryable=False)

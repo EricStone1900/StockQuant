@@ -5,6 +5,9 @@ description = "Bounded read-only BaoStock/Sina/Eastmoney minute data adapters"
 requires-python = ">=3.9"
 dependencies = ["baostock==0.9.3", "requests==2.32.5"]
 
+[project.optional-dependencies]
+tdx = ["easy-tdx @ git+https://github.com/clong365/easy_tdx.git@4820b4a0496899ece0b8ca4d7f4d66a5159da7f8 ; python_version >= '3.10'"]
+
 [dependency-groups]
 dev = [
     "mypy>=1.15,<2",

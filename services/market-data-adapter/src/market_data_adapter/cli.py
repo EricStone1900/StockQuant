@@ -12,9 +12,9 @@ import sys
 from typing import Any
 
 from .failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
-from .providers import BaoStockMinuteClient, EastmoneyMinuteClient, SinaMinuteClient
+from .providers import BaoStockMinuteClient, EastmoneyMinuteClient, SinaMinuteClient, TdxMinuteClient
 
-ALLOWED_SOURCES = frozenset(("baostock", "sina", "eastmoney"))
+ALLOWED_SOURCES = frozenset(("baostock", "sina", "eastmoney", "tdx"))
 
 
 def source_ids_from_request(request: dict[str, Any]) -> list[str]:
@@ -33,7 +33,7 @@ def source_ids_from_request(request: dict[str, Any]) -> list[str]:
         or any(not isinstance(item, str) or item not in ALLOWED_SOURCES for item in source_ids)
         or len(set(source_ids)) != len(source_ids)
     ):
-        raise SourceError("INVALID_REQUEST", "sources must be a unique list of baostock,sina,eastmoney", retryable=False)
+        raise SourceError("INVALID_REQUEST", "sources must be a unique list of baostock,sina,eastmoney,tdx", retryable=False)
     return source_ids
 
 
@@ -76,6 +76,11 @@ def main() -> int:
             clients["sina"] = SinaMinuteClient(minimum_interval_seconds=float(request.get("perSecurityIntervalSeconds", 0.0)))
         if "eastmoney" in source_ids:
             clients["eastmoney"] = EastmoneyMinuteClient(minimum_interval_seconds=float(request.get("perSecurityIntervalSeconds", 0.0)))
+        if "tdx" in source_ids:
+            clients["tdx"] = TdxMinuteClient(
+                minimum_interval_seconds=float(request.get("tdxIntervalSeconds", os.environ.get("STOCKQUANT_COLLECTION_TDX_INTERVAL_SECONDS", request.get("perSecurityIntervalSeconds", 1.0)))),
+                count=int(request.get("tdxBarCount", os.environ.get("STOCKQUANT_COLLECTION_TDX_BAR_COUNT", 800))),
+            )
         collector = FailoverCollector(
             [(source_id, clients[source_id]) for source_id in source_ids],
             timeout_seconds=float(request.get("timeoutSeconds", 30)),

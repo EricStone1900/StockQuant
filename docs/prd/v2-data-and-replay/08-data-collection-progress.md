@@ -249,3 +249,15 @@ Python 适配器和契约校验通过。NATS/Temporal 持久卷已生效。市�
 现返回 `PERSISTENT_SOURCE_EXECUTION`，已确认最新状态代码进入运行环境。Sina 来源保持 `CLOSED`，
 BaoStock 仍为 `OPEN/TIMEOUT`；正式订阅健康接口返回 `openGaps=0`、`pendingOutbox=0`。因此镜像
 部署阻塞已解除，但 BaoStock 恢复、真实交易日观察、20 日观察和 V3.1 真实模型链路仍保持未完成。
+
+2026-09-23 TDX 候选源适配：Python 适配器新增可选 `tdx`，锁定 easy-tdx Git commit
+`4820b4a0496899ece0b8ca4d7f4d66a5159da7f8`，默认 `sina,baostock` 未改变。适配器单元测试
+48/48、ruff、mypy 和全仓 typecheck 通过；只读探针在真实 TDX 服务器 `121.37.207.165`
+上对 `600000.SH`、`000001.SZ`、`600519.SH` 返回 144 根 5 分钟 Bar，连接延迟约 330ms，
+结果 Hash 为 `12ae2df345ae6939568b55a700ea8a2d24bc14bb7a32ab96354240441d2ff0ef`。探针不创建
+运行任务、Artifact 或数据库写入；TDX 仍为 `CANDIDATE`，至少两个实际交易日和20只证券的
+正式观察为 `NOT_RUN`，未替换当前正式来源。
+
+同日盘后20只证券批量只读烟测返回 `960/960` 根 Bar，服务器 `123.60.47.136`，结果 Hash
+为 `826b8f6689376ceda42410e5f211be0c18f4e003dc3d1f9110ed4addfee10c38`。该结果仅作为容量
+和分页边界证据，不计入实际交易时段观察或 DC-08A 门禁。
