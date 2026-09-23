@@ -29,3 +29,13 @@
 - 真实交易日观察、Ubuntu 实机和异机灾备仍须按实际发生分别验收。
 
 本记录不改变既有人工签署，也不把代码测试或一次探测当作真实来源恢复或 V3.1 通过证据。
+
+## 后续部署复核（2026-09-23）
+
+- 重新执行 `docker compose --env-file .env.local -f infra/compose/docker-compose.yml build --progress=plain market-data-service`，镜像构建成功，包含最新调度器代码、BaoStock 适配器和锁定依赖。
+- 仅使用 `up -d --force-recreate --no-deps market-data-service` 替换市场数据服务，其他服务和数据卷未重启、未删除；容器状态为 `running healthy`。
+- `GET /ready` 返回 `collectionPersistence=POSTGRES`、`collectionSchedulerWorker=ENABLED`、`collectionExecutor=ENABLED`。
+- `GET /v2/collection-scheduler/status` 返回 `mode=PERSISTENT_SOURCE_EXECUTION`、`status=ENABLED`，并报告最近成功 Tick 和下一次执行时间；运行期已不再是 `FIXTURE_PLAN_ONLY`。
+- `GET /v2/minute/sources` 显示 Sina `CLOSED`、BaoStock `OPEN`（最近错误仍为 `TIMEOUT`）；`GET /v2/collection/health?subscriptionId=dc08a-20260917-20-v1` 返回 `openGaps=0`、`pendingOutbox=0`。
+
+因此，市场数据服务镜像/运行时状态这一部署阻塞已闭合；BaoStock 来源恢复、真实交易日观察、Ubuntu 实机、异机灾备和 V3.1 真实模型链路仍按上文保持未完成。

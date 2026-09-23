@@ -243,3 +243,9 @@ Python 适配器和契约校验通过。NATS/Temporal 持久卷已生效。市�
 来源执行模式，但本次 Docker 构建因 registry 依赖下载中止，运行容器仍为上一镜像，不能将接口修正记为
 运行期 PASS。V2.4 保持7/20，DC-08A保持4/20，V3.1真实模型调用和来源恢复仍未完成。详见
 [`阶段一至六执行收口记录`](../../../evidence/audits/2026-09-23-phase-1-6-execution.md)。
+
+2026-09-23 部署复核：重新构建 `market-data-service` 镜像成功，并仅重建该服务容器；容器健康，
+`/ready` 返回 PostgreSQL 持久化、调度器和执行器均 `ENABLED`。`/v2/collection-scheduler/status`
+现返回 `PERSISTENT_SOURCE_EXECUTION`，已确认最新状态代码进入运行环境。Sina 来源保持 `CLOSED`，
+BaoStock 仍为 `OPEN/TIMEOUT`；正式订阅健康接口返回 `openGaps=0`、`pendingOutbox=0`。因此镜像
+部署阻塞已解除，但 BaoStock 恢复、真实交易日观察、20 日观察和 V3.1 真实模型链路仍保持未完成。
