@@ -1,6 +1,6 @@
 # 共享数据采集：进度、问题及接续记录
 
-日期：2026-09-20；计划版本1.6。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
+建立日期：2026-09-20；最近更新：2026-09-23；计划版本1.6。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
 
 ## 1. 状态规则
 
@@ -10,9 +10,9 @@
 
 ## 2. 当前完成与待办
 
-当前优先级：先完成本模块DC-00～DC-07及DC-08A，再恢复主项目其他开发；DC-08B届时后台继续。20只隔离吞吐验证不切换正式订阅；定时任务健康检查需记录最近成功 Tick 与下一触发时间。仅本模块必要兼容修改和原有功能回归可在当前开发；既有观察任务继续。
+当前优先级：DC-00/04/05 的真实来源盘中稳定性、备用来源许可与恢复继续观察；DC-08A 的 20 只订阅和 V2.4 的 20 个实际交易日按各自口径累计，不能互相替代；DC-08B 的 60 日历史覆盖已完成，第二来源及真实长期稳定性仍是后续门禁。既有自动化继续运行，不因阶段文档更新重启服务或改动订阅。
 
-两项交付分别记录：本次模块开发交付TODO；后续60日数据验收TODO。启用累积后后者可变WAITING；本次交付依据计划2.1及DC-T25，不能因后台观察未满误认为代码未完成，也不能跳过短期真实运行。
+两项交付分别记录：DC-00～DC-07 的本机开发切片和历史 DC-08B 归档回放有自动测试证据；模块级人工验收及真实来源运行门禁仍 NOT_RUN/WAITING。已完成的代码/历史数据工作不因真实市场观察未满而回退，后台观察也不能代替短期盘中实测。
 
 - [x] 梳理用户需求、当前代码结构及仓库已有证据，形成版本化计划、测试矩阵和接续机制。
 - [x] 完成新模块实现及自动测试（DC-00～DC-07 本机范围；真实来源长期稳定性、实际交易日和外部灾备仍按门禁单独记录）。
@@ -26,11 +26,11 @@
 | DC-01 契约设计 | DONE（设计与冻结输入） | PASS：contracts/fixtures/docs检查 | NOT_RUN | [ADR-0005](../../decisions/ADR-0005-shared-data-collection-boundary.md)、3个JSON Schema、冻结输入 | 生成客户端/迁移设计已纳入服务实现；人工验收仍待补 |
 | DC-02 持久切片 | DONE | PASS：TS、4单测、真实PostgreSQL 6集成测（进程终止接管、Outbox重试、Fixture→Artifact原子发布）、HTTP幂等烟测 | NOT_RUN | [DC-02证据](../../evidence-data-collection-dc02.md) | 进入DC-03交易日历/Clock调度；不得将本包自动PASS当成人工验收 |
 | DC-03 调度 | DONE（本机范围） | PASS：服务单测21/21、真实PostgreSQL集成12/12、容器导入/健康验证；计划/持久API、执行器、精确窗口发布和延迟重试已实现 | NOT_RUN | [DC-03证据](../../evidence-data-collection-dc03.md) | 真实交易日运行和 Web/验收中心观察归入 DC-08A；正式订阅仍默认关闭 |
-| DC-04 主备 | IN_PROGRESS | PASS：Python适配器32/32、Linux ARM64容器导入、盘后真实探针；BaoStock 两轮×三证券有界稳定性与恢复探针通过，Sina历史读取可用 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md) | 交易时段完成DC-T19、长期限频/恢复、许可/限频核验和真实源审计；60日第二源仍未满足 |
+| DC-04 主备 | IN_PROGRESS | PASS：Python适配器44/44、独立来源恢复探测单测3/3、Linux ARM64容器导入、盘后真实探针；BaoStock 两轮×三证券有界稳定性和恢复探针通过，Sina历史读取可用 | NOT_RUN | [DC-04证据](../../evidence-data-collection-dc04.md)；2026-09-23 实现详见本页记录 | 交易时段完成DC-T19、长期限频/恢复、许可/限频核验和真实源审计；60日第二源仍未满足 |
 | DC-05 补采覆盖 | IN_PROGRESS | PASS：质量/覆盖单测12/12、真实PostgreSQL回归8/8、历史归档逐日覆盖与回放20/20通过、质量/覆盖及GapRecord/补采HTTP烟测 | NOT_RUN | [DC-05证据](../../evidence-data-collection-dc05.md)；[DC-T23真实归档回放](../../../evidence/dc08a/historical-replay-2026-09-16.json) | 实际补采执行、停牌权威核验、每日自动覆盖报告和盘中数据持续观察 |
 | DC-06 多项目Web/API | DONE | PASS：项目规则17/17单测、PostgreSQL集成10/10、平台 API/Web 构建、DC-06 Playwright 1/1、数据库令牌认证/权限/真实Artifact分页/导出脱敏/指标/去重HTTP烟测 | PASS：用户人工验收通过 | [DC-06证据](../../evidence-data-collection-dc06.md) | 运行期观察 |
 | DC-07 部署运维 | DONE（本机范围） | PASS：Mac ARM64 Compose 配置/健康、market-data 重启约11.957s恢复、1CPU/1GiB资源限制、告警Outbox 11/11、PostgreSQL备份SHA-256和隔离恢复20张表；Ubuntu实机人工验证已确认通过 | PASS：Ubuntu实机人工验证通过 | [DC-07证据](../../evidence-data-collection-dc07.md) | 生产外部告警/异机灾备延期；本轮进入DC-03/04实际执行链验证 |
-| DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14～2026-09-16各完成48窗口/144根5分钟Bar；2026-09-17目标20只完成48/48窗口、960/960根Bar、0缺口、0待投递Outbox，日终质量报告PASS；切换发生在收盘后，全天盘中观察门槛仍WAITING | NOT_RUN | `evidence/dc08a/daily-report-2026-09-17.json`、[首日验收清单](../../../evidence/dc08a/acceptance-checklist-2026-09-17.md)、[观察记录](../../../evidence/dc08a/observation-2026-09-17T11-37-48-253Z.json) | 下一个实际交易日开盘前核对20只集合并完成全天盘中观察 |
+| DC-08A 启用/短期验收 | IN_PROGRESS | PASS：3只跨沪深证券于2026-09-14～2026-09-16各完成48窗口/144根5分钟Bar；2026-09-17目标20只完成48/48窗口、960/960根Bar、0缺口、0待投递Outbox；截至2026-09-23归档口径稳定完整日3、恢复后完整日1、共4/20，自动化/健康检查PASS | NOT_RUN | `evidence/dc08a/daily-report-2026-09-17.json`、[首日验收清单](../../../evidence/dc08a/acceptance-checklist-2026-09-17.md)、[阶段六汇总](../../../evidence/audits/2026-09-23-phase-6-observation-summary.json) | 继续逐个实际交易日观察来源切换、BaoStock 半开恢复和20只窗口质量；不可将盘后探针替代盘中恢复 |
 | DC-08B 60日数据验收 | IN_PROGRESS | PASS（历史覆盖） | NOT_RUN | `data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1/manifest.json`：20只×60交易日×48窗口=57,600根，逐文件 SHA-256 20/20匹配 | 历史分钟回放验收；真实盘中累计仍独立观察，不能以历史导入替代 |
 
 2026-09-16 代码与容量复核：20只证券隔离监控池测试使用 `V25_MONITOR_SIZES=20 pnpm v25:monitor-capacity`，返回 configured/sampled/live 均为20、耗时47ms，测试后 watchlist 恢复3只，未修改正式活动订阅。持久调度器状态接口新增 `lastSuccessfulTickAt`、`nextExecutionAt`、`lastSubmitted`，盘后无待执行窗口时仅保留低频健康轮询。market-data-service 单元35/35、PostgreSQL集成17/17、全仓 lint/typecheck/test、契约/Fixture、Docker DC-07、V2.5 Web E2E、ARM64兼容性均通过；`pnpm test:integration` 在 Docker 服务启动且使用可访问宿主网络后通过，运行ID为 `9bf69efc-0922-44a7-a397-2f49a060da72`（normal）、`7caf6007-2a7e-4086-9b0a-e523ab43a96d`（rejection）、`0b77e43f-dd27-4b06-89f3-0816e2539452`（recovery）。人工验收和真实交易日观察不因本次自动测试提前签署。
@@ -124,6 +124,12 @@
 2026-09-22 重启健康复核：发现行情服务重启后持久调度器要等首个60秒间隔才写入 `lastSuccessfulTickAt`，会造成短暂的健康误报；调度器启动时改为立即执行一次持久 Tick，重建后首个 Tick 记录为 `2026-09-22T11:39:42.103Z`，下一触发为 `2026-09-23T01:37:00.000Z`。盘后 `dc08a-health-v3` 重新报告 `HEALTHY`，BaoStock `OPEN` 与 Sina `CLOSED` 的真实来源状态保持不变。
 
 2026-09-22 观察门禁计数修复与完整复核：发现 `dc08a-observation-summary-v2` 将恢复后完整日计入 `observedDays`，但 `remainingDays` 只扣除连续稳定日；已统一为按 `observedDays` 扣减并让 `status` 使用同一门禁口径，回归测试4/4通过。当前正式订阅汇总为连续稳定日2（2026-09-18、2026-09-22）、恢复后完整日1（2026-09-21）、观察日3、剩余17；数据库 V2.4 日终总记录仍为6/20，两者分别对应当前 DC-08A 订阅与历史 V2.4 总观察口径。`pnpm verify:stage -- --stage V2.4 --suite code` 退出0（构建、类型、全仓单测、Python适配器39/39、运维69/69、市场数据 PostgreSQL 集成17/17）；`pnpm v24:preflight` 五项均 PASS，健康报告为 `HEALTHY`。真实交易日、BaoStock 盘中恢复切回和人工验收仍按门禁累计。
+
+2026-09-23 独立来源恢复探测实现：现有 `dc08a:monitor`（含盘后 `dc08a:eod` 调用）现在会在来源检查中单独调用适配器恢复探测，不依赖 Sina 失败，也不占用正式采集窗口。探测只处理冷却期已满的 `OPEN` 来源，使用活动集合首只证券和最近5个自然日，单次来源查询超时3秒，并复用持久来源健康文件及跨进程半开锁。成功才关闭熔断；`EMPTY_RESULT` 记为 `INCONCLUSIVE` 且保留原 OPEN/失败数，以适配盘中延迟发布；异常会留存独立尝试并重置冷却，不改变该次正式采集状态。Python适配器44/44、探测调度单测3/3通过，market-data-service镜像构建成功且未重启现有服务。实际自动任务首次运行、真实 BaoStock 恢复/切回仍 `NOT_RUN`，不据代码或模拟测试记为运行验收。
+
+2026-09-23 阶段六验收、观察与自动化复核：平台只读 V2.4 `observation-summary` 返回 `WAITING`、7/20、剩余13日，计数日期为 9/15～18、9/21～23；9/19 收盘记录未计数。`v24:preflight` 五项均 PASS：platform API 与 market-data 服务就绪，Paper/FakeBroker，20只集合、持久调度器/执行器 ENABLED，当前快照为 `HEALTHY`。V2.4 下一采样为 2026-09-24 09:30，DC-08A 健康报告 `HEALTHY`、20只、缺口0、Outbox0；来源仍为 Sina CLOSED、BaoStock OPEN（92次 `EMPTY_RESULT`），不能把总体健康解释为 BaoStock 已恢复。DC-08A 归档观察汇总按最新快照规则为稳定完整日3、恢复后完整日1、总计4/20、WAITING（剩余16日）；与 V2.4 数据库总观察日口径分开。
+
+同日核对 Codex 自动化配置：`a-20`、`dc-08a`、`dc-08a-2` ACTIVE；`dc-08a` 配置到期 `2026-10-20T00:45:00Z`（北京时间08:45），另两项循环任务未设到期；一次性已完成 `dc-08a-20` 和迁移旧任务 `stockquant` 为 PAUSED。`pnpm dc08a:verify-automation` PASS。健康与归档快照及完整状态表见[阶段六审计](../../../evidence/audits/2026-09-23-phase-6-status-and-automations.md)。
 
 2026-09-12：根据用户先完成本次任务再进入主项目的安排，明确开发范围与交付门槛；DC-08拆为A/B，新增DC-T25，本次开发与长期数据验收分别签署。未修改业务代码，未启动采集/调度，未暂停现有观察任务。下一动作仍为DC-00；等待交易日时仅推进本模块独立子项。
 
@@ -229,3 +235,11 @@ Codex 后生效，因此自动任务的权限门禁仍待完成。
 48/48、144/144、0缺口、`PASS`。两日完成运行的实际来源均为Sina，BaoStock主源成功率仍须
 单独观察。`pnpm dc08a:promote-20 -- --check-only` 返回 `READY_TO_PROMOTE`（20只）；人工
 验收保持NOT_RUN，实际切换安排在2026-09-17交易时段前，随后需完成20只至少一个实际交易日。
+
+2026-09-23 阶段一至六执行收口：观察汇总增加最终日终快照标记，普通巡检不再覆盖已确认日终；
+V3.1 预算账本接入实验创建/结算 API，Runner 增加受管路径和有界执行器；BaoStock 独立恢复探测
+实际返回 `TIMEOUT` 并以 `DEGRADED` 留证，Sina 继续作为可用来源。自动化配置、全仓 lint/typecheck/test、
+Python 适配器和契约校验通过。NATS/Temporal 持久卷已生效。市场数据服务状态接口源码已修正为报告持久化
+来源执行模式，但本次 Docker 构建因 registry 依赖下载中止，运行容器仍为上一镜像，不能将接口修正记为
+运行期 PASS。V2.4 保持7/20，DC-08A保持4/20，V3.1真实模型调用和来源恢复仍未完成。详见
+[`阶段一至六执行收口记录`](../../../evidence/audits/2026-09-23-phase-1-6-execution.md)。

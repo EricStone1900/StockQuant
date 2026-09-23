@@ -10,9 +10,11 @@
 | [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PASS（自动验证） | PASS（用户确认） | `v1.2-market-data-1`；Qlib 0.9.6；平台 run `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`；Artifact task `artifact-task-1788953766848`；Web E2E 2 passed | Qlib 为 Mac ARM64 上的 linux/amd64 仿真；真实模型调用、全量数据和真实 Ubuntu 仍未验证 | 用户确认（本会话） / 2026-09-09 |
 | [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 验收，2026-09-09） | `39c9b7c0-080d-45d7-83cf-b8865f6a4b42`、`d1540cb1-d085-40bf-860d-43031951bd55`、`5a817c7f-64c0-4c8d-a979-97b44fc9f6ed` | 重建 Docker 栈；`pnpm verify:stage -- --stage V1.3 --suite code`；三场景及 `check-only` 均 PASS；`pnpm test:e2e`：3 passed | FakeBroker 为隔离模拟；真实券商、持久化跨重启和真实 NATS 未在本切片验证 |
 | [V1.4 日线历史回测与可核对报告](./04-daily-backtest.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 验收，2026-09-09） | `78a5c084-abdb-4e50-b451-9787d85b0c1c`、`82b1d78a-00f1-4f61-b069-29b94e7aab95`、`538be4e9-1ece-4c95-a8d3-c5c45e3947c4` | 重建 Docker 栈；代码套件 PASS；三场景及 `check-only` 均 PASS；`pnpm test:e2e`：4 passed | 当前为小样本合成日线 Fixture；真实全量 A 股数据、真实券商和跨重启回测持久化未验证 |
-| [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | PASS（代码/容器场景） | PASS（用户已完成人工 Web 与 Ubuntu 完整 Compose 烟测验收，2026-09-09） | `25fe0718-5a76-4477-a02b-5e954f621dde`、`48e32a09-4901-424f-8585-7b01ab9f83f7`、`113fea95-5fee-42ee-b702-f8423b8a173c` | V1.5 代码回归 PASS；platform-api→真实 JetStream、platform-api 正式 Temporal Worker→Workflow→Activity、Worker 重启、Activity 重试 PASS；Web E2E：5 passed；Ubuntu 完整 Compose 烟测 PASS（用户确认） | Ubuntu 主机版本、架构、Commit 和命令输出尚未附在记录中 |
+| [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | PASS（代码/容器场景；当前 Compose 持久卷重建复核补充 PASS） | PASS（用户已完成人工 Web 与 Ubuntu 完整 Compose 烟测验收，2026-09-09） | `25fe0718-5a76-4477-a02b-5e954f621dde`、`48e32a09-4901-424f-8585-7b01ab9f83f7`、`113fea95-5fee-42ee-b702-f8423b8a173c`；当前运行时补充：[V1.5-NATS/Temporal 证据](../../evidence-v1.5-real-integration.md)、[阶段五审计](../../../evidence/audits/2026-09-23-phase-5-nats-temporal.md) | 历史 V1.5 测试和用户签署保留；2026-09-23 当前 Compose NATS/Temporal 命名卷重建复核通过；仍未验证宿主/磁盘灾难恢复、异机备份、生产 HA，Ubuntu 主机版本/架构/Commit/命令输出待补 | Ubuntu 主机版本、架构、Commit 和命令输出尚未附在记录中 |
 
 ## 2. 版本门禁
+
+2026-09-23 状态复核：V1.1～V1.5 的阶段级历史自动验证和人工签署继续保留；阶段五已补充当前 Compose NATS/Temporal 持久卷容器重建 PASS。但版本级门禁清单仍有待逐项完成，且原始 Ubuntu 明细尚缺，因此版本总结维持 `NOT_RUN`，不改变用户既有签署。
 
 - [ ] 每阶段第7节开发交付项已逐项核实；用户人工项有实际确认依据。
 - [ ] 每阶段第8节由DRAFT_NOT_EXECUTABLE更新为实测手册，填写目录、URL、具体Fixture/参数、代码测试命令和预期输出。

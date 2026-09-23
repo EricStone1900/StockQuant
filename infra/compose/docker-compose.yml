@@ -3,8 +3,10 @@ name: stockquant-v12
 services:
   nats:
     restart: unless-stopped
-    image: nats:2.10-alpine
-    command: ["-js", "-m", "8222"]
+    image: nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+    command: ["-js", "-m", "8222", "-sd", "/data/jetstream"]
+    volumes:
+      - nats-jetstream-v1:/data/jetstream
     ports:
       - "127.0.0.1:4222:4222"
       - "127.0.0.1:8222:8222"
@@ -12,8 +14,10 @@ services:
 
   temporal:
     restart: unless-stopped
-    image: temporalio/temporal:latest
-    command: ["server", "start-dev", "--ip", "0.0.0.0"]
+    image: temporalio/temporal:1.8.3@sha256:cea463d98a8d6def4420f903ea5c3fcd0d85c8d10fbcc2770a50c12fff2eb26d
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/home/temporal/temporal.db"]
+    volumes:
+      - temporal-dev-state-v1:/home/temporal
     ports:
       - "127.0.0.1:7233:7233"
       - "127.0.0.1:8233:8233"
@@ -327,5 +331,7 @@ networks:
   internal: {}
 
 volumes:
+  nats-jetstream-v1:
+  temporal-dev-state-v1:
   postgres-v11:
   market-data-health:

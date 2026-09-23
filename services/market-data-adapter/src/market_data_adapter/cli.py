@@ -58,6 +58,9 @@ def wire_bar(bar: NormalizedBar) -> dict[str, Any]:
 def main() -> int:
     try:
         request: dict[str, Any] = json.loads(sys.stdin.read())
+        operation = request.get("operation")
+        if operation not in (None, "RECOVERY_PROBE"):
+            raise SourceError("INVALID_REQUEST", "unsupported adapter operation", retryable=False)
         security_ids = request.get("securityIds")
         start = request.get("startDate")
         end = request.get("endDate")
@@ -82,6 +85,15 @@ def main() -> int:
             backoff_jitter_seconds=float(request.get("backoffJitterSeconds", 0.5)),
             cooldown_seconds=float(request.get("recoveryCooldownSeconds", os.environ.get("STOCKQUANT_COLLECTION_SOURCE_RECOVERY_COOLDOWN_SECONDS", 600))),
         )
+        if operation == "RECOVERY_PROBE":
+            attempts = collector.probe_recovery(
+                security_ids,
+                start,
+                end,
+                timeout_seconds=float(request.get("probeTimeoutSeconds", 3)),
+            )
+            print(json.dumps({"status": "COMPLETED", "operation": "RECOVERY_PROBE", "attempts": attempts}, separators=(",", ":")))
+            return 0
         source_id, bars, attempts = collector.collect(security_ids, start, end)
         print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))
         return 0

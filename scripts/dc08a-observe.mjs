@@ -13,13 +13,14 @@ export function parseRows(output, fields, delimiter = "\t") {
   });
 }
 
-export function buildObservation({ ready, schedule, statusCounts, artifactSummary, pendingOutbox, openGaps, capturedAt, observationCounted = false, runDetails = [], fieldEvidence = [] }) {
+export function buildObservation({ ready, schedule, statusCounts, artifactSummary, pendingOutbox, openGaps, capturedAt, observationCounted = false, finalized = false, runDetails = [], fieldEvidence = [] }) {
   const totalRuns = statusCounts.reduce((sum, row) => sum + Number(row.count ?? 0), 0);
   const completedRuns = Number(statusCounts.find((row) => row.status === "COMPLETED")?.count ?? 0);
   return {
     schemaVersion: "dc08a-observation-v2",
     capturedAt,
     observationCounted,
+    finalized,
     subscription: schedule,
     ready,
     runs: { total: totalRuns, completed: completedRuns, byStatus: statusCounts, details: runDetails },
@@ -52,7 +53,7 @@ function jsonQuery(sql, fallback = []) {
   try { return JSON.parse(raw); } catch { return fallback; }
 }
 
-export async function capture({ subscriptionId = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260914-short-v1", outputDir = process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", archiveDir = null, readyUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", now = new Date(), observationCounted = false } = {}) {
+export async function capture({ subscriptionId = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260914-short-v1", outputDir = process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", archiveDir = null, readyUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", now = new Date(), observationCounted = false, finalized = false } = {}) {
   const ready = await fetchReady(readyUrl);
   const schedule = parseRows(query(`SELECT subscription_id, enabled, subscription_version, from_date, to_date, calendar_version, watermark_end, version FROM market_data_collection_schedules WHERE subscription_id='${subscriptionId.replaceAll("'", "''")}'`), ["subscriptionId", "enabled", "subscriptionVersion", "fromDate", "toDate", "calendarVersion", "watermarkEnd", "version"], "|")[0] ?? null;
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(now);
@@ -63,7 +64,7 @@ export async function capture({ subscriptionId = process.env.DC08A_SUBSCRIPTION_
   const openGaps = query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND bar_start >= '${day} 00:00:00+08' AND bar_start < '${day} 24:00:00+08'`).trim() || "0";
   const runDetails = jsonQuery(`SELECT coalesce(json_agg(json_build_object('runId', run_id, 'windowStart', window_start, 'windowEnd', window_end, 'jobKind', job_kind, 'status', status, 'createdAt', created_at, 'updatedAt', updated_at, 'retryAt', retry_at, 'artifactId', published_artifact_id, 'checkpoint', checkpoint) ORDER BY window_start), '[]'::json) FROM market_data_collection_runs WHERE subscription_id='${escaped}' AND window_start >= '${day} 00:00:00+08' AND window_start < '${day} 24:00:00+08'`);
   const fieldEvidence = jsonQuery(`WITH ranked AS (SELECT ar.payload, row_number() OVER (ORDER BY r.window_start, ar.row_number) AS row_number FROM market_data_artifact_rows ar JOIN market_data_collection_artifacts a ON a.artifact_id=ar.artifact_id JOIN market_data_collection_runs r ON r.published_artifact_id=a.artifact_id WHERE r.subscription_id='${escaped}' AND r.window_start >= '${day} 00:00:00+08' AND r.window_start < '${day} 24:00:00+08') SELECT coalesce(json_agg(payload ORDER BY row_number) FILTER (WHERE row_number <= 3), '[]'::json) FROM ranked`);
-  const report = buildObservation({ ready, schedule: schedule ? { ...schedule, enabled: schedule.enabled === "t", subscriptionVersion: Number(schedule.subscriptionVersion), version: Number(schedule.version) } : null, statusCounts, artifactSummary: { artifactCount: Number(artifactSummary.artifactCount), rowCount: Number(artifactSummary.rowCount), latestCreatedAt: artifactSummary.latestCreatedAt }, pendingOutbox, openGaps, capturedAt: now.toISOString(), observationCounted, runDetails, fieldEvidence });
+  const report = buildObservation({ ready, schedule: schedule ? { ...schedule, enabled: schedule.enabled === "t", subscriptionVersion: Number(schedule.subscriptionVersion), version: Number(schedule.version) } : null, statusCounts, artifactSummary: { artifactCount: Number(artifactSummary.artifactCount), rowCount: Number(artifactSummary.rowCount), latestCreatedAt: artifactSummary.latestCreatedAt }, pendingOutbox, openGaps, capturedAt: now.toISOString(), observationCounted, finalized, runDetails, fieldEvidence });
   const directory = resolve(outputDir);
   await mkdir(directory, { recursive: true });
   const path = resolve(directory, `observation-${now.toISOString().replaceAll(/[:.]/g, "-")}.json`);

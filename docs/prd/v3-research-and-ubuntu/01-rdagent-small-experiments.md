@@ -76,7 +76,7 @@ V1环境探针缺口已处理；V2数据/回放小样本通过；实际模型Pro
 | 本阶段Web路由 | `http://127.0.0.1:8080/acceptance/v3/v3.1` |
 | 正式页面的真实入口/跳转链接 | 开发验收中心 → V3 → V3.1；当前为准备页，不宣称正式研究页面完成 |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v3/v3.1/manifest.json`；SHA-256 `f6b318d6208db25c92350e1d2e3ed99d8d7ca1f207927c14e0982e73179b115b`；RESEARCH/FIXTURE/FAKE，轮数1，默认预算300 cents，单实验硬上限1000 cents |
-| 配置文件及必需环境变量名/非秘密测试值 | `.env.local`、Compose；`STOCKQUANT_DATABASE_URL`、`STOCKQUANT_RESEARCH_AUTOMATION_URL`、`RESEARCH_AUTOMATION_DATABASE_URL`；真实模型凭证保持 UNSET |
+| 配置文件及必需环境变量名/非秘密测试值 | `.env.local`、Compose；`STOCKQUANT_DATABASE_URL`、`STOCKQUANT_RESEARCH_AUTOMATION_URL`、`RESEARCH_AUTOMATION_DATABASE_URL`；本机 `DEEPSEEK_API_KEY`、`SILICONFLOW_API_KEY` 已有非空值（本次只核验存在性，不读取/记录值）；模型 Gateway/Runner 仍未配置且没有模型调用 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | LIVE 拒绝由 `pnpm verify:stage -- --stage V3.1 --scenario rejection --seed 20260907` 验证；研究数据库使用独立 `research_automation`；保留 TestRun/Artifact，不删除共享卷 |
 | 预期耗时、轮询超时、实际观察期/预算 | `stack:up` 约数分钟；场景与 E2E < 30 秒；单轮默认预算300 cents、单实验硬上限1000 cents、阶段总预算3000 cents（实际模型未调用）；健康检查超时由 Compose 3 秒/20 次控制 |
 

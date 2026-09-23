@@ -255,6 +255,56 @@ class FailoverCollector:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
             handle.close()
 
+    def probe_recovery(self, security_ids: Sequence[str], start: str, end: str, timeout_seconds: float = 3.0) -> list[dict[str, object]]:
+        """Probe due OPEN sources independently of a formal collection window.
+
+        Empty data is inconclusive: minute feeds can publish late, so it must not
+        extend an OPEN circuit or be mistaken for a transport failure.
+        """
+        if not security_ids or timeout_seconds <= 0 or timeout_seconds > 3.0:
+            raise SourceError("INVALID_REQUEST", "recovery probe needs a security and a timeout in (0, 3] seconds", retryable=False)
+        attempts: list[dict[str, object]] = []
+        for provider in self.providers:
+            if provider.breaker.state != "OPEN":
+                continue
+            try:
+                provider.breaker.allow()
+            except SourceError:
+                attempts.append({"sourceId": provider.source_id, "status": "NOT_DUE", "code": "CIRCUIT_OPEN"})
+                continue
+            with self._half_open_guard(provider.source_id) as acquired:
+                if not acquired:
+                    attempts.append({"sourceId": provider.source_id, "status": "SKIPPED", "code": "CIRCUIT_PROBE_IN_PROGRESS"})
+                    continue
+                provider.limiter.wait()
+                try:
+                    bars = provider.client.fetch(security_ids[:1], start, end, timeout_seconds)
+                    if any(bar.source_id != provider.source_id for bar in bars):
+                        raise SourceError("SOURCE_MISMATCH", "normalized bar source does not match adapter", retryable=False)
+                    if not bars:
+                        provider.breaker.state = "OPEN"
+                        attempts.append({"sourceId": provider.source_id, "status": "INCONCLUSIVE", "code": "EMPTY_RESULT", "retryable": False})
+                        continue
+                    provider.breaker.success()
+                    provider.last_success_at = time.time()
+                    provider.last_error_code = None
+                    self._health_dirty.add(provider.source_id)
+                    attempts.append({"sourceId": provider.source_id, "status": "PASS", "rows": len(bars)})
+                except SourceError as error:
+                    provider.breaker.failure()
+                    provider.last_failure_at = time.time()
+                    provider.last_error_code = error.code
+                    self._health_dirty.add(provider.source_id)
+                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": error.code, "retryable": error.retryable})
+                except Exception as error:  # noqa: BLE001
+                    provider.breaker.failure()
+                    provider.last_failure_at = time.time()
+                    provider.last_error_code = "ADAPTER_EXCEPTION"
+                    self._health_dirty.add(provider.source_id)
+                    attempts.append({"sourceId": provider.source_id, "status": "FAIL", "code": "ADAPTER_EXCEPTION", "error": repr(error), "retryable": True})
+        self._save_health()
+        return attempts
+
     def collect(self, security_ids: Sequence[str], start: str, end: str) -> tuple[str, list[NormalizedBar], list[dict[str, object]]]:
         attempts: list[dict[str, object]] = []
         for provider in self.providers:

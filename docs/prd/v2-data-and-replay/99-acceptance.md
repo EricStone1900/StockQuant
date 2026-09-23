@@ -1,6 +1,6 @@
 # V2 免费数据、分钟回放与连续模拟：验收清单
 
-当前结论：PARTIALLY_IMPLEMENTED。这里只验收本轮模拟范围，不代表原R1真实账户、R2实盘或全部R3增强通过；V2.3、V2.4 实现范围已完成人工确认，但 V2.4 的 20 个实际交易日观察、V2.5 的分钟级长期门禁和 DC-08A 的20只证券稳定观察仍未完成。V2.4 日终最终记录当前为6/20；DC-08A 当前为2个稳定完整日、1个恢复后完整日，尚未完成其人工验收门槛。
+当前结论：PARTIALLY_IMPLEMENTED。这里只验收本轮模拟范围，不代表原R1真实账户、R2实盘或全部R3增强通过；V2.3、V2.4 实现范围已完成人工确认，但 V2.4 的 20 个实际交易日观察、V2.5 的分钟级长期门禁和 DC-08A 的20只证券稳定观察仍未完成。2026-09-23 数据库正式日终记录为 V2.4 7/20；DC-08A 当前归档为3个稳定完整日、1个恢复后完整日（4/20），其人工验收门槛仍未完成。
 
 ## 1. 阶段验收
 
@@ -19,6 +19,10 @@
 2026-09-19 V2.3 人工验收复核：用户确认按执行顺序重新完成 normal `ca0678f9-7c24-4f99-ad58-59054dfac2f9`、rejection `79f5af32-9ede-492d-94b2-3a554394a06f`、recovery `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0`；三场景、Web E2E 2/2、code suite、同 run check-only 和证据导出均 PASS。fresh Manifest Hash：`f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e`。本结论仅覆盖 V2.3 技术收口范围，不代表真实模型、LIVE 或 V2.4/V2.5 门禁。
 
 ## 2. 版本门禁
+
+2026-09-23 运行快照：V2.4 `/api/v1/acceptance/v2/v2.4/observation-summary` 返回 `WAITING`、7/20、剩余13日；调度器 `RUNNING`，采样30分钟、Paper/FakeBroker，下一采样为2026-09-24 09:30（Asia/Shanghai）。DC-08A 健康接口返回 `HEALTHY`，20只订阅、调度器/执行器 `ENABLED`，无开放缺口/待投递 Outbox；BaoStock 熔断仍为 `OPEN`（92次失败、`EMPTY_RESULT`），Sina 为 `CLOSED`。本快照记录在[阶段六健康报告](../../../evidence/audits/2026-09-23-phase-6-health-report.json)及[阶段六观察汇总](../../../evidence/audits/2026-09-23-phase-6-observation-summary.json)；健康只代表当前可用回退来源和质量状态，不表示 BaoStock 已恢复。
+
+自动化复核：a-20、dc-08a、dc-08a-2 为 ACTIVE；dc-08a 守卫配置 `UNTIL=2026-10-20T00:45:00Z`（北京时间 08:45）；a-20 与盘后任务无到期时间。已完成的一次性 dc-08a-20 和已迁移旧 stockquant 任务均 PAUSED。验证命令 `pnpm dc08a:verify-automation` PASS；详见[阶段六审计](../../../evidence/audits/2026-09-23-phase-6-status-and-automations.md)。
 
 - [ ] 每阶段第7节开发交付项已逐项核实；用户人工项有实际确认依据。
 - [ ] 每阶段第8节由DRAFT_NOT_EXECUTABLE更新为实测手册，填写目录、URL、具体Fixture/参数、代码测试命令和预期输出。

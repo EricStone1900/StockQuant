@@ -2,6 +2,8 @@
 
 状态：PASS（模拟切片、真实 NATS/JetStream、platform-api 正式进程 NATS 接入、Temporal 正式进程 Worker/Workflow、Worker 重启恢复、Activity 重试、真实 Ubuntu 主机完整 Compose 烟测和用户人工验收完成，2026-09-09）。Ubuntu 主机详细环境明细待补充。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
+2026-09-23 当前 Compose 运行时补充：阶段一只读检查发现当时 NATS JetStream 没有挂卷、Temporal `start-dev` 使用内存持久化；这不推翻 2026-09-09 历史测试结果，但说明它们未验证当前 Compose 容器重建后的状态保留。现已按[本地持久化恢复 Runbook](../../operations/nats-temporal-persistence-recovery.md)锁定两镜像 digest、配置 NATS/Temporal 命名卷，并实测 NATS 测试消息与 Temporal 已完成 Workflow 在强制容器重建后仍可读。该补充只证明本机单节点 Compose 恢复，不证明宿主灾难恢复或生产 HA；完整输出见[阶段五审计](../../../evidence/audits/2026-09-23-phase-5-nats-temporal.md)。
+
 ## 1. 前置与范围
 
 V1.1～V1.4通过；真实NATS、Temporal与已验收领域服务接入。

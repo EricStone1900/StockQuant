@@ -18,6 +18,7 @@ async function run() {
     ["heartbeat", "a-20"],
     ["legacy", "stockquant"],
     ["promotion", "dc-08a-20"],
+    ["eod", "dc-08a-2"],
   ].map(async ([key, id]) => [key, await readFile(path.join(automationDir, id, "automation.toml"), "utf8")])));
   const failures = [];
   const heartbeatRule = field(files.heartbeat, "rrule");
@@ -30,14 +31,29 @@ async function run() {
   check(files.heartbeat.includes("pnpm dc08a:monitor") && files.heartbeat.includes("pnpm dc08a:eod"), "heartbeat-commands", "monitor/eod commands missing", failures);
   check(files.heartbeat.includes("pnpm dc08a:health-report") && files.heartbeat.includes("pnpm dc08a:observation-summary"), "heartbeat-health-commands", "health/observation summary commands missing", failures);
   check(files.heartbeat.includes("退出码2") || files.heartbeat.includes("exit code 2"), "observation-waiting-code", "observation waiting exit code handling missing", failures);
+  check(field(files.eod, "status") === "ACTIVE", "eod-active", "dc-08a-2 must be ACTIVE", failures);
+  check(field(files.eod, "rrule").includes("DTSTART:20260914T072000") && !field(files.eod, "rrule").includes("UNTIL="), "eod-recurring-no-expiry", field(files.eod, "rrule"), failures);
+  check(field(morning, "status") === "ACTIVE", "morning-active", "dc-08a must be ACTIVE", failures);
   check(field(files.legacy, "status") === "PAUSED", "legacy-paused", "stockquant must remain PAUSED", failures);
   check(field(files.promotion, "status") === "PAUSED", "promotion-paused", "completed one-shot dc-08a-20 must be PAUSED", failures);
-  check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR"), "morning-trigger", morningRule, failures);
+  check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR") && morningRule.includes("UNTIL=20261020T004500Z"), "morning-trigger-and-expiry", morningRule, failures);
+  check(!heartbeatRule.includes("UNTIL=") && !field(files.heartbeat, "rrule").includes("COUNT="), "heartbeat-unbounded-by-design", heartbeatRule, failures);
   check(promotionRule.includes("DTSTART:20260917T000000") && promotionRule.includes("RRULE:FREQ=MINUTELY;COUNT=1"), "promotion-once", promotionRule, failures);
   for (const command of ["pnpm dc08a:promote-20 -- --check-only", "pnpm dc08a:active-subscription -- --field id", "pnpm dc08a:active-subscription -- --field count", "pnpm dc08a:supervise -- --check-only"]) {
     check(files.promotion.includes(command), "promotion-command", command, failures);
   }
-  const result = { status: failures.length === 0 ? "PASS" : "FAIL", automationDir, failures };
+  const result = {
+    status: failures.length === 0 ? "PASS" : "FAIL",
+    automationDir,
+    automations: [
+      { id: "a-20", status: field(files.heartbeat, "status"), expiry: "none (continuous heartbeat)" },
+      { id: "dc-08a", status: field(morning, "status"), expiry: "2026-10-20T00:45:00Z" },
+      { id: "dc-08a-2", status: field(files.eod, "status"), expiry: "none (daily recurrence)" },
+      { id: "dc-08a-20", status: field(files.promotion, "status"), expiry: "paused one-shot; COUNT=1" },
+      { id: "stockquant", status: field(files.legacy, "status"), expiry: "paused legacy task" },
+    ],
+    failures,
+  };
   console.log(JSON.stringify(result, null, 2));
   return failures.length === 0 ? 0 : 1;
 }

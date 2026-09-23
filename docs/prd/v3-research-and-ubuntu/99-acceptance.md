@@ -6,12 +6,14 @@
 
 | 阶段 | 后端/自动检查 | Web人工验收 | 证据/testRunId | 已知限制 | 签署/日期 |
 |---|---|---|---|---|---|
-| [V3.1 真实 RD-Agent 小样本实验闭环](./01-rdagent-small-experiments.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
+| [V3.1 真实 RD-Agent 小样本实验闭环](./01-rdagent-small-experiments.md) | NOT_RUN（准备代码/隔离 Runner Smoke 已通过；真实调用前置仍阻塞） | NOT_RUN | [准备证据](../../evidence-v3.1-preparation.md)；[阶段七门禁审计](../../../evidence/audits/2026-09-23-phase-7-v31-gate-review.md) | 真实 RD-Agent/模型调用、隔离 Runner 服务接入、预算 reserve/settle 集成、底层 Provider 外发限制和真实 Ubuntu 仍未完成；`/ready` preflight 为 BLOCKED、`modelCalls=NOT_RUN` | 人工验收未签署 |
 | [V3.2 独立复算、人工批准与模拟策略晋升](./02-candidate-validation-and-promotion.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V3.3 研究扩容、预算与持续运行](./03-research-scale-and-recovery.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 | [V3.4 Ubuntu 迁移、全阶段 Web 回归与最终交付](./04-ubuntu-migration-and-release.md) | NOT_RUN | NOT_RUN | 待填写 | 待填写 | 待填写 |
 
 ## 2. 版本门禁
+
+2026-09-23 状态复核：V3.1 已有研究 API、预算账本、Runner 镜像和受限宿主 Smoke 的准备范围证据，但不代表真实研究闭环。真实模型调用、Runner 服务接入、预算实际调用链、Provider 精确域名许可及 Ubuntu 实机仍未完成；OD-009 与用户人工验收保持未关闭，故 V3.1 和 V3 总结继续为 `NOT_RUN`。依据：[V3.1 准备证据](../../evidence-v3.1-preparation.md)。
 
 - [ ] 每阶段第7节开发交付项已逐项核实；用户人工项有实际确认依据。
 - [ ] 每阶段第8节由DRAFT_NOT_EXECUTABLE更新为实测手册，填写目录、URL、具体Fixture/参数、代码测试命令和预期输出。

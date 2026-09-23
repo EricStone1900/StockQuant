@@ -20,6 +20,7 @@ class FakeSource:
 
     def fetch(self, security_ids, start, end, timeout_seconds):
         self.calls += 1
+        self.last_request = (list(security_ids), start, end, timeout_seconds)
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
             raise outcome
@@ -27,6 +28,69 @@ class FakeSource:
 
 
 class FailoverTests(unittest.TestCase):
+    def test_recovery_probe_rejects_unbounded_timeouts(self):
+        collector = FailoverCollector([("baostock", FakeSource([[bar("baostock")]]))])
+        with self.assertRaises(SourceError) as failure:
+            collector.probe_recovery(["600000.SH"], "2026-09-18", "2026-09-23", timeout_seconds=3.01)
+        self.assertEqual(failure.exception.code, "INVALID_REQUEST")
+
+    def test_cli_rejects_unknown_operation_without_starting_formal_collection(self):
+        import json
+
+        result = subprocess.run(
+            [sys.executable, "-m", "market_data_adapter.cli"],
+            input=json.dumps({"operation": "typo"}),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout)["code"], "INVALID_REQUEST")
+
+    def test_independent_recovery_probe_closes_due_circuit_without_formal_collection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                __import__("json").dump({"baostock": {"failures": 3, "state": "OPEN", "openedAt": time.time() - 601}}, handle)
+            baostock = FakeSource([[bar("baostock")]])
+            sina = FakeSource([[bar("sina")]])
+            collector = FailoverCollector([("sina", sina), ("baostock", baostock)], health_path=path, cooldown_seconds=600)
+            attempts = collector.probe_recovery(["600000.SH", "000001.SZ"], "2026-09-18", "2026-09-23", timeout_seconds=3)
+            self.assertEqual(attempts, [{"sourceId": "baostock", "status": "PASS", "rows": 1}])
+            self.assertEqual(baostock.last_request, (["600000.SH"], "2026-09-18", "2026-09-23", 3))
+            self.assertEqual(sina.calls, 0)
+            self.assertEqual(baostock.calls, 1)
+            with open(path, encoding="utf-8") as handle:
+                state = __import__("json").load(handle)["baostock"]
+            self.assertEqual(state["state"], "CLOSED")
+            self.assertEqual(state["failures"], 0)
+
+    def test_independent_recovery_probe_empty_result_is_inconclusive_and_keeps_open_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                __import__("json").dump({"baostock": {"failures": 4, "state": "OPEN", "openedAt": time.time() - 601}}, handle)
+            source = FakeSource([[]])
+            collector = FailoverCollector([("baostock", source)], health_path=path, cooldown_seconds=600)
+            attempts = collector.probe_recovery(["600000.SH"], "2026-09-18", "2026-09-23")
+            self.assertEqual(attempts[0]["status"], "INCONCLUSIVE")
+            self.assertEqual(attempts[0]["code"], "EMPTY_RESULT")
+            with open(path, encoding="utf-8") as handle:
+                state = __import__("json").load(handle)["baostock"]
+            self.assertEqual(state["state"], "OPEN")
+            self.assertEqual(state["failures"], 4)
+
+    def test_independent_recovery_probe_obeys_cooldown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "health.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                __import__("json").dump({"baostock": {"failures": 3, "state": "OPEN", "openedAt": time.time()}}, handle)
+            source = FakeSource([[bar("baostock")]])
+            collector = FailoverCollector([("baostock", source)], health_path=path, cooldown_seconds=600)
+            attempts = collector.probe_recovery(["600000.SH"], "2026-09-18", "2026-09-23")
+            self.assertEqual(attempts[0]["status"], "NOT_DUE")
+            self.assertEqual(source.calls, 0)
+
     def test_persisted_failures_accumulate_across_collectors_before_opening(self):
         with tempfile.TemporaryDirectory() as directory:
             health_path = os.path.join(directory, "health.json")

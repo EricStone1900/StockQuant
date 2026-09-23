@@ -107,3 +107,19 @@
 | 实验与验收 | 服务只登记/查询/取消实验；正式研究页、真实模型→代码→Qlib、Runner 隔离与失败 Artifact 尚未实测 | 完成 V3.1 normal/rejection/recovery 和人工验收；维持 `NOT_RUN` |
 
 本审计只确认本机准备和缺口。当前工作区存在未提交变更；迁移 Ubuntu 前仍需固定可复现代码版本、依赖锁和镜像 digest。
+
+## 2026-09-23 阶段三预算与 Runner 边界复核
+
+修复 `BudgetLedger` 覆盖同实验预留和 UNKNOWN 后重试问题：重复同额 RESERVED/SETTLED 请求幂等；金额变化、UNKNOWN 再预留、REJECTED 重用均拒绝；UNKNOWN 只能核实原实验费用后转为 SETTLED，结算费用不可改写。新增 `PgBudgetLedger`，用 PostgreSQL 阶段限额行锁串行化并发预留，UNKNOWN 全额占用，SETTLED 按实际费用累计；研究服务启动时初始化预算表及阶段限额。当前实验/模型调用尚未接入该账本的 reserve/settle，因此实际模型费用门禁仍 NOT_RUN。
+
+Runner Job 现在要求安全路径标识、恰好四项资源字段及边界内整数；上限为 2000 millicpu、4096 MiB、3600 秒、128 PIDs。Docker 计划要求已经存在的输入/输出目录精确匹配 `managedRoot/inputs/{testRunId}/{experimentId}` 和对应 outputs 目录，拒绝敏感宿主路径、路径穿越、路径别名、符号链接越界和逗号挂载注入。资源上限同步到 Runner Job JSON Schema。计划只返回 `NOT_STARTED` 并携带 timeout 数值；还没有实际宿主执行器强制超时或输出配额，所以不能声明完整 Runner 资源隔离已通过。
+
+验证：research service typecheck 通过；单元测试 21/21；PostgreSQL integration 3/3（实验仓储1项、预算账本2项，使用随机隔离 stageId 并精确清理）；JSON/Fixture contracts 24/24。真实 RD-Agent/模型费用调用、Docker 宿主执行、Ubuntu 资源隔离仍未运行；V3.1 保持 `NOT_RUN`，用户人工验收未签署。
+
+## 2026-09-23 阶段七安全门禁复验
+
+当前 research `/ready` 为 `RESEARCH + FAKE`、`runner=NOT_CONFIGURED`、`modelGateway=NOT_CONFIGURED`、`outboundPolicy=DENY`；preflight 为 `BLOCKED`/`modelCalls=NOT_RUN`，缺可信 Runner、LIVE Gateway 和两个 Provider 主机 allowlist。`.env.local` 中两项凭证只核验到非空且权限 `0600`，未读取或记录秘密；没有发起 Provider 请求。预算配置仍为 USD $3 默认/轮、$10 单实验硬上限、$30 阶段上限，但 reserve/settle 尚未接入真实调用路径。
+
+阶段七重新执行 `pnpm verify:stage -- --stage V3.1 --suite code` 退出0：合同24项、research 单元21/21、PostgreSQL集成3/3、platform API单元28/28、类型检查通过。首次在默认沙箱下本机 PostgreSQL 5433 连接受限；使用隔离 stageId 并精确清理在授权本机连接后重跑通过。`pnpm v31:runner-smoke` 退出0：normal exit0、timeout/path-rejection exit2、OOM exit247 均符合预期；smoke 使用固定镜像和 `network none`，属于 Mac Docker Desktop amd64 仿真，不构成生产执行器或真实模型调用。
+
+完整门禁与未完成项见[阶段七审计](../evidence/audits/2026-09-23-phase-7-v31-gate-review.md)。真实闭环、OD-009 接受及人工验收继续 `NOT_RUN`。

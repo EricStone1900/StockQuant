@@ -8,7 +8,7 @@
 |---|---|---|
 | Web/平台API | 开发可原生Web热更新，验收补容器Web | 会话/TestRun平台库，用户入口鉴权 |
 | 核心API/事件Worker | Linux镜像按阶段启用 | 各域独立DB/User/迁移 |
-| PostgreSQL/NATS/Temporal/Artifact | Compose基础设施 | 持久卷与备份，Temporal独立存储 |
+| PostgreSQL/NATS/Temporal/Artifact | Compose基础设施 | PostgreSQL、NATS JetStream、Temporal 本地开发库分别使用版本化命名卷；升级与恢复按[本地持久化Runbook](../docs/operations/nats-temporal-persistence-recovery.md)，Temporal `start-dev` 仅作开发/验收，不能代替生产部署 |
 | Qlib/Replay计算 | 独立CPU Worker默认并发1 | 数据只读，输出按run隔离 |
 | FakeBroker | 独立测试组件/进程，可容器化 | 独立模拟资产/订单/故障序列 |
 | RD-Agent控制器/Runner | 控制器可信，生成代码不可信 | 分离权限/工作区，Runner无Socket/秘密 |
