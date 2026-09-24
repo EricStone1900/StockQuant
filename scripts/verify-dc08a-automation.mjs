@@ -43,6 +43,11 @@ async function run() {
   check(field(files.tdxAm, "rrule").includes("BYHOUR=11;BYMINUTE=35"), "tdx-am-schedule", field(files.tdxAm, "rrule"), failures);
   check(field(files.tdxPm, "rrule").includes("BYHOUR=15;BYMINUTE=20"), "tdx-pm-schedule", field(files.tdxPm, "rrule"), failures);
   check(files.tdxAm.includes("pnpm v25:probe-tdx") && files.tdxPm.includes("pnpm v25:probe-tdx"), "tdx-probe-commands", "TDX probe command missing", failures);
+  const formalTdxSecurityIds = ["600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH", "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH", "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH", "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"];
+  for (const [key, label] of [["tdxAm", "tdx-am"], ["tdxPm", "tdx-pm"]]) {
+    for (const securityId of formalTdxSecurityIds) check(files[key].includes(securityId), `${label}-${securityId}`, `${label} prompt must include formal security ${securityId}`, failures);
+    check(!files[key].includes("000001.SZ") && !files[key].includes("600519.SH"), `${label}-formal-universe`, `${label} prompt contains a non-formal security universe`, failures);
+  }
   check(morningRule.includes("DTSTART:20260917T004500") && morningRule.includes("BYDAY=MO,TU,WE,TH,FR") && morningRule.includes("UNTIL=20261020T004500Z"), "morning-trigger-and-expiry", morningRule, failures);
   check(!heartbeatRule.includes("UNTIL=") && !field(files.heartbeat, "rrule").includes("COUNT="), "heartbeat-unbounded-by-design", heartbeatRule, failures);
   check(promotionRule.includes("DTSTART:20260917T000000") && promotionRule.includes("RRULE:FREQ=MINUTELY;COUNT=1"), "promotion-once", promotionRule, failures);
