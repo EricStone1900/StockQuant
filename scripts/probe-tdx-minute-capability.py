@@ -27,6 +27,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args(argv[1:] if argv[:1] == ["--"] else argv)
 
 
+def subprocess_timeout_seconds(security_count: int, request_timeout_seconds: float, interval_seconds: float = 1.0) -> float:
+    """Give the adapter enough wall-clock budget for sequential TDX requests."""
+    count = max(1, security_count)
+    return max(5.0, request_timeout_seconds * (count + 1) + interval_seconds * max(0, count - 1))
+
+
 def run() -> dict[str, object]:
     args = parse_args()
     security_ids = [item.strip().upper() for item in args.security_ids.split(",") if item.strip()]
@@ -49,7 +55,7 @@ def run() -> dict[str, object]:
             input=json.dumps(request),
             capture_output=True,
             text=True,
-            timeout=max(5.0, args.timeout_seconds * 2),
+            timeout=subprocess_timeout_seconds(len(security_ids), args.timeout_seconds, interval_seconds=1.0),
             check=False,
         )
         payload = json.loads(completed.stdout)
@@ -96,7 +102,21 @@ def run() -> dict[str, object]:
     return result
 
 
+def exit_code_for_status(status: object) -> int:
+    """Map the probe business status to the repository exit-code contract.
+
+    A partial capability result is an incomplete observation, not a successful
+    probe.  Returning 2 lets scheduled-task orchestration raise an alert while
+    preserving the JSON evidence for diagnosis.
+    """
+    if status == "PASS":
+        return 0
+    if status in {"PARTIAL", "NOT_RUN"}:
+        return 2
+    return 1
+
+
 if __name__ == "__main__":
     output = run()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if output["status"] in {"PASS", "PARTIAL"} else 1)
+    raise SystemExit(exit_code_for_status(output["status"]))

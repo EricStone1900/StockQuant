@@ -149,6 +149,15 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(calls[0][0:3], ("SH", "600000", "MIN_5"))
         self.assertEqual(calls[0][3]["count"], 800)
 
+    def test_tdx_socket_permission_error_is_reported_as_environment_failure(self):
+        def denied_factory():
+            raise PermissionError(1, "Operation not permitted")
+
+        with self.assertRaises(SourceError) as failure:
+            TdxMinuteClient(client_factory=denied_factory, minimum_interval_seconds=0).fetch(["600000.SH"], "2026-09-11", "2026-09-11", 3)
+        self.assertEqual(failure.exception.code, "TCP_PERMISSION_DENIED")
+        self.assertFalse(failure.exception.retryable)
+
     def test_tdx_legacy_kline_api_uses_close_timestamp_semantics(self):
         class Market:
             SH = "SH"

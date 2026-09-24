@@ -77,6 +77,15 @@
 
 本次只完成可验证的安全边界和预算规则，未声称真实 Runner、真实模型调用、Artifact 持久化或 Ubuntu 运行已通过。
 
+## 2026-09-24 无模型门禁复验
+
+在本机隔离 PostgreSQL 环境重跑 `pnpm verify:stage -- --stage V3.1 --suite code` 返回0：契约
+24项、research 单元24项、PostgreSQL 集成3项、platform API 单元28项和 Web typecheck 均通过。
+`pnpm v31:runner-smoke` 返回 `PASS`，normal=0、timeout=2、path-rejection=2、oom=247，
+与受限 Runner 的预期边界一致。此次没有注入模型凭证、没有发起 Provider 请求，也没有接入宿主
+Docker Socket；真实 RD-Agent 闭环、模型费用链路、精确外发 allowlist 和原生 Ubuntu 仍为
+`NOT_RUN`。
+
 以上准备不修改 V3.1 验收表的人工签署或真实闭环结论。
 
 ## 2026-09-22 执行复核

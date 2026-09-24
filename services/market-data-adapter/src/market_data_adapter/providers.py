@@ -431,7 +431,12 @@ class TdxMinuteClient:
         self.last_host = None
         self.last_latency_ms = None
         started = time.monotonic()
-        client = factory()
+        try:
+            client = factory()
+        except PermissionError as error:
+            raise SourceError("TCP_PERMISSION_DENIED", f"TDX socket access denied by the execution environment: {error!r}", retryable=False) from error
+        except OSError as error:
+            raise SourceError("TCP_CONNECTION_FAILED", repr(error)) from error
         self.last_latency_ms = round((time.monotonic() - started) * 1000, 3)
         host = getattr(client, "_host", None)
         if host is not None:
@@ -452,6 +457,8 @@ class TdxMinuteClient:
                         bars.extend(filtered)
                     except SourceError:
                         raise
+                    except PermissionError as error:
+                        raise SourceError("TCP_PERMISSION_DENIED", f"TDX socket access denied by the execution environment: {error!r}", retryable=False) from error
                     except Exception as error:  # noqa: BLE001
                         error_name = type(error).__name__
                         if error_name in {"TimeoutError", "Timeout", "TdxConnectionError", "ConnectionError"} or isinstance(error, (TimeoutError, OSError)):
