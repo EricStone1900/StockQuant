@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:24.1.0-alpine
 ARG STOCKQUANT_INSTALL_TDX=0
 WORKDIR /workspace
@@ -9,7 +10,8 @@ COPY services/portfolio-risk-service/package.json services/portfolio-risk-servic
 COPY services/market-data-service/package.json services/market-data-service/package.json
 COPY services/quant-research-service/package.json services/quant-research-service/package.json
 COPY tsconfig.base.json ./
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked \
+    pnpm install --store-dir /pnpm/store --frozen-lockfile
 COPY fixtures fixtures
 COPY services/market-data-service services/market-data-service
 COPY services/market-data-adapter services/market-data-adapter

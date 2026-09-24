@@ -277,6 +277,7 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3008
       STOCKQUANT_DATABASE_URL: postgresql://research_automation@postgres:5432/research_automation
+      STOCKQUANT_RESEARCH_ARTIFACT_ROOT: /var/lib/stockquant/research-artifacts
       STOCKQUANT_RUNNER_MODE: NOT_CONFIGURED
       STOCKQUANT_MODEL_GATEWAY_MODE: NOT_CONFIGURED
       STOCKQUANT_RESEARCH_EMBEDDING_MODEL: "${STOCKQUANT_RESEARCH_EMBEDDING_MODEL:-litellm_proxy/Qwen/Qwen3-Embedding-4B}"
@@ -291,6 +292,8 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3008:3008"
+    volumes:
+      - research-artifacts-v1:/var/lib/stockquant/research-artifacts
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3008/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
@@ -339,3 +342,4 @@ volumes:
   temporal-dev-state-v1:
   postgres-v11:
   market-data-health:
+  research-artifacts-v1:

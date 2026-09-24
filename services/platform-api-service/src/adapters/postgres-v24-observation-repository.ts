@@ -46,6 +46,13 @@ export type ObservationSummary = {
   dates: ObservationFinalization[];
 };
 
+export type ObservationDayQuality = {
+  samplingEvents: number;
+  executionEvents: number;
+  invalidSamplingEvents: number;
+  errors: string[];
+};
+
 export function summarizeObservationFinalizations(dates: ObservationFinalization[], targetDays = 20): ObservationSummary {
   const countedDays = dates.filter((item) => item.observationCounted).length;
   return {
@@ -201,6 +208,26 @@ export class PostgresV24ObservationRepository {
   async errorsForDate(observationDate: string): Promise<string[]> {
     const result = await this.pool.query<{ errors: string[] }>("SELECT errors FROM v24_observation_days WHERE observation_date=$1", [observationDate]);
     return result.rows[0]?.errors ?? [];
+  }
+
+  async qualityForDate(observationDate: string): Promise<ObservationDayQuality> {
+    const result = await this.pool.query<{ event_kind: string; record: ObservationRecord }>(
+      "SELECT record->'evidence'->>'eventKind' AS event_kind, record FROM v24_observation_events WHERE observation_date=$1",
+      [observationDate]
+    );
+    const quality: ObservationDayQuality = { samplingEvents: 0, executionEvents: 0, invalidSamplingEvents: 0, errors: [] };
+    for (const row of result.rows) {
+      const record = row.record;
+      if (row.event_kind === "EXECUTION_WINDOW") quality.executionEvents += 1;
+      if (row.event_kind !== "SAMPLING_SLOT") continue;
+      quality.samplingEvents += 1;
+      if (record.errors.length > 0 || record.sourceAvailable !== true || record.dataAgeSeconds === null || record.outageStatus !== "NONE") {
+        quality.invalidSamplingEvents += 1;
+      }
+      quality.errors.push(...record.errors);
+    }
+    quality.errors = [...new Set(quality.errors)];
+    return quality;
   }
 
   async listObservations(limit = 30): Promise<ObservationRecord[]> {

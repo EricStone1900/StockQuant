@@ -13,6 +13,16 @@ test("V3.1 preparation page exposes bounded scenarios", async ({ page }) => {
   const evidence = page.getByTestId("v31-evidence");
   await normal.click();
   await expect(evidence).toContainText("PENDING_PREREQUISITES");
+  await expect(evidence).toContainText("V3.1-PREP-CHAIN-001");
+  await expect(evidence).toContainText("PUBLISHED");
+  await expect(page.getByTestId("v31-experiment-status")).toHaveText("PENDING_PREREQUISITES");
+  await expect(page.getByTestId("v31-artifact-status")).toHaveText("PUBLISHED");
+  await expect(page.getByTestId("v31-runner-status")).toHaveText("QUEUED");
+  await expect(page.getByTestId("v31-execution-status")).toHaveText("NOT_STARTED");
+  await expect(page.getByTestId("v31-prerequisite-status")).toHaveText("PENDING_PREREQUISITES");
+  const runId = await page.getByTestId("v31-test-run-id").textContent();
+  await page.getByTestId("v31-refresh").click();
+  await expect(page.getByTestId("v31-test-run-id")).toHaveText(runId ?? "");
   await rejection.click();
   await expect(evidence).toContainText("LIVE rejected with 422");
   await recovery.click();

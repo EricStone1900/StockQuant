@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:24.1.0-slim AS build
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
@@ -5,7 +6,8 @@ COPY apps/web/package.json apps/web/package.json
 COPY services/platform-api-service/package.json services/platform-api-service/package.json
 COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
 COPY services/research-automation-service/package.json services/research-automation-service/package.json
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked \
+    corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY fixtures fixtures
 COPY services/platform-api-service services/platform-api-service

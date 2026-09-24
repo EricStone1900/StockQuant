@@ -449,9 +449,20 @@ class TdxMinuteClient:
                     self.limiter.wait()
                     market, number = tdx_symbol(security_id)
                     try:
-                        frame, bar_time = self._fetch_kline(connection, market, number, timeout_seconds)
-                        normalized = normalize_tdx(frame, security_id, bar_time=bar_time)
-                        filtered = filter_range(normalized, start, end)
+                        pages: list[NormalizedBar] = []
+                        seen_pages: set[tuple[str, ...]] = set()
+                        for page in range(32):
+                            self.limiter.wait()
+                            frame, bar_time = self._fetch_kline(connection, market, number, timeout_seconds, offset=page * self.count)
+                            normalized = normalize_tdx(frame, security_id, bar_time=bar_time)
+                            page_key = tuple(f"{item.bar_start}|{item.bar_end}" for item in normalized)
+                            if not page_key or page_key in seen_pages:
+                                break
+                            seen_pages.add(page_key)
+                            pages.extend(normalized)
+                            if min(item.bar_start for item in normalized) <= f"{start}T00:00:00+08:00":
+                                break
+                        filtered = filter_range(pages, start, end)
                         if not filtered:
                             raise SourceError("EMPTY_RESULT", f"TDX returned no bars for {security_id}")
                         bars.extend(filtered)
@@ -470,7 +481,7 @@ class TdxMinuteClient:
                 close()
         return bars
 
-    def _fetch_kline(self, client: Any, market: str, number: str, timeout_seconds: float) -> tuple[Any, str]:
+    def _fetch_kline(self, client: Any, market: str, number: str, timeout_seconds: float, offset: int = 0) -> tuple[Any, str]:
         # easy-tdx exposes both the newer MacClient API and the standard TDX
         # client. Keep the provider boundary tolerant while the exact package
         # version is frozen and verified in the environment.
@@ -482,16 +493,20 @@ class TdxMinuteClient:
             raise SourceError("DEPENDENCY_MISSING", "easy-tdx is not installed", retryable=False) from error
         if hasattr(client, "get_stock_kline"):
             try:
-                return client.get_stock_kline(market_value, number, period, count=self.count, bar_time="end"), "end"
+                return client.get_stock_kline(market_value, number, period, count=self.count, offset=offset, bar_time="end"), "end"
             except TypeError:
                 # easy-tdx's MacClient returns MAC K-line timestamps at the
                 # bar close (09:35 ... 15:00 for a normal A-share session).
+                if offset:
+                    return [], "end"
                 return client.get_stock_kline(market_value, number, period, count=self.count), "end"
         if hasattr(client, "get_security_bars"):
             try:
                 from easy_tdx import KlineCategory  # type: ignore[import-not-found]
                 category = getattr(KlineCategory, "MIN_5")
-                return client.get_security_bars(market_value, number, category, 0, self.count, bar_time="end"), "end"
+                return client.get_security_bars(market_value, number, category, offset, self.count, bar_time="end"), "end"
             except TypeError:
+                if offset:
+                    return [], "end"
                 return client.get_security_bars(market_value, number, category, 0, self.count), "end"
         raise SourceError("DEPENDENCY_API_UNSUPPORTED", "easy-tdx client has no supported K-line method", retryable=False)

@@ -23,11 +23,11 @@
 真实只读探针对3只跨沪深证券返回144根5分钟Bar，服务器为 `121.37.207.165`，结果 Hash
 为 `12ae2df345ae6939568b55a700ea8a2d24bc14bb7a32ab96354240441d2ff0ef`。该证据只证明候选
 源的单日小样本可读性，正式来源仍为 `sina,baostock`；2个实际交易日、20只证券、持续限频、
-窗口完整性及恢复观察继续为 `NOT_RUN`，不改变 V2.4 7/20 或 DC-08A 4/20 门禁。
+窗口完整性及恢复观察继续为 `NOT_RUN`，不改变 V2.4 8/20 或 DC-08A 5/20 门禁。
 
 ## 2. 版本门禁
 
-2026-09-24 运行快照：V2.4 `/api/v1/acceptance/v2/v2.4/observation-summary` 返回 `WAITING`、8/20、剩余12日；调度器 `RUNNING`，采样30分钟、Paper/FakeBroker，下一采样为2026-09-25 09:30（Asia/Shanghai）。DC-08A 健康报告为 `HEALTHY`，20只订阅、调度器/执行器 `ENABLED`，当日日终为48/48运行、960/960根Bar、开放缺口0、待投递Outbox 0；BaoStock 与 Sina 当前均为 `CLOSED`。健康只代表至少一个来源可用和数据质量门禁通过，不表示 BaoStock 已完成长期盘中稳定性验收。
+2026-09-24 运行快照：V2.4 `/api/v1/acceptance/v2/v2.4/observation-summary` 返回 `WAITING`、8/20、剩余12日；调度器 `RUNNING`，采样30分钟、Paper/FakeBroker。DC-08A 健康报告为 `HEALTHY`，20只订阅、调度器/执行器 `ENABLED`，当日日终为48/48运行、960/960根Bar、开放缺口0、待投递Outbox 0；BaoStock 与 Sina 当前均为 `CLOSED`。健康只代表至少一个来源可用和数据质量门禁通过，不表示 BaoStock 已完成长期盘中稳定性验收。2026-09-24 起日终计数还要求盘中采样完整、执行窗口存在且逐次行情新鲜。
 
 自动化复核：a-20、dc-08a、dc-08a-2 为 ACTIVE；dc-08a 守卫配置 `UNTIL=2026-10-20T00:45:00Z`（北京时间 08:45）；a-20 与盘后任务无到期时间。已完成的一次性 dc-08a-20 和已迁移旧 stockquant 任务均 PAUSED。验证命令 `pnpm dc08a:verify-automation` PASS；详见[阶段六审计](../../../evidence/audits/2026-09-23-phase-6-status-and-automations.md)。
 

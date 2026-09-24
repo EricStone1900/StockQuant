@@ -1,5 +1,5 @@
 import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Put, Query, Res, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -409,6 +409,46 @@ const V31_SCENARIOS = [
 export class V31AcceptanceController {
   constructor(private readonly container: PlatformContainer) {}
 
+  private async prepareRunnerChain(testRunId: string, experimentId: string, scenarioId: V31Scenario): Promise<Record<string, unknown>> {
+    const inputContent = Buffer.from(`stockquant:v3.1:${scenarioId}:fixture:v3.1-research-small-sample-1`);
+    const inputSha256 = createHash("sha256").update(inputContent).digest("hex");
+    const inputNamespace = `research/${testRunId}/${experimentId}/inputs`;
+    const inputRef = {
+      schemaVersion: "v3.1-artifact-ref-v1",
+      artifactId: inputSha256,
+      kind: "INPUT",
+      namespace: inputNamespace,
+      sha256: inputSha256,
+      status: "PENDING",
+      sourceRef: "fixture:v3.1-research-small-sample-1",
+    };
+    const artifactResponse = await fetch(`${this.container.researchAutomationUrl}/v1/artifacts/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ref: inputRef, contentBase64: inputContent.toString("base64") }),
+    });
+    const artifact = await artifactResponse.json().catch(() => ({ error: "artifact publish returned invalid JSON" }));
+    if (!artifactResponse.ok) throw new UnprocessableEntityException(`V3.1 input Artifact publish failed: ${JSON.stringify(artifact)}`);
+    const inputArtifact = `${inputNamespace}/${inputSha256}`;
+    const runnerResponse = await fetch(`${this.container.researchAutomationUrl}/v1/runner/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        schemaVersion: "v3.1-runner-job-v1",
+        testRunId,
+        experimentId,
+        imageDigest: "sha256:8cd6db4ae88cab7a1fb485613a67fb15a4d4e08460c28deb81510c1fa1861dfb",
+        inputArtifact,
+        outputNamespace: `research/${testRunId}/${experimentId}/outputs`,
+        resources: { cpuMilli: 500, memoryMiB: 512, timeoutSeconds: 300, pidsLimit: 32 },
+        networkPolicy: { mode: "DENY", allowlist: [] },
+      }),
+    });
+    const runnerJob = await runnerResponse.json().catch(() => ({ error: "runner submission returned invalid JSON" }));
+    if (!runnerResponse.ok) throw new UnprocessableEntityException(`V3.1 Runner submission failed: ${JSON.stringify(runnerJob)}`);
+    return { inputRef: artifact.ref, inputArtifact, runnerJob, chainStatus: runnerJob.status === "QUEUED" && runnerJob.execution === "NOT_STARTED" ? "PENDING_PREREQUISITES" : "UNEXPECTED" };
+  }
+
   @Get("scenarios") scenarios() { return V31_SCENARIOS; }
 
   @Get("preview")
@@ -430,8 +470,12 @@ export class V31AcceptanceController {
     if (scenarioId === "normal") {
       const response = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
       const experiment = await response.json();
+      if (!response.ok || !experiment.experimentId) throw new UnprocessableEntityException(`V3.1 experiment creation failed: ${JSON.stringify(experiment)}`);
       base.assertions.push({ assertionId: "V3.1-PREP-NORMAL-001", status: response.status === 202 && experiment.status === "PENDING_PREREQUISITES" ? "PASS" : "FAIL", expected: "PENDING_PREREQUISITES without model or Runner", actual: experiment });
       base.evidence.experiment = experiment;
+      const chain = await this.prepareRunnerChain(testRunId, experiment.experimentId, scenarioId);
+      base.assertions.push({ assertionId: "V3.1-PREP-CHAIN-001", status: chain.chainStatus === "PENDING_PREREQUISITES" ? "PASS" : "FAIL", expected: "TestRun -> Experiment -> published input ArtifactRef -> queued Runner Job", actual: chain });
+      base.evidence.orchestration = chain;
     } else if (scenarioId === "rejection") {
       const response = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...request, brokerMode: "LIVE" }) });
       const bodyResult = await response.json();
@@ -439,12 +483,16 @@ export class V31AcceptanceController {
     } else {
       const firstResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
       const first = await firstResponse.json();
+      if (!firstResponse.ok || !first.experimentId) throw new UnprocessableEntityException(`V3.1 experiment creation failed: ${JSON.stringify(first)}`);
+      const chain = await this.prepareRunnerChain(testRunId, first.experimentId, scenarioId);
       const secondResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
       const second = await secondResponse.json();
       const cancelResponse = await fetch(`${this.container.researchAutomationUrl}/v1/experiments/${encodeURIComponent(first.experimentId)}/cancel`, { method: "POST" });
       const cancelled = await cancelResponse.json();
       base.assertions.push({ assertionId: "V3.1-PREP-RECOVERY-001", status: first.experimentId === second.experimentId && secondResponse.status === 200 && cancelled.status === "CANCELLED" ? "PASS" : "FAIL", expected: "idempotent create followed by cancellation", actual: { first, second, cancelled } });
+      base.assertions.push({ assertionId: "V3.1-PREP-CHAIN-001", status: chain.chainStatus === "PENDING_PREREQUISITES" ? "PASS" : "FAIL", expected: "same TestRun keeps its input ArtifactRef and queued Runner Job during recovery", actual: chain });
       base.evidence.experiment = { first, second, cancelled };
+      base.evidence.orchestration = chain;
     }
     base.status = base.assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
     await this.container.stageRuns.save({

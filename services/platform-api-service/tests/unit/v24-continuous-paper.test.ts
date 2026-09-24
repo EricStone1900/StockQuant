@@ -32,8 +32,10 @@ describe("V2.4 continuous paper scenarios", () => {
     expect(scheduler.status().status).toBe("STOPPED");
   });
   it("does not count an end-of-day observation with unresolved errors", () => {
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [] })).toBe(true);
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"] })).toBe(false);
+    const quality = { samplingEvents: 10, executionEvents: 1, invalidSamplingEvents: 0, errors: [] };
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality })).toBe(true);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"], quality })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality: { ...quality, samplingEvents: 0 } })).toBe(false);
     expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "SAMPLING_SLOT", reconciliationStatus: "PASS", errors: [] })).toBe(false);
   });
 

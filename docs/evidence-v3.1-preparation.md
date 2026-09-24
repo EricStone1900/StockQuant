@@ -18,7 +18,11 @@
 | 服务类型检查/单元测试/构建 | PASS | `pnpm --filter @stockquant/research-automation-service typecheck`、`test`（10/10）、`build` 均退出0 |
 | V3.1 code suite | PASS | `pnpm verify:stage -- --stage V3.1 --suite code`；契约21/21、research 单元5/5、PostgreSQL 集成1/1、platform API 单元27/27、Web 类型检查均通过 |
 | 真实 RD-Agent 闭环 | NOT_RUN | 当前服务只执行 V3.1 前置编排和 V1.2/V2.3 兼容边界，不执行真实模型调用 |
+| Runner任务状态边界 | PASS（准备范围） | 新增任务提交与状态查询；`PENDING_PREREQUISITES` 时保持 `QUEUED`/`NOT_STARTED`，不自行启动宿主Runner |
+| Artifact文件持久化 | PASS（准备范围） | 受控目录按 `research/{testRunId}/{experimentId}` 和 SHA-256 写入，重复发布保持幂等；Compose 使用命名卷，数据库保存 ArtifactRef；真实实验产物仍未生成 |
+| Runner/Artifact PostgreSQL 持久化 | PASS（准备范围） | 2026-09-24 提交 `pg-persistence-run:pg-exp-1` 返回 `QUEUED`，研究服务重启后仍可查询同一状态；Artifact 发布返回 `PUBLISHED` 且 SHA-256 校验通过 |
 | Web V3.1 页面/验收路由 | PASS（准备范围） | `/acceptance/v3/v3.1` 已接入平台 API；Playwright 1/1 实际点击并检查前置检查、LIVE 拒绝、取消与幂等恢复场景 |
+| Web/CLI 同一 TestRun 复核 | PASS（准备范围） | Web 结构化显示 Experiment、Artifact、Runner 和阻塞状态；CLI `--check-only` 复核 `testRunId=71364847-c4c2-43cb-a8d5-a7de500dc2dd` 返回0 |
 | 隔离 Runner | PASS（CPU-only smoke） | `evidence/local/V3.1/runner-image-2026-09-22.json`；Linux amd64 镜像、冻结 RD-Agent/Qlib、无网络/无 Socket/密钥剥离 smoke 通过 |
 | TestRun 持久化与复核 | PASS（准备范围） | normal `290a08d0-93cc-4147-a072-a7e1f8bb8f8b`；同一 Run `--check-only` 返回 COMPLETED/PASS，未创建新实验 |
 | 取消与幂等恢复 | PASS（准备范围） | recovery `057bc825-9bc5-4b5a-8df5-9e2361dea2b0`；重复幂等键返回同一 experimentId，取消状态为 `CANCELLED` |
@@ -26,15 +30,16 @@
 ## 当前前置门禁
 
 - `OD-009` 整体仍未关闭：RD-Agent source commit、模型 Provider、预算已冻结；凭证、外发限制、原生 Ubuntu 兼容性和控制器接线仍待完成。
-- V3.1 的正式研究页面和 Artifact 持久化尚未实现；Runner 任务协议、校验边界和 CPU-only smoke 已建立，实验请求的 PostgreSQL 持久化边界已建立，但不会自行启动 Runner。
+- V3.1 正式真实研究页面仍未完成；准备页已经把同一 `testRunId` 关联到 Experiment、输入 ArtifactRef 和 queued Runner Job。Runner 任务协议、校验边界、任务状态边界、受控 Artifact 文件持久化和 CPU-only smoke 已建立，但不会自行启动 Runner。
 - 本轮已在本机 Docker Compose 中启动研究服务、平台 API 和 Web，并完成 V3.1 Web E2E 与 PostgreSQL 集成测试；amd64 Runner 仅完成 Docker Desktop smoke，不等同于原生 Ubuntu 运行通过。
-- 真实模型调用、控制器到 Runner 的正式编排、OOM/超时和预算故障仍未运行；当前 Runner smoke 只验证导入、密钥剥离、Socket 缺失和输出写入。
+- 2026-09-24 研究服务已切换到 PostgreSQL Runner 状态表、ArtifactRef 表和命名 Artifact 卷；跨重启读取验证通过。该证据仍只覆盖准备层，不表示 Runner 已执行或模型已调用。
+- 真实模型调用、控制器到宿主 Runner 的实际执行、OOM/超时和预算故障仍未运行；当前编排只提交 `QUEUED/NOT_STARTED` 任务，Runner smoke 只验证导入、密钥剥离、Socket 缺失和输出写入。
 - 当前证据只证明 Fixture/现有量化服务的准备状态，不证明真实模型生成、真实 RD-Agent、沙箱拒绝或资源隔离。
 
 ## 下一步可并行执行
 
 1. 配置决策草案已准备：见 [`docs/decisions/OD-009-v3.1-configuration-draft.md`](decisions/OD-009-v3.1-configuration-draft.md)。Provider、模型和预算已确认；外发策略、凭证运行注入和 Runner 兼容性仍需验收，秘密不得写入仓库。
-2. 在现有 S0 切片上补齐 TestRun 编排、Artifact 引用和控制器/Runner 端口。
+2. 在现有 S0 切片上继续补齐正式研究页面、Runner 实际执行器和输出 Artifact 关联。
 3. 保持 `/acceptance/v3/v3.1` 与同一 TestRun API 的 normal/rejection/recovery 回归，发现持久化或幂等回归时先修复。
 4. 以当前 manifest 为输入继续运行无模型的编排/拒绝/恢复测试；获得凭证后再执行真实模型闭环。
 5. 在原生 Ubuntu x86_64 重放镜像构建与同一 runtime policy，再执行控制器编排、越权/网络/OOM/超时和预算故障证据。
@@ -132,3 +137,19 @@ Runner Job 现在要求安全路径标识、恰好四项资源字段及边界内
 阶段七重新执行 `pnpm verify:stage -- --stage V3.1 --suite code` 退出0：合同24项、research 单元21/21、PostgreSQL集成3/3、platform API单元28/28、类型检查通过。首次在默认沙箱下本机 PostgreSQL 5433 连接受限；使用隔离 stageId 并精确清理在授权本机连接后重跑通过。`pnpm v31:runner-smoke` 退出0：normal exit0、timeout/path-rejection exit2、OOM exit247 均符合预期；smoke 使用固定镜像和 `network none`，属于 Mac Docker Desktop amd64 仿真，不构成生产执行器或真实模型调用。
 
 完整门禁与未完成项见[阶段七审计](../evidence/audits/2026-09-23-phase-7-v31-gate-review.md)。真实闭环、OD-009 接受及人工验收继续 `NOT_RUN`。
+
+## 2026-09-24 受控 Runner 边界复验
+
+`pnpm v31:runner-smoke` 返回 `PASS`：固定镜像 normal=`exit 0`，timeout/path-rejection 均=`exit 2`，128 MiB OOM=`exit 247`；smoke 强制 `linux/amd64`、`network none`、只读根文件系统、`cap-drop ALL`、`no-new-privileges`、非 root、PID/CPU/内存限制和输入输出双挂载。research Runner 单元测试 27/27 通过，其中 `executeRunnerPlan` 覆盖正常完成、硬超时和输出配额 `OUTPUT_LIMIT`。
+
+这组证据证明 dry-run 计划和受限宿主 smoke 的拒绝边界可执行，但仍来自 Mac Docker Desktop 的 amd64 仿真；研究 API 没有 Docker Socket，真实 Runner Job 仍停留在 `QUEUED/NOT_STARTED`，原生 Ubuntu、真实模型和正式控制器接线继续 `NOT_RUN`。
+
+Runner 生命周期 HTTP 回写复验：作业 `lifecycle-http-run:lifecycle-exp-1` 完成 `QUEUED → RUNNING → COMPLETED`，研究服务重启后仍读回 `stdout=runner-complete`、退出码0和完成时间；`lifecycle-failure-run:failure-exp-1` 保留 `TIMED_OUT/SIGKILL` 及 stderr；重复启动返回422；8 MiB+1 的 stdout 返回422。测试作业已精确清理，状态回写证据保留在审计记录中。
+
+Artifact 关联与重试复验：FAILED 作业 `artifact-lifecycle-run:artifact-exp-1` 绑定已发布 `RUN_LOG` ArtifactRef，并保留 `qlib evaluation failed`；retry 生成 `artifact-lifecycle-run:artifact-exp-1:retry-2`，`attempt=2`、`retryOf` 指向原失败作业，重复 retry 返回同一 Job。重启研究服务后 retry 状态仍可读，旧失败记录和 Artifact 未覆盖；测试资源已精确清理。
+
+## 2026-09-24 可信宿主适配边界
+
+新增 `v31-runner-host-adapter`：在不把 Docker Socket 暴露给研究 API 的前提下，可信宿主可使用同一份受限启动计划完成 `start → execute → publish artifacts → terminal callback` 顺序；宿主执行器异常会写入 `SPAWN_FAILED`，启动预检失败则不会伪造生命周期状态。新增 3 项单元测试覆盖正常完成、宿主异常和启动预检拒绝。
+
+本项只证明控制器与生命周期回写之间的代码边界可测试；当前仍未接入真实 Ubuntu 宿主、真实 Docker 控制器、真实模型网关或 Provider 凭证，因此 V3.1 真实研究闭环继续保持 `NOT_RUN`。

@@ -74,7 +74,7 @@ V1环境探针缺口已处理；V2数据/回放小样本通过；实际模型Pro
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node v24.1.0、pnpm 10.34.5、Docker Server 28.0.4 |
 | Web基础URL/身份登录或会话建立方式 | `http://127.0.0.1:8080`；本机验收身份由平台 `STOCKQUANT_LOCAL_DEVELOPMENT_USER=acceptance-owner-1` 注入，不记录凭证 |
 | 本阶段Web路由 | `http://127.0.0.1:8080/acceptance/v3/v3.1` |
-| 正式页面的真实入口/跳转链接 | 开发验收中心 → V3 → V3.1；当前为准备页，不宣称正式研究页面完成 |
+| 正式页面的真实入口/跳转链接 | 开发验收中心 → V3 → V3.1；准备页已结构化展示同一 TestRun 的 Experiment、输入 ArtifactRef、queued Runner Job、执行状态和阻塞条件，不宣称正式研究页面完成 |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v3/v3.1/manifest.json`；SHA-256 `f6b318d6208db25c92350e1d2e3ed99d8d7ca1f207927c14e0982e73179b115b`；RESEARCH/FIXTURE/FAKE，轮数1，默认预算300 cents，单实验硬上限1000 cents |
 | 配置文件及必需环境变量名/非秘密测试值 | `.env.local`、Compose；`STOCKQUANT_DATABASE_URL`、`STOCKQUANT_RESEARCH_AUTOMATION_URL`、`RESEARCH_AUTOMATION_DATABASE_URL`；本机 `DEEPSEEK_API_KEY`、`SILICONFLOW_API_KEY` 已有非空值（本次只核验存在性，不读取/记录值）；模型 Gateway/Runner 仍未配置且没有模型调用 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | LIVE 拒绝由 `pnpm verify:stage -- --stage V3.1 --scenario rejection --seed 20260907` 验证；研究数据库使用独立 `research_automation`；保留 TestRun/Artifact，不删除共享卷 |
@@ -146,7 +146,7 @@ pnpm evidence:export -- --run "$acceptance_run_id"
 
 check-only仅查询此运行后端事实并追加检查证据，不创建新订单、不重放成交或发起模型调用；空ID/错误stage/越权run必须拒绝。导出只含脱敏数据，输出实际目录和Manifest Hash，不自动勾选人工验收。端到端正常/异常/恢复运行产生不同ID，导出时分别保存。
 
-本阶段代码测试实测清单：`pnpm verify:stage -- --stage V3.1 --suite code`（contracts 21/21、research 单元5/5、PostgreSQL 集成1/1、platform API 单元27/27、Web typecheck，退出0）；`pnpm test:e2e -- --stage V3.1`（Playwright 1/1，退出0）。实际 RD-Agent、Runner 权限/资源隔离、模型故障与预算仍为 NOT_RUN，不能由本准备套件替代。Python服务使用自身锁定环境，不串用其他服务虚拟环境。
+本阶段代码测试实测清单：`pnpm verify:stage -- --stage V3.1 --suite code`（contracts 24/24、research 单元27/27、PostgreSQL 集成4/4、platform API 单元28/28、Web typecheck，退出0）；`pnpm test:e2e -- --stage V3.1`（Playwright 1/1，退出0）。本轮准备新增同一 TestRun 的 Experiment→输入 ArtifactRef→`QUEUED/NOT_STARTED` Runner Job 编排，HTTP证据摘要见 `evidence/audits/2026-09-24-plan-execution.md`。实际 RD-Agent、Runner 权限/资源隔离、模型故障与预算仍为 NOT_RUN，不能由本准备套件替代。Python服务使用自身锁定环境，不串用其他服务虚拟环境。
 
 ### 8.5 交叉核对、失败定位与恢复
 

@@ -12,7 +12,7 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 
@@ -22,9 +22,67 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start-date", required=True)
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
+    parser.add_argument("--session", choices=("morning", "full"), default="full")
     parser.add_argument("--output")
     argv = sys.argv[1:]
     return parser.parse_args(argv[1:] if argv[:1] == ["--"] else argv)
+
+
+def expected_bar_ends(start_date: str, end_date: str, session: str) -> set[str]:
+    """Build canonical five-minute close timestamps for independent validation."""
+    first = date.fromisoformat(start_date)
+    last = date.fromisoformat(end_date)
+    result: set[str] = set()
+    current = first
+    while current <= last:
+        windows = [(time(9, 35), time(11, 30))]
+        if session == "full":
+            windows.append((time(13, 5), time(15, 0)))
+        for window_start, window_end in windows:
+            current_time = datetime.combine(current, window_start, tzinfo=timezone(timedelta(hours=8)))
+            end_time = datetime.combine(current, window_end, tzinfo=timezone(timedelta(hours=8)))
+            while current_time <= end_time:
+                result.add(current_time.isoformat())
+                current_time += timedelta(minutes=5)
+        current += timedelta(days=1)
+    return result
+
+
+def validate_bars(bars: object, security_ids: list[str], start_date: str, end_date: str, session: str) -> dict[str, object]:
+    """Validate security/window/duplicate completeness independently of adapter status."""
+    expected = expected_bar_ends(start_date, end_date, session)
+    rows = bars if isinstance(bars, list) else []
+    seen: set[tuple[str, str]] = set()
+    counts = {security_id: 0 for security_id in security_ids}
+    missing: dict[str, list[str]] = {}
+    duplicates: list[str] = []
+    unexpected: list[str] = []
+    invalid: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("securityId"), str) or not isinstance(row.get("barEnd"), str):
+            invalid.append(str(row))
+            continue
+        security_id = row["securityId"]
+        try:
+            end = datetime.fromisoformat(row["barEnd"].replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=8))).isoformat()
+        except ValueError:
+            invalid.append(f"{security_id}|{row['barEnd']}")
+            continue
+        key = (security_id, end)
+        if key in seen:
+            duplicates.append(f"{security_id}|{end}")
+        seen.add(key)
+        if security_id not in counts or end not in expected:
+            unexpected.append(f"{security_id}|{end}")
+        elif end in expected:
+            counts[security_id] += 1
+    for security_id in security_ids:
+        actual = {end for symbol, end in seen if symbol == security_id}
+        missing[security_id] = sorted(expected - actual)
+    missing = {security_id: values for security_id, values in missing.items() if values}
+    expected_rows = len(security_ids) * len(expected)
+    valid = not missing and not duplicates and not unexpected and not invalid and len(rows) == expected_rows
+    return {"status": "PASS" if valid else "PARTIAL", "session": session, "expectedBarsPerSecurity": len(expected), "expectedRows": expected_rows, "countsBySecurity": counts, "missing": missing, "duplicates": duplicates, "unexpected": unexpected, "invalid": invalid}
 
 
 def subprocess_timeout_seconds(security_count: int, request_timeout_seconds: float, interval_seconds: float = 1.0) -> float:
@@ -59,18 +117,21 @@ def run() -> dict[str, object]:
             check=False,
         )
         payload = json.loads(completed.stdout)
-        status = "PASS" if completed.returncode == 0 and payload.get("status") == "COMPLETED" else "PARTIAL"
+        integrity = validate_bars(payload.get("bars"), security_ids, args.start_date, args.end_date, args.session) if completed.returncode == 0 and payload.get("status") == "COMPLETED" else None
+        status = "PASS" if completed.returncode == 0 and payload.get("status") == "COMPLETED" and integrity and integrity["status"] == "PASS" else "PARTIAL"
         result: dict[str, object] = {
             "probe": "tdx-minute-capability",
             "status": status,
             "source": "tdx",
             "securityIds": security_ids,
             "window": {"startDate": args.start_date, "endDate": args.end_date},
+            "session": args.session,
             "probedAt": datetime.now().astimezone().isoformat(),
             "adapterExitCode": completed.returncode,
             "sourceId": payload.get("sourceId"),
             "attempts": payload.get("attempts", []),
             "rows": len(payload.get("bars", [])) if isinstance(payload.get("bars"), list) else 0,
+            "integrity": integrity,
             "stderr": completed.stderr[-2000:],
         }
     except subprocess.TimeoutExpired as error:

@@ -176,6 +176,32 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(bars[0].bar_start, "2026-09-11T09:30:00+08:00")
         self.assertEqual(bars[0].bar_end, "2026-09-11T09:35:00+08:00")
 
+    def test_tdx_paginates_security_bars_until_requested_window(self):
+        class Market:
+            SH = "SH"
+
+        class Period:
+            MIN_5 = "MIN_5"
+
+        class KlineCategory:
+            MIN_5 = "MIN_5"
+
+        calls = []
+        class Client:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def get_security_bars(self, market, code, category, offset, count, **kwargs):
+                calls.append(offset)
+                if offset == 0:
+                    return [{"datetime": "2026-09-12 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1}]
+                return [{"datetime": "2026-09-11 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1}] if offset == 800 else []
+
+        modules = types.SimpleNamespace(Market=Market, Period=Period, KlineCategory=KlineCategory)
+        with patch.dict(sys.modules, {"easy_tdx": modules}):
+            bars = TdxMinuteClient(client_factory=Client, minimum_interval_seconds=0).fetch(["600000.SH"], "2026-09-11", "2026-09-12", 3)
+        self.assertEqual(calls, [0, 800, 1600])
+        self.assertEqual(len(bars), 2)
+
     def test_rejects_baostock_timestamp_with_mismatched_embedded_date(self):
         with self.assertRaises(SourceError) as failure:
             normalize_baostock([["2024-01-02", "20240103093500000", "sh.600000", "10", "11", "9", "10", "100", "1000"]])

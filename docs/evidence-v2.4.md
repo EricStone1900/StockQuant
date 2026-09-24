@@ -84,7 +84,7 @@
 
 ## 2026-09-24 运行进度补充
 
-- 日终最终记录 `testRunId=552529b0-f0f6-4447-a177-2e9c2aa9dee7`，独立 FakeBroker 对账 `PASS`，新计数日为 `2026-09-24`。
+- 日终最终记录 `testRunId=552529b0-f0f6-4448-a177-2e9c2aa9dee7`，独立 FakeBroker 对账 `PASS`，新计数日为 `2026-09-24`。
 - 当日 DC-08A 20只集合完成48/48运行、960/960根5分钟Bar，开放缺口和待投递 Outbox 均为0；来源正式路径保持 `sina,baostock`。
 - V2.4 仍为 `WAITING`，尚余12个实际交易日；DC-08A 独立观察仍为 `WAITING`，尚余15个观察日。
 - 修复 `dc08a-observation-summary-v2` 的剩余天数和通过条件，使其统一按 `observedDays`（连续稳定日+恢复后完整日）计算；回归测试4/4通过。

@@ -1,11 +1,12 @@
 import type { ObservationRecord } from "../adapters/postgres-v24-observation-repository.js";
-import { PostgresV24ObservationRepository } from "../adapters/postgres-v24-observation-repository.js";
+import { PostgresV24ObservationRepository, type ObservationDayQuality } from "../adapters/postgres-v24-observation-repository.js";
 import type { SchedulerTickHandler } from "./v24-scheduler.js";
 
 type Calendar = { status?: "TRADING" | "CLOSED" | "UNKNOWN"; calendarVersion?: string; reason?: string };
 
-export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[] }): boolean {
-  return actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0;
+export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[]; quality?: ObservationDayQuality }): boolean {
+  const qualityPass = quality !== undefined && quality.samplingEvents >= 10 && quality.executionEvents >= 1 && quality.invalidSamplingEvents === 0 && quality.errors.length === 0;
+  return actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0 && qualityPass;
 }
 
 export class V24LiveObservationHandler implements SchedulerTickHandler {
@@ -54,6 +55,7 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
     // at the dedicated end-of-day event; no missed window is backfilled.
     let reconciliationStatus: ObservationRecord["reconciliationStatus"] = "UNKNOWN";
     let reconciliation: unknown = null;
+    let quality: ObservationDayQuality | undefined;
     if (kind === "END_OF_DAY" && actualTradingDay) {
       try {
         const namespace = `v24-observation-${observationDate}`;
@@ -67,6 +69,10 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
         const priorErrors = await this.repository.errorsForDate(observationDate);
         for (const priorError of priorErrors) if (!errors.includes(priorError)) errors.push(priorError);
       } catch (error) { errors.push(error instanceof Error ? error.message : "prior observation error lookup failed"); }
+      try {
+        quality = await this.repository.qualityForDate(observationDate);
+        for (const qualityError of quality.errors) if (!errors.includes(qualityError)) errors.push(qualityError);
+      } catch (error) { errors.push(error instanceof Error ? error.message : "observation quality lookup failed"); }
     }
 
     await this.repository.upsertObservation({
@@ -75,13 +81,14 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
       evidence: {
         recordedAt: now.toISOString(), eventKind: kind, scheduledFor, scheduledDelaySeconds, previousSampleAt, timeZone: "Asia/Shanghai",
         actualTradingDay: calendar.status ?? "UNKNOWN", calendarVersion: calendar.calendarVersion ?? null, calendarReason: calendar.reason ?? null,
-        observationCounted: shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors }),
+        observationCounted: shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality }),
+        observationQuality: quality ?? null,
         dataMode: "LIVE_SOURCE", sourceProbe: quote, reconciliation, mode: "PAPER", brokerMode: "FAKE",
         strategy: signalStatus === "HOLD" ? "v24-conservative-hold-v1" : null,
         noBackfill: true
       }
     });
-    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors })) await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true });
+    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality })) await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true, observationQuality: quality });
   }
 
   private async calendar(date: string, errors: string[]): Promise<Calendar> {
