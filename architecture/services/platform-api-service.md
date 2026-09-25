@@ -24,6 +24,8 @@ domain：测试场景/运行/人工签署、访问范围；application：BFF聚�
 
 事务/幂等：TestRun创建与持久派发记录同事务，后台恢复不会重复创建业务运行；stage/scenario/version唯一；人工结论追加、绑定代码/run，不能覆盖原失败。
 
+实现复核补充（2026-09-25）：V2.4 观察 TestRun 的质量失效会先追加旧状态/断言/证据到 `acceptance_stage_run_revisions`，再将当前投影标记失败；日终完成保护终态并允许相同结果幂等重试。观察列表仅返回当前 owner 的 V2.4 observation runs；修订查询先按本地会话 owner 查找运行，再返回该 run 的修订。API、生成契约、Web 页、隔离 PostgreSQL 回归和页面浏览器用例已完成。运行中容器部署、API owner 权限及健康核对已完成；生产观察库当前没有可展示的修订记录，实际观察与人工验收状态未改变。
+
 每服务独立数据库/User。涉及业务账户与运行的数据按market/account/environmentMode/runId或namespace隔离；命令身份来自可信上下文。不得跨库join获得未授权事实或跨库写入；通过API或事件投影合作。需要事件发布的业务状态与Outbox原子提交，消费者副作用与Inbox同事务。
 
 ## 4. 入站接口与出站依赖

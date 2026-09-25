@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-snapshot-cn-paper-execution",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Fixed PAPER+FAKE A-share snapshot execution projection with no claim of verified liquidity participation",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-25T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.4/snapshot-execution/v24-snapshot-cn-paper-execution-v1.json",
+      "sha256": "867196c50815dc84f8f9d61035920eba5cf9420e54d37ed3751a72d846a96109",
+      "mediaType": "application/json",
+      "schemaRef": "packages/contracts/schemas/common/v24-snapshot-fixture-execution.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-SNAPSHOT-PROJECTION-001", "description": "Only the first eligible post-acceptance snapshot supplies the projected execution price" },
+    { "assertionId": "V2.4-SNAPSHOT-PROJECTION-002", "description": "The full-fill assumption and fixture fee are explicit, while volume participation remains NOT_VERIFIED" },
+    { "assertionId": "V2.4-SNAPSHOT-PROJECTION-003", "description": "The projection is not persisted as an order or fill and cannot use REAL data or LIVE/non-FAKE modes" }
+  ]
+}

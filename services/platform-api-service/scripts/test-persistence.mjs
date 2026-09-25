@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { Pool } from "pg";
 import { PostgresStageRunRepository } from "../dist/adapters/postgres-stage-run-repository.js";
 
@@ -8,41 +9,87 @@ if (parsed.pathname.replace(/^\//, "") === "platform_api" || parsed.username ===
   process.exit(2);
 }
 
-const pool = new Pool({ connectionString });
-const repository = new PostgresStageRunRepository(pool);
+let pool = new Pool({ connectionString });
+const createdIds = [];
 
 try {
+  const repository = new PostgresStageRunRepository(pool);
   await repository.migrate();
   const checks = [];
   for (const stageId of ["V1.2", "V1.3", "V1.4", "V1.5"]) {
     const testRunId = repository.newId();
+    createdIds.push(testRunId);
     const base = {
       testRunId,
       stageId,
       scenarioId: "normal",
       scenarioVersion: "1.0.0",
-      ownerId: "p3-2-owner",
-      namespace: `p3-2-${stageId.toLowerCase().replace(".", "-")}-${testRunId}`,
+      ownerId: "p3-persistence-owner",
+      namespace: `p3-persistence-${stageId.toLowerCase().replace(".", "-")}-${testRunId}`,
       status: "RUNNING",
       seed: 42,
       assertions: [],
       evidence: { environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE" }
     };
-    await repository.save(base);
-    await repository.save({ ...base, status: "COMPLETED", assertions: [{ assertionId: `P3-2-${stageId}-001`, status: "PASS", expected: true, actual: true, evidence: {} }], evidence: { ...base.evidence, persisted: true } });
+    const running = await repository.save(base);
+    assert.equal(running.completedAt, null);
+    const completedInput = {
+      ...base,
+      status: "COMPLETED",
+      assertions: [{ assertionId: `P3-${stageId}-001`, status: "PASS", expected: true, actual: true, evidence: {} }],
+      evidence: { ...base.evidence, persisted: true }
+    };
+    const completed = await repository.save(completedInput);
+    assert.ok(completed.completedAt);
+    if (stageId === "V1.2") {
+      const repeated = await repository.save(completedInput);
+      assert.equal(repeated.completedAt, completed.completedAt);
+      assert.equal(repeated.createdAt, completed.createdAt);
+      const conflicts = [
+        { ...completedInput, stageId: "V1.3" },
+        { ...completedInput, scenarioId: "recovery" },
+        { ...completedInput, scenarioVersion: "2.0.0" },
+        { ...completedInput, ownerId: "p3-other-owner" },
+        { ...completedInput, namespace: `${base.namespace}-other` },
+        { ...completedInput, seed: 43 },
+        { ...completedInput, status: "FAILED" },
+        { ...completedInput, assertions: [] },
+        { ...completedInput, evidence: { ...completedInput.evidence, persisted: false } },
+        { ...base, status: "RUNNING" }
+      ];
+      for (const conflict of conflicts) {
+        await assert.rejects(repository.save(conflict), (error) => error.getStatus?.() === 409);
+      }
+      const duplicateNamespace = { ...base, testRunId: repository.newId() };
+      await assert.rejects(repository.save(duplicateNamespace), (error) => error.getStatus?.() === 409);
+      assert.deepEqual(await repository.find(testRunId, base.ownerId), completed);
+    }
     checks.push({ stageId, testRunId });
   }
   await pool.end();
 
-  const reopenedPool = new Pool({ connectionString });
-  const reopenedRepository = new PostgresStageRunRepository(reopenedPool);
-  const reloaded = await Promise.all(checks.map(async ({ stageId, testRunId }) => ({ stageId, run: await reopenedRepository.find(testRunId, "p3-2-owner"), foreign: await reopenedRepository.find(testRunId, "p3-2-other-owner") })));
-  console.log(JSON.stringify({ stages: reloaded.map(({ stageId, run, foreign }) => ({ stageId, status: run?.status, assertionCount: run?.assertions?.length ?? null, ownerIsolation: foreign === null })) }, null, 2));
-  for (const { testRunId } of checks) await reopenedPool.query("DELETE FROM acceptance_stage_runs WHERE test_run_id = $1", [testRunId]);
-  await reopenedPool.end();
-  process.exit(reloaded.every(({ run, foreign }) => run?.status === "COMPLETED" && foreign === null) ? 0 : 1);
+  pool = new Pool({ connectionString });
+  const reopenedRepository = new PostgresStageRunRepository(pool);
+  const reloaded = await Promise.all(checks.map(async ({ stageId, testRunId }) => ({ stageId, run: await reopenedRepository.find(testRunId, "p3-persistence-owner"), foreign: await reopenedRepository.find(testRunId, "p3-other-owner") })));
+  for (const { run, foreign } of reloaded) {
+    assert.equal(run?.status, "COMPLETED");
+    assert.equal(run?.assertions.length, 1);
+    assert.equal(run?.evidence.persisted, true);
+    assert.equal(foreign, null);
+  }
+  console.log(JSON.stringify({ stages: reloaded.map(({ stageId, run }) => ({ stageId, status: run.status, assertionCount: run.assertions.length, ownerIsolation: true })), conflictChecks: 11, terminalRetryPreservesTimestamps: true }, null, 2));
 } catch (error) {
-  await pool.end().catch(() => undefined);
   console.error(error instanceof Error ? error.stack : error);
-  process.exit(1);
+  process.exitCode = 1;
+} finally {
+  try {
+    for (const testRunId of createdIds) await pool.query("DELETE FROM acceptance_stage_runs WHERE test_run_id = $1", [testRunId]);
+  } catch (error) {
+    console.error("isolated test row cleanup failed", error);
+    process.exitCode = 1;
+  }
+  await pool.end().catch((error) => {
+    console.error("isolated test database connection close failed", error);
+    process.exitCode = 1;
+  });
 }

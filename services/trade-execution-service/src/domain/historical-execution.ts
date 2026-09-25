@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export interface HistoricalExecutionCommand {
   namespace: string;
   accountId: string;
@@ -11,6 +13,37 @@ export interface HistoricalExecutionCommand {
   limitPrice?: string;
   participationRate?: number;
   slippageBps?: number;
+}
+
+/** Stable, semantic request identity for FakeBroker idempotency keys. */
+export function historicalExecutionFingerprint(command: HistoricalExecutionCommand): string {
+  const canonical = {
+    namespace: command.namespace,
+    accountId: command.accountId,
+    clientOrderId: command.clientOrderId,
+    security: command.security,
+    requestedQuantity: command.requestedQuantity,
+    bar: {
+      timestamp: command.bar.timestamp,
+      open: command.bar.open,
+      volume: command.bar.volume
+    },
+    side: command.side ?? "BUY",
+    orderType: command.orderType ?? "MARKET",
+    timeInForce: command.timeInForce ?? "DAY",
+    limitPrice: command.limitPrice ?? null,
+    participationRate: command.participationRate ?? 0.1,
+    slippageBps: command.slippageBps ?? 10
+  };
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+export class IdempotencyConflictError extends Error {
+  readonly statusCode = 409;
+  constructor() {
+    super("clientOrderId was already used with a different or unverifiable execution request");
+    this.name = "IdempotencyConflictError";
+  }
 }
 
 export interface HistoricalExecutionResult {

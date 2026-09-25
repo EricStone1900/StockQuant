@@ -117,6 +117,30 @@ test("V2.4 continuous paper page shows stale and recovery evidence", async ({ pa
   await expect(page.getByTestId("v24-evidence")).toContainText("SOURCE_DISCONNECTED");
 });
 
+test("V2.4 observation history displays preserved prior evidence revisions", async ({ page }) => {
+  const testRunId = "123e4567-e89b-42d3-a456-426614174000";
+  await page.route("**/api/v1/session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ownerId: "acceptance-owner-1" }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.4/observations", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify([{ observationDate: "2026-09-24", testRunId, reconciliationStatus: "PASS", errors: ["late quality error"] }])
+  }));
+  await page.route(`**/api/v1/acceptance/v2/v2.4/runs/${testRunId}/revisions`, (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      testRunId,
+      revisions: [{ revisionId: "1", testRunId, stageId: "V2.4", priorStatus: "COMPLETED", priorAssertions: [{ assertionId: "V2.4-OBSERVATION-DAY", status: "PASS" }], priorEvidence: { observationCounted: true, marker: "original-completion" }, priorCreatedAt: "2026-09-24T16:00:00.000Z", priorCompletedAt: "2026-09-24T16:01:00.000Z", reason: "OBSERVATION_EVENT_ERRORS", recordedAt: "2026-09-25T00:00:00.000Z" }]
+    })
+  }));
+
+  await page.goto("/acceptance/v2/v2.4");
+  await page.getByRole("button", { name: "查看观察记录" }).click();
+  await page.getByRole("button", { name: "查看 2026-09-24 修订历史" }).click();
+  await expect(page.getByRole("region", { name: "观察证据修订历史" })).toContainText("COMPLETED");
+  await expect(page.getByRole("region", { name: "观察证据修订历史" })).toContainText("original-completion");
+});
+
 test("V2.5 data scale page shows regression and recovery evidence", async ({ page }) => {
   await page.goto("/acceptance/v2/v2.5");
   await expect(page.getByRole("heading", { name: "V2.5 历史数据扩容与 V2 验收" })).toBeVisible();

@@ -27,6 +27,12 @@
 | P3.7 契约消费者与兼容矩阵 | DONE（工程验收） | Portfolio 已消费生成的 Money/Security 类型；Schema 生成器限定输入并增加稳定字段/枚举兼容检查；OpenAPI/其他客户端仍待完成 | [P3.7记录](../../evidence/audits/2026-09-25-p3-7-contract-consumer.md) |
 | P3.8 V2.1/V2.2 Web 同 run 验收 | DONE（工程验收） | Web 运行 ID 写入 localStorage，刷新后恢复原运行；V2.1/V2.2 浏览器结果均由 CLI check-only 退出 0 复核；人工签署仍待完成 | [P3.8记录](../../evidence/audits/2026-09-25-p3-8-v21-v22-web-persistence.md) |
 | P3.9 Portfolio 账户 OpenAPI 边界 | DONE（工程验收） | 新增初始化命令/账户快照 Schema、OpenAPI 清单和 Platform/Portfolio 生成类型消费者；真实 US 幂等回归通过；完整发布框架和其他边界仍待完成 | [P3.9记录](../../evidence/audits/2026-09-25-p3-9-openapi-account-boundary.md) |
+| P3.10 TestRun 写入完整性 | DONE（隔离库工程验证） | 通用持久仓库对同 ID 的身份变化、终态证据改写及 namespace 冲突返回 409；重试保留时间戳，重连后原记录仍可读取。V2.4 观察专用直接 SQL 尚未纳入此保护 | [P3.10记录](../../evidence/audits/2026-09-25-p3-10-stage-run-integrity.md) |
+| P3.11 V2.4 观察运行修订保护 | DONE（隔离库工程验证；尚未部署） | 观察失效迁移先追加旧状态/断言/证据；日终完成仅允许更新对应日期的非终态运行，相同结果重试幂等、冲突终态改写返回 409 | [P3.11记录](../../evidence/audits/2026-09-25-p3-11-v24-observation-integrity.md) |
+| P3.12 V2.4 修订历史 API/Web | DONE（工程验收已部署） | 新增 owner-scoped 观察列表/修订 API、OpenAPI/JSON Schema、生成类型和 Web 历史展示；隔离 PostgreSQL owner 隔离及幂等测试、API 37项单测、contracts、浏览器用例及 API/Web 容器镜像构建/部署通过。真实 API owner 查询返回 200、跨 owner 返回 403，观察仍为 8/20 WAITING | [P3.12记录](../../evidence/audits/2026-09-25-p3-12-v24-observation-history.md) |
+| P5.1 V2.4 SNAPSHOT eligibility gate | DONE（domain 单测） | 按注入 Clock 选择订单接受后首个同证券/市场、窗口内且新鲜的快照；过期/错误报价拒绝、不回填。15 项执行服务单测、类型检查通过；不创建订单/Fill，未接入 Mandate、风控、账户预留或 FakeBroker | [P5.1记录](../../evidence/audits/2026-09-25-p5-1-snapshot-eligibility.md) |
+| P5.2 FakeBroker 幂等载荷完整性 | DONE（隔离DB工程验证；未部署） | 以请求指纹绑定 clientOrderId，同键并发串行，异载荷/旧行无指纹返回409；专用 `trade_execution_test` 验证同键并发仅一单/Fill/event/outbox、数量/价格异载荷409零副作用、连接重开重放相同结果；测试结束后唯一namespace精确清理。16项单测、typecheck/build、隔离PostgreSQL集成、contracts/docs检查通过；正式库未连接 | [P5.2记录](../../evidence/audits/2026-09-25-p5-2-fakebroker-idempotency.md) |
+| P5.3 V2.4 快照 Fixture 执行投影 | DONE（domain / Fixture验证；未持久化、未部署） | 新增冻结 CN `PAPER+FAKE` 固定样本；首次合格快照给出明确标记的 PROJECTED_ONLY 结果，固定全量成交假设、Fixture费用、SNAPSHOT价格，不声称流动性/参与率已验证；真实数据、LIVE/非FAKE和证券/市场错配失败关闭。执行服务 22 项单测、契约/Fixture Hash及文档检查通过。未写FakeBroker订单、Fill或组合账本 | [P5.3记录](../../evidence/audits/2026-09-25-p5-3-snapshot-fixture-projection.md) |
 | V2.4 code suite | PASS | 构建、lint、typecheck、TS/Web测试、Python适配器55项、运维82项、市场数据集成17项均通过 | 当次 `pnpm verify:stage -- --stage V2.4 --suite code` 输出 |
 
 完成定义有四层：代码/场景检查、目标运行环境实测、实际市场观察、用户人工验收。任何一层未满，不把整阶段或整版标为PASS。全程仅用自有FakeBroker和模拟账户；真实券商及LIVE配置保持服务端拒绝。市场数据来源、Fixture、录制响应和真实模型证据分别标注。

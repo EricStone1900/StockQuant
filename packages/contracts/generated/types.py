@@ -134,6 +134,41 @@ TestRun = TypedDict("TestRun", {
   "artifactRefs": NotRequired[list[dict[str, object]]],
 })
 
+V24ObservationRevisionList = TypedDict("V24ObservationRevisionList", {
+  "testRunId": Required[str],
+  "revisions": Required[list[V24ObservationRevision]],
+})
+
+V24ObservationRevision = TypedDict("V24ObservationRevision", {
+  "revisionId": Required[str],
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V2.4']],
+  "priorStatus": Required[Literal['COMPLETED']],
+  "priorAssertions": Required[list[dict[str, object]]],
+  "priorEvidence": Required[dict[str, object]],
+  "priorCreatedAt": Required[str],
+  "priorCompletedAt": Required[str | None],
+  "reason": Required[Literal['OBSERVATION_EVENT_ERRORS']],
+  "recordedAt": Required[str],
+})
+
+V24SnapshotFixtureExecution = TypedDict("V24SnapshotFixtureExecution", {
+  "$schema": NotRequired[str],
+  "fixtureId": Required[Literal['v24-snapshot-cn-paper-execution']],
+  "fixtureVersion": Required[Literal['1.0.0']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "environmentMode": Required[Literal['PAPER']],
+  "brokerMode": Required[Literal['FAKE']],
+  "liveTradingEnabled": Required[Literal[False]],
+  "market": Required[Literal['CN_A', 'US_EQUITY']],
+  "currency": Required[Literal['CNY', 'USD']],
+  "clockNow": Required[str],
+  "order": Required[dict[str, object]],
+  "snapshot": Required[dict[str, object]],
+  "fixtureFee": Required[str],
+  "expected": Required[dict[str, object]],
+})
+
 CollectionRun = TypedDict("CollectionRun", {
   "runId": Required[str],
   "subscriptionId": Required[str],

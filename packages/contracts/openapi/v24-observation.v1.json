@@ -1,0 +1,29 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V2.4 Observation API", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "security": [{ "localSession": [] }],
+  "paths": {
+    "/api/v1/acceptance/v2/v2.4/runs/{testRunId}/revisions": {
+      "get": {
+        "operationId": "listV24ObservationRunRevisions",
+        "summary": "List prior evidence revisions for an owned V2.4 observation TestRun",
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Available only when the local test identity header is enabled.", "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "Owner-scoped prior evidence revisions", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-observation-run-revision-list.schema.json" } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing, unowned, or not a V2.4 observation run" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" }
+    }
+  }
+}

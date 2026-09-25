@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateFee, calculateHistoricalExecution, cancelTransition } from "../../src/domain/historical-execution.js";
+import { calculateFee, calculateHistoricalExecution, cancelTransition, historicalExecutionFingerprint } from "../../src/domain/historical-execution.js";
 describe("historical FakeBroker execution", () => {
   it("uses next bar open and participation cap without floating-point money", () => {
     const result = calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } }, { orderId:"o", externalFillId:"f" });
@@ -24,5 +24,11 @@ describe("historical FakeBroker execution", () => {
   it("rejects invalid execution rules", () => {
     const result = calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o4", security:"600000.SH", requestedQuantity:10, participationRate:2, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.1000", volume:100 } }, { orderId:"o4", externalFillId:"f4" });
     expect(result.rejectionReason).toBe("INVALID_RULE");
+  });
+  it("uses a stable semantic fingerprint and distinguishes changed idempotent requests", () => {
+    const command = { namespace:"n", accountId:"a", clientOrderId:"o5", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } };
+    expect(historicalExecutionFingerprint(command)).toBe(historicalExecutionFingerprint({ ...command, side:"BUY", orderType:"MARKET", timeInForce:"DAY", participationRate:0.1, slippageBps:10 }));
+    expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, requestedQuantity:99 }));
+    expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, bar:{ ...command.bar, open:"10.2100" } }));
   });
 });

@@ -192,6 +192,62 @@ export type TestRun = {
   "artifactRefs"?: Array<Record<string, unknown>>;
 }
 
+export type V24ObservationRevisionList = {
+  "testRunId": string;
+  "revisions": Array<V24ObservationRevision>;
+}
+
+export type V24ObservationRevision = {
+  "revisionId": string;
+  "testRunId": string;
+  "stageId": 'V2.4';
+  "priorStatus": 'COMPLETED';
+  "priorAssertions": Array<Record<string, unknown>>;
+  "priorEvidence": Record<string, unknown>;
+  "priorCreatedAt": string;
+  "priorCompletedAt": string | null;
+  "reason": 'OBSERVATION_EVENT_ERRORS';
+  "recordedAt": string;
+}
+
+export type V24SnapshotFixtureExecution = {
+  "$schema"?: string;
+  "fixtureId": 'v24-snapshot-cn-paper-execution';
+  "fixtureVersion": '1.0.0';
+  "dataMode": 'FIXTURE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "clockNow": string;
+  "order": {
+  "security": string;
+  "acceptedAt": string;
+  "executionWindowStart": string;
+  "executionWindowEnd": string;
+  "requestedQuantity": number;
+};
+  "snapshot": {
+  "snapshotId": string;
+  "security": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "sourceMode": 'FIXTURE';
+  "status": 'READY';
+  "observedAt": string;
+  "ingestedAt": string;
+  "price": string;
+};
+  "fixtureFee": string;
+  "expected": {
+  "projectedQuantity": number;
+  "projectedPrice": string;
+  "projectedFee": string;
+  "executionModel": 'SNAPSHOT';
+  "liquidityParticipation": 'NOT_VERIFIED';
+};
+}
+
 export type CollectionRun = {
   "runId": string;
   "subscriptionId": string;

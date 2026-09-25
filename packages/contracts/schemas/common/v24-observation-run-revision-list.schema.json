@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-observation-run-revision-list.schema.json",
+  "title": "V24ObservationRevisionList",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "revisions"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "revisions": {
+      "type": "array",
+      "items": { "$ref": "v24-observation-run-revision.schema.json" }
+    }
+  }
+}

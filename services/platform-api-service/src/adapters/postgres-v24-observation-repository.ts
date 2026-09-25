@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
+import { ConflictException } from "@nestjs/common";
 
 export type PersistedSchedulerState = {
   status: "STOPPED" | "RUNNING";
@@ -36,6 +37,19 @@ export type ObservationFinalization = {
   observationCounted: boolean;
   record: ObservationRecord;
   sourceEventId: string;
+};
+
+export type StageRunRevision = {
+  revisionId: string;
+  testRunId: string;
+  stageId: "V2.4";
+  priorStatus: "COMPLETED";
+  priorAssertions: unknown[];
+  priorEvidence: Record<string, unknown>;
+  priorCreatedAt: string;
+  priorCompletedAt: string | null;
+  reason: "OBSERVATION_EVENT_ERRORS";
+  recordedAt: string;
 };
 
 export type ObservationSummary = {
@@ -119,17 +133,45 @@ export class PostgresV24ObservationRepository {
         final_record JSONB NOT NULL,
         source_event_id UUID NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS acceptance_stage_run_revisions (
+        revision_id BIGSERIAL PRIMARY KEY,
+        test_run_id UUID NOT NULL,
+        stage_id TEXT NOT NULL,
+        prior_status TEXT NOT NULL,
+        prior_assertions JSONB NOT NULL,
+        prior_evidence JSONB NOT NULL,
+        prior_created_at TIMESTAMPTZ NOT NULL,
+        prior_completed_at TIMESTAMPTZ NULL,
+        reason TEXT NOT NULL,
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS acceptance_stage_run_revisions_run_idx ON acceptance_stage_run_revisions(test_run_id, revision_id);
       UPDATE v24_observation_days
       SET evidence = jsonb_set(evidence, '{observationCounted}', 'false'::jsonb, true)
       WHERE evidence->>'observationCounted'='true' AND jsonb_array_length(errors) > 0;
       DELETE FROM v24_observation_day_finalizations f
       USING v24_observation_days d
       WHERE d.observation_date=f.observation_date AND jsonb_array_length(d.errors) > 0;
+      WITH invalidated AS (
+        SELECT s.test_run_id, s.stage_id, s.status, s.assertions, s.evidence, s.created_at, s.completed_at
+        FROM acceptance_stage_runs s
+        WHERE s.stage_id='V2.4' AND s.scenario_id='observation' AND s.status='COMPLETED'
+          AND EXISTS (SELECT 1 FROM v24_observation_days d
+            WHERE d.observation_date::text = split_part(s.namespace, 'v24-observation-', 2)
+              AND jsonb_array_length(d.errors) > 0)
+        FOR UPDATE
+      ), archived AS (
+        INSERT INTO acceptance_stage_run_revisions
+          (test_run_id,stage_id,prior_status,prior_assertions,prior_evidence,prior_created_at,prior_completed_at,reason)
+        SELECT test_run_id,stage_id,status,assertions,evidence,created_at,completed_at,'OBSERVATION_EVENT_ERRORS'
+        FROM invalidated
+        RETURNING test_run_id
+      )
       UPDATE acceptance_stage_runs s
       SET status='FAILED',
           evidence=s.evidence || '{"observationCounted":false,"invalidatedReason":"observation event errors"}'::jsonb
-      WHERE s.stage_id='V2.4' AND s.scenario_id='observation' AND s.status='COMPLETED'
-        AND EXISTS (SELECT 1 FROM v24_observation_days d WHERE d.observation_date::text = split_part(s.namespace, 'v24-observation-', 2) AND jsonb_array_length(d.errors) > 0);
+      FROM archived a
+      WHERE s.test_run_id=a.test_run_id;
     `);
   }
 
@@ -202,7 +244,42 @@ export class PostgresV24ObservationRepository {
   }
 
   async completeDailyTestRun(observationDate: string, testRunId: string, evidence: Record<string, unknown>): Promise<void> {
-    await this.pool.query(`UPDATE acceptance_stage_runs SET status='COMPLETED', assertions=$2::jsonb, evidence=evidence || $3::jsonb, completed_at=now() WHERE test_run_id=$1 AND stage_id='V2.4'`, [testRunId, JSON.stringify([{ assertionId: "V2.4-OBSERVATION-DAY", status: "PASS", expected: "independent EOD reconciliation", actual: evidence }]), JSON.stringify(evidence)]);
+    const assertions = [{ assertionId: "V2.4-OBSERVATION-DAY", status: "PASS", expected: "independent EOD reconciliation", actual: evidence }];
+    const parameters = [testRunId, JSON.stringify(assertions), JSON.stringify(evidence)];
+    const updated = await this.pool.query(`
+      UPDATE acceptance_stage_runs
+      SET status='COMPLETED', assertions=$2::jsonb, evidence=evidence || $3::jsonb, completed_at=now()
+      WHERE test_run_id=$1 AND stage_id='V2.4' AND scenario_id='observation'
+        AND namespace='v24-observation-' || $4 AND status IN ('QUEUED','RUNNING','WAITING')
+      RETURNING test_run_id
+    `, [...parameters, observationDate]);
+    if (updated.rowCount === 1) return;
+
+    const existing = await this.pool.query<{ status: string; matching_payload: boolean }>(`
+      SELECT status, (assertions=$3::jsonb
+        AND evidence=(jsonb_build_object('observationDate',$2::text,'noBackfill',true) || $4::jsonb)) AS matching_payload
+      FROM acceptance_stage_runs
+      WHERE test_run_id=$1 AND stage_id='V2.4' AND scenario_id='observation'
+        AND namespace='v24-observation-' || $2
+    `, [testRunId, observationDate, JSON.stringify(assertions), JSON.stringify(evidence)]);
+    const row = existing.rows[0];
+    if (row?.status === "COMPLETED" && row.matching_payload) return;
+    throw new ConflictException("daily observation TestRun is missing or already has a conflicting terminal result");
+  }
+
+  async listRunRevisions(testRunId: string, ownerId: string): Promise<StageRunRevision[]> {
+    const result = await this.pool.query(`
+      SELECT r.* FROM acceptance_stage_run_revisions r
+      JOIN acceptance_stage_runs s ON s.test_run_id=r.test_run_id
+      WHERE r.test_run_id=$1 AND s.owner_id=$2 AND s.stage_id='V2.4' AND s.scenario_id='observation'
+      ORDER BY r.revision_id
+    `, [testRunId, ownerId]);
+    return result.rows.map((row) => ({
+      revisionId: String(row.revision_id), testRunId: row.test_run_id, stageId: row.stage_id,
+      priorStatus: row.prior_status, priorAssertions: row.prior_assertions, priorEvidence: row.prior_evidence,
+      priorCreatedAt: row.prior_created_at.toISOString(), priorCompletedAt: row.prior_completed_at?.toISOString() ?? null,
+      reason: row.reason, recordedAt: row.recorded_at.toISOString()
+    }));
   }
 
   async errorsForDate(observationDate: string): Promise<string[]> {
@@ -230,8 +307,13 @@ export class PostgresV24ObservationRepository {
     return quality;
   }
 
-  async listObservations(limit = 30): Promise<ObservationRecord[]> {
-    const result = await this.pool.query("SELECT * FROM v24_observation_days ORDER BY observation_date DESC LIMIT $1", [limit]);
+  async listObservationsForOwner(ownerId: string, limit = 30): Promise<ObservationRecord[]> {
+    const result = await this.pool.query(`
+      SELECT o.* FROM v24_observation_days o
+      JOIN acceptance_stage_runs s ON s.test_run_id=o.test_run_id
+      WHERE s.owner_id=$1 AND s.stage_id='V2.4' AND s.scenario_id='observation'
+      ORDER BY o.observation_date DESC LIMIT $2
+    `, [ownerId, limit]);
     return result.rows.map((row) => ({
       observationDate: row.observation_date.toISOString().slice(0, 10), sourceAvailable: row.source_available,
       lastSnapshotAt: row.last_snapshot_at?.toISOString() ?? null, dataAgeSeconds: row.data_age_seconds,

@@ -290,7 +290,7 @@ export class V24AcceptanceController {
   @Get("scenarios") scenarios() { return V24_SCENARIOS; }
   @Get("preview") preview() { return { stageId: "V2.4", environmentMode: "PAPER", dataMode: "LIVE_SOURCE_SMOKE", brokerMode: "FAKE", samplingIntervalMinutes: 30, executionWindow: "09:31-09:35", observationDays: 0, liveTradingEnabled: false }; }
   @Get("scheduler/status") schedulerStatus() { return this.scheduler.status(); }
-  @Get("observations") observations() { return this.container.v24Observation.listObservations(); }
+  @Get("observations") observations(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { return this.container.v24Observation.listObservationsForOwner(identity(cookie, testHeader)); }
   @Get("observation-summary") observationSummary() { return this.container.v24Observation.observationSummary(20); }
   @Get("observation-events") observationEvents(@Query("limit") limit?: string) { const parsed = Number(limit); return this.container.v24Observation.listEvents(Number.isFinite(parsed) && parsed > 0 ? Math.min(5000, Math.floor(parsed)) : 1000); }
   @Post("scheduler/start") @HttpCode(202) async schedulerStart() { return { accepted: true, scheduler: await this.scheduler.start() }; }
@@ -299,6 +299,12 @@ export class V24AcceptanceController {
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V24Scenario; seed?: number }) { const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId; if (!V24_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V2.4"); const run = this.engine.run(scenarioId as V24Scenario, body.seed ?? 20260907); const source = scenarioId === "normal" ? await fetch(`${this.marketUrl}/v2/quote/preview`).then((response) => response.json()).catch(() => ({ status: "STALE" })) : null; const evidence = { ...run, source: source ? { ...(run.source ?? {}), liveProbe: source.sourceId ?? "tencent-quote", probeStatus: source.status ?? "LIVE_SOURCE_SMOKE" } : run.source }; const namespace = `v2-4-${scenarioId}-${run.testRunId}`; await this.container.stageRuns.save({ ...run, ownerId, stageId: "V2.4", scenarioVersion: "1.0.0", namespace, evidence }); return { accepted: true, testRunId: run.testRunId, status: run.status }; }
   constructor(private readonly container: PlatformContainer) { this.scheduler = container.scheduler; }
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.container.stageRuns.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V2.4") throw new NotFoundException("V2.4 run was not found"); return run; }
+  @Get("runs/:testRunId/revisions") async revisions(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
+    const ownerId = identity(cookie, testHeader);
+    const run = await this.container.stageRuns.find(id, ownerId);
+    if (!run || run.stageId !== "V2.4" || run.scenarioId !== "observation") throw new NotFoundException("V2.4 observation run was not found");
+    return { testRunId: id, revisions: await this.container.v24Observation.listRunRevisions(id, ownerId) };
+  }
 }
 
 @Controller("api/v1/acceptance/v2/v2.5")

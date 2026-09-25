@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-snapshot-fixture-execution.schema.json",
+  "title": "V24SnapshotFixtureExecution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixtureId", "fixtureVersion", "dataMode", "environmentMode", "brokerMode", "liveTradingEnabled", "market", "currency", "clockNow", "order", "snapshot", "fixtureFee", "expected"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "fixtureId": { "const": "v24-snapshot-cn-paper-execution" },
+    "fixtureVersion": { "const": "1.0.0" },
+    "dataMode": { "const": "FIXTURE" },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "liveTradingEnabled": { "const": false },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "clockNow": { "type": "string", "format": "date-time" },
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["security", "acceptedAt", "executionWindowStart", "executionWindowEnd", "requestedQuantity"],
+      "properties": {
+        "security": { "type": "string", "minLength": 1 },
+        "acceptedAt": { "type": "string", "format": "date-time" },
+        "executionWindowStart": { "type": "string", "format": "date-time" },
+        "executionWindowEnd": { "type": "string", "format": "date-time" },
+        "requestedQuantity": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotId", "security", "market", "sourceMode", "status", "observedAt", "ingestedAt", "price"],
+      "properties": {
+        "snapshotId": { "type": "string", "minLength": 1 },
+        "security": { "type": "string", "minLength": 1 },
+        "market": { "enum": ["CN_A", "US_EQUITY"] },
+        "sourceMode": { "const": "FIXTURE" },
+        "status": { "const": "READY" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "ingestedAt": { "type": "string", "format": "date-time" },
+        "price": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" }
+      }
+    },
+    "fixtureFee": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectedQuantity", "projectedPrice", "projectedFee", "executionModel", "liquidityParticipation"],
+      "properties": {
+        "projectedQuantity": { "type": "integer", "minimum": 1 },
+        "projectedPrice": { "type": "string" },
+        "projectedFee": { "type": "string" },
+        "executionModel": { "const": "SNAPSHOT" },
+        "liquidityParticipation": { "const": "NOT_VERIFIED" }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "market": { "const": "CN_A" } }, "required": ["market"] }, "then": { "properties": { "currency": { "const": "CNY" } } } },
+    { "if": { "properties": { "market": { "const": "US_EQUITY" } }, "required": ["market"] }, "then": { "properties": { "currency": { "const": "USD" } } } }
+  ]
+}

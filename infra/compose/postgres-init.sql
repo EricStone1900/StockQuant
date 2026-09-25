@@ -4,6 +4,8 @@ CREATE ROLE portfolio_risk LOGIN;
 CREATE DATABASE portfolio_risk OWNER portfolio_risk;
 CREATE ROLE trade_execution LOGIN;
 CREATE DATABASE trade_execution OWNER trade_execution;
+CREATE ROLE trade_execution_test LOGIN;
+CREATE DATABASE trade_execution_test OWNER trade_execution_test;
 CREATE ROLE historical_replay LOGIN;
 CREATE DATABASE historical_replay OWNER historical_replay;
 CREATE ROLE decision_governance LOGIN;

@@ -2,7 +2,7 @@
 
 状态：S0_SOURCE / GENERATED / COMPATIBILITY_CHECKED。规范见[ADR-0002](../../docs/decisions/ADR-0002-contract-first-boundary.md)和[市场契约](../../docs/prd/03-market-rules-and-contracts.md)。
 
-`schemas/` 是公共值对象与消息的规范源。`pnpm contracts:generate` 从这些 Schema 生成 `generated/types.ts`、`generated/types.py`，以及当前 Portfolio 服务使用的本地 TypeScript 投影；`pnpm contracts:check` 会验证 JSON Schema、Fixture 实例、生成物漂移和 `compatibility-matrix.json` 中登记的稳定字段/枚举。OpenAPI 和发布流程尚未实现，因此阶段任务不能勾选全部完成。
+`schemas/` 是公共值对象与消息的规范源。`pnpm contracts:generate` 从这些 Schema 生成 `generated/types.ts`、`generated/types.py`，以及当前 Portfolio 服务使用的本地 TypeScript 投影；`pnpm contracts:check` 会验证 JSON Schema、Fixture 实例、生成物漂移和 `compatibility-matrix.json` 中登记的稳定字段/枚举。OpenAPI 清单已用于 `portfolio-account.v1` 和 V2.4 观察/修订 API；完整发布流程及其他跨服务业务边界仍未实现，因此阶段任务不能勾选全部完成。
 
 规则：
 

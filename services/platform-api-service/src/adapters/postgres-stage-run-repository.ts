@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ConflictException } from "@nestjs/common";
 import { Pool } from "pg";
 
 export type StoredStageRun = {
@@ -25,12 +26,33 @@ export class PostgresStageRunRepository {
 
   async save(run: Omit<StoredStageRun, "createdAt" | "completedAt" | "namespace"> & { namespace?: string }): Promise<StoredStageRun> {
     const namespace = run.namespace ?? `${run.stageId.toLowerCase().replace(".", "-")}-${run.scenarioId}-${run.testRunId}`;
-    const result = await this.pool.query(`
-      INSERT INTO acceptance_stage_runs (test_run_id, stage_id, scenario_id, scenario_version, owner_id, namespace, status, seed, assertions, evidence, completed_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,CASE WHEN $7 IN ('COMPLETED','FAILED','CANCELLED') THEN now() END)
-      ON CONFLICT (test_run_id) DO UPDATE SET status=EXCLUDED.status, assertions=EXCLUDED.assertions, evidence=EXCLUDED.evidence,
-        completed_at=CASE WHEN EXCLUDED.status IN ('COMPLETED','FAILED','CANCELLED') THEN now() ELSE acceptance_stage_runs.completed_at END
-      RETURNING *`, [run.testRunId, run.stageId, run.scenarioId, run.scenarioVersion, run.ownerId, namespace, run.status, run.seed, JSON.stringify(run.assertions), JSON.stringify(run.evidence)]);
+    let result;
+    try {
+      result = await this.pool.query(`
+        INSERT INTO acceptance_stage_runs (test_run_id, stage_id, scenario_id, scenario_version, owner_id, namespace, status, seed, assertions, evidence, completed_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,CASE WHEN $7 IN ('COMPLETED','FAILED','CANCELLED') THEN now() END)
+        ON CONFLICT (test_run_id) DO UPDATE SET
+          status=EXCLUDED.status,
+          assertions=EXCLUDED.assertions,
+          evidence=EXCLUDED.evidence,
+          completed_at=CASE WHEN acceptance_stage_runs.completed_at IS NULL AND EXCLUDED.status IN ('COMPLETED','FAILED','CANCELLED')
+            THEN now() ELSE acceptance_stage_runs.completed_at END
+        WHERE acceptance_stage_runs.stage_id=EXCLUDED.stage_id
+          AND acceptance_stage_runs.scenario_id=EXCLUDED.scenario_id
+          AND acceptance_stage_runs.scenario_version=EXCLUDED.scenario_version
+          AND acceptance_stage_runs.owner_id=EXCLUDED.owner_id
+          AND acceptance_stage_runs.namespace=EXCLUDED.namespace
+          AND acceptance_stage_runs.seed=EXCLUDED.seed
+          AND (acceptance_stage_runs.status NOT IN ('COMPLETED','FAILED','CANCELLED')
+            OR (acceptance_stage_runs.status=EXCLUDED.status
+              AND acceptance_stage_runs.assertions=EXCLUDED.assertions
+              AND acceptance_stage_runs.evidence=EXCLUDED.evidence))
+        RETURNING *`, [run.testRunId, run.stageId, run.scenarioId, run.scenarioVersion, run.ownerId, namespace, run.status, run.seed, JSON.stringify(run.assertions), JSON.stringify(run.evidence)]);
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") throw new ConflictException("stage run ID or namespace is already in use");
+      throw error;
+    }
+    if (result.rowCount !== 1) throw new ConflictException("stage run identity or terminal evidence conflicts with the stored run");
     return this.row(result.rows[0]);
   }
 

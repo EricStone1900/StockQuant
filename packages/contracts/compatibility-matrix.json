@@ -34,6 +34,17 @@
       "consumer": "portfolio-risk-service -> platform-api-service",
       "requiredProperties": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
       "stableEnums": { "market": ["CN_A", "US_EQUITY"], "brokerMode": ["FAKE"] }
+    },
+    {
+      "schema": "schemas/common/v24-observation-run-revision.schema.json",
+      "consumer": "platform-api-service -> apps/web",
+      "requiredProperties": ["revisionId", "testRunId", "stageId", "priorStatus", "priorAssertions", "priorEvidence", "priorCreatedAt", "priorCompletedAt", "reason", "recordedAt"],
+      "stableEnums": { "stageId": ["V2.4"], "priorStatus": ["COMPLETED"], "reason": ["OBSERVATION_EVENT_ERRORS"] }
+    },
+    {
+      "schema": "schemas/common/v24-observation-run-revision-list.schema.json",
+      "consumer": "platform-api-service -> apps/web",
+      "requiredProperties": ["testRunId", "revisions"]
     }
   ]
 }

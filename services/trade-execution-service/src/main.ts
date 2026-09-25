@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { Pool } from "pg";
 import { PostgresFakeBrokerRepository } from "./adapters/postgres-fake-broker-repository.js";
-import type { HistoricalExecutionCommand } from "./domain/historical-execution.js";
+import { IdempotencyConflictError, type HistoricalExecutionCommand } from "./domain/historical-execution.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3005);
 const allowedServiceId = process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-api-service";
@@ -71,5 +71,5 @@ createServer(async (request, response) => {
       }
     }
     return json(response, 200, execution);
-  } catch (error) { return json(response, 422, { error: error instanceof Error ? error.message : "invalid command" }); }
+  } catch (error) { return json(response, error instanceof IdempotencyConflictError ? error.statusCode : 422, { error: error instanceof Error ? error.message : "invalid command" }); }
 }).listen(port, process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");

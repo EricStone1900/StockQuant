@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-observation-run-revision.schema.json",
+  "title": "V24ObservationRevision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "revisionId",
+    "testRunId",
+    "stageId",
+    "priorStatus",
+    "priorAssertions",
+    "priorEvidence",
+    "priorCreatedAt",
+    "priorCompletedAt",
+    "reason",
+    "recordedAt"
+  ],
+  "properties": {
+    "revisionId": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V2.4" },
+    "priorStatus": { "const": "COMPLETED" },
+    "priorAssertions": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "priorEvidence": { "type": "object", "additionalProperties": true },
+    "priorCreatedAt": { "type": "string", "format": "date-time" },
+    "priorCompletedAt": { "type": ["string", "null"], "format": "date-time" },
+    "reason": { "const": "OBSERVATION_EVENT_ERRORS" },
+    "recordedAt": { "type": "string", "format": "date-time" }
+  }
+}

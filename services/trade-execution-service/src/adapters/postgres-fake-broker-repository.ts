@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { calculateHistoricalExecution, type HistoricalExecutionCommand, type HistoricalExecutionResult } from "../domain/historical-execution.js";
+import { calculateHistoricalExecution, historicalExecutionFingerprint, IdempotencyConflictError, type HistoricalExecutionCommand, type HistoricalExecutionResult } from "../domain/historical-execution.js";
 
 export class PostgresFakeBrokerRepository {
   constructor(private readonly pool: Pool) {}
   async migrate() { await this.pool.query(`
-    CREATE TABLE IF NOT EXISTS fake_broker_orders (
-      order_id UUID PRIMARY KEY, namespace TEXT NOT NULL, account_id UUID NOT NULL, client_order_id TEXT NOT NULL,
-      security TEXT NOT NULL, requested_quantity BIGINT NOT NULL, status TEXT NOT NULL, rejection_reason TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(namespace, client_order_id)
-    );
+      CREATE TABLE IF NOT EXISTS fake_broker_orders (
+        order_id UUID PRIMARY KEY, namespace TEXT NOT NULL, account_id UUID NOT NULL, client_order_id TEXT NOT NULL,
+        security TEXT NOT NULL, requested_quantity BIGINT NOT NULL, status TEXT NOT NULL, rejection_reason TEXT,
+        request_fingerprint TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(namespace, client_order_id)
+      );
+      ALTER TABLE fake_broker_orders ADD COLUMN IF NOT EXISTS request_fingerprint TEXT;
     CREATE TABLE IF NOT EXISTS fake_broker_fills (
       external_fill_id UUID PRIMARY KEY, order_id UUID NOT NULL REFERENCES fake_broker_orders(order_id), quantity BIGINT NOT NULL,
       price NUMERIC(20,4) NOT NULL, fee NUMERIC(20,4) NOT NULL DEFAULT 0, effective_at TIMESTAMPTZ NOT NULL, UNIQUE(order_id)
@@ -30,15 +32,19 @@ export class PostgresFakeBrokerRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      const existing = await client.query<any>(`SELECT o.order_id, o.status, o.rejection_reason, f.external_fill_id, f.quantity, f.price::text, f.fee::text, f.effective_at
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [command.namespace, command.clientOrderId]);
+      const requestFingerprint = historicalExecutionFingerprint(command);
+      const existing = await client.query<any>(`SELECT o.order_id, o.status, o.rejection_reason, o.request_fingerprint, f.external_fill_id, f.quantity, f.price::text, f.fee::text, f.effective_at
         FROM fake_broker_orders o LEFT JOIN fake_broker_fills f ON f.order_id=o.order_id WHERE o.namespace=$1 AND o.client_order_id=$2 FOR UPDATE OF o`, [command.namespace, command.clientOrderId]);
       if (existing.rowCount === 1) {
-        const row = existing.rows[0]; await client.query("COMMIT");
+        const row = existing.rows[0];
+        if (row.request_fingerprint !== requestFingerprint) throw new IdempotencyConflictError();
+        await client.query("COMMIT");
         return { replayed: true, result: row.status === "FILLED" || row.status === "PARTIALLY_FILLED" ? { orderId: row.order_id, status: row.status, brokerMode: "FAKE", fill: { externalFillId: row.external_fill_id, quantity: Number(row.quantity), price: row.price, fee: row.fee, effectiveAt: row.effective_at.toISOString() } } : { orderId: row.order_id, status: row.status, brokerMode: "FAKE", rejectionReason: row.rejection_reason } as HistoricalExecutionResult };
       }
       const result = calculateHistoricalExecution(command, { orderId: randomUUID(), externalFillId: randomUUID() });
-      await client.query(`INSERT INTO fake_broker_orders (order_id,namespace,account_id,client_order_id,security,requested_quantity,status,rejection_reason)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [result.orderId, command.namespace, command.accountId, command.clientOrderId, command.security, command.requestedQuantity, result.status, result.rejectionReason ?? null]);
+      await client.query(`INSERT INTO fake_broker_orders (order_id,namespace,account_id,client_order_id,security,requested_quantity,status,rejection_reason,request_fingerprint)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [result.orderId, command.namespace, command.accountId, command.clientOrderId, command.security, command.requestedQuantity, result.status, result.rejectionReason ?? null, requestFingerprint]);
       if (result.fill) await client.query(`INSERT INTO fake_broker_fills (external_fill_id,order_id,quantity,price,fee,effective_at) VALUES ($1,$2,$3,$4,$5,$6)`, [result.fill.externalFillId, result.orderId, result.fill.quantity, result.fill.price, result.fill.fee, result.fill.effectiveAt]);
       await client.query("INSERT INTO fake_broker_order_events (event_id,order_id,status,reason) VALUES ($1,$2,$3,$4)", [randomUUID(), result.orderId, result.status, result.rejectionReason ?? null]);
       if (result.fill) await client.query(`INSERT INTO fake_broker_outbox (event_id,order_id,event_type,payload) VALUES ($1,$2,'FILL_POST', $3::jsonb)`, [randomUUID(), result.orderId, JSON.stringify({ ...result.fill, accountId: command.accountId, namespace: command.namespace, security: command.security })]);

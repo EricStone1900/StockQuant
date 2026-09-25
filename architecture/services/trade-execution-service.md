@@ -74,3 +74,9 @@ TypeScript / NestJS API + Gateway/报告Worker + PostgreSQL组件按已启用能
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+实现复核补充（2026-09-25）：V2.4 增加了纯 domain `selectFirstQualifyingSnapshot` eligibility gate，供后续 Paper execution adapter 复用。当前仅验证 SNAPSHOT 的时间因果、市场/证券匹配、执行窗口和现有 1800 秒新鲜度阈值；它不创建订单/Fill，尚不构成完整 SimulationExecutionPolicy，也未接入授权、风险预留或 FakeBroker 写路径。相关单测位于 `tests/unit/snapshot-execution.spec.ts`。
+
+实现复核补充（2026-09-25）：FakeBroker 历史执行现在为 `(namespace, clientOrderId)` 保存完整语义请求的 SHA-256 指纹；同键并发请求由事务级 advisory lock 串行化，异载荷或无法核验的旧行重放返回 409，避免错误复用先前订单/Fill。专用 `trade_execution_test` 集成测试覆盖并发同载荷重放、数量/价格冲突零副作用、重连后结果一致。当前工作区单测/类型检查/构建通过；由于沙箱禁止访问 Docker socket 和本机 PostgreSQL 端口，本轮数据库集成验证未运行，不能标记为数据库验收完成。现存升级前订单无请求指纹，重放会失败关闭，需由上层查询原订单事实，不得盲目用新载荷重试。
+
+实现复核补充（2026-09-25）：`calculateSnapshotFixtureExecution` 只把符合既有 eligibility 结果的冻结 Fixture 生成 `PROJECTED_ONLY` 值，固定费用必须来自 Fixture，假设全量成交并显式标出参与率未验证；它不持久化或产生实际FakeBroker/Portfolio事实。真实 Paper 路径还缺 Mandate/治理授权、风控评估与账户资源预留、费用/成交规则审批、SNAPSHOT FakeBroker持久接受、组合账本和对账闭环。
