@@ -1,8 +1,8 @@
 # 跨服务契约
 
-状态：S0_SOURCE / NOT_RUN。规范见[ADR-0002](../../docs/decisions/ADR-0002-contract-first-boundary.md)和[市场契约](../../docs/prd/03-market-rules-and-contracts.md)。
+状态：S0_SOURCE / GENERATED / COMPATIBILITY_CHECKED。规范见[ADR-0002](../../docs/decisions/ADR-0002-contract-first-boundary.md)和[市场契约](../../docs/prd/03-market-rules-and-contracts.md)。
 
-`schemas/` 是公共值对象与消息的规范源。当前文件只覆盖 V1.1 开始实现所需的最小边界；TS/Python 类型生成器、OpenAPI、兼容检查和发布流程尚未实现，因此阶段任务不能勾选完成。
+`schemas/` 是公共值对象与消息的规范源。`pnpm contracts:generate` 从这些 Schema 生成 `generated/types.ts`、`generated/types.py`，以及当前 Portfolio 服务使用的本地 TypeScript 投影；`pnpm contracts:check` 会验证 JSON Schema、Fixture 实例、生成物漂移和 `compatibility-matrix.json` 中登记的稳定字段/枚举。OpenAPI 和发布流程尚未实现，因此阶段任务不能勾选全部完成。
 
 规则：
 
@@ -11,4 +11,4 @@
 - SecurityId 是稳定 UUID，ticker 只作带有效期的别名。
 - environmentMode、brokerMode、dataMode、executionModel 分开。
 - `LIVE` 保留为长期枚举值，但 V1～V3 的运行时配置和写命令必须拒绝。
-- 修改 Schema 后必须重新生成客户端并执行兼容测试；当前仅可运行 JSON 语法检查。
+- 修改 Schema 后必须重新生成客户端并执行兼容检查；当前 Money/Security、账户初始化命令和账户快照已接入 Platform/Portfolio 边界，并有 `portfolio-account.v1` OpenAPI 清单；其他业务客户端和发布流程仍待后续切片。

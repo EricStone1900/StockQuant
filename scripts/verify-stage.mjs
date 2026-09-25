@@ -36,6 +36,19 @@ function runCommand(command, commandArgs, extraEnv = {}) {
   return result.status ?? 1;
 }
 
+function hasPassingAssertions(run) {
+  return run?.status === "COMPLETED"
+    && Array.isArray(run.assertions)
+    && run.assertions.length > 0
+    && run.assertions.every((item) => item?.status === "PASS");
+}
+
+function runExitCode(run) {
+  if (hasPassingAssertions(run)) return 0;
+  if (run?.status === "FAILED") return 1;
+  return 2;
+}
+
 function runCodeSuite() {
   const commands = [
     ["pnpm", ["baseline:check"]],
@@ -70,7 +83,7 @@ async function runV2Stage() {
   if (runId && has("--check-only")) {
     const run = await request(`${route}/${runId}`);
     console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
-    process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 2);
+    process.exit(runExitCode(run));
   }
   if (!['normal', 'rejection', 'recovery'].includes(scenario)) {
     console.error("specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
@@ -80,7 +93,7 @@ async function runV2Stage() {
   if (!accepted.testRunId) throw new Error("run creation returned no testRunId");
   const run = await request(`${route}/${accepted.testRunId}`);
   console.log(JSON.stringify(run, null, 2));
-  process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 1);
+  process.exit(runExitCode(run));
 }
 
 async function runV31Stage() {
@@ -103,7 +116,7 @@ async function runV31Stage() {
   if (runId && has("--check-only")) {
     const run = await request(`${route}/${runId}`);
     console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
-    process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 2);
+    process.exit(runExitCode(run));
   }
   if (!["normal", "rejection", "recovery"].includes(scenario)) {
     console.error("specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
@@ -112,7 +125,7 @@ async function runV31Stage() {
   const accepted = await request(route, { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: Number(value("--seed") ?? 20260907) }) });
   const run = await request(`${route}/${accepted.testRunId}`);
   console.log(JSON.stringify(run, null, 2));
-  process.exit(run.status === "COMPLETED" && run.assertions?.every((item) => item.status === "PASS") ? 0 : 1);
+  process.exit(runExitCode(run));
 }
 
 async function main() {
@@ -120,25 +133,25 @@ async function main() {
   if (stage.startsWith("V2.")) return runV2Stage();
   if (stage === 'V1.5') {
     if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
-    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }
+    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
-    const accepted = await request('/api/v1/acceptance/v1/v1.5/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 1);
+    const accepted = await request('/api/v1/acceptance/v1/v1.5/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.4') {
     if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
-    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }
+    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
-    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 1);
+    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.3') {
     if (value('--suite') === 'code') {
       for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); }
       return;
     }
-    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 2); }
+    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
     const accepted = await request('/api/v1/acceptance/v1/v1.3/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) });
-    const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(run.status === 'COMPLETED' && run.assertions.every((a)=>a.status==='PASS') ? 0 : 1);
+    const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.2') {
     if (value('--suite') === 'code') {
@@ -149,7 +162,7 @@ async function main() {
     }
     const marketUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? 'http://127.0.0.1:3002';
     const quantUrl = process.env.STOCKQUANT_QUANT_RESEARCH_URL ?? 'http://127.0.0.1:3003';
-    if (runId && has('--check-only')) { const probe = await (await fetch(`${quantUrl}/v1/qlib/probe`)).json(); process.exit(probe.probe?.status === 'READY' ? 0 : 2); }
+    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.2/runs/${runId}`); console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2)); process.exit(runExitCode(run)); }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
     const normal = await (await fetch(`${marketUrl}/v1/fixtures/normal/preview`)).json();
     const bad = await (await fetch(`${marketUrl}/v1/fixtures/bad-future/preview`)).json();
@@ -161,7 +174,7 @@ async function main() {
         ? [{id:'V1.2-DATA-PIT-001',pass:bad.quality.status==='REJECTED'&&bad.quality.errors.some((e)=>e.code==='FUTURE_DATA')}]
         : [{id:'V1.2-QLIB-PROBE-001',pass:probe.probe?.status==='READY'}];
     const result = {stageId:'V1.2',scenarioId:scenario,seed:Number(value('--seed')??20260907),status:assertions.every((a)=>a.pass)?'COMPLETED':'FAILED',dataVersion:'v1.2-market-data-1',qlib:probe.probe,artifacts:{normal, bad, factor}, assertions};
-    console.log(JSON.stringify(result,null,2)); process.exit(result.status==='COMPLETED'?0:1);
+    console.log(JSON.stringify(result,null,2)); process.exit(result.status === 'COMPLETED' && assertions.length > 0 ? 0 : result.status === 'FAILED' ? 1 : 2);
   }
   if (value("--suite") === "code") {
     const commands = [
@@ -181,7 +194,7 @@ async function main() {
   if (runId && has("--check-only")) {
     const run = await request(`/api/v1/acceptance/runs/${runId}`);
     console.log(JSON.stringify({ checkOnly: true, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
-    process.exit(run.status === "COMPLETED" && run.assertions.every((item) => item.status === "PASS") ? 0 : 2);
+    process.exit(runExitCode(run));
   }
   if (!["normal", "rejection", "recovery"].includes(scenario)) {
     console.error("specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
@@ -203,7 +216,7 @@ async function main() {
     run = await waitForRun(run.testRunId);
   }
   console.log(JSON.stringify(run, null, 2));
-  process.exit(run.status === "COMPLETED" && run.assertions.every((item) => item.status === "PASS") ? 0 : 1);
+  process.exit(runExitCode(run));
 }
 
 void main().catch((error) => {

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "dc-t19-run-summary-v1",
+  "runAt": "2026-09-25T00:33:02Z",
+  "date": "2026-09-25",
+  "calendar": {
+    "status": "CLOSED",
+    "calendarVersion": "sse-cn-a-share-2026-1",
+    "sourceFreshnessExpected": false
+  },
+  "commands": {
+    "pnpm dc08a:monitor": { "exitCode": 0, "status": "NOT_RUN" },
+    "pnpm dc08a:eod": { "exitCode": 0, "status": "NOT_RUN" },
+    "pnpm dc08a:health-report": {
+      "authoritativeLocalExitCode": 0,
+      "status": "HEALTHY"
+    },
+    "pnpm dc08a:observation-summary": { "exitCode": 2, "status": "WAITING" },
+    "pnpm dc08a:expiry-check": { "exitCode": 0, "status": "OK", "daysRemaining": 36 }
+  },
+  "subscription": {
+    "subscriptionId": "dc08a-20260917-20-v1",
+    "securityIds": [
+      "600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH",
+      "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH",
+      "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH",
+      "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"
+    ]
+  },
+  "scheduler": {
+    "lastSuccessfulTickAt": "2026-09-25T00:32:06.712Z",
+    "nextExecutionAt": "2026-09-28T01:37:00.000Z",
+    "status": "ENABLED"
+  },
+  "quality": {
+    "expectedBars": 0,
+    "actualBars": 0,
+    "openGaps": 0,
+    "duplicates": 0,
+    "pendingOutbox": 0,
+    "windowStatus": "NOT_RUN_NON_TRADING_DAY"
+  },
+  "sources": [
+    {
+      "sourceId": "baostock",
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastErrorCode": null,
+      "todayFormalWindow": "NOT_APPLICABLE_NON_TRADING_DAY",
+      "todayRecoveryProbe": "NOT_RUN_CIRCUIT_CLOSED"
+    },
+    {
+      "sourceId": "sina",
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastErrorCode": null,
+      "todayFormalWindow": "NOT_APPLICABLE_NON_TRADING_DAY",
+      "todayTakeover": "NOT_APPLICABLE_NON_TRADING_DAY"
+    },
+    {
+      "sourceId": "eastmoney",
+      "enabled": false,
+      "circuit": "DISABLED"
+    }
+  ],
+  "dcT19": {
+    "baostockInitialState": "CLOSED; no formal request today",
+    "sinaTakeover": "NOT_RUN_TODAY; no trading window",
+    "halfOpen600Seconds": "NOT_RUN_TODAY; no OPEN circuit",
+    "successfulCutback": "NOT_OBSERVED_TODAY",
+    "continuedDegradation": "NOT_OBSERVED_TODAY",
+    "latency": "NOT_APPLICABLE_TODAY",
+    "rawFieldsAndErrorCodes": "No new source response today; source error codes are null in health-report.json",
+    "priorTradingEvidence": [
+      "../2026-09-24/observation-2026-09-24T09-47-38-507Z.json",
+      "../2026-09-24/observation-2026-09-24T09-47-39-863Z.json"
+    ]
+  },
+  "observation": {
+    "completedDays": 4,
+    "recoveredDays": 1,
+    "observedDays": 5,
+    "remainingDays": 15,
+    "status": "WAITING",
+    "exitCode": 2,
+    "meaning": "Observation period is not complete; this is not a task failure."
+  },
+  "evidence": {
+    "dailyReport": "daily-report.json",
+    "healthReport": "health-report.json",
+    "observationSummary": "observation-summary.json",
+    "sourceRecoveryProbes": [
+      "source-recovery-probe-2026-09-25T00-32-21-965Z.json",
+      "source-recovery-probe-2026-09-25T00-32-30-066Z.json"
+    ]
+  },
+  "guardrails": {
+    "dataDeleted": false,
+    "subscriptionChanged": false,
+    "liveEnabled": false,
+    "realBrokerConnected": false,
+    "manualBackfill": false,
+    "serviceRestarted": false
+  }
+}

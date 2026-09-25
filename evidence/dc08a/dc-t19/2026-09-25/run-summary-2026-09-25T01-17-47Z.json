@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "dc-t19-run-summary-v1",
+  "runAt": "2026-09-25T01:17:47Z",
+  "date": "2026-09-25",
+  "calendar": { "status": "CLOSED", "calendarVersion": "sse-cn-a-share-2026-1", "sourceFreshnessExpected": false },
+  "commands": {
+    "pnpm dc08a:monitor": { "exitCode": 0, "status": "NOT_RUN", "authoritative": "sandbox" },
+    "pnpm dc08a:eod": { "exitCode": 0, "status": "NOT_RUN", "authoritative": "sandbox" },
+    "pnpm dc08a:health-report": { "exitCode": 0, "status": "HEALTHY", "authoritative": "local" },
+    "pnpm dc08a:observation-summary": { "exitCode": 2, "status": "WAITING", "authoritative": "local" },
+    "pnpm dc08a:expiry-check": { "exitCode": 0, "status": "OK", "daysRemaining": 35, "authoritative": "local" }
+  },
+  "subscription": {
+    "subscriptionId": "dc08a-20260917-20-v1",
+    "securityIds": ["600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH", "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH", "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH", "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"]
+  },
+  "scheduler": { "lastSuccessfulTickAt": "2026-09-25T01:17:06.986Z", "nextExecutionAt": "2026-09-28T01:37:00.000Z", "status": "ENABLED" },
+  "quality": { "expectedBars": 0, "actualBars": 0, "missingBars": 0, "duplicates": 0, "unexpectedBars": 0, "openGaps": 0, "pendingOutbox": 0, "deliveries": 0, "windowStatus": "NOT_RUN_NON_TRADING_DAY" },
+  "sources": [
+    { "sourceId": "baostock", "enabled": true, "circuit": "CLOSED", "failures": 0, "lastErrorCode": null, "todayFormalWindow": "NOT_APPLICABLE_NON_TRADING_DAY", "todayRecoveryProbe": "NOT_RUN_CIRCUIT_CLOSED" },
+    { "sourceId": "sina", "enabled": true, "circuit": "CLOSED", "failures": 0, "lastErrorCode": null, "todayTakeover": "NOT_APPLICABLE_NON_TRADING_DAY" },
+    { "sourceId": "eastmoney", "enabled": false, "circuit": "DISABLED" }
+  ],
+  "dcT19": {
+    "baostockInitialState": "CLOSED; no formal request today",
+    "sinaTakeover": "NOT_APPLICABLE_NON_TRADING_DAY",
+    "halfOpen600Seconds": "NOT_APPLICABLE_NON_TRADING_DAY",
+    "successfulCutback": "NOT_OBSERVED_TODAY",
+    "continuedDegradation": "NOT_OBSERVED_TODAY",
+    "latency": "NOT_APPLICABLE_TODAY",
+    "rawFieldsAndErrorCodes": "No new source response today; health-report records null error codes",
+    "recoveryProbe": "COMPLETED with no attempts; no manual probe triggered"
+  },
+  "observation": { "completedDays": 4, "recoveredDays": 1, "observedDays": 5, "remainingDays": 15, "status": "WAITING", "exitCode": 2, "meaning": "Observation period is not complete; this is not a task failure." },
+  "expiry": { "status": "OK", "at": "2026-10-30T00:45:00.000Z", "daysRemaining": 35, "exitCode": 0 },
+  "evidence": { "directory": ".", "dailyReport": "daily-report.json", "healthReport": "health-report.json", "observationSummary": "observation-summary.json", "latestObservation": "observation-2026-09-25T01-17-30-142Z.json", "latestRecoveryProbe": "source-recovery-probe-2026-09-25T01-17-28-131Z.json", "commandLogs": "*.stdout.log, *.stderr.log, *.exit-code, *.local.*" },
+  "guardrails": { "dataDeleted": false, "subscriptionChanged": false, "liveEnabled": false, "realBrokerConnected": false, "manualBackfill": false, "serviceRestarted": false }
+}

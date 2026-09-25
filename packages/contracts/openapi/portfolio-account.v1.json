@@ -1,0 +1,25 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Portfolio Account Internal API", "version": "v1" },
+  "servers": [{ "url": "http://portfolio-risk-service:3001" }],
+  "paths": {
+    "/internal/v1/accounts/initialize": {
+      "post": {
+        "operationId": "initializeAccount",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/account-initialization-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Initialized or replayed account", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "type": "boolean" } } } } } },
+          "403": { "description": "Service identity rejected" },
+          "409": { "description": "Idempotency conflict" }
+        }
+      }
+    },
+    "/internal/v1/accounts/{accountId}/snapshot": {
+      "get": {
+        "operationId": "getAccountSnapshot",
+        "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "responses": { "200": { "description": "Account snapshot", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" } } } }, "403": { "description": "Owner scope rejected" }, "404": { "description": "Account not found" } }
+      }
+    }
+  }
+}

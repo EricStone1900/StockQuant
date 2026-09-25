@@ -1,0 +1,39 @@
+{
+  "matrixVersion": "v1",
+  "rules": [
+    {
+      "schema": "schemas/common/money.schema.json",
+      "consumer": "portfolio-risk-service",
+      "requiredProperties": ["amount", "currency"],
+      "stableProperties": ["amount", "currency"]
+    },
+    {
+      "schema": "schemas/common/test-run.schema.json",
+      "consumer": "platform-api-service",
+      "requiredProperties": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "namespace", "environmentMode", "brokerMode", "dataMode", "clock", "status", "seed", "createdAt"],
+      "stableEnums": {
+        "environmentMode": ["BACKTEST", "PAPER", "SHADOW"],
+        "brokerMode": ["FAKE"],
+        "dataMode": ["FIXTURE", "RECORDED", "REAL"],
+        "status": ["QUEUED", "RUNNING", "WAITING", "CANCELLING", "COMPLETED", "FAILED", "CANCELLED"]
+      }
+    },
+    {
+      "schema": "schemas/common/account-initialization.schema.json",
+      "consumer": "platform-api-service -> portfolio-risk-service",
+      "requiredProperties": ["fixtureVersion", "dataMode", "simulationOnly", "accounts"]
+    },
+    {
+      "schema": "schemas/common/account-initialization-command.schema.json",
+      "consumer": "platform-api-service -> portfolio-risk-service",
+      "requiredProperties": ["fixtureAccountRef", "ownerId", "market", "environmentMode", "brokerMode", "initialCash", "namespace", "testRunId", "idempotencyKey"],
+      "stableEnums": { "market": ["CN_A", "US_EQUITY"], "brokerMode": ["FAKE"] }
+    },
+    {
+      "schema": "schemas/common/account-snapshot.schema.json",
+      "consumer": "portfolio-risk-service -> platform-api-service",
+      "requiredProperties": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
+      "stableEnums": { "market": ["CN_A", "US_EQUITY"], "brokerMode": ["FAKE"] }
+    }
+  ]
+}

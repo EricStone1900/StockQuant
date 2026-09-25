@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/account-initialization-command.schema.json",
+  "title": "InitializeAccountCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixtureAccountRef", "ownerId", "market", "environmentMode", "brokerMode", "initialCash", "namespace", "testRunId", "idempotencyKey"],
+  "properties": {
+    "fixtureAccountRef": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "environmentMode": { "enum": ["PAPER", "BACKTEST"] },
+    "brokerMode": { "const": "FAKE" },
+    "initialCash": { "$ref": "money.schema.json" },
+    "namespace": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "idempotencyKey": { "type": "string", "minLength": 1 }
+  }
+}

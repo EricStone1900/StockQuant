@@ -1,37 +1,13 @@
-export type Market = "CN_A" | "US_EQUITY";
+import type { AccountSnapshot as ContractAccountSnapshot, InitializeAccountCommand as ContractInitializeAccountCommand, Money as ContractMoney, Security as ContractSecurity } from "../contracts/generated-types.js";
+
+export type Market = ContractSecurity["market"];
 export type SimulationMode = "PAPER" | "BACKTEST";
 
-export interface Money {
-  amount: string;
-  currency: string;
-}
+export type Money = ContractMoney;
 
-export interface InitializeAccountCommand {
-  fixtureAccountRef: string;
-  ownerId: string;
-  market: Market;
-  environmentMode: SimulationMode;
-  brokerMode: "FAKE";
-  initialCash: Money;
-  namespace: string;
-  testRunId: string;
-  idempotencyKey: string;
-}
+export type InitializeAccountCommand = ContractInitializeAccountCommand;
 
-export interface AccountSnapshot {
-  accountId: string;
-  namespace: string;
-  testRunId: string;
-  ownerId: string;
-  fixtureAccountRef: string;
-  market: Market;
-  environmentMode: SimulationMode;
-  brokerMode: "FAKE";
-  cash: Money;
-  positionCount: number;
-  ledgerEntryCount: number;
-  ledgerVersion: number;
-}
+export type AccountSnapshot = ContractAccountSnapshot;
 
 /** A broker-confirmed fill.  Only a trusted internal execution service may post it. */
 export interface RecordFillCommand {

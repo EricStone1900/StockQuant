@@ -20,4 +20,6 @@ test("version verification parses every V2 acceptance row", async () => {
   assert.equal(payload.unresolvedAcceptance.length, 2);
   assert.deepEqual(payload.missingAcceptance, []);
   assert.deepEqual(payload.unexpectedAcceptance, []);
+  assert.equal(payload.versionSummaryIncomplete, true);
+  assert.equal(payload.uncheckedVersionGate, true);
 });

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/account-snapshot.schema.json",
+  "title": "AccountSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
+  "properties": {
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "fixtureAccountRef": { "type": "string", "minLength": 1 },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "environmentMode": { "enum": ["PAPER", "BACKTEST"] },
+    "brokerMode": { "const": "FAKE" },
+    "cash": { "$ref": "money.schema.json" },
+    "positionCount": { "type": "integer", "minimum": 0 },
+    "ledgerEntryCount": { "type": "integer", "minimum": 0 },
+    "ledgerVersion": { "type": "integer", "minimum": 1 }
+  }
+}

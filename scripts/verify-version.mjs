@@ -33,9 +33,12 @@ const acceptanceIds = new Set(acceptanceStageRows.map(({ stageId }) => stageId))
 const missingAcceptance = stageRows.filter(({ stageId }) => !acceptanceIds.has(stageId));
 const unexpectedAcceptance = acceptanceStageRows.filter(({ stageId }) => !stageIds.has(stageId));
 const unresolvedAcceptance = acceptanceStageRows.filter(({ backend, web }) => /NOT_RUN|FAIL|PARTIALLY_IMPLEMENTED/.test(`${backend} ${web}`));
+const versionGateSection = acceptance.match(/## 2\. 版本门禁([\s\S]*?)(?=\n## |$)/)?.[1] ?? "";
+const versionSummaryIncomplete = /当前结论：\s*(?:NOT_RUN|PARTIALLY_IMPLEMENTED|INCOMPLETE|WAITING)/.test(acceptance);
+const uncheckedVersionGate = /^- \[ \] /m.test(versionGateSection);
 const hasFailure = [...stageRows.map(({ status }) => status), ...acceptanceStageRows.flatMap(({ backend, web }) => [backend, web])]
   .some((status) => /\bFAIL\b/.test(status));
-const incomplete = unresolved.length > 0 || unresolvedAcceptance.length > 0 || missingAcceptance.length > 0 || unexpectedAcceptance.length > 0;
+const incomplete = unresolved.length > 0 || unresolvedAcceptance.length > 0 || missingAcceptance.length > 0 || unexpectedAcceptance.length > 0 || versionSummaryIncomplete || uncheckedVersionGate;
 const result = {
   version,
   status: hasFailure ? "FAIL" : incomplete ? "INCOMPLETE" : "PASS",
@@ -44,6 +47,8 @@ const result = {
   unresolvedAcceptance,
   missingAcceptance,
   unexpectedAcceptance,
+  versionSummaryIncomplete,
+  uncheckedVersionGate,
 };
 
 console.log(JSON.stringify(result, null, 2));

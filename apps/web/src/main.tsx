@@ -13,6 +13,12 @@ type TestRun = {
   error: string | null;
   assertions: Assertion[];
 };
+type AccountDetail = {
+  evidenceVersion: string;
+  ownerId: string;
+  mode: { environmentMode: string; brokerMode: string };
+  account: { accountId: string; market: string; fixtureAccountRef: string; namespace: string; testRunId: string; cash: { amount: string; currency: string }; positionCount: number; ledgerEntryCount: number; ledgerVersion: number };
+};
 type V31Run = TestRun & { evidence?: Record<string, unknown> };
 
 let sessionRequest: Promise<unknown> | null = null;
@@ -34,6 +40,9 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 function App() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [run, setRun] = useState<TestRun | null>(null);
+  const [runId, setRunId] = useState(() => window.localStorage.getItem("stockquant:v11:testRunId") ?? "");
+  const [account, setAccount] = useState<AccountDetail | null>(null);
+  const [usAccount, setUsAccount] = useState<AccountDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [capabilities, setCapabilities] = useState<{ brokerMode: string; liveTradingEnabled: boolean } | null>(null);
@@ -74,12 +83,27 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!runId) return;
+    void api<TestRun>(`/api/v1/acceptance/runs/${runId}`).then(setRun).catch((cause) => setError(String(cause)));
+    const storedUsAccountId = window.localStorage.getItem("stockquant:v11:usAccountId");
+    if (storedUsAccountId) void api<AccountDetail>(`/api/v1/accounts/${storedUsAccountId}`).then(setUsAccount).catch(() => window.localStorage.removeItem("stockquant:v11:usAccountId"));
+  }, [runId]);
+
+  useEffect(() => {
     if (!run || !["QUEUED", "RUNNING"].includes(run.status)) return;
     const timer = window.setInterval(() => {
       void api<TestRun>(`/api/v1/acceptance/runs/${run.testRunId}`).then(setRun).catch((cause) => setError(String(cause)));
     }, 500);
     return () => window.clearInterval(timer);
   }, [run]);
+
+  useEffect(() => {
+    if (!run?.accountId) {
+      setAccount(null);
+      return;
+    }
+    void api<AccountDetail>(`/api/v1/accounts/${run.accountId}`).then(setAccount).catch((cause) => setError(String(cause)));
+  }, [run?.accountId]);
 
   const start = async (scenarioId: Scenario["scenarioId"]) => {
     setError(null);
@@ -88,9 +112,24 @@ function App() {
         method: "POST",
         body: JSON.stringify({ scenarioId, seed: 20260907 })
       });
+      window.localStorage.setItem("stockquant:v11:testRunId", accepted.testRunId);
+      window.localStorage.removeItem("stockquant:v11:usAccountId");
+      setRunId(accepted.testRunId);
+      setUsAccount(null);
       setRun(await api<TestRun>(`/api/v1/acceptance/runs/${accepted.testRunId}`));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "无法创建验收运行");
+    }
+  };
+
+  const initializeUsAccount = async () => {
+    if (!run) return;
+    try {
+      const detail = await api<AccountDetail>(`/api/v1/acceptance/runs/${run.testRunId}/accounts/us`, { method: "POST", body: "{}" });
+      window.localStorage.setItem("stockquant:v11:usAccountId", detail.account.accountId);
+      setUsAccount(detail);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "无法初始化 US 模拟账户");
     }
   };
 
@@ -142,6 +181,30 @@ function App() {
           </table>
         </>}
       </section>
+      {account && <section aria-labelledby="account-title">
+        <h2 id="account-title">账户详情与账本证据</h2>
+        <dl>
+          <dt>accountId</dt><dd data-testid="account-detail-id">{account.account.accountId}</dd>
+          <dt>市场</dt><dd data-testid="account-detail-market">{account.account.market}</dd>
+          <dt>账户 Fixture</dt><dd>{account.account.fixtureAccountRef}</dd>
+          <dt>现金</dt><dd data-testid="account-detail-cash">{account.account.cash.amount} {account.account.cash.currency}</dd>
+          <dt>持仓数量</dt><dd data-testid="account-detail-positions">{account.account.positionCount}</dd>
+          <dt>账本条目</dt><dd data-testid="account-detail-ledger">{account.account.ledgerEntryCount}</dd>
+          <dt>账本版本</dt><dd>{account.account.ledgerVersion}</dd>
+        </dl>
+        <pre data-testid="account-detail-evidence">{JSON.stringify(account, null, 2)}</pre>
+      </section>}
+      {run && <section aria-labelledby="dual-account-title">
+        <h2 id="dual-account-title">双市场模拟账户</h2>
+        {!usAccount && <button onClick={() => void initializeUsAccount()}>初始化 US_EQUITY 账户</button>}
+        {usAccount && <dl>
+          <dt>US accountId</dt><dd data-testid="us-account-detail-id">{usAccount.account.accountId}</dd>
+          <dt>市场</dt><dd data-testid="us-account-detail-market">{usAccount.account.market}</dd>
+          <dt>现金</dt><dd data-testid="us-account-detail-cash">{usAccount.account.cash.amount} {usAccount.account.cash.currency}</dd>
+          <dt>持仓数量</dt><dd>{usAccount.account.positionCount}</dd>
+          <dt>账本条目</dt><dd>{usAccount.account.ledgerEntryCount}</dd>
+        </dl>}
+      </section>}
     </main>
   );
 }
@@ -167,9 +230,26 @@ function V14Acceptance() {
 
 function V15Acceptance() { const [scenario, setScenario] = useState("normal"); const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null); const start = async () => { try { setError(null); const a = await api<any>("/api/v1/acceptance/v1/v1.5/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.5/runs/${a.testRunId}`)); } catch (e) { setError(String(e)); } }; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.5 无人调度、故障恢复与 V1 验收</h1><p>后台工作流、日历调度、恢复与备份；订单仍为 PAPER + FAKE。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>调度场景</h2><select aria-label="调度场景" value={scenario} onChange={(e)=>setScenario(e.target.value)}><option value="normal">后台调度与 60 日 HOLD</option><option value="rejection">暂停与窗口拒绝</option><option value="recovery">Worker/总线与备份恢复</option></select><button onClick={()=>void start()}>运行 V1.5 场景</button></section>{run && <section><h2>恢复与全链路证据</h2><dl><dt>testRunId</dt><dd data-testid="v15-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v15-run-status">{run.status}</dd></dl><pre data-testid="v15-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th></tr></thead><tbody>{run.assertions.map((a:any)=><tr key={a.assertionId}><td>{a.assertionId}</td><td>{a.status}</td></tr>)}</tbody></table></section>}</main>; }
 
-function V21Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const load = async (path: string) => { try { setError(null); const r = await api<any>(path); setData((old: any) => ({ ...(old ?? {}), [path.split("/").pop()!]: r })); } catch (e) { setError(String(e)); } }; const over = async () => { try { const securities = Array.from({ length: 101 }, (_, i) => `${String(600000 + i).padStart(6, "0")}.SH`); await api("/api/v1/acceptance/v2/v2.1/watchlist", { method: "PUT", body: JSON.stringify({ securities }) }); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string) => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.1/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907 }) }); const result = await api<any>(`/api/v1/acceptance/v2/v2.1/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } }; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.1 免费行情、新闻聚合与在线股票池</h1><p>真实来源能力与小样本验收；不触发交易。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>来源与股票池</h2><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/sources")}>检查来源能力</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/sampling")}>查看20/30分钟规则</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/watchlist")}>查看股票池</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/quotes")}>采集实时快照</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/news/live")}>抓取实时新闻</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.1/news")}>查看新闻去重样本</button><button onClick={()=>void over()}>提交101只并验证拒绝</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常</button><button onClick={()=>void run("rejection")}>运行容量拒绝</button><button onClick={()=>void run("recovery")}>运行熔断恢复</button></section>{data && <pre data-testid="v21-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
+function V21Acceptance() {
+  const storageKey = "stockquant:v21:testRunId";
+  const basePath = "/api/v1/acceptance/v2/v2.1";
+  const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const [runId, setRunId] = useState(() => window.localStorage.getItem(storageKey) ?? "");
+  const load = async (path: string) => { try { setError(null); const r = await api<any>(path); setData((old: any) => ({ ...(old ?? {}), [path.split("/").pop()!]: r })); } catch (e) { setError(String(e)); } };
+  const over = async () => { try { const securities = Array.from({ length: 101 }, (_, i) => `${String(600000 + i).padStart(6, "0")}.SH`); await api(`${basePath}/watchlist`, { method: "PUT", body: JSON.stringify({ securities }) }); } catch (e) { setError(String(e)); } };
+  const run = async (scenarioId: string) => { try { setError(null); const accepted = await api<any>(`${basePath}/runs`, { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907 }) }); window.localStorage.setItem(storageKey, accepted.testRunId); setRunId(accepted.testRunId); const result = await api<any>(`${basePath}/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } };
+  useEffect(() => { if (!runId) return; void api<any>(`${basePath}/runs/${runId}`).then((result) => setData((old: any) => ({ ...(old ?? {}), run: result }))).catch((e) => { window.localStorage.removeItem(storageKey); setRunId(""); setError(String(e)); }); }, [runId]);
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.1 免费行情、新闻聚合与在线股票池</h1><p>真实来源能力与小样本验收；不触发交易。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>来源与股票池</h2><button onClick={()=>void load(`${basePath}/sources`)}>检查来源能力</button><button onClick={()=>void load(`${basePath}/sampling`)}>查看20/30分钟规则</button><button onClick={()=>void load(`${basePath}/watchlist`)}>查看股票池</button><button onClick={()=>void load(`${basePath}/quotes`)}>采集实时快照</button><button onClick={()=>void load(`${basePath}/news/live`)}>抓取实时新闻</button><button onClick={()=>void load(`${basePath}/news`)}>查看新闻去重样本</button><button onClick={()=>void over()}>提交101只并验证拒绝</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常</button><button onClick={()=>void run("rejection")}>运行容量拒绝</button><button onClick={()=>void run("recovery")}>运行熔断恢复</button></section>{data?.run && <section aria-label="V2.1 持久运行"><h2>当前持久运行</h2><dl><dt>testRunId</dt><dd data-testid="v21-test-run-id">{data.run.testRunId}</dd><dt>状态</dt><dd data-testid="v21-run-status">{data.run.status}</dd></dl></section>}{data && <pre data-testid="v21-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 
-function V22Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const load = async (path: string, body?: any) => { try { setError(null); const r = await api<any>(path, body ? { method: "POST", body: JSON.stringify(body) } : undefined); setData((old: any) => ({ ...(old ?? {}), [path.split("/").pop()!]: r })); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string) => { try { const accepted = await api<any>("/api/v1/acceptance/v2/v2.2/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907 }) }); const result = await api<any>(`/api/v1/acceptance/v2/v2.2/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } }; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.2 历史分钟数据导入与校验</h1><p>1分钟 CN Fixture；导入、质量拒绝和幂等验证，不触发交易。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>导入与预览</h2><button onClick={()=>void load("/api/v1/acceptance/v2/v2.2/preview")}>预览分钟数据</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.2/import", { fixture: "normal" })}>导入正常文件</button><button onClick={()=>void load("/api/v1/acceptance/v2/v2.2/import", { fixture: "bad" })}>导入坏文件并拒绝</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常</button><button onClick={()=>void run("rejection")}>运行质量拒绝</button><button onClick={()=>void run("recovery")}>运行重复幂等</button></section>{data && <pre data-testid="v22-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
+function V22Acceptance() {
+  const storageKey = "stockquant:v22:testRunId";
+  const basePath = "/api/v1/acceptance/v2/v2.2";
+  const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const [runId, setRunId] = useState(() => window.localStorage.getItem(storageKey) ?? "");
+  const load = async (path: string, body?: any) => { try { setError(null); const r = await api<any>(path, body ? { method: "POST", body: JSON.stringify(body) } : undefined); setData((old: any) => ({ ...(old ?? {}), [path.split("/").pop()!]: r })); } catch (e) { setError(String(e)); } };
+  const run = async (scenarioId: string) => { try { setError(null); const accepted = await api<any>(`${basePath}/runs`, { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907 }) }); window.localStorage.setItem(storageKey, accepted.testRunId); setRunId(accepted.testRunId); const result = await api<any>(`${basePath}/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } };
+  useEffect(() => { if (!runId) return; void api<any>(`${basePath}/runs/${runId}`).then((result) => setData((old: any) => ({ ...(old ?? {}), run: result }))).catch((e) => { window.localStorage.removeItem(storageKey); setRunId(""); setError(String(e)); }); }, [runId]);
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.2 历史分钟数据导入与校验</h1><p>1分钟 CN Fixture；导入、质量拒绝和幂等验证，不触发交易。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>导入与预览</h2><button onClick={()=>void load(`${basePath}/preview`)}>预览分钟数据</button><button onClick={()=>void load(`${basePath}/import`, { fixture: "normal" })}>导入正常文件</button><button onClick={()=>void load(`${basePath}/import`, { fixture: "bad" })}>导入坏文件并拒绝</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常</button><button onClick={()=>void run("rejection")}>运行质量拒绝</button><button onClick={()=>void run("recovery")}>运行重复幂等</button></section>{data?.run && <section aria-label="V2.2 持久运行"><h2>当前持久运行</h2><dl><dt>testRunId</dt><dd data-testid="v22-test-run-id">{data.run.testRunId}</dd><dt>状态</dt><dd data-testid="v22-run-status">{data.run.status}</dd></dl></section>}{data && <pre data-testid="v22-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 
 function V23Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const load = async (path: string) => { try { setError(null); const preview = await api<any>(path); setData((old: any) => ({ ...(old ?? {}), preview })); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string, defer = false) => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.3/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907, defer }) }); const result = defer ? accepted : await api<any>(`/api/v1/acceptance/v2/v2.3/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } }; const worker = async (action?: string) => { const id = data?.run?.testRunId; if (!id) return; try { setError(null); const path = action ? `/api/v1/acceptance/v2/v2.3/runs/${id}/worker/${action}` : `/api/v1/acceptance/v2/v2.3/runs/${id}/worker`; const result = await api<any>(path, action ? { method: "POST", body: "{}" } : undefined); setData((old: any) => ({ ...(old ?? {}), worker: result })); } catch (e) { setError(String(e)); } }; const research = data?.run?.evidence?.crossService?.research; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.3 日频决策、分钟撮合与历史事件回放</h1><p>MINUTE_BAR / BACKTEST / FAKE；虚拟时钟、确定性事件屏障、检查点恢复与 Qlib 研究 Artifact。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>回放数据</h2><button onClick={()=>void load("/api/v1/acceptance/v2/v2.3/preview")}>预览回放数据</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常回放</button><button onClick={()=>void run("rejection")}>运行未来信息拒绝</button><button onClick={()=>void run("recovery")}>运行检查点恢复</button><button onClick={()=>void run("normal", true)}>启动可暂停长回放</button></section>{data?.run && <section><h2>Worker 生命周期</h2><button onClick={()=>void worker()}>查询状态</button><button onClick={()=>void worker("pause")}>暂停</button><button onClick={()=>void worker("resume")}>恢复</button><button onClick={()=>void worker("cancel")}>取消</button>{data.worker && <pre data-testid="v23-worker-status">{JSON.stringify(data.worker,null,2)}</pre>}</section>}{research && <section><h2>量化研究 Artifact</h2><p data-testid="v23-research-status">{research.status} · {research.adapter} · {research.dataMode} · modelCalls={research.modelCalls}</p><code data-testid="v23-research-hash">{research.artifactHash}</code></section>}{data && <pre data-testid="v23-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 

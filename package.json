@@ -9,7 +9,8 @@
   },
   "scripts": {
     "baseline:check": "pnpm docs:check && pnpm contracts:check && pnpm fixtures:check",
-    "contracts:check": "node scripts/validate-json.mjs packages/contracts fixtures",
+    "contracts:check": "node scripts/validate-json.mjs packages/contracts fixtures && node scripts/generate-contract-types.mjs --check && node scripts/check-contract-compat.mjs && node scripts/check-openapi-contract.mjs",
+    "contracts:generate": "node scripts/generate-contract-types.mjs",
     "docs:check": "node scripts/check-markdown-links.mjs",
     "fixtures:check": "node scripts/verify-fixture-hashes.mjs",
     "build": "pnpm -r --if-present build",
@@ -18,6 +19,7 @@
     "test": "pnpm -r --if-present test",
     "test:integration": "node scripts/integration-v11.mjs",
     "test:integration:market-data": "node scripts/test-market-data-integration.mjs",
+    "test:integration:platform": "pnpm --filter @stockquant/platform-api-service test:integration:persistence",
     "test:python-adapter": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen pytest services/market-data-adapter/tests -q",
     "test:ops": "node --test scripts/*.test.mjs",
     "test:contract": "pnpm contracts:check && pnpm fixtures:check",
@@ -80,5 +82,9 @@
     "dc08a:recover-failed": "node scripts/dc08a-recover-failed-runs.mjs",
     "v25:import-baostock": "UV_CACHE_DIR=\"$PWD/.uv-cache\" uv run --project services/market-data-adapter --frozen python scripts/import-baostock-daily.py",
     "evidence:export": "node scripts/evidence-export.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
   }
 }
