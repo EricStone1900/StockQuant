@@ -26,7 +26,9 @@ export class V12AcceptanceService {
   constructor(
     private readonly repository: PostgresStageRunRepository,
     private readonly marketUrl: string,
-    private readonly quantUrl: string
+    private readonly quantUrl: string,
+    private readonly quantToken = "",
+    private readonly marketDataToken = ""
   ) {}
 
   async create(ownerId: string, scenarioId: V12Scenario, seed: number) {
@@ -55,8 +57,8 @@ export class V12AcceptanceService {
   async execute(run: Omit<StoredStageRun, "createdAt" | "completedAt" | "namespace"> & { namespace: string }): Promise<void> {
     try {
       const [normal, bad, probe, factor] = await Promise.all([
-        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/normal/preview`),
-        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/bad-future/preview`),
+        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/normal/preview`, this.marketDataHeaders()),
+        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/bad-future/preview`, this.marketDataHeaders()),
         this.fetchJson<{ probe?: { status?: string } }>(`${this.quantUrl}/v1/qlib/probe`),
         this.fetchJson<{ ranking?: unknown[] }>(`${this.quantUrl}/v1/factors/preview`)
       ]);
@@ -103,8 +105,12 @@ export class V12AcceptanceService {
     return { assertionId, status: pass ? "PASS" : "FAIL", expected, actual, evidence };
   }
 
-  private async fetchJson<T>(url: string): Promise<T> {
-    const response = await fetch(url);
+  private marketDataHeaders() {
+    return { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.marketDataToken}` };
+  }
+
+  private async fetchJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
+    const response = await fetch(url, { headers: headers ?? (url.startsWith(this.quantUrl) ? { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.quantToken}` } : undefined) });
     if (!response.ok) throw new Error(`${url} returned ${response.status}`);
     return response.json() as Promise<T>;
   }

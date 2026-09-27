@@ -1,6 +1,7 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
 
 const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const defaultSecurityIds = ["600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH", "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH", "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH", "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"];
@@ -71,7 +72,7 @@ function verifyRuntime(ready, securityIds) {
 
 export async function request(baseUrl, path, options = {}) {
   const token = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
-  const requestOptions = { ...options, headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(options.headers ?? {}) } };
+  const requestOptions = { ...options, headers: platformMarketDataHeaders({ extra: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(options.headers ?? {}) } }) };
   let response;
   let lastError;
   const attempts = options.method ? 1 : 3;

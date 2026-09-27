@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-user-promotion-decision-command.schema.json",
+  "title": "V3.2UserPromotionDecisionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "confirmation"],
+  "properties": {
+    "decision": { "enum": ["APPROVE", "REJECT"] },
+    "confirmation": { "const": "REVIEW_EXACT_PROMOTION_VERSION" }
+  }
+}

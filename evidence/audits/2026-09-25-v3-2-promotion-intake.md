@@ -1,0 +1,19 @@
+# V3.2 PromotionRequest intake boundary
+
+Date: 2026-09-25 (Asia/Shanghai). This records a backend intake slice; V3.1 and V3.2 remain unaccepted.
+
+The quant research service now exposes `POST /v1/promotions` and platform-only `GET /v1/promotions/{promotionRequestId}`. The POST accepts the canonical request, rejects unknown fields, validates run/experiment-scoped Artifact namespace, hashes and budget bounds, and caps the UTF-8 body at 64 KiB. It persists the immutable request JSONB, canonical SHA-256 fingerprint, unique request ID and idempotency key. Same-content concurrent retry returns one 201 and one 200; changed content under the same key returns 409. Database state has a CHECK constraint that permits only `AWAITING_INDEPENDENT_VALIDATION`.
+
+Authentication uses distinct service-specific Bearer tokens. `research-automation-service` may only POST `/v1/promotions`; it cannot read requests, use candidate registration, approve or activate. `platform-api-service` may read a request by ID but cannot submit. Historical replay scope is unchanged. The optional inbound quant token is configured by `STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION`; the Compose value is explicit and `.env.example` documents it. The producer-side outbound call is not implemented yet, so no runtime workflow submits requests.
+
+Contracts: added the response schema, compatibility rule and `quant-promotions.v1` OpenAPI; generated TS/Python types and extended OpenAPI contract checking. Verification passed: `pnpm contracts:check` (69 JSON files, 37 schemas, 24 fixtures, 26 compatibility rules); quant service typecheck, build and 20 unit tests; integration against two random isolated temporary PostgreSQL databases. The full `pnpm verify:stage -- --stage V3.2 --suite code` then passed: baseline contracts/fixtures/docs, four CLI prerequisite regressions, both quant HTTP/PG smokes, research automation build and 88 unit tests, and Web typecheck plus its unit test. The code suite reports business validation `NOT_RUN`, Registry mutation `NOT_PERFORMED`, and human acceptance `NOT_RUN`. Markdown-link and whitespace checks passed.
+
+Remaining: research-side PromotionRequest producer, independent Qlib recomputation and validation, quant-owned Registry transitions, Web/TestRun scenarios, stage evidence export, V3.1 prerequisite acceptance and human V3.2 acceptance. Thus V3.2 normal/rejection/recovery and version acceptance remain NOT_RUN. No approval, Registry or activation write was performed.
+
+## 2026-09-26 PromotionRequest read-route validation
+
+Current-tree review found that malformed IDs on `GET /v1/promotions/{id}` reached PostgreSQL's UUID comparison directly, and nested paths were also treated as IDs. The handler now accepts exactly one path segment, validates the UUID before querying, returns 422 for malformed IDs and 404 for extra path segments. This leaves stored requests and their immutable `AWAITING_INDEPENDENT_VALIDATION` status unchanged.
+
+`pnpm --filter @stockquant/quant-research-service test` passed 21/21; `build` passed; isolated PostgreSQL/HTTP `test:integration` passed both candidate-registration and promotion-request smokes. The latter checks malformed ID 422, nested route 404, and subsequent `/live` 200 to confirm the service remains up. The script uses a random temporary database and drops it in `finally`. This hardens intake/read behavior only; independent recomputation, Registry transitions, Web and human approval remain NOT_RUN.
+
+After this change, `pnpm verify:stage -- --stage V3.2 --suite code` exited 0: baseline checked 76 JSON files, 41 schemas, 27 contract fixtures, 30 consumer rules and 15 frozen Fixture hashes; four preparation-gate tests, quant unit 21/21 and HTTP/PG smokes, research automation 95/95 unit tests/build, and Web typecheck/unit test passed. The suite explicitly reports `businessValidation=NOT_RUN`, `registryMutation=NOT_PERFORMED`, and `humanAcceptance=NOT_RUN`.

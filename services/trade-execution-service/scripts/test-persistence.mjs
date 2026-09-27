@@ -21,9 +21,13 @@ const command = {
   accountId,
   clientOrderId: `order-${randomUUID()}`,
   security: "600000.SH",
+  side: "SELL",
+  currency: "CNY",
+  reservation: { reservationId: randomUUID(), ownerId: "test-owner", testRunId: randomUUID(), clientOrderId: `order-${randomUUID()}` },
   requestedQuantity: 100,
   bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 500 }
 };
+command.reservation.clientOrderId = command.clientOrderId;
 
 try {
   await pool.query("SELECT 1");
@@ -41,13 +45,15 @@ try {
   const legacyClientOrderId = `legacy-${randomUUID()}`;
   await pool.query(`INSERT INTO fake_broker_orders (order_id,namespace,account_id,client_order_id,security,requested_quantity,status)
     VALUES ($1,$2,$3,$4,$5,$6,'FILLED')`, [randomUUID(), namespace, accountId, legacyClientOrderId, command.security, command.requestedQuantity]);
-  await assert.rejects(repository.execute({ ...command, clientOrderId: legacyClientOrderId }), (error) => error?.statusCode === 409);
+  await assert.rejects(repository.execute({ ...command, clientOrderId: legacyClientOrderId, reservation: { ...command.reservation, clientOrderId: legacyClientOrderId } }), (error) => error?.statusCode === 409);
   const rows = await pool.query(`SELECT count(*)::int AS orders,
     (SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o USING (order_id) WHERE o.namespace=$1) AS fills,
     (SELECT count(*)::int FROM fake_broker_order_events e JOIN fake_broker_orders o USING (order_id) WHERE o.namespace=$1) AS events,
     (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o USING (order_id) WHERE o.namespace=$1) AS outbox
     FROM fake_broker_orders WHERE namespace=$1`, [namespace]);
   assert.deepEqual(rows.rows[0], { orders: 2, fills: 1, events: 1, outbox: 1 });
+  const outbox = await pool.query("SELECT payload FROM fake_broker_outbox WHERE order_id=$1", [original.result.orderId]);
+  assert.deepEqual({ side: outbox.rows[0].payload.side, currency: outbox.rows[0].payload.currency, reservation: outbox.rows[0].payload.reservation }, { side: "SELL", currency: "CNY", reservation: command.reservation });
 
   await pool.end();
   pool = new Pool({ connectionString });
@@ -55,7 +61,7 @@ try {
   const replayAfterReconnect = await reopened.execute(command);
   assert.equal(replayAfterReconnect.replayed, true);
   assert.deepEqual(replayAfterReconnect.result, original.result);
-  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", reconnectReplay: "same persisted result", brokerMode: "FAKE" }, null, 2));
+  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", reconnectReplay: "same persisted result", brokerMode: "FAKE" }, null, 2));
 } catch (error) {
   if (!databaseReady) {
     console.error("isolated trade-execution test database is unreachable; start the local PostgreSQL test service or set TRADE_EXECUTION_TEST_DATABASE_URL");

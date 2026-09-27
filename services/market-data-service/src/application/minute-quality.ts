@@ -16,11 +16,12 @@ export type CoverageReport = { status: "PASS" | "INCOMPLETE" | "WAITING_DEPENDEN
 export type TradingCalendar = { session(date: string): { status: "TRADING" | "CLOSED" | "UNKNOWN"; sessions?: Array<{ start: string; end: string }> } };
 
 const OFFSET_MINUTES = 480;
+const SHANGHAI_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false });
 const asUtc = (date: string, time: string): Date => { const [hours, minutes] = time.split(":").map(Number); return new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), hours, minutes - OFFSET_MINUTES)); };
 const iso = (value: Date): string => value.toISOString();
 const plusMinutes = (value: Date, minutes: number): Date => new Date(value.getTime() + minutes * 60_000);
 const dateOnly = (value: Date): string => value.toISOString().slice(0, 10);
-const localTime = (value: string): string => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+const localTime = (value: string): string => SHANGHAI_TIME_FORMATTER.format(new Date(value));
 
 export function validateBars(bars: QualityBar[], requireAmount = true): QualityIssue[] {
   const issues: QualityIssue[] = [];

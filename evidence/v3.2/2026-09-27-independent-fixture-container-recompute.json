@@ -1,0 +1,264 @@
+{
+  "status": "FIXTURE_RECOMPUTED",
+  "identitySource": "STATIC_CONTRACT_FIXTURE_IDS_NOT_PERSISTED",
+  "request": {
+    "schemaVersion": "v3.2-promotion-request-v1",
+    "promotionRequestId": "9dfb2dd9-f668-4fb2-873d-f7ec32aedbc2",
+    "testRunId": "ff979c31-6f72-492d-8091-89cde9f05494",
+    "experimentId": "275a9fe1-651f-444a-a6c2-c7f008509127",
+    "candidateSource": "FIXTURE",
+    "candidateArtifact": {
+      "artifactId": "synthetic-sma-cross-v1",
+      "namespace": "research/ff979c31-6f72-492d-8091-89cde9f05494/275a9fe1-651f-444a-a6c2-c7f008509127/outputs",
+      "sha256": "ab09b5e966c0e5c179dc423a56250e08354cc20795ba12761cfab8b98ea707d4"
+    },
+    "codeSha256": "9392a720f5e7576f7047b93c212b0d3776e3621a2379e1878a25e93cfb6303ff",
+    "dataManifestSha256": "ba69a048f46518d8bd5e451c4786f2bb0edf1fca73349364f9a04a503b7c5fcd",
+    "metricsManifestSha256": "7ab023a8d350a526a011be468f6e5c31774e1d900939b8664bf06e905f44debf",
+    "validationPlanSha256": "60f8053e2552295218814ff36056e207cc8255b1b325356badbd96803dbc144c",
+    "budget": {
+      "allocationId": "synthetic-fixture-budget",
+      "currency": "USD",
+      "reservedMinor": 100,
+      "consumedMinor": 0
+    },
+    "idempotencyKey": "v32-synthetic-independent-validation-v1"
+  },
+  "submission": {
+    "schemaVersion": "v3.2-independent-validation-submission-v1",
+    "report": {
+      "schemaVersion": "v3.2-independent-validation-report-v1",
+      "promotionRequestId": "9dfb2dd9-f668-4fb2-873d-f7ec32aedbc2",
+      "testRunId": "ff979c31-6f72-492d-8091-89cde9f05494",
+      "sourceMode": "FIXTURE",
+      "disposition": "ELIGIBLE_FOR_REVIEW",
+      "reason": "ALL_REQUIRED_CHECKS_PASSED",
+      "checks": [
+        {
+          "checkId": "PIT",
+          "status": "PASS",
+          "evidenceSha256": "28f8a8d5a5524bd6f0459a4ff1d70b1a74a3bbe73ab7e97ef4efd469e0737a8a"
+        },
+        {
+          "checkId": "OUT_OF_SAMPLE",
+          "status": "PASS",
+          "evidenceSha256": "9c773af3a391578d65f92b2d971052035974a7f2e83be3e27b18a56b45341440"
+        },
+        {
+          "checkId": "COST",
+          "status": "PASS",
+          "evidenceSha256": "f9e27176b02f93d0ca20bdc597fa0417a0bc4695e56c274b1b4e01001cb81ed7"
+        },
+        {
+          "checkId": "RULES",
+          "status": "PASS",
+          "evidenceSha256": "6f0cb328c9da8394688af47aa0c6150f8483d7fcd3be1ca57dc26c07172b130f"
+        },
+        {
+          "checkId": "CAPACITY",
+          "status": "PASS",
+          "evidenceSha256": "03cfc5a28d7e3a6b85cdf9c0262684b39a7a14fac08550420f68ccd6960fe15c"
+        }
+      ],
+      "registryMutation": "NOT_PERFORMED"
+    },
+    "evidence": {
+      "PIT": {
+        "evidenceSha256": "28f8a8d5a5524bd6f0459a4ff1d70b1a74a3bbe73ab7e97ef4efd469e0737a8a",
+        "details": {
+          "decisionsChecked": 70,
+          "violations": [],
+          "featureCutoff": "same-session close availableAt",
+          "fillTiming": "next-session open"
+        }
+      },
+      "OUT_OF_SAMPLE": {
+        "evidenceSha256": "9c773af3a391578d65f92b2d971052035974a7f2e83be3e27b18a56b45341440",
+        "details": {
+          "train": [
+            0,
+            108
+          ],
+          "validation": [
+            108,
+            144
+          ],
+          "test": [
+            144,
+            180
+          ],
+          "securities": 2,
+          "testSessions": 36,
+          "decisionCount": 70,
+          "ordersSubmitted": 2,
+          "trades": [
+            {
+              "security": "000001.SZ",
+              "decisionDate": "2024-07-19",
+              "executionDate": "2024-07-22",
+              "side": "BUY",
+              "quantity": 100,
+              "executionOpen": 12.1,
+              "realizedVolume": 348255,
+              "participation": 0.00028714591319579046,
+              "fee": 1.21
+            },
+            {
+              "security": "600000.SH",
+              "decisionDate": "2024-07-19",
+              "executionDate": "2024-07-22",
+              "side": "BUY",
+              "quantity": 100,
+              "executionOpen": 29.505,
+              "realizedVolume": 452984,
+              "participation": 0.00022075834908076222,
+              "fee": 2.9505
+            }
+          ],
+          "grossReturn": 0.003545,
+          "netReturn": 0.003503395,
+          "toleranceAbsoluteReturn": 0.000001,
+          "finalMarketValue": 4515,
+          "initialCapital": 100000
+        }
+      },
+      "COST": {
+        "evidenceSha256": "f9e27176b02f93d0ca20bdc597fa0417a0bc4695e56c274b1b4e01001cb81ed7",
+        "details": {
+          "commissionBpsPerSide": 5,
+          "slippageBpsPerSide": 5,
+          "effectiveRatePerSide": 0.001,
+          "totalFees": 4.1605,
+          "grossReturn": 0.003545,
+          "netReturn": 0.003503395,
+          "assertion": "costs reduce or preserve performance, never increase it"
+        }
+      },
+      "RULES": {
+        "evidenceSha256": "6f0cb328c9da8394688af47aa0c6150f8483d7fcd3be1ca57dc26c07172b130f",
+        "details": {
+          "candidateId": "synthetic-sma-cross-v1",
+          "algorithm": "SMA_CROSS",
+          "fastWindow": 5,
+          "slowWindow": 20,
+          "execution": "CLOSE_T_AVAILABLE_AT_T; EXECUTE_AT_NEXT_SESSION_OPEN",
+          "valid": true
+        }
+      },
+      "CAPACITY": {
+        "evidenceSha256": "03cfc5a28d7e3a6b85cdf9c0262684b39a7a14fac08550420f68ccd6960fe15c",
+        "details": {
+          "quantity": 100,
+          "maximumParticipation": 0.01,
+          "configurationValid": true,
+          "ordersSubmitted": 2,
+          "violations": [],
+          "measureBoundary": "realized full-session volume is a retrospective capacity check, not an execution input"
+        }
+      }
+    }
+  },
+  "evidence": {
+    "PIT": {
+      "decisionsChecked": 70,
+      "violations": [],
+      "featureCutoff": "same-session close availableAt",
+      "fillTiming": "next-session open",
+      "evidenceSha256": "28f8a8d5a5524bd6f0459a4ff1d70b1a74a3bbe73ab7e97ef4efd469e0737a8a"
+    },
+    "OUT_OF_SAMPLE": {
+      "train": [
+        0,
+        108
+      ],
+      "validation": [
+        108,
+        144
+      ],
+      "test": [
+        144,
+        180
+      ],
+      "securities": 2,
+      "testSessions": 36,
+      "decisionCount": 70,
+      "ordersSubmitted": 2,
+      "trades": [
+        {
+          "security": "000001.SZ",
+          "decisionDate": "2024-07-19",
+          "executionDate": "2024-07-22",
+          "side": "BUY",
+          "quantity": 100,
+          "executionOpen": 12.1,
+          "realizedVolume": 348255,
+          "participation": 0.00028714591319579046,
+          "fee": 1.21
+        },
+        {
+          "security": "600000.SH",
+          "decisionDate": "2024-07-19",
+          "executionDate": "2024-07-22",
+          "side": "BUY",
+          "quantity": 100,
+          "executionOpen": 29.505,
+          "realizedVolume": 452984,
+          "participation": 0.00022075834908076222,
+          "fee": 2.9505
+        }
+      ],
+      "grossReturn": 0.003545,
+      "netReturn": 0.003503395,
+      "toleranceAbsoluteReturn": 0.000001,
+      "finalMarketValue": 4515,
+      "initialCapital": 100000,
+      "evidenceSha256": "9c773af3a391578d65f92b2d971052035974a7f2e83be3e27b18a56b45341440"
+    },
+    "COST": {
+      "commissionBpsPerSide": 5,
+      "slippageBpsPerSide": 5,
+      "effectiveRatePerSide": 0.001,
+      "totalFees": 4.1605,
+      "grossReturn": 0.003545,
+      "netReturn": 0.003503395,
+      "assertion": "costs reduce or preserve performance, never increase it",
+      "evidenceSha256": "f9e27176b02f93d0ca20bdc597fa0417a0bc4695e56c274b1b4e01001cb81ed7"
+    },
+    "RULES": {
+      "candidateId": "synthetic-sma-cross-v1",
+      "algorithm": "SMA_CROSS",
+      "fastWindow": 5,
+      "slowWindow": 20,
+      "execution": "CLOSE_T_AVAILABLE_AT_T; EXECUTE_AT_NEXT_SESSION_OPEN",
+      "valid": true,
+      "evidenceSha256": "6f0cb328c9da8394688af47aa0c6150f8483d7fcd3be1ca57dc26c07172b130f"
+    },
+    "CAPACITY": {
+      "quantity": 100,
+      "maximumParticipation": 0.01,
+      "configurationValid": true,
+      "ordersSubmitted": 2,
+      "violations": [],
+      "measureBoundary": "realized full-session volume is a retrospective capacity check, not an execution input",
+      "evidenceSha256": "03cfc5a28d7e3a6b85cdf9c0262684b39a7a14fac08550420f68ccd6960fe15c"
+    }
+  },
+  "crossRuntimeRecomputation": {
+    "status": "PASS",
+    "implementation": "independent Python standard-library evaluator in isolated Docker container",
+    "decisionsChecked": 70,
+    "tradesMatched": true,
+    "returnsWithinAbsoluteTolerance": 0.000001,
+    "executorImageId": "sha256:4135861adbf3617ae1b2e578caf7d2eb3f3835e0f5f42cf257b7a0d7b6991094",
+    "containerPlatform": "linux/amd64",
+    "network": "none",
+    "fixtureMount": "read-only",
+    "qlibExecution": "NOT_RUN"
+  },
+  "execution": "trusted deterministic reference implementation; candidate source not executed",
+  "persistence": "NOT_PERFORMED",
+  "humanAcceptance": "NOT_RUN",
+  "registryMutation": "NOT_PERFORMED",
+  "sourceMode": "FIXTURE",
+  "profitabilityClaim": "NOT_MADE"
+}

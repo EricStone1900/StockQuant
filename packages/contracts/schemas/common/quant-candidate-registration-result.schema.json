@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/quant-candidate-registration-result.schema.json",
+  "title": "QuantCandidateRegistrationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidateId", "qlibVersion", "algorithm", "artifactHash", "approvedBy", "status", "activation", "createdAt", "idempotent"],
+  "properties": {
+    "candidateId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "qlibVersion": { "const": "0.9.6" },
+    "algorithm": { "const": "deterministic-sma" },
+    "artifactHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "approvedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "status": { "const": "CANDIDATE_APPROVED" },
+    "activation": { "const": "DISABLED_UNTIL_MANDATE" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "idempotent": { "type": "boolean" }
+  }
+}

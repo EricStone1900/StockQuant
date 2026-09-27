@@ -4,16 +4,22 @@ import { Pool } from "pg";
 import { checkpointForBars, checkpointForExecution } from "./domain/checkpoint.js";
 import { assertTransition, type ReplayStatus } from "./domain/lifecycle.js";
 import { assertCausalBarrier, eventsForExecution } from "./domain/events.js";
+import { isReplayWorkerPlatformRequest, loadReplayWorkerTokens } from "./service-auth.js";
+import { isReplayTestRunId, parseHistoricalReplayCommand, parseHistoricalReplayMultiCommand } from "./domain/commands.js";
+import type { HistoricalReplayCommand, HistoricalReplayMultiCommand } from "./contracts/generated-types.js";
 
-type Command = { testRunId: string; namespace: string; ownerId: string; scenarioId: "normal" | "recovery"; seed: number; bar: { timestamp: string; open: string; volume: number } };
-type MultiCommand = Omit<Command, "bar"> & { bars: Array<{ timestamp: string; open: string; volume: number }> };
+type Command = HistoricalReplayCommand;
+type MultiCommand = HistoricalReplayMultiCommand;
 const pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
 const port = Number(process.env.STOCKQUANT_PORT ?? 3006);
 const executionUrl = process.env.STOCKQUANT_TRADE_EXECUTION_URL ?? "http://127.0.0.1:3005";
 const portfolioUrl = process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001";
+const replayTokens = loadReplayWorkerTokens(process.env);
+const portfolioToken = replayTokens.self;
 const governanceUrl = process.env.STOCKQUANT_GOVERNANCE_URL ?? "http://127.0.0.1:3007";
 const quantResearchUrl = process.env.STOCKQUANT_QUANT_RESEARCH_URL ?? "http://127.0.0.1:3003";
-const allowedService = process.env.STOCKQUANT_ALLOWED_SERVICE_ID ?? "platform-api-service";
+const portfolioHeaders = (extra: Record<string,string> = {}) => ({ ...extra, "x-stockquant-service-id":"historical-replay-worker", authorization:`Bearer ${portfolioToken}` });
+const isPlatformRequest = (headers: import("node:http").IncomingHttpHeaders) => isReplayWorkerPlatformRequest({ serviceId: typeof headers["x-stockquant-service-id"] === "string" ? headers["x-stockquant-service-id"] : undefined, authorization: typeof headers.authorization === "string" ? headers.authorization : undefined, tokens: replayTokens });
 const maxReplayConcurrency = Math.max(1, Number(process.env.STOCKQUANT_REPLAY_MAX_CONCURRENCY ?? 2));
 let activeReplays = 0;
 const replayWaiters: Array<() => void> = [];
@@ -71,18 +77,18 @@ async function start(command: Command) {
   if (found.rowCount === 0) await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb)`, [command.testRunId,command.namespace,command.ownerId,command.scenarioId,hash,JSON.stringify(checkpointForExecution(command.bar.timestamp, command.seed))]);
   else await pool.query("UPDATE replay_worker_runs SET status='RUNNING', request_hash=COALESCE(request_hash,$2) WHERE test_run_id=$1 AND status IN ('PAUSED','FAILED')", [command.testRunId, hash]);
   try {
-    const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`,{method:"POST",headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"},body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`})});
+    const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`,{method:"POST",headers:portfolioHeaders({"content-type":"application/json"}),body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`})});
     if (!initialized.ok) throw new Error(`portfolio initialization failed: ${initialized.status}`);
     const account = await initialized.json() as {snapshot:{accountId:string}};
     const executionCommand = { namespace:command.namespace, accountId:account.snapshot.accountId, clientOrderId:"v2.3-order-1", security:"600000.SH", requestedQuantity:100, bar:command.bar };
-    const execute = async () => { const authorizationResponse = await fetch(`${governanceUrl}/internal/v1/authorizations`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({ namespace:command.namespace, accountId:account.snapshot.accountId, environmentMode:"BACKTEST", brokerMode:"FAKE", command:executionCommand }) }); if (!authorizationResponse.ok) throw new Error(`governance authorization failed: ${authorizationResponse.status}`); const authorization = await authorizationResponse.json() as { authorizationId:string }; return fetch(`${executionUrl}/internal/v1/historical-orders/execute`,{method:"POST",headers:{"content-type":"application/json","x-stockquant-service-id":"platform-api-service"},body:JSON.stringify({...executionCommand, authorizationId:authorization.authorizationId})}); };
+    const execute = async () => { const authorizationResponse = await fetch(`${governanceUrl}/internal/v1/authorizations`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`}, body:JSON.stringify({ namespace:command.namespace, accountId:account.snapshot.accountId, environmentMode:"BACKTEST", brokerMode:"FAKE", command:executionCommand }) }); if (!authorizationResponse.ok) throw new Error(`governance authorization failed: ${authorizationResponse.status}`); const authorization = await authorizationResponse.json() as { authorizationId:string }; return fetch(`${executionUrl}/internal/v1/historical-orders/execute`,{method:"POST",headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`},body:JSON.stringify({...executionCommand, authorizationId:authorization.authorizationId})}); };
     const first = await execute(); if (!first.ok) throw new Error(`execution failed: ${first.status}`);
     const execution = await first.json() as any;
     const recovery = command.scenarioId === "recovery" ? await execute().then(async r => { if (!r.ok) throw new Error(`recovery execution failed: ${r.status}`); return r.json(); }) : null;
-    const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`,{headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId}});
+    const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`,{headers:portfolioHeaders({"x-stockquant-owner-id":command.ownerId})});
     if (!snapshotResponse.ok) throw new Error(`portfolio snapshot failed: ${snapshotResponse.status}`);
     const snapshot = await snapshotResponse.json();
-    const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ runId:command.testRunId, bars:[command.bar], executions:[execution] }) });
+        const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`}, body:JSON.stringify({ runId:command.testRunId, bars:[command.bar], executions:[execution] }) });
     if (!researchResponse.ok) throw new Error(`quant research runtime failed: ${researchResponse.status}`);
     const result={accountId:account.snapshot.accountId,execution,executionCommand,recovery,snapshot,research:await researchResponse.json(),replayedRun:false};
     await pool.query("UPDATE replay_worker_runs SET status='COMPLETED', result=$2::jsonb, completed_at=now() WHERE test_run_id=$1",[command.testRunId,JSON.stringify(result)]);
@@ -105,7 +111,7 @@ async function startMulti(command: MultiCommand) {
   if (found.rowCount === 0) await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb)`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, hash, JSON.stringify(checkpoint)]);
   else await pool.query("UPDATE replay_worker_runs SET status='RUNNING', request_hash=COALESCE(request_hash,$2) WHERE test_run_id=$1 AND status IN ('PAUSED','FAILED')", [command.testRunId, hash]);
   try {
-    const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`}) });
+    const initialized = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`, { method:"POST", headers:portfolioHeaders({"content-type":"application/json"}), body:JSON.stringify({fixtureAccountRef:"v2.3-replay-cash-1",ownerId:command.ownerId,market:"CN_A",environmentMode:"BACKTEST",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:command.namespace,testRunId:command.testRunId,idempotencyKey:`initialize-${command.testRunId}`}) });
     if (!initialized.ok) throw new Error(`portfolio initialization failed: ${initialized.status}`);
     const account = await initialized.json() as { snapshot:{accountId:string} };
     const executions: any[] = Array.isArray(found.rows[0]?.result?.executions) ? found.rows[0].result.executions : [];
@@ -114,17 +120,17 @@ async function startMulti(command: MultiCommand) {
       await waitUntilRunnable(command.testRunId);
       const bar = command.bars[index];
       const executionCommand = { namespace:command.namespace, accountId:account.snapshot.accountId, clientOrderId:`v2.3-order-${index + 1}`, security:"600000.SH", requestedQuantity:100, bar };
-      const authorizationResponse = await fetch(`${governanceUrl}/internal/v1/authorizations`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker"}, body:JSON.stringify({namespace:command.namespace,accountId:account.snapshot.accountId,environmentMode:"BACKTEST",brokerMode:"FAKE",command:executionCommand}) });
+      const authorizationResponse = await fetch(`${governanceUrl}/internal/v1/authorizations`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`}, body:JSON.stringify({namespace:command.namespace,accountId:account.snapshot.accountId,environmentMode:"BACKTEST",brokerMode:"FAKE",command:executionCommand}) });
       if (!authorizationResponse.ok) throw new Error(`governance authorization failed: ${authorizationResponse.status}`);
       const authorization = await authorizationResponse.json() as { authorizationId:string };
-      const response = await fetch(`${executionUrl}/internal/v1/historical-orders/execute`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"platform-api-service"}, body:JSON.stringify({...executionCommand,authorizationId:authorization.authorizationId}) });
+      const response = await fetch(`${executionUrl}/internal/v1/historical-orders/execute`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`}, body:JSON.stringify({...executionCommand,authorizationId:authorization.authorizationId}) });
       if (!response.ok) throw new Error(`execution failed: ${response.status} ${await response.text()}`);
       const execution = await response.json();
       executions.push(execution);
       const events = eventsForExecution(execution.status);
       assertCausalBarrier(events);
       eventLog.push(events);
-      const committedSnapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId} });
+      const committedSnapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:portfolioHeaders({"x-stockquant-owner-id":command.ownerId}) });
       if (!committedSnapshotResponse.ok) throw new Error(`portfolio ledger barrier failed: ${committedSnapshotResponse.status}`);
       const committedSnapshot = await committedSnapshotResponse.json() as { ledgerVersion:number };
       const expectedLedgerVersion = 1 + index + 1;
@@ -132,9 +138,9 @@ async function startMulti(command: MultiCommand) {
       checkpoint = checkpointForBars(command.bars, command.seed, index + 1, executions.map((_, completed) => `v2.3-order-${completed + 1}`), (index + 1) * 5, committedSnapshot.ledgerVersion);
       await pool.query("UPDATE replay_worker_runs SET checkpoint=$2::jsonb, result=$3::jsonb WHERE test_run_id=$1", [command.testRunId, JSON.stringify(checkpoint), JSON.stringify({ executions, eventLog, ledgerVersion: committedSnapshot.ledgerVersion })]);
     }
-    const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:{"x-stockquant-service-id":"platform-api-service","x-stockquant-owner-id":command.ownerId} });
+    const snapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${account.snapshot.accountId}/snapshot`, { headers:portfolioHeaders({"x-stockquant-owner-id":command.ownerId}) });
     if (!snapshotResponse.ok) throw new Error(`portfolio snapshot failed: ${snapshotResponse.status}`);
-    const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ runId:command.testRunId, bars:command.bars, executions }) });
+    const researchResponse = await fetch(`${quantResearchUrl}/v1/research/multi-bar`, { method:"POST", headers:{"content-type":"application/json","x-stockquant-service-id":"historical-replay-worker",authorization:`Bearer ${portfolioToken}`}, body:JSON.stringify({ runId:command.testRunId, bars:command.bars, executions }) });
     if (!researchResponse.ok) throw new Error(`quant research runtime failed: ${researchResponse.status}`);
     const snapshot = await snapshotResponse.json() as { ledgerVersion:number };
     if (snapshot.ledgerVersion !== checkpoint.ledgerVersion) throw new Error(`final ledger version mismatch: expected ${checkpoint.ledgerVersion}, got ${snapshot.ledgerVersion}`);
@@ -157,7 +163,7 @@ async function recoverUnknown(testRunId: string) {
   const current = found.rows[0].result as any;
   const orderId = current.execution?.result?.orderId;
   if (!orderId) throw new Error("replay result has no original order");
-  const queried = await fetch(`${executionUrl}/internal/v1/orders/${orderId}`, { headers: { "x-stockquant-service-id": "platform-api-service" } });
+  const queried = await fetch(`${executionUrl}/internal/v1/orders/${orderId}`, { headers: { "x-stockquant-service-id": "historical-replay-worker", authorization: `Bearer ${portfolioToken}` } });
   if (!queried.ok) throw new Error(`original order query failed: ${queried.status}`);
   const order = await queried.json() as { status: string };
   if (order.status !== "UNKNOWN") return { ...current, unknownRecovery: { observedStatus: order.status, action: "NO_RETRY_REQUIRED" } };
@@ -167,20 +173,23 @@ async function recoverUnknown(testRunId: string) {
 }
 createServer(async(req,res)=>{
   if(req.method==="GET"&&req.url==="/live")return json(res,200,{status:"live",service:"historical-replay-worker"});
-  if(req.method==="GET"&&req.url==="/ready"){try{await pool.query("SELECT 1");return json(res,200,{status:"ready",service:"historical-replay-worker"});}catch{return json(res,503,{status:"unavailable"});}}
+  if(req.method==="GET"&&req.url==="/ready"){try{if(portfolioToken.length<32)return json(res,503,{status:"unavailable",reason:"portfolio bearer credential is not configured"});await pool.query("SELECT 1");return json(res,200,{status:"ready",service:"historical-replay-worker"});}catch{return json(res,503,{status:"unavailable"});}}
   const recoveryMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/recover-unknown$/);
   if (req.method === "POST" && recoveryMatch) {
-    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isPlatformRequest(req.headers)) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isReplayTestRunId(recoveryMatch[1])) return json(res, 422, { error: "testRunId must be a UUID" });
     try { return json(res, 200, await recoverUnknown(recoveryMatch[1])); } catch (error) { return json(res, 422, { error: error instanceof Error ? error.message : "invalid recovery" }); }
   }
   const runMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)$/);
   if (runMatch && req.method === "GET") {
-    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isPlatformRequest(req.headers)) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isReplayTestRunId(runMatch[1])) return json(res, 422, { error: "testRunId must be a UUID" });
     const run = await getRun(runMatch[1]); return run ? json(res, 200, run) : json(res, 404, { error: "replay run was not found" });
   }
   const actionMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/(pause|resume|cancel)$/);
   if (actionMatch && req.method === "POST") {
-    if (req.headers["x-stockquant-service-id"] !== allowedService) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isPlatformRequest(req.headers)) return json(res, 403, { error: "service identity is not allowed" });
+    if (!isReplayTestRunId(actionMatch[1])) return json(res, 422, { error: "testRunId must be a UUID" });
     try {
       const run = await getRun(actionMatch[1]);
       if (!run) return json(res, 404, { error: "replay run was not found" });
@@ -190,8 +199,8 @@ createServer(async(req,res)=>{
     } catch (error) { return json(res, 409, { error: error instanceof Error ? error.message : "invalid replay transition" }); }
   }
   if (req.method === "POST" && (req.url === "/internal/v1/replays/multi" || req.url === "/internal/v1/replays/multi?async=true")) {
-    if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-    let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as MultiCommand;
+    if(!isPlatformRequest(req.headers))return json(res,403,{error:"service identity is not allowed"});
+    let body="";for await(const chunk of req)body+=chunk;try{const command=parseHistoricalReplayMultiCommand(JSON.parse(body));
       if (req.url.endsWith("?async=true")) {
         const hash = requestHash(command);
         await pool.query(`INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint) VALUES ($1,$2,$3,$4,$5,'RUNNING',$6::jsonb) ON CONFLICT (test_run_id) DO NOTHING`, [command.testRunId, command.namespace, command.ownerId, command.scenarioId, hash, JSON.stringify(checkpointForBars(command.bars, command.seed))]);
@@ -202,6 +211,6 @@ createServer(async(req,res)=>{
     }catch(error){return json(res,error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid multi-bar replay"});}
   }
   if(req.method!=="POST"||req.url!=="/internal/v1/replays")return json(res,404,{error:"not found"});
-  if(req.headers["x-stockquant-service-id"]!==allowedService)return json(res,403,{error:"service identity is not allowed"});
-  let body="";for await(const chunk of req)body+=chunk;try{const command=JSON.parse(body) as Command;return json(res,200,await withRunLock(command.testRunId, () => start(command)));}catch(error){return json(res,error instanceof ReplayCancelled || error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid replay"});}
+  if(!isPlatformRequest(req.headers))return json(res,403,{error:"service identity is not allowed"});
+  let body="";for await(const chunk of req)body+=chunk;try{const command=parseHistoricalReplayCommand(JSON.parse(body));return json(res,200,await withRunLock(command.testRunId, () => start(command)));}catch(error){return json(res,error instanceof ReplayCancelled || error instanceof ReplayConflict ? 409 : 422,{error:error instanceof Error?error.message:"invalid replay"});}
 }).listen(port,process.env.STOCKQUANT_BIND_HOST??"127.0.0.1");

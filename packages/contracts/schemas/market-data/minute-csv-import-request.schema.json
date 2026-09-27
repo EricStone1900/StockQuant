@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/minute-csv-import-request-v1.schema.json",
+  "title": "MinuteCsvImportRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["content", "mapping", "provenance", "market", "frequency", "adjustment", "timezone", "timestampSemantics", "volumeUnit", "amountUnit"],
+  "properties": {
+    "content": {"type": "string", "maxLength": 700000},
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["securityId", "timestamp", "open", "high", "low", "close", "volume", "amount"],
+      "properties": {
+        "securityId": {"type": "string", "minLength": 1},
+        "timestamp": {"type": "string", "minLength": 1},
+        "open": {"type": "string", "minLength": 1},
+        "high": {"type": "string", "minLength": 1},
+        "low": {"type": "string", "minLength": 1},
+        "close": {"type": "string", "minLength": 1},
+        "volume": {"type": "string", "minLength": 1},
+        "amount": {"type": "string", "minLength": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceName", "sourceReference", "licenseStatement", "licenseVerification", "acquiredAt"],
+      "properties": {
+        "sourceName": {"type": "string", "minLength": 1, "maxLength": 160},
+        "sourceReference": {"type": ["string", "null"], "maxLength": 500},
+        "licenseStatement": {"type": "string", "minLength": 1, "maxLength": 500},
+        "licenseVerification": {"enum": ["OPERATOR_CONFIRMED", "UNCONFIRMED"]},
+        "acquiredAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "market": {"const": "CN_A"},
+    "frequency": {"enum": ["1m", "5m"]},
+    "adjustment": {"const": "RAW"},
+    "timezone": {"const": "Asia/Shanghai"},
+    "timestampSemantics": {"enum": ["BAR_START", "BAR_END"]},
+    "volumeUnit": {"const": "SHARES"},
+    "amountUnit": {"const": "CNY"}
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping", "provenance", "market", "frequency", "adjustment", "timezone", "timestampSemantics", "volumeUnit", "amountUnit"],
+      "properties": {
+        "mapping": { "$ref": "#/properties/mapping" },
+        "provenance": { "$ref": "#/properties/provenance" },
+        "market": { "$ref": "#/properties/market" },
+        "frequency": { "$ref": "#/properties/frequency" },
+        "adjustment": { "$ref": "#/properties/adjustment" },
+        "timezone": { "$ref": "#/properties/timezone" },
+        "timestampSemantics": { "$ref": "#/properties/timestampSemantics" },
+        "volumeUnit": { "$ref": "#/properties/volumeUnit" },
+        "amountUnit": { "$ref": "#/properties/amountUnit" }
+      }
+    }
+  }
+}

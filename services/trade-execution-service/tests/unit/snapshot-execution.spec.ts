@@ -73,18 +73,18 @@ describe("V2.4 Paper snapshot eligibility", () => {
 });
 
 describe("V2.4 fixed-fixture SNAPSHOT execution projection", () => {
-  const fixture = JSON.parse(readFileSync(resolve(process.cwd(), "../../fixtures/v2/v2.4/snapshot-execution/v24-snapshot-cn-paper-execution-v1.json"), "utf8"));
+  const fixture = JSON.parse(readFileSync(resolve(process.cwd(), "../../fixtures/v2/v2.4/snapshot-execution/v24-snapshot-cn-paper-execution-v2.json"), "utf8"));
   const orderFixture = { ...fixture.order, market: fixture.market, namespace: "v24-snapshot-fixture-test", accountId: "test-account", clientOrderId: "test-order-1" };
   const fixtureMode = { environmentMode: fixture.environmentMode, brokerMode: fixture.brokerMode, liveTradingEnabled: fixture.liveTradingEnabled, dataMode: fixture.dataMode };
   const eligibility = selectFirstQualifyingSnapshot({ mode: fixtureMode, order: { ...fixture.order, market: fixture.market }, snapshots: [fixture.snapshot], clock: { now: () => new Date(fixture.clockNow) } });
-  const input = { mode: fixtureMode, eligibility, order: orderFixture, fixtureFee: fixture.fixtureFee, ids: { orderId: "fixture-order", externalFillId: "fixture-fill" } };
+  const input = { mode: fixtureMode, eligibility, order: orderFixture, fixtureFee: fixture.fixtureFee, risk: { referencePrice: fixture.risk.referencePrice, evaluatedAt: fixture.clockNow, freshnessLimitSeconds: fixture.risk.freshnessLimitSeconds, maxDeviationBps: fixture.risk.maxDeviationBps, supportedMarkets: fixture.risk.supportedMarkets }, ids: { orderId: "fixture-order", externalFillId: "fixture-fill" } };
 
   it("projects a fixture fill at the first qualifying snapshot price and preserves unverified liquidity status", () => {
     expect(calculateSnapshotFixtureExecution(input)).toEqual({
       status: "PROJECTED_ONLY", proposedOrderId: "fixture-order", proposedFillId: "fixture-fill", quantity: 100,
       price: fixture.expected.projectedPrice, fee: fixture.expected.projectedFee, currency: fixture.currency, effectiveAt: fixture.snapshot.observedAt,
       snapshotId: fixture.snapshot.snapshotId, executionModel: fixture.expected.executionModel,
-      policyVersion: V24_SNAPSHOT_FIXTURE_EXECUTION_POLICY.version, liquidityParticipation: "NOT_VERIFIED"
+      policyVersion: V24_SNAPSHOT_FIXTURE_EXECUTION_POLICY.version, liquidityParticipation: "NOT_VERIFIED", quoteAgeSeconds: 60, deviationBps: 0
     });
   });
 
@@ -98,13 +98,18 @@ describe("V2.4 fixed-fixture SNAPSHOT execution projection", () => {
     expect(calculateSnapshotFixtureExecution({ ...input, eligibility: { status: "REJECTED", reason: "INVALID_SNAPSHOT" } })).toMatchObject({ status: "REJECTED" });
   });
 
+  it("blocks projection when the deviation rule is unset and rejects an excessive deviation", () => {
+    expect(calculateSnapshotFixtureExecution({ ...input, risk: { ...input.risk, maxDeviationBps: null } })).toEqual({ status: "BLOCKED", reason: "RISK_POLICY_UNSET" });
+    expect(calculateSnapshotFixtureExecution({ ...input, risk: { ...input.risk, referencePrice: "9.9", maxDeviationBps: 20 } })).toMatchObject({ status: "REJECTED", reason: "PRICE_DEVIATION_EXCEEDED" });
+  });
+
   it("rejects invalid quantity and fixture fee without creating a fill projection", () => {
     expect(calculateSnapshotFixtureExecution({ ...input, order: { ...orderFixture, requestedQuantity: 0 } })).toMatchObject({ status: "REJECTED", reason: "INVALID_FIXTURE_EXECUTION_INPUT" });
     expect(calculateSnapshotFixtureExecution({ ...input, fixtureFee: "5.00001" })).toMatchObject({ status: "REJECTED", reason: "INVALID_FIXTURE_EXECUTION_INPUT" });
   });
 
   it("uses market currency explicitly for the fixture projection", () => {
-    expect(calculateSnapshotFixtureExecution({ ...input, order: { ...orderFixture, market: "US_EQUITY" }, eligibility: { ...eligibility, market: "US_EQUITY" } })).toMatchObject({ currency: "USD" });
+    expect(calculateSnapshotFixtureExecution({ ...input, order: { ...orderFixture, market: "US_EQUITY" }, eligibility: { ...eligibility, market: "US_EQUITY" }, risk: { ...input.risk, supportedMarkets: ["US_EQUITY"] } })).toMatchObject({ currency: "USD" });
   });
 
   it("rejects a snapshot scope mismatch even if a projection is manually assembled", () => {

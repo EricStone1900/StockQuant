@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-user-promotion-decision-result.schema.json",
+  "title": "V3.2UserPromotionDecisionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "decision"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-user-promotion-decision-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "decision": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-decision-result.schema.json" }
+  }
+}

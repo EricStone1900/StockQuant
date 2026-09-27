@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-decision-result.schema.json",
+  "title": "V3.2PromotionDecisionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "decision", "reportFingerprint", "versionFingerprint", "actorId", "registryStatus", "activation", "createdAt", "idempotent"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-decision-result-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "decision": { "enum": ["APPROVE", "REJECT"] },
+    "reportFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "versionFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "actorId": { "type": "string", "minLength": 1 },
+    "registryStatus": { "enum": ["CANDIDATE_APPROVED", "NOT_REGISTERED"] },
+    "activation": { "const": "DISABLED_UNTIL_MANDATE" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "idempotent": { "type": "boolean" }
+  }
+}

@@ -68,3 +68,20 @@ Web 后端和 Runner 不挂载 Docker Socket。可信控制器若未来需要宿
 - Web、平台 API 和 Runner 容器检查无 Docker Socket 与多余秘密。
 
 这些是待实现测试输入，当前全部 `NOT_RUN`。
+
+
+## P7.2 实现补充（2026-09-25）
+
+V3.1研究API的服务间调用采用每个调用方独立Bearer Token；由忽略的本机`.env.local`注入，生产环境需用Secret管理器提供同名配置。研究API从Token本身确定调用方身份，以恒定时间比较配置的独立Token并执行route/scope白名单；可选`x-stockquant-service-id`只做一致性校验，不能选择授权身份，重复Token配置会在启动时失败。平台API与Runner Host各有专用凭据；Runner claim/heartbeat/complete实施原子租约和fencing，隔离PG并发/接管测试通过。平台API仅可读取RunnerJob元数据、按精确owner/run读取Artifact，并可取消指定RunnerJob；取消使租约失效，Host下一次心跳即中止执行，固定容器取消Smoke核实容器移除和无输出发布。Runner Host只可claim/heartbeat/input/complete与Artifact发布，不能调用取消路由。Runner Host客户端、租约绑定的INPUT读取与OUTPUT发布、`runner:host`实际循环入口已实现；Mac ARM64/Linux AMD64仿真下的临时HTTP/PG→Docker smoke验证正常任务、崩溃接管和取消。活动Artifact卷只读复制恢复与23个已发布引用Hash核验通过。Artifact孤儿巡检默认只读；只有暂停发布者与Runner Host后显式启用隔离，才会把超过最小保留期的无引用文件移至同文件系统外置隔离目录，并生成SHA-256清单，不自动删除。portfolio-risk-service也新增调用方独立Bearer校验及route scope，平台/执行/回放客户端配置了匹配身份；隔离HTTP拒绝与owner检查通过，Compose静态配置通过，但该代码尚未部署到活动Portfolio容器。新Runner路由、Host循环及平台Artifact端点均尚未部署到活动容器；周期备份/保留、完整Paper授权与真实浏览器会话仍待完成，因此OD-004为PARTIAL；细节见[P7.2审计](../evidence/audits/2026-09-25-p7-2-service-identity.md)和[P3.R Artifact审计](../evidence/audits/2026-09-25-p3-r-artifact-boundary.md)。
+
+P7.2补充（2026-09-27）：Market Data Fixture/CSV/Parquet分钟导入、分块上传、持久导入详情和Bar分页路由均要求平台API服务Bearer；在跨实例背压锁之前执行导入身份验证。Token决定身份，`x-stockquant-service-id`可省略，若提供则只作一致性核对。平台代理先做用户会话与适用的owner校验，再添加服务身份；真实隔离Chromium→Vite→Platform API→Market Data→双PG smoke验证匿名导入读取401、用户读详情/分页200、异主403及CSV/Parquet/5m归档同run路径。当前活动Compose未部署此版本，密钥轮换、部署和阶段人工验收仍未完成。
+
+2026-09-27 路由边界补充：V2.1共享Watchlist、来源目录、采样设置与其读写、实时行情/新闻、来源主动Smoke/熔断变更均要求平台API独立Bearer；V2.1 Platform API对应路由先校验本地用户会话，再代理并附加平台Bearer。服务认证HTTP smoke确认匿名来源/采样/新闻/Watchlist/实时行情/熔断请求均401，Bearer Watchlist读写及熔断恢复通过；Platform API单测确认匿名/越权用户在转发前被拒，登录用户转发带Bearer。交易日历与容器级`/live`、`/ready`探针仍内网直读，运维写控制使用专用控制凭据；这不是对公网暴露的授权。P7.2采集运维细节GET现另要求平台Bearer。完整验证及尚未部署/轮换/人工验收事实见[基础服务身份审计](../evidence/audits/2026-09-25-p7-2-service-identity.md)和[采集读取身份审计](../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
+
+数据采集控制补充（2026-09-27）：`POST /v2/minute/gaps`会改写持久缺口状态，现在要求独立配置的`STOCKQUANT_COLLECTION_CONTROL_TOKEN`，与调度、建采集任务及回填控制共用；`data-coverage --record-gaps`从环境或忽略文件取令牌，不记录秘密。loopback smoke确认无令牌401、有令牌时到达预期的无数据库503；纯报告/check-only不要求控制令牌。
+
+采集运维读取身份补充（2026-09-27）：采集调度/计划、订阅、运行、缺口、回填状态和分钟来源健康GET要求`STOCKQUANT_SERVICE_TOKEN_PLATFORM_API`；声明身份可省略但若提供必须匹配Bearer。DC-08A页面先校验本地Session再转发。宿主工具使用公共的Market Data身份头构造器，平台Bearer与写控制Token分别配置。`/live`、`/ready`供容器探针，CN A交易日历保持公开；活动部署尚未切换到新源码。详见[P7.2采集读取身份审计](../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
+
+V2.2内部读取/计算身份补充（2026-09-27）：固定分钟Fixture预览、质量检查和覆盖计算要求平台Bearer；对应V2.2页面入口先验证本地Session，再以服务身份代理。匿名计算在解析请求前被拒。上述改动经认证HTTP smoke、Platform控制器单测及完整V2.2 code suite验证，活动Compose仍待维护窗口部署。详见[P7.2采集读取身份审计](../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
+
+身份策略确认及V1.2边界补齐（2026-09-27）：用户选择每服务独立Bearer Token。V1.2固定日线Fixture现在也要求平台Bearer；Platform API两个Fixture预览先校验本地Session，后台V1.2 TestRun访问Fixture时携带平台Bearer。隔离HTTP smoke及V1.2服务单测通过，活动Compose仍未部署；其他非采集只读路由继续按具体服务逐项核查。

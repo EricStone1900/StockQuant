@@ -76,3 +76,23 @@ TypeScript / NestJS BFF + 持久任务协调组件按已启用能力部署；API
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+## 实现证据补充（2026-09-25）
+
+V1.1历史TestRun补充（2026-09-26）：活动库44条V1.1旧记录已按事务影子迁移至`acceptance_stage_runs`，旧表仍保留，源/目标投影差异为0。`STOCKQUANT_V11_RUN_STORAGE`默认`legacy`；显式设为`stage`后，服务启动校验两表全部旧记录映射无缺失/冲突，V1.1按owner从统一表读取，创建、状态和断言通过同一PG事务双写新旧表。stage写入失败会回滚legacy变更；缺影子行或不一致则启动失败。该模式的专用PG与真实HTTP隔离 smoke通过；活动Compose未切换，且切换部署必须停止旧写入实例以避免双写不一致。旧表暂不删除，API回退/部署演练仍待。
+
+V3.1 exact-run promotion gate (2026-09-27): Platform persists user acceptance separately in `v31_acceptance_records`, keyed to the immutable TestRun and canonical evidence hash. `POST /api/v1/acceptance/v3/v3.1/runs/{testRunId}/acceptance` requires the owner's session and explicit exact-run confirmation; it accepts only a completed normal run with all assertions, required real-model/Runner assertion IDs, `RESEARCH` + `FAKE`, LIVE model response hash/cost and completed Runner published output hash. `GET /internal/v1/acceptance/v3/v3.1/gate/{testRunId}` is restricted to Research Automation's dedicated Bearer token and matching service ID. The separate token is passed into this service and Research Automation by Compose. The isolated integration smoke uses synthetic rows and does not create production or human acceptance evidence; current V3.1 remains NOT_RUN.
+
+V3.2 user submission action (2026-09-27): `POST /api/v1/acceptance/v3/v3.2/runs/{testRunId}/promotion-submission` requires the session owner, an explicit command and an owned normal V3.1 run. Platform derives the experiment ID from that persisted run before forwarding to Research Automation; clients cannot substitute another experiment. The action returns `humanAcceptance=NOT_CHANGED` and delegates gate enforcement to Research Automation. An isolated synthetic HTTP test verifies missing preparation evidence returns WAITING and does not change the acceptance record.
+
+V3.1增加 `GET /api/v1/acceptance/v3/v3.1/runs/:testRunId/artifacts/:artifactId`：先按会话owner读取精确V3.1 TestRun，再核对TestRun中登记的INPUT引用或实时RunnerJob中登记的OUTPUT引用及其精确run/experiment namespace，最后用平台独立Bearer从research-automation-service读取受限内容。异主、缺身份、未关联Artifact分别由平台拒绝；独立HTTP smoke和Web准备页的隔离Playwright下载操作通过。平台API单测40/40，V3.1正式code suite通过。当前Web准备页提供关联输入读取/下载，完整研究工作台及活动服务部署尚未完成；本补充不更改人工验收状态。
+
+V2.4验收创建接口当前为准备态：normal/rejection/recovery创建持久`WAITING` TestRun，明确`PAPER`/`FAKE`、`NOT_CONNECTED`数据、`PREPARATION_ONLY` Mandate、空订单/成交及`NOT_RUN`对账。该入口不调用Market Data、Governance、Portfolio或Trade Execution；本机隔离HTTP smoke以临时下游canary确认零请求，并覆盖会话及异主拒绝。它不实现SNAPSHOT→Mandate/risk/reservation→FakeBroker链，也不增加观察计数。活动Paper workflow与20交易日验收状态不变。
+
+V2.4 Paper readiness只读代理补充（2026-09-27）：`GET /api/v1/acceptance/v2/v2.4/paper-readiness?market=CN_A|US_EQUITY`要求本地用户session，再以Platform API专属Bearer和服务身份调用Trade Execution内部准备态端点；不向浏览器暴露服务凭据。隔离PostgreSQL/HTTP smoke验证匿名401、有效session后向Trade Execution仅代理一次且两项身份头正确；浏览器测试用固定响应验证准备态展示。实际业务值/授权仍来自Trade Execution领域门禁端点，Web展示测试不会伪称连接真实Paper行情或下单。详见[P5.5 readiness审计](../../evidence/audits/2026-09-27-p5-5-paper-readiness.md)。
+
+V2.2受限CSV补充（2026-09-25）：两个`POST /api/v1/acceptance/v2/v2.2/csv/*`路由先验证本地会话/用户范围，再代理到market-data-service；平台JSON parser上限为1 MiB，单文件内容限700 KB、最多10,000行。预览和导入均沿用同一显式映射/单位/时区语义；平台导入端固定HTTP 200并由结果字段区分首次/幂等，质量拒绝返回422。专用`platform_api_test` HTTP smoke已验证匿名401及120,284字节请求完整转发到localhost mock；该mock不验证真实Web→API→市场服务链。详情见[P6 CSV分钟导入](../../evidence/audits/2026-09-25-p6-csv-minute-import.md)。
+
+V2.4观察窗口质量实现（2026-09-26）：日终计数按`scheduledFor`检查十个唯一的A股采样时刻，拒绝缺窗、重复和超过±60秒延迟；每窗及唯一09:31执行窗核对市场服务返回的requestedSymbols，并逐证券验证唯一报价、LIVE_SOURCE状态和0～1800秒新鲜度。隔离持久层烟测构造十个唯一采样窗、两个证券共22份有效报价样本和一个执行窗，并由仓储重新计算质量通过；平台API 44项单测/build通过。新`qualityForDate`不回写旧最终记录；活动服务尚未部署。详见[观察质量审计](../../evidence/audits/2026-09-26-v24-observation-quality.md)。
+
+V3.3研究队列只读代理（2026-09-27）：`GET /api/v1/acceptance/v3/v3.3/runs/{testRunId}/research/queue`先验证本地会话和该Owner名下stageId为V3.3的TestRun，再以Platform API独立Bearer查询Research Automation精确run队列；偏移与页大小受限，跨Owner/错误阶段返回未找到，不向浏览器暴露服务凭据。具体Research Automation队列契约和状态见[Research Automation架构补充](./research-automation-service.md)。当前尚无V3.3 run创建与正式页面，因此此端点是后续队列页的读能力，不代表阶段功能或验收完成。

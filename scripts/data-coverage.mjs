@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 const defaultSecurityIds = ["600000.SH", "000001.SZ", "600519.SH"];
@@ -109,9 +110,11 @@ export function coverageExitCode(report) {
   return 2;
 }
 
-async function persistGaps(baseUrl, report) {
+export async function persistGaps(baseUrl, report) {
   const gaps = buildGapPayload(report);
-  const response = await fetch(`${baseUrl}/v2/minute/gaps`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscriptionId: report.subscriptionId, fromDate: report.fromDate, toDate: report.toDate, securityIds: report.securityIds, gaps }), signal: AbortSignal.timeout(5000) });
+  const controlToken = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
+  if (!controlToken) throw new Error("STOCKQUANT_COLLECTION_CONTROL_TOKEN is required to record data gaps");
+  const response = await fetch(`${baseUrl}/v2/minute/gaps`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-control-token": controlToken }, body: JSON.stringify({ subscriptionId: report.subscriptionId, fromDate: report.fromDate, toDate: report.toDate, securityIds: report.securityIds, gaps }), signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error(`gap record HTTP ${response.status}`);
   const result = await response.json();
   return { opened: result.opened ?? gaps.length, closed: result.closed ?? 0, open: Array.isArray(result.open) ? result.open.length : undefined };

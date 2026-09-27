@@ -1,0 +1,35 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.2-minute-csv-upload-smoke",
+  "fixtureVersion": "v2.2-minute-csv-upload-smoke-1",
+  "stageId": "V2.2",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Two deterministic CN one-minute bars for CSV mapping and persistent import smoke verification",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-25T09:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.2-csv-smoke/minute-upload.csv",
+      "sha256": "86a4fcbb29d97f27925753c132c8d95ee1971c5f1c7583da6be2278be1c747d8",
+      "mediaType": "text/csv",
+      "schemaRef": "minute-csv-upload-smoke-v1"
+    },
+    {
+      "path": "fixtures/v2/v2.2-csv-smoke/minute-upload-bad.csv",
+      "sha256": "51b926315d8db3df8d74e8979ca37b05cc3beedd78c15cb4d5ad03d0226f3838",
+      "mediaType": "text/csv",
+      "schemaRef": "minute-csv-upload-smoke-v1"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.2-MINUTE-CSV-001", "description": "explicit column mapping and Asia/Shanghai BAR_START semantics produce two persisted bars" },
+    { "assertionId": "V2.2-MINUTE-CSV-QUALITY-001", "description": "invalid OHLC and lunch-session input is rejected with row-addressed errors and no bars" },
+    { "assertionId": "V2.2-MINUTE-CSV-IDEMPOTENCY-001", "description": "reimporting identical source bytes returns the same immutable version" }
+  ]
+}

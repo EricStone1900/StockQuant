@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json",
+  "title": "MinuteCsvUploadProgress",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["uploadId", "status", "expectedBytes", "receivedBytes", "expectedChunks", "receivedChunks", "result"],
+  "properties": {
+    "uploadId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["OPEN", "FINALIZING", "COMPLETED", "CANCELLED"] },
+    "expectedBytes": { "type": "integer", "minimum": 1, "maximum": 67108864 },
+    "receivedBytes": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+    "expectedChunks": { "type": "integer", "minimum": 1, "maximum": 128 },
+    "receivedChunks": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 127 }, "uniqueItems": true },
+    "result": { "type": ["object", "null"] },
+    "idempotent": { "type": "boolean" }
+  }
+}

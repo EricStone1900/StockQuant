@@ -2,6 +2,8 @@
 
 状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
+2026-09-27 本地工程验证：Platform 的V3.3队列、游标和页内预算查询现通过OpenAPI生成的Research Automation客户端访问，服务端返回类型和Platform Bearer/服务身份头统一受契约漂移检查。完整`pnpm verify:stage -- --stage V3.3 --suite code`退出0，Platform单测78项，V3.3 Playwright 3/3通过。该套件确认owner-scoped只读队列、预算页和WAITING准备TestRun；`businessWorkflow=NOT_IMPLEMENTED`、`businessValidation=NOT_RUN`、`humanAcceptance=NOT_RUN`，没有派发真实研究任务或调用模型，阶段状态仍为`NOT_RUN`。详见[Research Queue客户端审计](../../../evidence/audits/2026-09-27-p0-2-research-queue-client.md)。
+
 ## 1. 前置与范围
 
 V3.1/3.2通过；数据扩容与固定小样本回归可用。
@@ -11,16 +13,16 @@ V3.1/3.2通过；数据扩容与固定小样本回归可用。
 ## 2. 开发任务
 
 - [ ] 按数据范围→实验轮次→并发顺序逐档扩容；初始并发1，各档冻结资源和Token/费用预算。全市场多年分钟训练为实测后扩展，不作为Mac默认承诺。
-- [ ] 实验任务具备排队、检查点、取消、失败隔离和结果原子发布；模型请求发出但响应未知时保留费用不确定性，不承诺外部计费exactly-once。
+- [ ] 实验任务具备排队、检查点、取消、失败隔离和结果原子发布；模型请求发出但响应未知时保留费用不确定性，不承诺外部计费exactly-once。进展：V3.3队列/预算只读切片已落地，Research Automation可按精确TestRun读取Runner记录并限页；预算响应从请求队列页中Job所绑定实验的账本读取预留/结算/UNKNOWN，并标出未关联账本，重试Job不可当作不同费用相加。Platform先验证登录用户拥有该V3.3 TestRun后以独立Bearer代理。现新增可持久化的正常/拒绝/恢复准备态TestRun：只记录`WAITING`与缺失门禁，`--check-only`读取相同owner范围记录；不创建Runner Job或调用模型。当前实验派发、检查点恢复、统一轮次汇总、预算控制面、真实Paper并行可用性及业务场景仍未实现，不能勾选完成。
 - [ ] 记录所有尝试、失败、重复试验及测试集使用；控制搜索范围和数据窗口，防止只展示最优收益。
 - [ ] 可用录制模型响应回放验证编排可复现；真实模型再次生成允许不同，固定生成代码/数据的数值复算按精度策略验收。
 - [ ] 研究Worker与模拟交易分配独立资源配额；OOM/故障时核心Paper继续，模型不可用不改变QUANT_ONLY策略。
 
 ## 3. 同步 Web 开发
 
-正式页：实验队列、预算实际/估计/不确定费用、资源、轮次对比和恢复。验收页：超预算、研究OOM、服务重启、Paper连续性。
+正式页：已具备按已有TestRun只读查看Runner队列与其当前页Job关联账本的局部视图。账本视图显示每Job/实验的requested/reserved/settled/unknown金额、状态、来源和覆盖缺项；重试行可能重复引用同一实验，不能求和；不是供应商账单或全阶段总账。资源、轮次对比、检查点/恢复操作及全阶段预算页尚未实现。验收页：超预算、研究OOM、服务重启、Paper连续性仍未完成。
 
-验收中心路径：`/acceptance/v3/v3.3`（目标路由）。场景参数提交到后端TestRun编排接口，后端调用业务API并汇集证据。浏览器不直接写领域数据，不自行判定成交。该阶段至少提供正常、拒绝/异常场景；适用时增加重试/恢复场景。
+验收中心路径：`/acceptance/v3/v3.3`。页面可创建owner-scoped准备态TestRun并立刻读取同一个记录；这只持久化`WAITING/NOT_RUN`元数据及缺失门禁，不代表业务场景已运行，也不派发工作。队列与同分页预算账本仅在读取真实已有Job时显示。预算代理先校验登录用户确实拥有该V3.3 TestRun，再由Platform独立Bearer读取服务数据。浏览器不直接写领域数据，不自行判定成交。真正完整阶段仍需正常、拒绝/异常及适用的重试/恢复场景执行。
 
 ## 4. 人工验收步骤
 
@@ -62,7 +64,7 @@ V3.1/3.2通过；数据扩容与固定小样本回归可用。
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：DRAFT_NOT_EXECUTABLE（当前是计划，以下项目命令/路由/场景均待实现，业务测试NOT_RUN）。开发本阶段时必须将本节更新为实测操作说明；用户验收前写入实际值并记录验证日期，不能让用户自行猜测脚本名或数据路径。
+手册状态：DRAFT_NOT_EXECUTABLE（队列/预算读取及持久化WAITING准备态TestRun已实测；Research Job派发、检查点/预算控制、业务断言与同run完整阶段验收仍NOT_RUN）。本阶段交付前必须将本节更新为完整实测操作说明；用户验收前写入实际值并记录验证日期，不能让用户自行猜测脚本名或数据路径。
 
 前置服务：研究队列/预算/检查点/Runner、监控及资源独立的核心Paper服务。
 
@@ -101,19 +103,19 @@ pnpm dev:web
 ### 8.3 Web逐步操作及预期结果
 
 1. 登录上表实际Web地址，进入“开发验收中心→V3→V3.3”；检查页面版本、模拟模式、服务能力与固定输入。
-2. 每个场景点击“准备隔离运行”，核对参数后记下testRunId；正常/异常/恢复使用独立运行，场景内部的重复或恢复操作继续使用原运行及业务幂等键。
-3. 按下表执行。操作按钮为目标交互，交付时开发者必须换成实际页面名称/按钮及路由；预期必须从业务明细读取，不能只看“任务完成”。
+2. 点击“记录正常场景”“记录预算/故障拒绝场景”或“记录恢复场景”。当前实现会创建owner-scoped持久TestRun并回读同一ID，状态必为WAITING，所有断言为NOT_RUN。
+3. 查看运行证据，确认具体V3.1/V3.2门禁仍未核实、执行器未实现、`runnerJobsCreated=0`、`externalModelCalls=0`、`paperContinuity=NOT_CHECKED`。然后读队列/预算；新准备态运行应显示空队列、零个可归属预算。不把此步骤记录成业务场景PASS。
 
 | 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
 |---|---|---|---|
-| normal | 研究扩容 | 记录小档→执行下一档→查看全部尝试、资源与费用；用同份代码/数据做独立复算。 | 记录真实规模，未隐式缩样本；全部失败/候选可查，固定代码结果满足容差。 |
-| rejection | 预算与OOM | 选择限额耗尽、受控研究OOM及超并发子场景，同时运行核心Paper场景。 | 停止新模型调用/任务排队，故障隔离；Paper继续，未知费用明确标记。 |
-| recovery | 研究检查点恢复 | 在检查点处重启研究Worker→恢复原任务→比较发布/晋升次数；用录制响应验证编排重放。 | 无重复发布/晋升；录制与实际模型调用分开；模型响应未知不假称未计费。 |
+| normal | 研究扩容 | 仅点击“记录正常场景”，查看此准备态TestRun。 | 当前为WAITING/NOT_RUN；不扩容、不派发、不执行候选。 |
+| rejection | 预算与OOM | 仅点击“记录预算/故障拒绝场景”，查看此准备态TestRun。 | 当前为WAITING/NOT_RUN；不耗尽预算、不制造OOM、不影响Paper。 |
+| recovery | 研究检查点恢复 | 仅点击“记录恢复场景”，刷新后对同一TestRun做只读查询。 | 当前为WAITING/NOT_RUN；不重启Worker、不假报检查点恢复。 |
 
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
 
-### 8.4 命令行复验与相同运行核对（待实现）
+### 8.4 命令行准备态创建与相同运行核对（业务执行待实现）
 
 在项目根目录执行以下目标命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
 
@@ -131,7 +133,7 @@ pnpm test:e2e -- --stage V3.3
  echo $?
 ```
 
-预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
+当前实测行为：normal/rejection/recovery分别创建独立、持久化的WAITING TestRun，输出门禁原因且退出2；不得解读为业务运行或预期拒绝断言通过。传`STOCKQUANT_SESSION_COOKIE`时携带当前用户Cookie；服务端仍执行owner检查。check-only只GET所给V3.3 TestRun，不创建新记录。code suite包含baseline、契约、研究服务unit/PG/HTTP、V3.3 CLI loopback合同测试、Platform type/unit/PG、Web typecheck和Stage E2E。真实Job执行、预算控制、Paper持续性、断言报告和证据导出仍未实现；CLI准备态不等于该计划的正式业务执行命令。
 
 再对Web中已运行的同一testRunId执行只读核对，避免仅创建新样本掩盖页面问题：
 
@@ -140,8 +142,7 @@ pnpm test:e2e -- --stage V3.3
 read -r acceptance_run_id
 pnpm verify:stage -- --stage V3.3 --run "$acceptance_run_id" --check-only
  echo $?
-pnpm evidence:export -- --run "$acceptance_run_id"
- echo $?
+# V3.3正式业务证据导出尚未实现；不要用其它阶段导出器代替。
 ```
 
 check-only仅查询此运行后端事实并追加检查证据，不创建新订单、不重放成交或发起模型调用；空ID/错误stage/越权run必须拒绝。导出只含脱敏数据，输出实际目录和Manifest Hash，不自动勾选人工验收。端到端正常/异常/恢复运行产生不同ID，导出时分别保存。

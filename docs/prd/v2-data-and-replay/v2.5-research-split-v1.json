@@ -1,0 +1,66 @@
+{
+  "protocolId": "v2.5-research-split-v1",
+  "status": "FROZEN_FOR_ENGINEERING_VALIDATION",
+  "usageEligibility": "RESEARCH_ONLY",
+  "source": {
+    "sourceMode": "READ_ONLY",
+    "source": "BaoStock",
+    "localArchive": "data/local/baostock-minute-20x60-2024-01-02-2024-04-02-v1",
+    "manifestSha256": "729793b462b25951bae2f032ea2eefc3c1ef86689a1c7882b908a24b68417c5f",
+    "frequency": "5m",
+    "securityCount": 20,
+    "sessionCount": 60,
+    "barsPerSecurity": 2880,
+    "totalBars": 57600,
+    "selectedCodes": [
+      "sh.600000", "sh.600004", "sh.600006", "sh.600007", "sh.600008",
+      "sh.600009", "sh.600010", "sh.600011", "sh.600012", "sh.600015",
+      "sh.600016", "sh.600017", "sh.600018", "sh.600019", "sh.600020",
+      "sh.600021", "sh.600022", "sh.600023", "sh.600025", "sh.600026"
+    ]
+  },
+  "sessionDates": [
+    "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08",
+    "2024-01-09", "2024-01-10", "2024-01-11", "2024-01-12", "2024-01-15",
+    "2024-01-16", "2024-01-17", "2024-01-18", "2024-01-19", "2024-01-22",
+    "2024-01-23", "2024-01-24", "2024-01-25", "2024-01-26", "2024-01-29",
+    "2024-01-30", "2024-01-31", "2024-02-01", "2024-02-02", "2024-02-05",
+    "2024-02-06", "2024-02-07", "2024-02-08", "2024-02-19", "2024-02-20",
+    "2024-02-21", "2024-02-22", "2024-02-23", "2024-02-26", "2024-02-27",
+    "2024-02-28", "2024-02-29", "2024-03-01", "2024-03-04", "2024-03-05",
+    "2024-03-06", "2024-03-07", "2024-03-08", "2024-03-11", "2024-03-12",
+    "2024-03-13", "2024-03-14", "2024-03-15", "2024-03-18", "2024-03-19",
+    "2024-03-20", "2024-03-21", "2024-03-22", "2024-03-25", "2024-03-26",
+    "2024-03-27", "2024-03-28", "2024-03-29", "2024-04-01", "2024-04-02"
+  ],
+  "windows": {
+    "warmup": { "startIndex": 0, "endIndexExclusive": 20 },
+    "training": { "startIndex": 20, "endIndexExclusive": 40 },
+    "validation": { "startIndex": 40, "endIndexExclusive": 50 },
+    "holdoutTest": { "startIndex": 50, "endIndexExclusive": 60 }
+  },
+  "evaluationRules": {
+    "warmupLookbackSessions": 20,
+    "allSecuritiesShareChronologicalWindows": true,
+    "validationMayGuideModelSelection": true,
+    "holdoutTestMayBeReadOnlyAfterCodeAndParametersAreFrozen": true,
+    "knownUniverseSurvivorshipBias": "The 20-stock sample is a frozen engineering dataset and is not a survivorship-bias-controlled research universe.",
+    "costs": {
+      "participationRate": 0.1,
+      "slippageBps": 10,
+      "commissionAndTaxPolicy": "UNSET; do not claim net-of-cost profitability or promotion readiness"
+    },
+    "numericComparison": {
+      "absoluteTolerance": 1e-8,
+      "relativeTolerance": 1e-7,
+      "scope": "Research metrics only; monetary ledger values, quantities, order states, and fees follow exact domain rounding and equality rules."
+    },
+    "strategyAndPaperActivation": "NOT_AUTHORIZED_BY_THIS_PROTOCOL"
+  },
+  "expectedAssertions": [
+    "Source manifest, every one of 20 partition files, and their row counts and SHA-256 values match the local archive.",
+    "Each of the 60 frozen sessions contains exactly 48 five-minute bars per security.",
+    "The training, validation, and holdout windows are disjoint, chronological, and shared by every security.",
+    "No holdout test result is used for model or parameter selection."
+  ]
+}

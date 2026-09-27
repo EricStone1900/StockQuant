@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-independent-validation-result.schema.json",
+  "title": "V32IndependentValidationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "reportFingerprint", "report", "evidence", "createdAt", "idempotent"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-independent-validation-result-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "reportFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "report": { "$ref": "./v3.2-independent-validation-report.schema.json" },
+    "evidence": { "$ref": "./v3.2-independent-validation-evidence-bundle.schema.json" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "idempotent": { "type": "boolean" }
+  }
+}

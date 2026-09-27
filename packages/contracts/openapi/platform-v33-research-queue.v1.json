@@ -1,0 +1,1173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StockQuant Platform to Research Automation V3.1 dispatch and V3.3 queue API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://research-automation-service:3008"
+    }
+  ],
+  "paths": {
+    "/v1/experiments": {
+      "post": {
+        "operationId": "createV31Experiment",
+        "summary": "Create an idempotent V3.1 Experiment and reserve its budget, bound to an exact TestRun when supplied",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-experiment.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The same idempotent Experiment already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-result.schema.json"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Experiment and reserved budget persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "409": {
+            "description": "Idempotency key was reused with different values"
+          },
+          "422": {
+            "description": "Experiment input violates the RESEARCH/FAKE contract or budget cap"
+          },
+          "503": {
+            "description": "Platform service identity is not configured"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experimentId}/budget": {
+      "get": {
+        "operationId": "readV31ExperimentBudget",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experimentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment budget reservation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-budget-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Budget reservation not found"
+          },
+          "503": {
+            "description": "Service identity or ledger is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experimentId}/budget/settle": {
+      "post": {
+        "operationId": "settleV31ExperimentBudget",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experimentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-budget-settle-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment budget settled or marked UNKNOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-budget-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Budget reservation not found"
+          },
+          "409": {
+            "description": "Settlement conflicts with an existing terminal reservation"
+          },
+          "422": {
+            "description": "Invalid settlement amount"
+          },
+          "503": {
+            "description": "Ledger is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experimentId}/cancel": {
+      "post": {
+        "operationId": "cancelV31Experiment",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experimentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment cancellation persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-cancellation-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Experiment not found"
+          },
+          "409": {
+            "description": "Experiment is terminal"
+          },
+          "503": {
+            "description": "Service is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/runner/jobs": {
+      "get": {
+        "operationId": "listRunnerJobsForTestRun",
+        "summary": "Read a bounded Runner queue page for one exact TestRun",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Bearer establishes identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jobs belonging to the requested TestRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-queue.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "422": {
+            "description": "Invalid TestRun identifier or pagination"
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitV31RunnerJob",
+        "x-timeout-ms": 10000,
+        "summary": "Persist an isolated Runner job bound to its exact V3.1 TestRun and a RESERVED experiment budget",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; the Platform Bearer establishes identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Runner job accepted but not executed by this request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-dispatch-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Bound experiment does not exist"
+          },
+          "409": {
+            "description": "TestRun binding or reserved budget prerequisite does not match"
+          },
+          "422": {
+            "description": "Invalid Runner job contract"
+          },
+          "503": {
+            "description": "Persistent Runner job store is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/runner/jobs/{jobId}": {
+      "get": {
+        "operationId": "readV31RunnerJob",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runner Job record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Runner Job not found"
+          },
+          "503": {
+            "description": "Persistent store is unavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "cancelV31RunnerJob",
+        "summary": "Cancel a queued or otherwise cancellable Runner job; repeated cancellation returns the terminal record",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Platform Bearer establishes identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runner job cancellation is persisted or the job was already cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-dispatch-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Runner job not found"
+          },
+          "409": {
+            "description": "Runner job is terminal or cannot be cancelled"
+          },
+          "503": {
+            "description": "Persistent Runner Job store is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/runner/budgets": {
+      "get": {
+        "operationId": "readRunnerBudgetForTestRun",
+        "summary": "Read persisted budget reservations and known/unknown costs for experiments referenced by one TestRun page",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Bearer establishes identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page-scoped ledger facts; explicitly not a provider invoice or stage-wide total",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-budget.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "422": {
+            "description": "Invalid TestRun identifier or pagination"
+          }
+        }
+      }
+    },
+    "/v1/artifacts/publish": {
+      "post": {
+        "operationId": "publishV31Artifact",
+        "x-timeout-ms": 10000,
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Platform input Artifact publication uses its own Bearer identity; Runner output publication requires runner-host Bearer plus lease fields."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-publish-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Artifact published under its immutable reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-publish-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "409": {
+            "description": "Runner lease proof or immutable reference conflicts"
+          },
+          "413": {
+            "description": "Artifact exceeds the configured size limit"
+          },
+          "422": {
+            "description": "Artifact reference or content is invalid"
+          },
+          "503": {
+            "description": "Artifact store is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/artifacts/read": {
+      "post": {
+        "operationId": "readV31Artifact",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-read-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Published immutable artifact reference and bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-response.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Published Artifact not found"
+          },
+          "409": {
+            "description": "Stored content hash differs from immutable reference"
+          },
+          "413": {
+            "description": "Artifact exceeds the configured read limit"
+          },
+          "422": {
+            "description": "Invalid namespace or artifact identity"
+          },
+          "503": {
+            "description": "Artifact store is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/model-gateway/fixture-call": {
+      "post": {
+        "operationId": "callV31ModelGatewayFixture",
+        "x-timeout-ms": 10000,
+        "summary": "Explicit test-only deterministic fixture call; never contacts an external model provider",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-fixture-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deterministic Fixture response or already persisted idempotent result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-fixture-result.schema.json"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Model call outcome is unknown and remains reserved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-fixture-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Fixture gateway is disabled outside explicit test mode"
+          },
+          "422": {
+            "description": "Invalid fixture call or budget"
+          },
+          "503": {
+            "description": "Fixture provider could not be reached"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/research/queue": {
+      "get": {
+        "operationId": "readOwnedV33ResearchQueue",
+        "summary": "Read research jobs only for the authenticated owner's V3.3 TestRun",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner-scoped queue page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-queue.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "403": {
+            "description": "User is not authorized for this run"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "422": {
+            "description": "Invalid TestRun identifier or pagination"
+          },
+          "503": {
+            "description": "Research Automation is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs": {
+      "post": {
+        "operationId": "createOwnedV33ReadinessRun",
+        "summary": "Persist a V3.3 readiness attempt without dispatching work while required gates are incomplete",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-run-request.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Durable WAITING TestRun; no job is dispatched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-readiness-run.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "422": {
+            "description": "Invalid scenario or seed"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}": {
+      "get": {
+        "operationId": "readOwnedV33ReadinessRun",
+        "summary": "Read the authenticated owner's persisted V3.3 readiness TestRun",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner-scoped V3.3 WAITING run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-readiness-run.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "422": {
+            "description": "TestRun ID must be a UUID"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/research/budget": {
+      "get": {
+        "operationId": "readOwnedV33ResearchBudget",
+        "summary": "Read ledger evidence only for the authenticated owner's V3.3 TestRun",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner-scoped queue-page budget ledger evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-budget.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "403": {
+            "description": "User is not authorized for this run"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "422": {
+            "description": "Invalid TestRun identifier or pagination"
+          },
+          "503": {
+            "description": "Research Automation is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/runner/jobs/cursor": {
+      "get": {
+        "operationId": "listRunnerJobsForTestRunAfterCursor",
+        "summary": "Read the next stable-keyset page for one exact TestRun",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Bearer establishes identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor page ordered by submittedAt and jobId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-cursor-queue.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "422": {
+            "description": "Invalid TestRun or cursor pagination"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/research/queue/cursor": {
+      "get": {
+        "operationId": "readOwnedV33ResearchQueueCursor",
+        "summary": "Read an owner-scoped V3.3 queue using stable-keyset pagination",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner-scoped cursor queue page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-cursor-queue.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "403": {
+            "description": "User is not authorized for this run"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "422": {
+            "description": "Invalid TestRun or cursor pagination"
+          },
+          "503": {
+            "description": "Research Automation is unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "LocalSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sq_session"
+      }
+    }
+  }
+}

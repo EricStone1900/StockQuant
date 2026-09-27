@@ -51,7 +51,9 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3001
       STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk@postgres:5432/portfolio_risk
-      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service,trade-execution-service,historical-replay-worker
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:-}"
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
     depends_on:
@@ -84,7 +86,10 @@ services:
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
+      STOCKQUANT_V11_RUN_STORAGE: ${STOCKQUANT_V11_RUN_STORAGE:-legacy}
       STOCKQUANT_V24_AUTO_START: "true"
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: "${STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION:-}"
       STOCKQUANT_NATS_URL: nats://nats:4222
       STOCKQUANT_NATS_SUBJECT: stockquant.v1.5.events
       STOCKQUANT_TEMPORAL_ADDRESS: temporal:7233
@@ -126,7 +131,9 @@ services:
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
-      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service
+      STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:-}"
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
     depends_on:
@@ -150,9 +157,15 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3007
       STOCKQUANT_DATABASE_URL: postgresql://decision_governance@postgres:5432/decision_governance
-      STOCKQUANT_ALLOWED_SERVICE_ID: historical-replay-worker
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
+      STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:-}"
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: "${STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE:-}"
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
     depends_on:
       postgres:
+        condition: service_healthy
+      quant-research-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3007/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -174,7 +187,8 @@ services:
       STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
       STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
-      STOCKQUANT_ALLOWED_SERVICE_ID: platform-api-service
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -210,6 +224,7 @@ services:
       STOCKQUANT_PORT: 3002
       STOCKQUANT_PROJECT_ROOT: /workspace
       STOCKQUANT_DATABASE_URL: postgresql://market_data@postgres:5432/market_data
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
       # Kept disabled until DC-00 freezes a real-source capability report and
       # DC-08A creates the approved subscription.  Enabling either is an
       # explicit operational action, never a side effect of `stack:up`.
@@ -248,10 +263,17 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3003
-      QLIB_SOURCE_COMMIT: qlib-0.9.6
+      QLIB_SOURCE_COMMIT: 5a84aaf1dc402232646ad2836dea33ff15886552
       QLIB_IMAGE: stockquant-v12-qlib-probe
       QLIB_WORKER_URL: http://qlib-worker:3004
+      STOCKQUANT_RESEARCH_AUTOMATION_URL: http://research-automation-service:3008
       STOCKQUANT_DATABASE_URL: postgresql://quant_research@postgres:5432/quant_research
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
+      STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: "${STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION:-}"
+      STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: "${STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER:-}"
+      STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: "${STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE:-}"
+      STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: "${STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE:-}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -277,6 +299,8 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3008
       STOCKQUANT_DATABASE_URL: postgresql://research_automation@postgres:5432/research_automation
+      STOCKQUANT_PLATFORM_API_URL: http://platform-api-service:3000
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
       STOCKQUANT_RESEARCH_ARTIFACT_ROOT: /var/lib/stockquant/research-artifacts
       STOCKQUANT_RUNNER_MODE: NOT_CONFIGURED
       STOCKQUANT_MODEL_GATEWAY_MODE: NOT_CONFIGURED
@@ -287,6 +311,10 @@ services:
       # environment variables are exposed to the research service.
       DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
       SILICONFLOW_API_KEY: "${SILICONFLOW_API_KEY:-}"
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: "${STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION:-}"
+      STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST: "${STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST:-}"
+      STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: "${STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER:-}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -310,10 +338,11 @@ services:
     environment:
       QLIB_BIND_HOST: 0.0.0.0
       QLIB_PORT: 3004
+      STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: "${STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE:-}"
     ports:
       - "127.0.0.1:3004:3004"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3004/probe')\""]
+      test: ["CMD-SHELL", "python -c \"import os,urllib.request; r=urllib.request.Request('http://127.0.0.1:3004/probe',headers={'authorization':'Bearer '+os.environ['STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE'],'x-stockquant-service-id':'quant-research-service'}); urllib.request.urlopen(r)\""]
       interval: 10s
       timeout: 5s
       retries: 20

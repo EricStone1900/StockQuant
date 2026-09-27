@@ -1,0 +1,317 @@
+import assert from "node:assert/strict";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import { createServer as createNetServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
+
+const serviceDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(serviceDir, "../..");
+const require = createRequire(resolve(root, "services/quant-research-service/package.json"));
+const { Client } = require("pg");
+const { parsePromotionRequest } = await import(new URL("../dist/promotion-request.js", import.meta.url));
+const { evidenceSha256 } = await import(new URL("../dist/validation-submission.js", import.meta.url));
+const { recomputeV32SyntheticFixture, verifyV32SyntheticFixture } = await import(new URL("../dist/v32-independent-recompute.js", import.meta.url));
+const adminUrl = new URL(process.env.QUANT_PROMOTION_SMOKE_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
+if (adminUrl.hostname !== "127.0.0.1" || adminUrl.port !== "5433" || adminUrl.username !== "postgres" || adminUrl.pathname !== "/postgres") throw new Error("PromotionRequest smoke requires dedicated local PostgreSQL admin endpoint 127.0.0.1:5433/postgres");
+const databaseName = `quant_promotion_smoke_${randomUUID().replaceAll("-", "")}`;
+const databaseUrl = new URL(adminUrl);
+databaseUrl.pathname = `/${databaseName}`;
+const tokens = { platform: randomBytes(48).toString("base64url"), replay: randomBytes(48).toString("base64url"), research: randomBytes(48).toString("base64url"), validation: randomBytes(48).toString("base64url"), governance: randomBytes(48).toString("base64url"), quantResearch: randomBytes(48).toString("base64url") };
+const admin = new Client({ connectionString: adminUrl.toString() });
+const inspect = new Client({ connectionString: databaseUrl.toString() });
+let created = false;
+let child;
+let governanceChild;
+let qlibMock;
+let qlibCalls = 0;
+let workerCandidateRequest;
+
+async function freePort() {
+  const server = createNetServer();
+  await new Promise((resolveListen, reject) => server.once("error", reject).listen(0, "127.0.0.1", resolveListen));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("unable to allocate loopback port");
+  await new Promise((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
+  return address.port;
+}
+
+try {
+  await admin.connect();
+  await admin.query(`CREATE DATABASE "${databaseName}"`);
+  created = true;
+  await inspect.connect();
+  const qlibPort = await freePort();
+  qlibMock = createHttpServer(async (request, response) => {
+    if (request.method === "GET" && /^\/v1\/promotions\/[0-9a-f-]+\/candidate-artifact$/iu.test(request.url ?? "")) {
+      assert.equal(request.headers.authorization, `Bearer ${tokens.validation}`);
+      assert.equal(request.headers["x-stockquant-service-id"], "quant-validation-worker");
+      if (!workerCandidateRequest || request.url !== `/v1/promotions/${workerCandidateRequest.promotionRequestId}/candidate-artifact`) { response.writeHead(404); response.end(); return; }
+      const candidateBytes = await readFile(resolve(root, "fixtures/v3/v3.2-independent-validation-v1/candidate.json"));
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ schemaVersion: "v3.2-candidate-artifact-result-v1", promotionRequestId: workerCandidateRequest.promotionRequestId, ref: { schemaVersion: "v3.1-artifact-ref-v1", artifactId: workerCandidateRequest.candidateArtifact.artifactId, kind: "OUTPUT", namespace: workerCandidateRequest.candidateArtifact.namespace, sha256: workerCandidateRequest.candidateArtifact.sha256, status: "PUBLISHED", sourceRef: `runner:${workerCandidateRequest.testRunId}:${workerCandidateRequest.experimentId}:fence:1` }, contentBase64: candidateBytes.toString("base64") }));
+      return;
+    }
+    if (request.url === "/probe") {
+      assert.equal(request.headers.authorization, `Bearer ${tokens.quantResearch}`);
+      assert.equal(request.headers["x-stockquant-service-id"], "quant-research-service");
+      response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ status: "READY", version: "0.9.6" })); return;
+    }
+    if (request.url !== "/qlib/fit-fixture" || request.method !== "POST") { response.writeHead(404); response.end(); return; }
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    const body = Buffer.concat(chunks).toString("utf8");
+    assert.equal(request.headers.authorization, `Bearer ${tokens.quantResearch}`);
+    assert.equal(request.headers["x-stockquant-service-id"], "quant-research-service");
+    assert.equal(JSON.parse(body).schemaVersion, "qlib-fit-fixture-v1");
+    qlibCalls += 1;
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ schemaVersion: "qlib-fit-fixture-result-v1", status: "COMPLETED", sourceMode: "FIXTURE", modelTraining: "PASS", modelValidation: "NOT_RUN", candidateSourceExecution: "NOT_PERFORMED", qlibVersion: "0.9.6", lightgbmVersion: "4.7.0", model: "qlib.contrib.model.gbdt.LGBModel", segments: { train: { start: 0, end: 20, rows: 20 }, valid: { start: 20, end: 25, rows: 5 }, test: { start: 25, end: 30, rows: 5 } }, testPredictionCount: 5, testPredictionsFinite: true, testPredictionsSha256: "a".repeat(64), modelSha256: "b".repeat(64), evaluationMetrics: {}, tracking: "temporary SQLite under /tmp; removed with the worker container", profitabilityClaim: "NOT_MADE" }));
+  });
+  await new Promise((resolveListen, reject) => qlibMock.once("error", reject).listen(qlibPort, "127.0.0.1", resolveListen));
+  const port = await freePort();
+  child = spawn(process.execPath, [resolve(serviceDir, "dist/main.js")], { cwd: serviceDir, env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", NODE_ENV: "test", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: tokens.replay, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.research, STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: tokens.validation, STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: tokens.governance, STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: tokens.quantResearch, QLIB_WORKER_URL: `http://127.0.0.1:${qlibPort}` }, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => { if (output.length < 3000) output += chunk.toString().slice(0, 3000 - output.length); });
+  const base = `http://127.0.0.1:${port}`;
+  let ready = false;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (child.exitCode !== null) throw new Error(`quant service exited before ready: ${output}`);
+    try { const response = await fetch(`${base}/ready`, { signal: AbortSignal.timeout(1000) }); if (response.ok) { ready = true; break; } } catch { /* isolated service is starting */ }
+    await delay(50);
+  }
+  assert.equal(ready, true, `quant service did not become ready: ${output}`);
+  const qlibFixture = JSON.parse(await (await import("node:fs/promises")).readFile(resolve(root, "packages/contracts/fixtures/qlib-fit-fixture-request-v1.json"), "utf8"));
+  const fit = (identity, token) => fetch(`${base}/v1/research/qlib/fit-fixture`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": identity, authorization: `Bearer ${token}` }, body: JSON.stringify(qlibFixture), signal: AbortSignal.timeout(5000) });
+  assert.equal((await fit("research-automation-service", tokens.research)).status, 403);
+  assert.equal((await fit("platform-api-service", tokens.research)).status, 403);
+  const fitResponse = await fit("platform-api-service", tokens.platform);
+  assert.equal(fitResponse.status, 200);
+  const fitResult = await fitResponse.json();
+  assert.equal(fitResult.modelTraining, "PASS");
+  assert.equal(fitResult.modelValidation, "NOT_RUN");
+  assert.equal(fitResult.candidateSourceExecution, "NOT_PERFORMED");
+  assert.equal(qlibCalls, 1, "only the authorized platform request reaches the worker");
+  const promotionRequestId = randomUUID();
+  const testRunId = randomUUID();
+  const experimentId = randomUUID();
+  const fixtureDir = resolve(root, "fixtures/v3/v3.2-independent-validation-v1");
+  const fixtureNames = ["daily-bars.csv", "candidate.json", "validation-design.json"];
+  const [fixtureManifestBytes, ...fixtureFileBytes] = await Promise.all(["manifest.json", ...fixtureNames].map((name) => readFile(resolve(fixtureDir, name))));
+  const fixtureManifest = JSON.parse(fixtureManifestBytes.toString("utf8"));
+  const fixtureFiles = Object.fromEntries(fixtureNames.map((name, index) => [name, fixtureFileBytes[index]]));
+  verifyV32SyntheticFixture({ manifest: fixtureManifest, files: fixtureFiles });
+  const [barsCsv, candidateBytes, designBytes] = fixtureFileBytes;
+  const candidate = JSON.parse(candidateBytes.toString("utf8"));
+  const design = JSON.parse(designBytes.toString("utf8"));
+  const stable = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const dataContentSha256 = createHash("sha256").update(Buffer.from(JSON.stringify([{ path: "data/daily-bars.csv", sha256: createHash("sha256").update(barsCsv).digest("hex") }]), "utf8")).digest("hex");
+  const dataManifestBytes = stable({ schemaVersion: "v3.2-data-manifest-v1", testRunId, experimentId, dataMode: "FIXTURE", dataVersion: fixtureManifest.fixtureVersion, dataContentSha256 });
+  const validationPlanBytes = stable({ schemaVersion: "v3.2-validation-plan-v1", testRunId, experimentId, candidateSource: "FIXTURE", dataManifestSha256: createHash("sha256").update(dataManifestBytes).digest("hex"), candidateOutputPath: "candidate.json", generatedCodeOutputPath: "generated.py", metricsOutputPath: "metrics.json" });
+  const recomputed = recomputeV32SyntheticFixture({ barsCsv: barsCsv.toString("utf8"), candidate, design });
+  const metricsManifestBytes = stable(recomputed.evidence.OUT_OF_SAMPLE);
+  const request = {
+    schemaVersion: "v3.2-promotion-request-v1", promotionRequestId, testRunId, experimentId, candidateSource: "FIXTURE",
+    candidateArtifact: { artifactId: candidate.candidateId, namespace: `research/${testRunId}/${experimentId}/outputs`, sha256: createHash("sha256").update(candidateBytes).digest("hex") },
+    codeSha256: createHash("sha256").update(candidate.sourceCode).digest("hex"), dataManifestSha256: createHash("sha256").update(dataManifestBytes).digest("hex"), metricsManifestSha256: createHash("sha256").update(metricsManifestBytes).digest("hex"), validationPlanSha256: createHash("sha256").update(validationPlanBytes).digest("hex"),
+    budget: { allocationId: "allocation-fixture", currency: "USD", reservedMinor: 500, consumedMinor: 120 }, idempotencyKey: `promotion-${randomUUID()}`
+  };
+  workerCandidateRequest = request;
+  const parsedRequest = parsePromotionRequest(request);
+  assert.equal(parsedRequest.ok, true, parsedRequest.ok ? undefined : parsedRequest.reason);
+  const submissionPath = `${base}/v1/promotions/${promotionRequestId}/validation-input`;
+  const reportPath = `${base}/v1/promotions/${promotionRequestId}/validation-report`;
+  const postReport = (body, identity = "quant-validation-worker", token = tokens.validation, routeId = promotionRequestId) => fetch(`${base}/v1/promotions/${routeId}/validation-report`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": identity, authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+  const post = (body, identity = "research-automation-service", token = tokens.research) => fetch(`${base}/v1/promotions`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": identity, authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+  assert.equal((await post(request, "platform-api-service", tokens.platform)).status, 403);
+  assert.equal((await post(request, "research-automation-service", tokens.platform)).status, 403);
+  const duplicateRead = await fetch(`${base}/v1/promotions/${promotionRequestId}`, { headers: { "x-stockquant-service-id": "research-automation-service", authorization: `Bearer ${tokens.research}` } });
+  assert.equal(duplicateRead.status, 403);
+  const concurrent = await Promise.all([post(request), post({ ...request, candidateArtifact: { ...request.candidateArtifact } })]);
+  assert.deepEqual(concurrent.map((response) => response.status).sort(), [200, 201]);
+  const responses = await Promise.all(concurrent.map((response) => response.json()));
+  assert.equal(responses.filter((body) => body.idempotent === false).length, 1);
+  assert.equal(responses.filter((body) => body.idempotent === true).length, 1);
+  assert.equal(responses.every((body) => body.status === "AWAITING_INDEPENDENT_VALIDATION"), true);
+  assert.equal((await fetch(submissionPath, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` } })).status, 403);
+  assert.equal((await post({ ...request, codeSha256: "f".repeat(64) })).status, 409);
+  assert.equal((await post({ ...request, budget: { ...request.budget, consumedMinor: 501 }, idempotencyKey: `invalid-${randomUUID()}` })).status, 422);
+  assert.equal((await post({ ...request, approved: true, idempotencyKey: `extra-${randomUUID()}` })).status, 422);
+  const worker = spawn(process.execPath, [resolve(serviceDir, "scripts/v32-independent-validation-worker.mjs"), promotionRequestId], { cwd: serviceDir, env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", STOCKQUANT_QUANT_RESEARCH_URL: base, STOCKQUANT_RESEARCH_AUTOMATION_URL: `http://127.0.0.1:${qlibPort}`, STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: tokens.validation }, stdio: ["ignore", "pipe", "pipe"] });
+  let workerOutput = "";
+  for (const stream of [worker.stdout, worker.stderr]) stream.on("data", (chunk) => { if (workerOutput.length < 100_000) workerOutput += chunk.toString().slice(0, 100_000 - workerOutput.length); });
+  const workerExit = await new Promise((resolveExit, rejectExit) => { worker.once("error", rejectExit); worker.once("exit", resolveExit); });
+  assert.equal(workerExit, 0, `independent Fixture Worker failed: ${workerOutput}`);
+  const workerResult = JSON.parse(workerOutput.trim());
+  assert.equal(workerResult.status, "PASS");
+  assert.equal(workerResult.sourceMode, "FIXTURE");
+  assert.equal(workerResult.qlib, "NOT_RUN");
+  assert.equal(workerResult.candidateCodeExecution, "EXECUTED_FOR_ALLOWLISTED_FIXTURE");
+  assert.equal(workerResult.realCandidateValidation, "NOT_RUN");
+  assert.equal(workerResult.evaluator.imageId, "sha256:ce165dcca6608664c518ae71c86ed3fce33da1d1e88b5dee2504fc0cbff55beb");
+  assert.equal(workerResult.evaluator.platform, "linux/arm64");
+  assert.equal(workerResult.evaluator.network, "none");
+  assert.equal(workerResult.evaluator.rootFilesystem, "read-only");
+  assert.equal(workerResult.evaluator.fixtureAndInputs, "read-only");
+  assert.equal(workerResult.evaluator.user, "65532:65532");
+  assert.equal(workerResult.evaluator.memoryLimit, "256m");
+  assert.equal(workerResult.evaluator.cpus, 1);
+  assert.equal(workerResult.evaluator.pidsLimit, 64);
+  assert.equal(workerResult.evaluator.containerLifecycle, "REMOVED_AFTER_COMPLETION");
+  const observedIsolation = workerResult.evaluator.isolationObservedInContainer;
+  assert.deepEqual({ uid: observedIsolation.uid, rootFilesystem: observedIsolation.rootFilesystem, inputs: observedIsolation.inputs, network: observedIsolation.network, routes: observedIsolation.routes, ipv6Addresses: observedIsolation.ipv6Addresses, nonLoopbackTrafficBytes: observedIsolation.nonLoopbackTrafficBytes, memoryBytes: observedIsolation.memoryBytes, cpuQuota: observedIsolation.cpuQuota, pidsMax: observedIsolation.pidsMax }, { uid: 65532, rootFilesystem: "read-only", inputs: "read-only", network: "none", routes: 0, ipv6Addresses: 1, nonLoopbackTrafficBytes: 0, memoryBytes: 268435456, cpuQuota: 1, pidsMax: 64 });
+  assert.equal(observedIsolation.networkInterfaces.some(({ name }) => name === "lo"), true);
+  assert.equal(observedIsolation.networkInterfaces.every(({ name, operstate }) => name === "lo" || operstate === "down"), true);
+  assert.equal(workerResult.candidateExecutor.imageId, "sha256:829cc065f506a60d332260af9fc48c590d60cfeff8bfc20df57b7baf20edb879");
+  assert.equal(workerResult.candidateExecutor.platform, "linux/arm64");
+  assert.equal(workerResult.candidateExecutor.network, "none");
+  assert.equal(workerResult.candidateExecutor.rootFilesystem, "read-only");
+  assert.equal(workerResult.candidateExecutor.user, "65532:65532");
+  assert.equal(workerResult.candidateExecutor.decisionCount, 70);
+  assert.equal(workerResult.candidateExecutor.candidateCodeSha256, "9392a720f5e7576f7047b93c212b0d3776e3621a2379e1878a25e93cfb6303ff");
+  assert.equal(workerResult.candidateExecutor.isolationObservedInContainer.uid, 65532);
+  assert.equal(workerResult.evidence.RULES.details.candidateDecisionMatches, 70);
+  assert.equal(workerResult.evidence.RULES.details.candidateSourceExecution, "EXECUTED_IN_ISOLATED_CONTAINER");
+  const submission = { schemaVersion: "v3.2-independent-validation-submission-v1", report: workerResult.report, evidence: workerResult.evidence };
+  assert.equal((await postReport(submission, "research-automation-service", tokens.research)).status, 403);
+  assert.equal((await postReport(submission, "platform-api-service", tokens.platform)).status, 403);
+  assert.equal((await postReport(submission, "quant-validation-worker", tokens.research)).status, 403);
+  const concurrentReports = await Promise.all(Array.from({ length: 4 }, () => postReport(submission)));
+  assert.deepEqual(concurrentReports.map((response) => response.status).sort(), [200, 200, 200, 200], "the independent Worker persists the first immutable report before replay checks");
+  const concurrentReportBodies = await Promise.all(concurrentReports.map((response) => response.json()));
+  assert.equal(concurrentReportBodies.filter((body) => body.idempotent === false).length, 0);
+  assert.equal(concurrentReportBodies.filter((body) => body.idempotent === true).length, 4);
+  assert.equal(concurrentReportBodies.every((body) => body.report.disposition === "ELIGIBLE_FOR_REVIEW"), true);
+  assert.equal(new Set(concurrentReportBodies.map((body) => body.reportFingerprint)).size, 1);
+  const firstReport = concurrentReportBodies[0];
+  const platformHeaders = { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` };
+  const detailBeforeDecision = await fetch(`${base}/v1/promotions/${promotionRequestId}/detail`, { headers: platformHeaders });
+  assert.equal(detailBeforeDecision.status, 200);
+  assert.equal((await detailBeforeDecision.json()).status, "AWAITING_REVIEW", "persisted report advances the derived review state");
+  const decisionPath = `${base}/v1/promotions/${promotionRequestId}/decision`;
+  const postDecision = (body, identity = "platform-api-service", token = tokens.platform) => fetch(decisionPath, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": identity, authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+  const decisionCommand = { schemaVersion: "v3.2-promotion-decision-command-v1", decision: "APPROVE", confirmation: "REVIEW_EXACT_PROMOTION_VERSION", reportFingerprint: firstReport.reportFingerprint, actorId: "synthetic-owner" };
+  assert.equal((await postDecision(decisionCommand, "research-automation-service", tokens.research)).status, 403, "research identity cannot approve candidates");
+  assert.equal((await postDecision(decisionCommand, "platform-api-service", tokens.research)).status, 403, "a different service token cannot impersonate Platform");
+  assert.equal((await postDecision({ ...decisionCommand, reportFingerprint: "0".repeat(64) })).status, 409, "stale report fingerprints cannot be approved");
+  const decisionResponse = await postDecision(decisionCommand);
+  assert.equal(decisionResponse.status, 201);
+  const decision = await decisionResponse.json();
+  assert.equal(decision.decision, "APPROVE");
+  assert.equal(decision.registryStatus, "CANDIDATE_APPROVED");
+  assert.equal(decision.activation, "DISABLED_UNTIL_MANDATE");
+  assert.equal(decision.versionFingerprint.length, 64);
+  const registryHeaders = { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` };
+  const registryLookup = await fetch(`${base}/v1/registry/versions/${decision.versionFingerprint}`, { headers: registryHeaders });
+  assert.equal(registryLookup.status, 200);
+  const registryVersionResult = await registryLookup.json();
+  assert.deepEqual(registryVersionResult.candidateArtifact, request.candidateArtifact);
+  assert.equal(registryVersionResult.versionFingerprint, decision.versionFingerprint);
+  assert.equal(registryVersionResult.activation, "DISABLED_UNTIL_MANDATE");
+  const governanceRegistryLookup = await fetch(`${base}/v1/registry/versions/${decision.versionFingerprint}`, { headers: { "x-stockquant-service-id": "decision-governance-service", authorization: `Bearer ${tokens.governance}` } });
+  assert.equal(governanceRegistryLookup.status, 200, "Governance can query an exact version using its independent service identity");
+  assert.equal((await governanceRegistryLookup.json()).versionFingerprint, decision.versionFingerprint);
+  const governancePort = await freePort();
+  const governanceDir = resolve(root, "services/decision-governance-service");
+  governanceChild = spawn(process.execPath, [resolve(governanceDir, "dist/main.js")], { cwd: governanceDir, env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", NODE_ENV: "test", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(governancePort), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: tokens.replay, STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: randomBytes(48).toString("base64url"), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: tokens.governance, STOCKQUANT_QUANT_RESEARCH_URL: base }, stdio: ["ignore", "pipe", "pipe"] });
+  let governanceOutput = "";
+  for (const stream of [governanceChild.stdout, governanceChild.stderr]) stream.on("data", (chunk) => { if (governanceOutput.length < 3000) governanceOutput += chunk.toString().slice(0, 3000 - governanceOutput.length); });
+  const governanceBase = `http://127.0.0.1:${governancePort}`;
+  let governanceReady = false;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (governanceChild.exitCode !== null) throw new Error(`Governance service exited before ready: ${governanceOutput}`);
+    try { const response = await fetch(`${governanceBase}/ready`, { signal: AbortSignal.timeout(1000) }); if (response.ok) { governanceReady = true; break; } } catch { /* isolated Governance service is starting */ }
+    await delay(50);
+  }
+  assert.equal(governanceReady, true, `Governance service did not become ready: ${governanceOutput}`);
+  const bindingCommand = { schemaVersion: "v3.2-candidate-mandate-binding-command-v1", mandateId: randomUUID(), testRunId, ownerId: "synthetic-owner", accountId: randomUUID(), market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", strategyVersion: decision.versionFingerprint, candidateArtifact: request.candidateArtifact };
+  const assessBinding = (body, identity = "platform-api-service", token = tokens.platform) => fetch(`${governanceBase}/internal/v1/candidate-mandates/readiness`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": identity, authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+  const bindingResponse = await assessBinding(bindingCommand);
+  assert.equal(bindingResponse.status, 200);
+  const bindingResult = await bindingResponse.json();
+  assert.equal(bindingResult.status, "EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW");
+  assert.equal(bindingResult.versionFingerprint, decision.versionFingerprint);
+  assert.equal(bindingResult.activation, "DISABLED_UNTIL_MANDATE");
+  assert.equal((await assessBinding({ ...bindingCommand, candidateArtifact: { ...request.candidateArtifact, sha256: "f".repeat(64) } })).status, 422, "candidate Artifact mismatch must be rejected");
+  assert.equal((await assessBinding({ ...bindingCommand, strategyVersion: "f".repeat(64) })).status, 422, "an unregistered exact fingerprint must be rejected");
+  assert.equal((await assessBinding(bindingCommand, "historical-replay-worker", tokens.replay)).status, 403, "Replay cannot request Mandate readiness");
+  assert.equal((await fetch(`${base}/v1/registry/versions/${"f".repeat(64)}`, { headers: registryHeaders })).status, 404);
+  assert.equal((await fetch(`${base}/v1/registry/versions/${decision.versionFingerprint}`, { headers: { "x-stockquant-service-id": "research-automation-service", authorization: `Bearer ${tokens.research}` } })).status, 403);
+  const replayedDecisionResponse = await postDecision(decisionCommand);
+  assert.equal(replayedDecisionResponse.status, 200);
+  assert.equal((await replayedDecisionResponse.json()).idempotent, true);
+  assert.equal((await postDecision({ ...decisionCommand, decision: "REJECT" })).status, 409, "an immutable approval cannot be changed to rejection");
+  const registryVersion = await inspect.query("SELECT candidate_sha256, code_sha256, data_manifest_sha256, metrics_manifest_sha256, validation_plan_sha256, approved_by, activation FROM promotion_registry_versions WHERE promotion_request_id=$1", [promotionRequestId]);
+  assert.equal(registryVersion.rowCount, 1);
+  assert.equal(registryVersion.rows[0].candidate_sha256, request.candidateArtifact.sha256);
+  assert.equal(registryVersion.rows[0].code_sha256, request.codeSha256);
+  assert.equal(registryVersion.rows[0].data_manifest_sha256, request.dataManifestSha256);
+  assert.equal(registryVersion.rows[0].metrics_manifest_sha256, request.metricsManifestSha256);
+  assert.equal(registryVersion.rows[0].validation_plan_sha256, request.validationPlanSha256);
+  assert.equal(registryVersion.rows[0].approved_by, "synthetic-owner");
+  assert.equal(registryVersion.rows[0].activation, "DISABLED_UNTIL_MANDATE");
+  const tamperedEvidence = structuredClone(submission);
+  tamperedEvidence.evidence.PIT.details.fixtureAssertion = "tampered";
+  assert.equal((await postReport(tamperedEvidence)).status, 422);
+  const changedReport = structuredClone(submission);
+  changedReport.evidence.PIT.details.fixtureAssertion = "different-but-valid";
+  changedReport.evidence.PIT.evidenceSha256 = evidenceSha256("PIT", "PASS", changedReport.evidence.PIT.details);
+  changedReport.report.checks.find((check) => check.checkId === "PIT").evidenceSha256 = changedReport.evidence.PIT.evidenceSha256;
+  assert.equal((await postReport(changedReport)).status, 409);
+  const wrongRun = structuredClone(submission);
+  wrongRun.report.testRunId = randomUUID();
+  assert.equal((await postReport(wrongRun)).status, 422);
+  const unknownParentId = randomUUID();
+  const unknownParentSubmission = structuredClone(submission);
+  unknownParentSubmission.report.promotionRequestId = unknownParentId;
+  assert.equal((await postReport(unknownParentSubmission, "quant-validation-worker", tokens.validation, unknownParentId)).status, 404);
+  assert.equal((await fetch(reportPath, { headers: { "x-stockquant-service-id": "research-automation-service", authorization: `Bearer ${tokens.research}` } })).status, 403);
+  assert.equal((await fetch(reportPath, { headers: { "x-stockquant-service-id": "quant-validation-worker", authorization: `Bearer ${tokens.validation}` } })).status, 403);
+  const reportRead = await fetch(reportPath, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` } });
+  assert.equal(reportRead.status, 200);
+  const persistedReport = await reportRead.json();
+  assert.equal(persistedReport.reportFingerprint, firstReport.reportFingerprint);
+  assert.deepEqual(persistedReport.report, submission.report, "persisted report is generated by the separate Fixture Worker");
+  assert.deepEqual(persistedReport.evidence, submission.evidence, "persisted evidence details and hashes equal the Worker output");
+  const read = await fetch(`${base}/v1/promotions/${promotionRequestId}`, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, signal: AbortSignal.timeout(5000) });
+  assert.equal(read.status, 200);
+  const malformedIdRead = await fetch(`${base}/v1/promotions/not-a-uuid`, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, signal: AbortSignal.timeout(5000) });
+  assert.equal(malformedIdRead.status, 422);
+  const nestedRouteRead = await fetch(`${base}/v1/promotions/${promotionRequestId}/extra`, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, signal: AbortSignal.timeout(5000) });
+  assert.equal(nestedRouteRead.status, 404);
+  assert.equal((await fetch(`${base}/live`)).status, 200, "malformed promotion reads must not crash the service");
+  const stored = await read.json();
+  assert.equal(stored.status, "AWAITING_INDEPENDENT_VALIDATION");
+  assert.equal("approvedBy" in stored || "activation" in stored, false);
+  const rows = await inspect.query("SELECT status, request_payload FROM promotion_requests");
+  assert.equal(rows.rowCount, 1);
+  assert.equal(rows.rows[0].status, "AWAITING_INDEPENDENT_VALIDATION");
+  assert.equal("approved" in rows.rows[0].request_payload, false);
+  const reports = await inspect.query("SELECT report_payload, evidence_payload FROM promotion_validation_reports WHERE promotion_request_id=$1", [promotionRequestId]);
+  assert.equal(reports.rowCount, 1);
+  assert.equal(reports.rows[0].report_payload.registryMutation, "NOT_PERFORMED");
+  assert.equal(reports.rows[0].report_payload.disposition, "ELIGIBLE_FOR_REVIEW");
+  const detail = await fetch(`${base}/v1/promotions/${promotionRequestId}/detail`, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` } }).then((response) => response.json());
+  assert.equal(detail.status, "CANDIDATE_APPROVED");
+  assert.equal(detail.decision.versionFingerprint, decision.versionFingerprint);
+  assert.equal(detail.decision.activation, "DISABLED_UNTIL_MANDATE");
+  console.log(JSON.stringify({ status: "PASS", database: "random isolated test database", independentValidationWorker: "separate one-shot Node controller; frozen Fixture candidate executes in one restricted ARM64 container and is checked by an independent reference evaluator in a second restricted ARM64 container", candidateExecutor: workerResult.candidateExecutor, evaluatorIsolation: workerResult.evaluator, qlibFixtureProxy: "authorized platform-only; independent quant-research-service Bearer identity; unauthorized requests never reached worker", sameRequestConcurrency: "one create + three idempotent report replays; one fingerprint", changedPayload: 409, invalidBudget: 422, unknownApprovalField: 422, malformedPromotionRequestId: 422, nestedReadRoute: 404, fixtureRecomputation: { fixtureId: fixtureManifest.fixtureId, fixtureVersion: fixtureManifest.fixtureVersion, checks: submission.report.checks.map(({ checkId, status }) => ({ checkId, status })), candidateCodeExecution: "EXECUTED_FOR_ALLOWLISTED_FIXTURE", matchedCandidateDecisions: workerResult.evidence.RULES.details.candidateDecisionMatches, requestBoundHashes: "candidate/code/data/metrics/validation-plan verified in persisted PromotionRequest and Registry" }, validationReport: "frozen fixture candidate output independently compared and report persisted byte-for-byte; content-hash verified, request-bound, immutable, replay-safe", requestLifecycle: ["AWAITING_INDEPENDENT_VALIDATION", "AWAITING_REVIEW", "CANDIDATE_APPROVED"], exactVersionDecision: "platform-only; report/request/code/data/metrics/plan bound; immutable replay; DISABLED_UNTIL_MANDATE", registryLookup: "Platform and Governance identities read the exact fingerprint; Research Automation 403", mandateBinding: "real Governance HTTP -> Quant Registry HTTP; exact version/artifact PASS for review only; mismatch and unknown version rejected; activation NOT_PERFORMED", tamperedEvidence: 422, changedReport: 409, parentStatusUnchanged: rows.rows[0].status, activation: "NOT_PERFORMED" }));
+} finally {
+  if (governanceChild && governanceChild.exitCode === null) {
+    governanceChild.kill("SIGTERM");
+    await Promise.race([new Promise((resolveExit) => governanceChild.once("exit", resolveExit)), delay(3000)]);
+    if (governanceChild.exitCode === null) governanceChild.kill("SIGKILL");
+  }
+  if (child && child.exitCode === null) {
+    child.kill("SIGTERM");
+    await Promise.race([new Promise((resolveExit) => child.once("exit", resolveExit)), delay(3000)]);
+    if (child.exitCode === null) child.kill("SIGKILL");
+  }
+  await inspect.end();
+  if (created) await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+  await admin.end();
+  if (qlibMock) await new Promise((resolveClose) => qlibMock.close(resolveClose));
+}

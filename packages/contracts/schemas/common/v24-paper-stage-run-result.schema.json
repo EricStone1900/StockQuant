@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-stage-run-result.schema.json",
+  "title": "V24PaperStageRunResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V2.4" },
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "scenarioVersion": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "minLength": 1 },
+    "status": { "const": "WAITING" },
+    "seed": { "type": "integer" },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assertionId", "status", "expected", "actual"],
+        "properties": {
+          "assertionId": { "type": "string", "minLength": 1 },
+          "status": { "const": "WAITING" },
+          "expected": {},
+          "actual": {}
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "seed", "status", "environmentMode", "dataMode", "brokerMode", "executionPolicy", "executionGate", "mandate", "source", "orders", "fills", "reconciliation", "observationDays", "assertions"],
+      "properties": {
+        "testRunId": { "type": "string", "format": "uuid" },
+        "stageId": { "const": "V2.4" },
+        "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+        "scenarioVersion": { "type": "string", "minLength": 1 },
+        "seed": { "type": "integer" },
+        "status": { "const": "WAITING" },
+        "environmentMode": { "const": "PAPER" },
+        "dataMode": { "const": "NOT_CONNECTED" },
+        "brokerMode": { "const": "FAKE" },
+        "executionPolicy": { "const": "PREPARATION_ONLY" },
+        "executionGate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason", "liveTradingEnabled"],
+          "properties": { "status": { "const": "BLOCKED" }, "reason": { "type": "string", "minLength": 1 }, "liveTradingEnabled": { "const": false } }
+        },
+        "mandate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "status", "mandateId", "strategyVersion", "approvalEvidenceRef"],
+          "properties": {
+            "schemaVersion": { "const": "v24-paper-mandate-v1" }, "status": { "const": "PREPARATION_ONLY" },
+            "mandateId": { "const": "UNSET" }, "strategyVersion": { "const": "UNSET" }, "approvalEvidenceRef": { "const": "UNSET" }
+          }
+        },
+        "source": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "sourceId", "observedAt"],
+          "properties": { "status": { "const": "NOT_RUN" }, "sourceId": { "type": "null" }, "observedAt": { "type": "null" } }
+        },
+        "orders": { "type": "array", "maxItems": 0 },
+        "fills": { "type": "array", "maxItems": 0 },
+        "reconciliation": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "differences"],
+          "properties": { "status": { "const": "NOT_RUN" }, "differences": { "type": "array", "maxItems": 0 } }
+        },
+        "observationDays": { "const": 0 },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["assertionId", "status", "expected", "actual"],
+            "properties": {
+              "assertionId": { "type": "string", "minLength": 1 },
+              "status": { "const": "WAITING" },
+              "expected": {},
+              "actual": {}
+            }
+          }
+        }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "null" }
+  }
+}

@@ -1,6 +1,6 @@
 # 共享数据采集：进度、问题及接续记录
 
-建立日期：2026-09-20；最近更新：2026-09-24；计划版本1.7。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
+建立日期：2026-09-20；最近更新：2026-09-25；计划版本1.7。入口：[开发计划](./06-shared-data-collection-plan.md)、[测试手册](./07-data-collection-tests.md)。此文件是开发接续的主记录，业务进度不得只留在聊天中。
 
 ## 1. 状态规则
 
@@ -279,3 +279,28 @@ TDX上午与收盘任务均成功触发并保留 JSON，但运行环境拒绝创
 不作为 TDX 数据源能力结论。随后在允许 TCP 出站的受控本机环境对同一20只证券做只读复测，
 返回 `PASS`、960行，说明候选源和分页能力可用；自动任务的交易时段观察仍需在具备网络权限
 的执行环境中重新运行。正式来源仍为 `sina,baostock`。
+
+2026-09-25 自动日终复核：项目交易日历返回 `CLOSED`，与[上交所2026年休市安排](https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml)中
+中秋节9月25日至27日休市一致。正式20只订阅保持健康启用；DC-08A 日报为
+`NOT_RUN`（预期/实际 Bar 均为0，0开放缺口、0待投递Outbox），当日观察已结束但
+`observationCounted=false`，因此不增加20日观察计数。健康报告记录调度器/执行器 `ENABLED`、
+无下一交易日之前的任务提交。自动报告时间为 2026-09-25 09:47（Asia/Shanghai）；遵循非交易日
+规则，没有手动补采或重跑。证据：`evidence/dc08a/dc-t19/2026-09-25/daily-report.json`、
+`observation-summary.json`、`health-report.json` 与自动任务运行日志。实际来源盘中验证、DC-T25
+交易日证据和人工验收仍保持 `NOT_RUN/WAITING`；9月24日的最近完整交易日数据不被本次非交易日记录覆盖。
+
+2026-09-25 冻结分钟归档复核：在当前工作树运行 `pnpm v25:validate-baostock-minute` 与
+`pnpm v25:replay-baostock-minute` 均退出0。20只×60个历史交易日×48窗口共57,600根数据
+完整性、去重、OHLCV及逐文件Manifest SHA断言通过；V2.3回放实际消费同一冻结归档，20只证券
+各60日、总计57,600行。两份新报告引用相同Manifest SHA-256
+`729793b462b25951bae2f032ea2eefc3c1ef86689a1c7882b908a24b68417c5f`，详见
+[P6冻结归档审计](../../../evidence/audits/2026-09-25-p6-frozen-minute-archive.md)。此证据不增加
+实时观察日，不替代100/500只容量、全量恢复、PIT修订链、备用源或真实盘中稳定性门槛。
+
+2026-09-25 当前工作树规模归档复核：使用本地冻结文件重跑归档验证器。100只×60日共288,000根、500只×60日共1,440,000根，逐只行数、每日48窗口、OHLCV范围、重复键及Manifest SHA全部PASS。5,219只2019–2024多年日线逐文件读取6,260,343行，Manifest Hash/行数偏差0。新增报告为 `evidence/dc08a/historical-coverage-100x60-2026-09-25.json` 与 `historical-coverage-500x60-2026-09-25.json`；工作区影响复核见[P6规模档案重验](../../../evidence/audits/2026-09-25-p6-scale-archive-revalidation.md)。没有联网采集、改正式订阅或执行会变更在线监控池的容量探针，因此该记录只验证冻结数据与当前本地校验逻辑。
+
+2026-09-26 非交易日容量复核：上交所日历返回`CLOSED`，持久采集器下次执行为2026-09-28 09:37（北京时间）。通过只读挂载、共享活动Market Data网络命名空间的临时Linux/ARM64 Node侧车重跑`pnpm v25:monitor-capacity`的50/80/100只档；Tencent quote API各档均返回期望数量的`LIVE_SOURCE`，耗时58/61/64ms。脚本finally恢复watchlist后，独立GET与初始基线`600000.SH`、`000001.SZ`、`600519.SH`完全一致；持久采集20只证券集合、活动服务、PostgreSQL和调度器下次触发均未改变，sidecar已清除。详见[V2.5在线监控池审计](../../../evidence/audits/2026-09-26-v25-monitor-capacity-linux-arm64.md)。该收盘后检查验证当前部署接口规模与回滚，不检查observedAt新鲜度/真实交易时段延迟，不增加DC-08A或V2.4观察日，人工验收保持独立。
+
+2026-09-27 P7.2 data-plane credential follow-up: V2.1 shared Watchlist/provider/sampling/news business reads and writes are now gated by the platform Bearer token; the Platform API validates the local user session before forwarding that credential. Persisted `POST /v2/minute/gaps` now uses the dedicated collection-control token, and the explicit `data-coverage --record-gaps` path passes it without logging the value. Loopback smoke verified anonymous 401 / valid control-token 503 before DB access; platform and Market Data unit/build checks passed; V2.1 and V2.2 full code suites passed (Market Data PostgreSQL integration 22/22). The active service was not restarted to preserve ongoing collection observation. No observation day is added by these engineering tests; real-source capacity probing, the ongoing 20-day period and stage acceptance remain separate.
+
+2026-09-27 read-only continuation check: Active runtime remains healthy with PostgreSQL persistence, scheduler worker and executor enabled; one enabled 20-security subscription `dc08a-20260917-20-v1`, version 1, source order Sina→BaoStock, next scheduled tick 2026-09-28 09:37 Asia/Shanghai. `pnpm dc08a:supervise -- --check-only` PASS/exit 0 (no repair actions), `pnpm dc08a:verify-automation` PASS (existing recurring observation/TDX tasks unchanged). Rebuilt observation summary to `/tmp` from archived evidence only: WAITING, 5/20 (4 completed + 1 recovered), 15 remaining; latest finalized archive is 2026-09-25, 185 other-subscription files excluded and no malformed evidence. Sunday contributes no day. No production service, timer, subscription or database was modified.

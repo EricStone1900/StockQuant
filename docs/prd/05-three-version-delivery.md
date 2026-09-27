@@ -103,7 +103,7 @@ Qlib快速研究与全链路回放分别标注执行模型。复用确定性规�
 | `pnpm verify:stage -- --stage V1.1` | 指定阶段自动场景，拒绝未知/未实现阶段，不自动代替人工签署 |
 | `pnpm test:e2e -- --stage V1.1` | 正式页面及验收中心浏览器用例 |
 | `pnpm verify:version -- --version V1` | 汇总必需阶段与证据，缺项/FAIL返回非零；未满观察期明确未通过 |
-| `pnpm verify:compat -- --platform linux/amd64` | 构建并运行限定小样本，标明是否模拟架构 |
+| `pnpm verify:compat -- --platform linux/amd64`（亦支持`linux/arm64`） | 单独构建Platform API目标架构镜像并运行Node探针；标明Docker Desktop模拟与否；不代表完整栈或Ubuntu实机通过 |
 | `pnpm evidence:export -- --run <testRunId>` | 导出脱敏Manifest、断言、日志引用、截图和人工记录 |
 
 脚本与Web共享场景定义和断言版本，不由脚本模拟人工点击签署。故障脚本限定目标进程/容器，不给Web任意命令能力。所有新增入口默认仅模拟，无真实券商配置。

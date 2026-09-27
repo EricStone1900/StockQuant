@@ -2,49 +2,1315 @@
   "matrixVersion": "v1",
   "rules": [
     {
+      "schema": "schemas/common/historical-fake-execution-command.schema.json",
+      "consumer": "historical-replay-worker -> trade-execution-service",
+      "requiredProperties": ["authorizationId", "namespace", "accountId", "clientOrderId", "security", "requestedQuantity", "bar"],
+      "stableEnums": {
+        "side": ["BUY", "SELL"],
+        "orderType": ["MARKET", "LIMIT"],
+        "timeInForce": ["DAY"]
+      }
+    },
+    {
+      "schema": "schemas/common/historical-fake-execution-result.schema.json",
+      "consumer": "trade-execution-service -> historical-replay-worker",
+      "requiredProperties": ["result", "replayed"],
+      "stableProperties": ["result", "replayed"]
+    },
+    {
+      "schema": "research/v3.1-runner-claim-command.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": ["workerId"],
+      "stableProperties": ["workerId", "testRunId"]
+    },
+    {
+      "schema": "research/v3.1-runner-input-request.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": ["workerId", "fencingToken"],
+      "stableProperties": ["workerId", "fencingToken"]
+    },
+    {
+      "schema": "research/v3.1-runner-complete-command.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": ["workerId", "fencingToken", "execution"],
+      "stableProperties": ["workerId", "fencingToken", "execution", "artifacts"]
+    },
+    {
+      "schema": "research/v3.1-runner-job-record.schema.json",
+      "consumer": "research-automation-service -> runner-host",
+      "requiredProperties": ["jobId", "job", "status", "lease"],
+      "stableEnums": { "status": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"] }
+    },
+    {
+      "schema": "research/v3.1-runner-execution.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": ["status", "exitCode", "signal", "stdout", "stderr", "durationMs"],
+      "stableEnums": { "status": ["COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED"] }
+    },
+    {
+      "schema": "replay/historical-replay-command.schema.json",
+      "consumer": "platform-api-service -> historical-replay-worker",
+      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "seed", "bar"],
+      "stableEnums": { "scenarioId": ["normal", "recovery"] }
+    },
+    {
+      "schema": "replay/historical-replay-multi-command.schema.json",
+      "consumer": "platform-api-service -> historical-replay-worker",
+      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "seed", "bars"],
+      "stableEnums": { "scenarioId": ["normal", "recovery"] }
+    },
+    {
+      "schema": "replay/historical-replay-run.schema.json",
+      "consumer": "historical-replay-worker -> platform-api-service",
+      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "status", "checkpoint", "result", "createdAt", "completedAt"],
+      "stableEnums": { "status": ["RUNNING", "PAUSED", "COMPLETED", "FAILED", "CANCELLED"] }
+    },
+    {
       "schema": "schemas/common/money.schema.json",
       "consumer": "portfolio-risk-service",
-      "requiredProperties": ["amount", "currency"],
-      "stableProperties": ["amount", "currency"]
+      "requiredProperties": [
+        "amount",
+        "currency"
+      ],
+      "stableProperties": [
+        "amount",
+        "currency"
+      ]
     },
     {
       "schema": "schemas/common/test-run.schema.json",
       "consumer": "platform-api-service",
-      "requiredProperties": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "namespace", "environmentMode", "brokerMode", "dataMode", "clock", "status", "seed", "createdAt"],
+      "requiredProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "scenarioVersion",
+        "namespace",
+        "environmentMode",
+        "brokerMode",
+        "dataMode",
+        "clock",
+        "status",
+        "seed",
+        "createdAt"
+      ],
       "stableEnums": {
-        "environmentMode": ["BACKTEST", "PAPER", "SHADOW"],
-        "brokerMode": ["FAKE"],
-        "dataMode": ["FIXTURE", "RECORDED", "REAL"],
-        "status": ["QUEUED", "RUNNING", "WAITING", "CANCELLING", "COMPLETED", "FAILED", "CANCELLED"]
+        "environmentMode": [
+          "BACKTEST",
+          "PAPER",
+          "SHADOW"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ],
+        "dataMode": [
+          "FIXTURE",
+          "RECORDED",
+          "REAL"
+        ],
+        "status": [
+          "QUEUED",
+          "RUNNING",
+          "WAITING",
+          "CANCELLING",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED"
+        ]
       }
     },
     {
       "schema": "schemas/common/account-initialization.schema.json",
       "consumer": "platform-api-service -> portfolio-risk-service",
-      "requiredProperties": ["fixtureVersion", "dataMode", "simulationOnly", "accounts"]
+      "requiredProperties": [
+        "fixtureVersion",
+        "dataMode",
+        "simulationOnly",
+        "accounts"
+      ]
     },
     {
       "schema": "schemas/common/account-initialization-command.schema.json",
       "consumer": "platform-api-service -> portfolio-risk-service",
-      "requiredProperties": ["fixtureAccountRef", "ownerId", "market", "environmentMode", "brokerMode", "initialCash", "namespace", "testRunId", "idempotencyKey"],
-      "stableEnums": { "market": ["CN_A", "US_EQUITY"], "brokerMode": ["FAKE"] }
+      "requiredProperties": [
+        "fixtureAccountRef",
+        "ownerId",
+        "market",
+        "environmentMode",
+        "brokerMode",
+        "initialCash",
+        "namespace",
+        "testRunId",
+        "idempotencyKey"
+      ],
+      "stableEnums": {
+        "market": [
+          "CN_A",
+          "US_EQUITY"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
     },
     {
       "schema": "schemas/common/account-snapshot.schema.json",
       "consumer": "portfolio-risk-service -> platform-api-service",
-      "requiredProperties": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
-      "stableEnums": { "market": ["CN_A", "US_EQUITY"], "brokerMode": ["FAKE"] }
+      "requiredProperties": [
+        "accountId",
+        "namespace",
+        "testRunId",
+        "ownerId",
+        "fixtureAccountRef",
+        "market",
+        "environmentMode",
+        "brokerMode",
+        "cash",
+        "positionCount",
+        "ledgerEntryCount",
+        "ledgerVersion"
+      ],
+      "stableEnums": {
+        "market": [
+          "CN_A",
+          "US_EQUITY"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/v24-paper-stage-run-request.schema.json",
+      "consumer": "apps/web -> platform-api-service",
+      "requiredProperties": ["scenarioId", "seed"],
+      "stableEnums": { "scenarioId": ["normal", "rejection", "recovery"] }
+    },
+    {
+      "schema": "schemas/common/v24-paper-stage-run-accepted.schema.json",
+      "consumer": "platform-api-service -> apps/web",
+      "requiredProperties": ["accepted", "testRunId", "status"],
+      "stableEnums": { "status": ["WAITING"] }
+    },
+    {
+      "schema": "schemas/common/v24-paper-stage-run-result.schema.json",
+      "consumer": "platform-api-service -> apps/web",
+      "requiredProperties": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"],
+      "stableEnums": { "stageId": ["V2.4"], "status": ["WAITING"] }
     },
     {
       "schema": "schemas/common/v24-observation-run-revision.schema.json",
       "consumer": "platform-api-service -> apps/web",
-      "requiredProperties": ["revisionId", "testRunId", "stageId", "priorStatus", "priorAssertions", "priorEvidence", "priorCreatedAt", "priorCompletedAt", "reason", "recordedAt"],
-      "stableEnums": { "stageId": ["V2.4"], "priorStatus": ["COMPLETED"], "reason": ["OBSERVATION_EVENT_ERRORS"] }
+      "requiredProperties": [
+        "revisionId",
+        "testRunId",
+        "stageId",
+        "priorStatus",
+        "priorAssertions",
+        "priorEvidence",
+        "priorCreatedAt",
+        "priorCompletedAt",
+        "reason",
+        "recordedAt"
+      ],
+      "stableEnums": {
+        "stageId": [
+          "V2.4"
+        ],
+        "priorStatus": [
+          "COMPLETED"
+        ],
+        "reason": [
+          "OBSERVATION_EVENT_ERRORS"
+        ]
+      }
     },
     {
       "schema": "schemas/common/v24-observation-run-revision-list.schema.json",
       "consumer": "platform-api-service -> apps/web",
-      "requiredProperties": ["testRunId", "revisions"]
+      "requiredProperties": [
+        "testRunId",
+        "revisions"
+      ]
+    },
+    {
+      "schema": "schemas/common/v24-paper-execution-policy.schema.json",
+      "consumer": "trade-execution-service -> V2.4 Paper execution",
+      "requiredProperties": [
+        "schemaVersion",
+        "policyId",
+        "policyVersion",
+        "status",
+        "environmentMode",
+        "brokerMode",
+        "liveTradingEnabled",
+        "supportedMarkets",
+        "signal",
+        "execution",
+        "quoteRules",
+        "approval",
+        "risk",
+        "configurationGaps"
+      ],
+      "stableEnums": {
+        "status": [
+          "PREPARATION_ONLY"
+        ],
+        "environmentMode": [
+          "PAPER"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/v24-paper-mandate.schema.json",
+      "consumer": "trade-execution-service -> V2.4 Paper governance",
+      "requiredProperties": [
+        "schemaVersion",
+        "mandateId",
+        "mandateVersion",
+        "status",
+        "ownerId",
+        "accountId",
+        "namespace",
+        "testRunId",
+        "market",
+        "strategyVersion",
+        "securityScope",
+        "limits",
+        "validity",
+        "approvalEvidenceRef",
+        "configurationGaps"
+      ],
+      "stableEnums": {
+        "status": [
+          "PREPARATION_ONLY"
+        ],
+        "market": [
+          "CN_A"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/v24-paper-readiness.schema.json",
+      "consumer": "trade-execution-service -> platform-api-service",
+      "requiredProperties": ["schemaVersion", "market", "environmentMode", "brokerMode", "liveTradingEnabled", "status", "policyReadiness", "mandateReadiness", "riskEvaluation", "resourceReservation", "orderSubmissionEnabled"],
+      "stableEnums": {
+        "status": ["BLOCKED", "REJECTED"],
+        "environmentMode": ["PAPER"],
+        "brokerMode": ["FAKE"]
+      }
+    },
+    {
+      "schema": "research/v3.1-runner-lease.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": [
+        "workerId",
+        "fencingToken",
+        "expiresAt"
+      ]
+    },
+    {
+      "schema": "research/v3.1-artifact-ref.schema.json",
+      "consumer": "research-automation-service <-> runner-host",
+      "requiredProperties": [
+        "schemaVersion",
+        "artifactId",
+        "kind",
+        "namespace",
+        "sha256",
+        "status",
+        "sourceRef"
+      ],
+      "stableEnums": {
+        "kind": [
+          "INPUT",
+          "GENERATED_CODE",
+          "RUN_LOG",
+          "METRICS",
+          "ERROR",
+          "CANDIDATE",
+          "OUTPUT"
+        ],
+        "status": [
+          "PENDING",
+          "PUBLISHED",
+          "FAILED",
+          "RETAINED"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-runner-input-request.schema.json",
+      "consumer": "runner-host -> research-automation-service",
+      "requiredProperties": [
+        "workerId",
+        "fencingToken"
+      ]
+    },
+    {
+      "schema": "research/v3.1-runner-input-response.schema.json",
+      "consumer": "research-automation-service -> runner-host",
+      "requiredProperties": [
+        "ref",
+        "contentBase64"
+      ]
+    },
+    {
+      "schema": "research/v3.1-runner-input-bundle.schema.json",
+      "consumer": "experiment input publisher -> runner-host materializer",
+      "requiredProperties": [
+        "schemaVersion",
+        "script",
+        "files"
+      ]
+    },
+    {
+      "schema": "schemas/common/resource-reservation-command.schema.json",
+      "consumer": "trade-execution-service -> portfolio-risk-service",
+      "requiredProperties": [
+        "accountId",
+        "namespace",
+        "testRunId",
+        "ownerId",
+        "idempotencyKey",
+        "clientOrderId",
+        "side",
+        "currency",
+        "cashAmount",
+        "security",
+        "quantity"
+      ],
+      "stableEnums": {
+        "side": [
+          "BUY",
+          "SELL"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/resource-reservation.schema.json",
+      "consumer": "portfolio-risk-service -> trade-execution-service",
+      "requiredProperties": [
+        "reservationId",
+        "accountId",
+        "namespace",
+        "testRunId",
+        "ownerId",
+        "idempotencyKey",
+        "clientOrderId",
+        "side",
+        "currency",
+        "cashAmount",
+        "security",
+        "quantity",
+        "capturedCashAmount",
+        "capturedQuantity",
+        "status",
+        "evidenceRef"
+      ],
+      "stableEnums": {
+        "status": [
+          "HELD",
+          "UNKNOWN",
+          "CAPTURED",
+          "RELEASED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/resource-reservation-resolution.schema.json",
+      "consumer": "trade-execution-service -> portfolio-risk-service",
+      "requiredProperties": [
+        "outcome",
+        "evidenceRef"
+      ],
+      "stableEnums": {
+        "outcome": [
+          "FILLED",
+          "CANCELLED",
+          "REJECTED",
+          "EXPIRED",
+          "UNKNOWN"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/reserved-fill-command.schema.json",
+      "consumer": "trade-execution-service -> portfolio-risk-service",
+      "requiredProperties": [
+        "namespace",
+        "externalFillId",
+        "security",
+        "quantity",
+        "price",
+        "fee",
+        "currency",
+        "effectiveAt"
+      ]
+    },
+    {
+      "schema": "research/v3.2-promotion-request.schema.json",
+      "consumer": "research-automation-service -> quant-research-service",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "testRunId",
+        "experimentId",
+        "candidateSource",
+        "candidateArtifact",
+        "codeSha256",
+        "dataManifestSha256",
+        "metricsManifestSha256",
+        "validationPlanSha256",
+        "budget",
+        "idempotencyKey"
+      ],
+      "stableEnums": {
+        "candidateSource": [
+          "RD_AGENT",
+          "FIXTURE"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-request-result.schema.json",
+      "consumer": "quant-research-service -> research-automation-service",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "testRunId",
+        "status",
+        "createdAt",
+        "idempotent"
+      ],
+      "stableEnums": {
+        "status": [
+          "AWAITING_INDEPENDENT_VALIDATION"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-independent-validation-evidence.schema.json",
+      "consumer": "quant-research-service validation report journal",
+      "requiredProperties": [
+        "evidenceSha256",
+        "details"
+      ],
+      "stableEnums": {}
+    },
+    {
+      "schema": "research/v3.2-independent-validation-evidence-bundle.schema.json",
+      "consumer": "quant-validation-worker -> quant-research-service immutable evidence journal",
+      "requiredProperties": [
+        "PIT",
+        "OUT_OF_SAMPLE",
+        "COST",
+        "RULES",
+        "CAPACITY"
+      ],
+      "stableEnums": {}
+    },
+    {
+      "schema": "research/v3.2-independent-validation-submission.schema.json",
+      "consumer": "quant-validation-worker -> quant-research-service immutable evidence journal",
+      "requiredProperties": [
+        "schemaVersion",
+        "report",
+        "evidence"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.2-independent-validation-submission-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-independent-validation-input.schema.json",
+      "consumer": "quant-research-service -> quant-validation-worker immutable request input",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "requestFingerprint",
+        "request"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.2-independent-validation-input-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-independent-validation-result.schema.json",
+      "consumer": "quant-research-service -> platform-api-service validation evidence read model",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "reportFingerprint",
+        "report",
+        "evidence",
+        "createdAt",
+        "idempotent"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.2-independent-validation-result-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-scenario.schema.json",
+      "consumer": "V3.2 contract fixtures -> independent candidate validation",
+      "requiredProperties": [
+        "schemaVersion",
+        "scenarioId",
+        "sourceMode",
+        "request",
+        "independentValidationExpectation"
+      ],
+      "stableEnums": {
+        "sourceMode": [
+          "FIXTURE"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/quant-candidate-registration-command.schema.json",
+      "consumer": "platform-api-service -> quant-research-service candidate registration",
+      "requiredProperties": [
+        "qlibVersion",
+        "algorithm",
+        "artifactHash"
+      ],
+      "stableEnums": {
+        "qlibVersion": [
+          "0.9.6"
+        ],
+        "algorithm": [
+          "deterministic-sma"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/quant-candidate-registration-result.schema.json",
+      "consumer": "quant-research-service -> platform-api-service candidate registration",
+      "requiredProperties": [
+        "candidateId",
+        "qlibVersion",
+        "algorithm",
+        "artifactHash",
+        "approvedBy",
+        "status",
+        "activation",
+        "createdAt",
+        "idempotent"
+      ],
+      "stableEnums": {
+        "status": [
+          "CANDIDATE_APPROVED"
+        ],
+        "activation": [
+          "DISABLED_UNTIL_MANDATE"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/minute-csv-import-request.schema.json",
+      "consumer": "apps/web -> platform-api-service -> market-data-service",
+      "requiredProperties": [
+        "content",
+        "mapping",
+        "provenance",
+        "market",
+        "frequency",
+        "adjustment",
+        "timezone",
+        "timestampSemantics",
+        "volumeUnit",
+        "amountUnit"
+      ],
+      "stableEnums": {
+        "market": [
+          "CN_A"
+        ],
+        "frequency": [
+          "1m",
+          "5m"
+        ],
+        "adjustment": [
+          "RAW"
+        ],
+        "timezone": [
+          "Asia/Shanghai"
+        ],
+        "timestampSemantics": [
+          "BAR_START",
+          "BAR_END"
+        ],
+        "volumeUnit": [
+          "SHARES"
+        ],
+        "amountUnit": [
+          "CNY"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/minute-import-record.schema.json",
+      "consumer": "apps/web <- platform-api-service <- market-data-service",
+      "requiredProperties": [
+        "importId",
+        "version",
+        "status",
+        "accepted",
+        "errors",
+        "sha256",
+        "manifest",
+        "idempotent"
+      ],
+      "stableEnums": {
+        "status": [
+          "PUBLISHED",
+          "REJECTED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/paired-backup-manifest.schema.json",
+      "consumer": "P3 paired database and artifact backup retention",
+      "requiredProperties": [
+        "format",
+        "backupId",
+        "createdAt",
+        "retentionClass",
+        "database",
+        "artifactVolume",
+        "restoreValidation",
+        "files"
+      ],
+      "stableEnums": {
+        "format": [
+          "stockquant.paired-backup.v1"
+        ],
+        "retentionClass": [
+          "DAILY",
+          "MONTH_END"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/minute-csv-upload-create.schema.json",
+      "consumer": "apps/web -> platform-api-service -> market-data-service resumable upload",
+      "requiredProperties": [
+        "uploadId",
+        "expectedSha256",
+        "expectedBytes",
+        "metadata"
+      ]
+    },
+    {
+      "schema": "schemas/market-data/minute-csv-upload-chunk.schema.json",
+      "consumer": "apps/web -> platform-api-service -> market-data-service resumable upload",
+      "requiredProperties": [
+        "contentBase64",
+        "sha256"
+      ]
+    },
+    {
+      "schema": "schemas/market-data/minute-csv-upload-progress.schema.json",
+      "consumer": "apps/web <- platform-api-service <- market-data-service resumable upload",
+      "requiredProperties": [
+        "uploadId",
+        "status",
+        "expectedBytes",
+        "receivedBytes",
+        "expectedChunks",
+        "receivedChunks",
+        "result"
+      ],
+      "stableEnums": {
+        "status": [
+          "OPEN",
+          "FINALIZING",
+          "COMPLETED",
+          "CANCELLED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/v22-stage-run-request.schema.json",
+      "consumer": "platform-api-service -> V2.2 TestRun",
+      "requiredProperties": [],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery",
+          "uploaded-csv"
+        ],
+        "fileFormat": [
+          "CSV",
+          "PARQUET"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/cn-a-share-calendar-session.schema.json",
+      "consumer": "market-data-service -> platform-api-service",
+      "requiredProperties": [
+        "date",
+        "status",
+        "calendarVersion"
+      ],
+      "stableEnums": {
+        "status": [
+          "TRADING",
+          "CLOSED",
+          "UNKNOWN"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-data-manifest.schema.json",
+      "consumer": "research-automation-service -> quant-research-service PromotionRequest provenance",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "experimentId",
+        "dataMode",
+        "dataVersion",
+        "dataContentSha256"
+      ],
+      "stableEnums": {
+        "dataMode": [
+          "FIXTURE",
+          "RECORDED",
+          "REAL"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-validation-plan.schema.json",
+      "consumer": "research-automation-service -> quant-research-service PromotionRequest provenance",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "experimentId",
+        "candidateSource",
+        "dataManifestSha256"
+      ],
+      "stableEnums": {
+        "candidateSource": [
+          "RD_AGENT",
+          "FIXTURE"
+        ]
+      }
+    },
+    {
+      "schema": "research/qlib-fit-fixture-request.schema.json",
+      "consumer": "platform-api-service -> quant-research-service -> isolated Qlib Worker fixture fit",
+      "requiredProperties": [
+        "schemaVersion",
+        "sourceMode",
+        "featureRows",
+        "labels",
+        "splits"
+      ],
+      "stableEnums": {
+        "sourceMode": [
+          "FIXTURE"
+        ]
+      }
+    },
+    {
+      "schema": "research/qlib-fit-fixture-result.schema.json",
+      "consumer": "isolated Qlib Worker -> quant-research-service -> platform-api-service fixture fit result",
+      "requiredProperties": [
+        "schemaVersion",
+        "status",
+        "modelTraining",
+        "modelValidation",
+        "candidateSourceExecution",
+        "qlibVersion",
+        "testPredictionsSha256",
+        "modelSha256"
+      ],
+      "stableEnums": {
+        "modelTraining": [
+          "PASS"
+        ],
+        "modelValidation": [
+          "NOT_RUN"
+        ],
+        "candidateSourceExecution": [
+          "NOT_PERFORMED"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-request-detail.schema.json",
+      "consumer": "quant-research-service -> platform-api-service read-only V3.2 acceptance view",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "request",
+        "status",
+        "createdAt",
+        "decision"
+      ],
+      "stableEnums": {
+        "status": [
+          "AWAITING_INDEPENDENT_VALIDATION",
+          "AWAITING_REVIEW",
+          "VALIDATION_INCOMPLETE",
+          "REJECTED",
+          "CANDIDATE_APPROVED"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-decision-command.schema.json",
+      "consumer": "platform-api-service -> quant-research-service exact-version promotion decision",
+      "requiredProperties": [
+        "schemaVersion",
+        "decision",
+        "confirmation",
+        "reportFingerprint",
+        "actorId"
+      ],
+      "stableEnums": {
+        "decision": [
+          "APPROVE",
+          "REJECT"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-decision-result.schema.json",
+      "consumer": "quant-research-service -> platform-api-service exact-version promotion decision",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "decision",
+        "reportFingerprint",
+        "versionFingerprint",
+        "registryStatus",
+        "activation",
+        "idempotent"
+      ],
+      "stableEnums": {
+        "registryStatus": [
+          "CANDIDATE_APPROVED",
+          "NOT_REGISTERED"
+        ],
+        "activation": [
+          "DISABLED_UNTIL_MANDATE"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-registry-version.schema.json",
+      "consumer": "quant-research-service -> platform-api-service exact downstream Mandate version lookup",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "versionFingerprint",
+        "candidateArtifact",
+        "codeSha256",
+        "dataManifestSha256",
+        "metricsManifestSha256",
+        "validationPlanSha256",
+        "approvedBy",
+        "status",
+        "activation"
+      ],
+      "stableEnums": {
+        "status": [
+          "CANDIDATE_APPROVED"
+        ],
+        "activation": [
+          "DISABLED_UNTIL_MANDATE"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-candidate-mandate-binding-command.schema.json",
+      "consumer": "platform-api-service -> decision-governance-service read-only exact candidate binding request",
+      "requiredProperties": [
+        "schemaVersion",
+        "mandateId",
+        "testRunId",
+        "ownerId",
+        "accountId",
+        "market",
+        "environmentMode",
+        "brokerMode",
+        "strategyVersion",
+        "candidateArtifact"
+      ],
+      "stableEnums": {
+        "market": [
+          "CN_A"
+        ],
+        "environmentMode": [
+          "PAPER"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-candidate-mandate-binding-result.schema.json",
+      "consumer": "decision-governance-service -> platform-api-service exact candidate binding result",
+      "requiredProperties": [
+        "schemaVersion",
+        "status",
+        "reason",
+        "mandateId"
+      ],
+      "stableEnums": {
+        "status": [
+          "EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW",
+          "WAITING",
+          "REJECTED"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-user-promotion-decision-command.schema.json",
+      "consumer": "owner session -> platform-api-service exact PromotionRequest decision",
+      "requiredProperties": [
+        "decision",
+        "confirmation"
+      ],
+      "stableEnums": {
+        "decision": [
+          "APPROVE",
+          "REJECT"
+        ],
+        "confirmation": [
+          "REVIEW_EXACT_PROMOTION_VERSION"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-user-promotion-decision-result.schema.json",
+      "consumer": "platform-api-service -> owner session exact PromotionRequest decision",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "decision"
+      ]
+    },
+    {
+      "schema": "research/v3.2-platform-promotion-evidence.schema.json",
+      "consumer": "platform-api-service -> owner session V3.2 promotion evidence page",
+      "requiredProperties": [
+        "request",
+        "validationReport",
+        "registryMutation",
+        "activation",
+        "testRunId"
+      ],
+      "stableEnums": {
+        "activation": [
+          "DISABLED_UNTIL_MANDATE"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-human-acceptance.schema.json",
+      "consumer": "platform-api-service V3.1 exact-run local human acceptance",
+      "requiredProperties": [
+        "confirmation",
+        "note"
+      ],
+      "stableEnums": {
+        "confirmation": [
+          "ACCEPT_EXACT_V31_RUN"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-promotion-gate.schema.json",
+      "consumer": "research-automation-service reads exact V3.1 gate from platform-api-service",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "stageStatus",
+        "humanAcceptance",
+        "evidenceSha256"
+      ],
+      "stableEnums": {
+        "stageStatus": [
+          "PASS",
+          "NOT_RUN"
+        ],
+        "humanAcceptance": [
+          "ACCEPTED",
+          "NOT_RUN"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-promotion-submit-command.schema.json",
+      "consumer": "platform-api-service -> research-automation-service guarded PromotionRequest submission",
+      "requiredProperties": [
+        "testRunId",
+        "experimentId"
+      ]
+    },
+    {
+      "schema": "research/v3.2-promotion-submit-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service guarded PromotionRequest submission result",
+      "requiredProperties": [
+        "status"
+      ],
+      "stableProperties": ["testRunId"],
+      "stableEnums": {
+        "status": [
+          "WAITING",
+          "SUBMITTED",
+          "SUBMISSION_UNKNOWN"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-user-promotion-submit-command.schema.json",
+      "consumer": "platform-api-service V3.2 owner-scoped PromotionRequest submit action",
+      "requiredProperties": [
+        "confirmation"
+      ],
+      "stableEnums": {
+        "confirmation": [
+          "SUBMIT_V32_PROMOTION_REQUEST"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-user-promotion-submit-result.schema.json",
+      "consumer": "platform-api-service -> Web owner-scoped V3.2 submission status",
+      "requiredProperties": [
+        "status",
+        "testRunId",
+        "ownerId",
+        "humanAcceptance"
+      ],
+      "stableEnums": {
+        "status": [
+          "WAITING",
+          "SUBMITTED",
+          "SUBMISSION_UNKNOWN"
+        ],
+        "humanAcceptance": [
+          "NOT_CHANGED"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.2-candidate-artifact-result.schema.json",
+      "consumer": "quant-validation-worker -> research-automation-service request-bound candidate bytes",
+      "requiredProperties": [
+        "schemaVersion",
+        "promotionRequestId",
+        "ref",
+        "contentBase64"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.2-candidate-artifact-result-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.3-runner-queue.schema.json",
+      "consumer": "research-automation-service -> owner-scoped V3.3 queue page",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "offset",
+        "limit",
+        "jobs",
+        "hasMore"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.3-runner-queue-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.3-runner-budget.schema.json",
+      "consumer": "research-automation-service -> owner-scoped V3.3 per-TestRun budget evidence page",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "offset",
+        "limit",
+        "rows",
+        "hasMore",
+        "coverage",
+        "note"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.3-runner-budget-v1"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-experiment.schema.json",
+      "consumer": "platform-api-service -> research-automation-service V3.1 Experiment creation",
+      "requiredProperties": ["fixtureId", "modelProfile", "rounds", "budgetCurrency", "budgetCents", "environmentMode", "brokerMode", "idempotencyKey"],
+      "stableProperties": ["testRunId"],
+      "stableEnums": { "budgetCurrency": ["USD"], "environmentMode": ["RESEARCH"], "brokerMode": ["FAKE"] }
+    },
+    {
+      "schema": "research/v3.1-experiment-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service V3.1 Experiment creation result",
+      "requiredProperties": ["experimentId", "fixtureId", "modelProfile", "rounds", "budgetCurrency", "budgetCents", "environmentMode", "brokerMode", "idempotencyKey", "status", "reason", "createdAt", "cancelledAt", "budget"],
+      "stableEnums": { "status": ["PENDING_PREREQUISITES", "CANCELLED"], "budgetCurrency": ["USD"], "environmentMode": ["RESEARCH"], "brokerMode": ["FAKE"] }
+    },
+    {
+      "schema": "research/v3.1-experiment-cancellation-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service V3.1 Experiment cancellation",
+      "requiredProperties": ["experimentId", "fixtureId", "status", "cancelledAt"], "stableEnums": { "status": ["CANCELLED"] }
+    },
+    {
+      "schema": "research/v3.1-artifact-publish-command.schema.json",
+      "consumer": "platform-api-service -> research-automation-service V3.1 Artifact publish",
+      "requiredProperties": ["ref", "contentBase64"], "stableProperties": ["jobId", "workerId", "fencingToken"]
+    },
+    {
+      "schema": "research/v3.1-artifact-publish-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service V3.1 Artifact publish result",
+      "requiredProperties": ["status", "persisted", "ref"], "stableEnums": { "status": ["PUBLISHED"] }
+    },
+    {
+      "schema": "research/v3.1-artifact-read-command.schema.json",
+      "consumer": "platform-api-service -> research-automation-service V3.1 Artifact read",
+      "requiredProperties": ["namespace", "artifactId"]
+    },
+    {
+      "schema": "research/v3.1-model-gateway-fixture-command.schema.json",
+      "consumer": "platform-api-service -> research-automation-service test-only V3.1 Fixture model call",
+      "requiredProperties": ["experimentId", "modelRunId", "requestedCents", "scenario"], "stableEnums": { "scenario": ["COMPLETED", "TIMEOUT", "OVER_BUDGET"] }
+    },
+    {
+      "schema": "research/v3.1-model-gateway-fixture-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service test-only V3.1 Fixture model result",
+      "requiredProperties": ["providerMode", "modelCalls", "status", "modelRunId"], "stableEnums": { "providerMode": ["FIXTURE"], "modelCalls": ["NO_EXTERNAL_CALL"], "status": ["BLOCKED", "ALREADY_EXISTS", "UNKNOWN", "COMPLETED"] }
+    },
+    {
+      "schema": "research/v3.1-experiment-budget-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service V3.1 Experiment budget read and settlement",
+      "requiredProperties": ["experimentId", "requestedCents", "reservedCents", "spentCents", "status"], "stableEnums": { "status": ["RESERVED", "SETTLED", "UNKNOWN", "REJECTED"] }
+    },
+    {
+      "schema": "research/v3.1-experiment-budget-settle-command.schema.json",
+      "consumer": "platform-api-service -> research-automation-service V3.1 Experiment budget settlement",
+      "requiredProperties": ["spentCents"]
+    },
+    {
+      "schema": "research/v3.1-runner-job.schema.json",
+      "consumer": "platform-api-service -> research-automation-service V3.1 Runner dispatch",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "experimentId",
+        "imageDigest",
+        "inputArtifact",
+        "outputNamespace",
+        "resources",
+        "networkPolicy"
+      ],
+      "stableEnums": {
+        "schemaVersion": ["v3.1-runner-job-v1"]
+      }
+    },
+    {
+      "schema": "research/v3.1-runner-job-dispatch-result.schema.json",
+      "consumer": "research-automation-service -> platform-api-service V3.1 Runner dispatch result",
+      "requiredProperties": [
+        "jobId",
+        "job",
+        "status",
+        "submittedAt",
+        "startedAt",
+        "completedAt",
+        "execution",
+        "artifacts",
+        "attempt",
+        "retryOf",
+        "lease",
+        "prerequisiteStatus"
+      ],
+      "stableEnums": {
+        "status": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"],
+        "prerequisiteStatus": ["PENDING_PREREQUISITES", "CONFIGURED"]
+      }
+    },
+    {
+      "schema": "research/v3.3-run-request.schema.json",
+      "consumer": "platform-api-service V3.3 readiness TestRun creation",
+      "requiredProperties": [
+        "scenarioId"
+      ],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.3-readiness-run.schema.json",
+      "consumer": "platform-api-service owner-scoped V3.3 readiness TestRun response",
+      "requiredProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "scenarioVersion",
+        "status",
+        "seed",
+        "assertions",
+        "evidence"
+      ],
+      "stableEnums": {
+        "stageId": [
+          "V3.3"
+        ],
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery"
+        ],
+        "status": [
+          "WAITING"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.3-runner-cursor-queue.schema.json",
+      "consumer": "research-automation-service and platform-api-service -> owner-scoped V3.3 keyset queue page",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "afterCursor",
+        "limit",
+        "jobs",
+        "hasMore",
+        "nextAfterCursor"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.3-runner-cursor-queue-v1"
+        ]
+      }
     }
   ]
 }

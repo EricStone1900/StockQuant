@@ -1,12 +1,14 @@
+import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
+
 export function selectActiveSubscription(schedules) {
   const active = schedules.filter((schedule) => schedule.enabled);
   if (active.length !== 1) throw new Error(`expected exactly one enabled subscription, found ${active.length}`);
   return active[0];
 }
 
-export async function readActiveSubscription({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", fetchImpl = fetch } = {}) {
+export async function readActiveSubscription({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", fetchImpl = fetch, env = process.env, file = ".env.local" } = {}) {
   const [scheduleResponse, readyResponse] = await Promise.all([
-    fetchImpl(`${baseUrl}/v2/collection-schedules`, { signal: AbortSignal.timeout(3000) }),
+    fetchImpl(`${baseUrl}/v2/collection-schedules`, { headers: platformMarketDataHeaders({ env, file }), signal: AbortSignal.timeout(3000) }),
     fetchImpl(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }),
   ]);
   if (!scheduleResponse.ok || !readyResponse.ok) throw new Error(`market-data-service is not ready (${scheduleResponse.status}/${readyResponse.status})`);

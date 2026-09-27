@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-promotion-gate.schema.json",
+  "title": "V3.1 exact-run promotion gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "stageStatus", "humanAcceptance", "evidenceSha256"],
+  "properties": {
+    "schemaVersion": { "const": "v3.1-promotion-gate-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageStatus": { "enum": ["PASS", "NOT_RUN"] },
+    "humanAcceptance": { "enum": ["ACCEPTED", "NOT_RUN"] },
+    "evidenceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "acceptedBy": { "type": "string", "minLength": 1 },
+    "acceptedAt": { "type": "string", "format": "date-time" },
+    "note": { "type": "string", "minLength": 8, "maxLength": 500 }
+  }
+}

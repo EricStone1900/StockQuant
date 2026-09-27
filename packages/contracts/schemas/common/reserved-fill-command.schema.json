@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/reserved-fill-command.schema.json",
+  "title": "ReservedFillCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["namespace", "externalFillId", "security", "quantity", "price", "fee", "currency", "effectiveAt"],
+  "properties": {
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "externalFillId": { "type": "string", "format": "uuid" },
+    "security": { "type": "string", "pattern": "^[A-Z0-9.]{3,20}$" },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "price": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "fee": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "effectiveAt": { "type": "string", "format": "date-time" },
+    "side": { "enum": ["BUY", "SELL"], "default": "BUY" },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reservationId", "ownerId", "testRunId", "clientOrderId"],
+      "properties": {
+        "reservationId": { "type": "string", "format": "uuid" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "testRunId": { "type": "string", "format": "uuid" },
+        "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    }
+  }
+}

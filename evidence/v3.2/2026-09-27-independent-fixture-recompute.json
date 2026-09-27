@@ -1,0 +1,162 @@
+{
+  "status": "FIXTURE_RECOMPUTED",
+  "identitySource": "STATIC_CONTRACT_FIXTURE_IDS_NOT_PERSISTED",
+  "request": {
+    "schemaVersion": "v3.2-promotion-request-v1",
+    "promotionRequestId": "9dfb2dd9-f668-4fb2-873d-f7ec32aedbc2",
+    "testRunId": "ff979c31-6f72-492d-8091-89cde9f05494",
+    "experimentId": "275a9fe1-651f-444a-a6c2-c7f008509127",
+    "candidateSource": "FIXTURE",
+    "candidateArtifact": {
+      "artifactId": "synthetic-sma-cross-v1",
+      "namespace": "research/ff979c31-6f72-492d-8091-89cde9f05494/275a9fe1-651f-444a-a6c2-c7f008509127/outputs",
+      "sha256": "ab09b5e966c0e5c179dc423a56250e08354cc20795ba12761cfab8b98ea707d4"
+    },
+    "codeSha256": "9392a720f5e7576f7047b93c212b0d3776e3621a2379e1878a25e93cfb6303ff",
+    "dataManifestSha256": "ba69a048f46518d8bd5e451c4786f2bb0edf1fca73349364f9a04a503b7c5fcd",
+    "metricsManifestSha256": "6e5f9168ed62b3c69d2f53d1107a0311ff86fa31717001420aedd4e99f355fc0",
+    "validationPlanSha256": "60f8053e2552295218814ff36056e207cc8255b1b325356badbd96803dbc144c",
+    "budget": {
+      "allocationId": "synthetic-fixture-budget",
+      "currency": "USD",
+      "reservedMinor": 100,
+      "consumedMinor": 0
+    },
+    "idempotencyKey": "v32-synthetic-independent-validation-v1"
+  },
+  "report": {
+    "schemaVersion": "v3.2-independent-validation-report-v1",
+    "promotionRequestId": "9dfb2dd9-f668-4fb2-873d-f7ec32aedbc2",
+    "testRunId": "ff979c31-6f72-492d-8091-89cde9f05494",
+    "sourceMode": "FIXTURE",
+    "disposition": "ELIGIBLE_FOR_REVIEW",
+    "reason": "ALL_REQUIRED_CHECKS_PASSED",
+    "checks": [
+      {
+        "checkId": "PIT",
+        "status": "PASS",
+        "evidenceSha256": "b756a35560374f52780f31d485a37d99986bf3fb8c3f53f12d5fdd98c8d6b51e"
+      },
+      {
+        "checkId": "OUT_OF_SAMPLE",
+        "status": "PASS",
+        "evidenceSha256": "71a014beda44853807d3f3d072ddc0677973e73c10a843973ffccb9c59360cde"
+      },
+      {
+        "checkId": "COST",
+        "status": "PASS",
+        "evidenceSha256": "6c32e58a34309c370f62b230c6783d34ba58517656746e3a9cd4de666d784383"
+      },
+      {
+        "checkId": "RULES",
+        "status": "PASS",
+        "evidenceSha256": "c5b83cefac8f3fa242212ef22df691f6d1afd9d3462fa5e1a3250a01ee6636e2"
+      },
+      {
+        "checkId": "CAPACITY",
+        "status": "PASS",
+        "evidenceSha256": "45833c96c3791e171a759bfc088faa71a00c2dfd0bc609969a852955027d8dba"
+      }
+    ],
+    "registryMutation": "NOT_PERFORMED"
+  },
+  "evidence": {
+    "PIT": {
+      "decisionsChecked": 70,
+      "violations": [],
+      "featureCutoff": "same-session close availableAt",
+      "fillTiming": "next-session open",
+      "evidenceSha256": "b756a35560374f52780f31d485a37d99986bf3fb8c3f53f12d5fdd98c8d6b51e"
+    },
+    "OUT_OF_SAMPLE": {
+      "train": [
+        0,
+        108
+      ],
+      "validation": [
+        108,
+        144
+      ],
+      "test": [
+        144,
+        180
+      ],
+      "securities": 2,
+      "testSessions": 36,
+      "decisionCount": 70,
+      "ordersSubmitted": 2,
+      "trades": [
+        {
+          "security": "000001.SZ",
+          "decisionDate": "2024-07-19",
+          "executionDate": "2024-07-22",
+          "side": "BUY",
+          "quantity": 100,
+          "executionOpen": 12.1,
+          "realizedVolume": 348255,
+          "participation": 0.00028714591319579046,
+          "fee": 1.21
+        },
+        {
+          "security": "600000.SH",
+          "decisionDate": "2024-07-19",
+          "executionDate": "2024-07-22",
+          "side": "BUY",
+          "quantity": 100,
+          "executionOpen": 29.505,
+          "realizedVolume": 452984,
+          "participation": 0.00022075834908076222,
+          "fee": 2.9505
+        }
+      ],
+      "grossReturn": 0.003545,
+      "netReturn": 0.003503395,
+      "toleranceAbsoluteReturn": 0.000001,
+      "finalMarketValue": 4515,
+      "initialCapital": 100000,
+      "evidenceSha256": "71a014beda44853807d3f3d072ddc0677973e73c10a843973ffccb9c59360cde"
+    },
+    "COST": {
+      "commissionBpsPerSide": 5,
+      "slippageBpsPerSide": 5,
+      "effectiveRatePerSide": 0.001,
+      "totalFees": 4.1605,
+      "grossReturn": 0.003545,
+      "netReturn": 0.003503395,
+      "assertion": "costs reduce or preserve performance, never increase it",
+      "evidenceSha256": "6c32e58a34309c370f62b230c6783d34ba58517656746e3a9cd4de666d784383"
+    },
+    "RULES": {
+      "candidateId": "synthetic-sma-cross-v1",
+      "algorithm": "SMA_CROSS",
+      "fastWindow": 5,
+      "slowWindow": 20,
+      "execution": "CLOSE_T_AVAILABLE_AT_T; EXECUTE_AT_NEXT_SESSION_OPEN",
+      "valid": true,
+      "evidenceSha256": "c5b83cefac8f3fa242212ef22df691f6d1afd9d3462fa5e1a3250a01ee6636e2"
+    },
+    "CAPACITY": {
+      "quantity": 100,
+      "maximumParticipation": 0.01,
+      "configurationValid": true,
+      "ordersSubmitted": 2,
+      "violations": [],
+      "measureBoundary": "realized full-session volume is a retrospective capacity check, not an execution input",
+      "evidenceSha256": "45833c96c3791e171a759bfc088faa71a00c2dfd0bc609969a852955027d8dba"
+    }
+  },
+  "crossRuntimeRecomputation": {
+    "status": "PASS",
+    "implementation": "independent Python standard-library evaluator",
+    "decisionsChecked": 70,
+    "tradesMatched": true,
+    "returnsWithinAbsoluteTolerance": 0.000001,
+    "qlibExecution": "NOT_RUN"
+  },
+  "execution": "trusted deterministic reference implementation; candidate source not executed",
+  "persistence": "NOT_PERFORMED",
+  "humanAcceptance": "NOT_RUN",
+  "registryMutation": "NOT_PERFORMED",
+  "sourceMode": "FIXTURE",
+  "profitabilityClaim": "NOT_MADE"
+}

@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import type { ScenarioId, TestAssertion, TestRun, TestRunStatus } from "../domain/test-run.js";
+import { assertLegacyTestRunShadowParity } from "./postgres-legacy-test-run-migration.js";
+
+export type V11RunStorageMode = "legacy" | "stage";
+
+export function configuredV11RunStorageMode(value = process.env.STOCKQUANT_V11_RUN_STORAGE): V11RunStorageMode {
+  if (value === undefined || value === "legacy") return "legacy";
+  if (value === "stage") return "stage";
+  throw new Error("STOCKQUANT_V11_RUN_STORAGE must be either legacy or stage");
+}
 
 interface RunRow {
   test_run_id: string;
@@ -17,8 +26,27 @@ interface RunRow {
   error: string | null;
 }
 
+interface StageRunRow {
+  test_run_id: string;
+  stage_id: string;
+  scenario_id: string;
+  scenario_version: string;
+  namespace: string;
+  owner_id: string;
+  status: string;
+  seed: number;
+  assertions: Array<Record<string, unknown>>;
+  evidence: Record<string, unknown>;
+  created_at: Date;
+  completed_at: Date | null;
+}
+
 export class PostgresTestRunRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool, readonly storageMode: V11RunStorageMode = configuredV11RunStorageMode()) {}
+
+  async assertStorageReady(): Promise<void> {
+    if (this.storageMode === "stage") await assertLegacyTestRunShadowParity(this.pool);
+  }
 
   async migrate(): Promise<void> {
     await this.pool.query(`
@@ -61,6 +89,29 @@ export class PostgresTestRunRepository {
   async create(ownerId: string, scenarioId: ScenarioId, seed: number): Promise<TestRun> {
     const testRunId = randomUUID();
     const namespace = `v1-1-${scenarioId}-${testRunId}`;
+    if (this.storageMode === "stage") {
+      const client = await this.pool.connect();
+      try {
+        await client.query("BEGIN");
+        const result = await client.query<RunRow>(
+      `INSERT INTO test_runs (test_run_id, stage_id, scenario_id, scenario_version, namespace, owner_id, status, seed)
+       VALUES ($1, 'V1.1', $2, '1.0.0', $3, $4, 'QUEUED', $5) RETURNING *`,
+      [testRunId, scenarioId, namespace, ownerId, seed]
+        );
+        await client.query(`INSERT INTO acceptance_stage_runs
+          (test_run_id,stage_id,scenario_id,scenario_version,owner_id,namespace,status,seed,assertions,evidence,created_at,completed_at)
+          SELECT test_run_id,'V1.1',scenario_id,'1.0.0',owner_id,namespace,status,seed,'[]'::jsonb,
+            jsonb_build_object('legacySourceTable','test_runs','legacyAccountId',NULL,'legacyError',NULL,'legacyAcceptanceRecords','[]'::jsonb),created_at,NULL
+          FROM test_runs WHERE test_run_id=$1`, [testRunId]);
+        await client.query("COMMIT");
+        return this.toRun(result.rows[0]);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
     const result = await this.pool.query<RunRow>(
       `INSERT INTO test_runs (test_run_id, stage_id, scenario_id, scenario_version, namespace, owner_id, status, seed)
        VALUES ($1, 'V1.1', $2, '1.0.0', $3, $4, 'QUEUED', $5) RETURNING *`,
@@ -70,11 +121,43 @@ export class PostgresTestRunRepository {
   }
 
   async find(testRunId: string, ownerId: string): Promise<TestRun | null> {
+    if (this.storageMode === "stage") {
+      const result = await this.pool.query<StageRunRow>("SELECT * FROM acceptance_stage_runs WHERE test_run_id=$1 AND owner_id=$2 AND stage_id='V1.1'", [testRunId, ownerId]);
+      return result.rowCount === 1 ? this.fromStageRun(result.rows[0]) : null;
+    }
     const result = await this.pool.query<RunRow>("SELECT * FROM test_runs WHERE test_run_id = $1 AND owner_id = $2", [testRunId, ownerId]);
     return result.rowCount === 1 ? this.toRun(result.rows[0]) : null;
   }
 
   async updateStatus(testRunId: string, status: TestRunStatus, accountId: string | null = null, error: string | null = null): Promise<void> {
+    if (this.storageMode === "stage") {
+      const client = await this.pool.connect();
+      try {
+        await client.query("BEGIN");
+        const legacy = await client.query(
+          `UPDATE test_runs SET status=$2, account_id=COALESCE($3,account_id), error=$4,
+             completed_at=CASE WHEN $2 IN ('COMPLETED','FAILED') THEN now() ELSE NULL END
+           WHERE test_run_id=$1 RETURNING account_id,created_at,completed_at`,
+          [testRunId, status, accountId, error]
+        );
+        if (legacy.rowCount !== 1) throw new Error("legacy V1.1 TestRun disappeared during dual write");
+        const stage = await client.query(
+          `UPDATE acceptance_stage_runs SET status=$2,
+             evidence=evidence || jsonb_build_object('legacyAccountId',$3::text,'legacyError',$4::text),
+             completed_at=CASE WHEN $2 IN ('COMPLETED','FAILED') THEN now() ELSE NULL END
+           WHERE test_run_id=$1 AND stage_id='V1.1' RETURNING test_run_id`,
+          [testRunId, status, legacy.rows[0].account_id, error]
+        );
+        if (stage.rowCount !== 1) throw new Error("unified V1.1 TestRun is missing during dual write");
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+      return;
+    }
     await this.pool.query(
       `UPDATE test_runs
        SET status = $2, account_id = COALESCE($3, account_id), error = $4,
@@ -96,6 +179,13 @@ export class PostgresTestRunRepository {
           [randomUUID(), testRunId, assertion.assertionId, assertion.status, JSON.stringify(assertion.expected), JSON.stringify(assertion.actual), JSON.stringify(assertion.evidence)]
         );
       }
+      if (this.storageMode === "stage") {
+        const persisted = await client.query<{ assertions: unknown }>(`SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'assertionId',assertion_id,'status',status,'expected',expected,'actual',actual,'evidence',evidence,'createdAt',created_at
+        ) ORDER BY assertion_id),'[]'::jsonb) AS assertions FROM test_assertions WHERE test_run_id=$1`, [testRunId]);
+        const stage = await client.query("UPDATE acceptance_stage_runs SET assertions=$2::jsonb WHERE test_run_id=$1 AND stage_id='V1.1' RETURNING test_run_id", [testRunId, JSON.stringify(persisted.rows[0].assertions)]);
+        if (stage.rowCount !== 1) throw new Error("unified V1.1 TestRun is missing during assertion dual write");
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -106,6 +196,17 @@ export class PostgresTestRunRepository {
   }
 
   async assertions(testRunId: string): Promise<TestAssertion[]> {
+    if (this.storageMode === "stage") {
+      const result = await this.pool.query<{ assertions: Array<Record<string, unknown>> }>("SELECT assertions FROM acceptance_stage_runs WHERE test_run_id=$1 AND stage_id='V1.1'", [testRunId]);
+      if (result.rowCount !== 1) throw new Error("unified V1.1 TestRun is missing while reading assertions");
+      return result.rows[0].assertions.map((assertion) => ({
+        assertionId: String(assertion.assertionId),
+        status: assertion.status as TestAssertion["status"],
+        expected: assertion.expected,
+        actual: assertion.actual,
+        evidence: (assertion.evidence ?? {}) as Record<string, unknown>
+      }));
+    }
     const result = await this.pool.query<{
       assertion_id: string;
       status: "PASS" | "FAIL" | "WAITING";
@@ -136,6 +237,24 @@ export class PostgresTestRunRepository {
       createdAt: row.created_at.toISOString(),
       completedAt: row.completed_at?.toISOString() ?? null,
       error: row.error
+    };
+  }
+
+  private fromStageRun(row: StageRunRow): TestRun {
+    const evidence = row.evidence;
+    return {
+      testRunId: row.test_run_id,
+      stageId: "V1.1",
+      scenarioId: row.scenario_id as ScenarioId,
+      scenarioVersion: "1.0.0",
+      namespace: row.namespace,
+      ownerId: row.owner_id,
+      status: row.status as TestRunStatus,
+      seed: row.seed,
+      accountId: evidence.legacyAccountId ? String(evidence.legacyAccountId) : null,
+      createdAt: row.created_at.toISOString(),
+      completedAt: row.completed_at?.toISOString() ?? null,
+      error: evidence.legacyError ? String(evidence.legacyError) : null
     };
   }
 }

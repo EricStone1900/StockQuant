@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-25",
+  "scope": "Planning documents and read-only review artifacts only",
+  "checks": [
+    { "command": "pnpm docs:check", "exitCode": 0, "localMarkdownLinks": 492, "failures": 0 },
+    { "command": "git diff --check", "exitCode": 0 },
+    { "check": "Parse local-review.json, runtime-review.json, observation-summary.json and health-report.json", "status": "PASS" }
+  ],
+  "notRun": ["Business scenarios", "Domain and database test suites", "Browser E2E", "Service deployment", "Model calls", "Human acceptance"],
+  "notes": "Existing business-test results cited in the plan are historical evidence, not new executions. No business acceptance status changed."
+}

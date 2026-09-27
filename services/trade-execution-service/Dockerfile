@@ -12,6 +12,8 @@ ENV NODE_ENV=production
 COPY --from=build /workspace/node_modules ./node_modules
 COPY --from=build /workspace/services/trade-execution-service/node_modules ./services/trade-execution-service/node_modules
 COPY --from=build /workspace/services/trade-execution-service/dist ./services/trade-execution-service/dist
+COPY packages/contracts/fixtures/v24-paper-execution-policy-v1.json ./packages/contracts/fixtures/v24-paper-execution-policy-v1.json
+COPY packages/contracts/fixtures/v24-paper-mandate-preparation-v1.json ./packages/contracts/fixtures/v24-paper-mandate-preparation-v1.json
 USER node
 EXPOSE 3005
 CMD ["node", "services/trade-execution-service/dist/main.js"]

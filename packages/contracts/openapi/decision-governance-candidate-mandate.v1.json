@@ -1,0 +1,24 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Decision Governance Candidate Mandate Binding", "version": "1.0.0" },
+  "servers": [{ "url": "http://decision-governance-service:3007" }],
+  "paths": {
+    "/internal/v1/candidate-mandates/readiness": {
+      "post": {
+        "operationId": "assessApprovedCandidateMandateBinding",
+        "summary": "Read-only exact approved Registry version and Artifact binding check; does not create or activate a Mandate",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-candidate-mandate-binding-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Exact approved version and candidate Artifact match; remains disabled until a separately authorized Mandate", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-candidate-mandate-binding-result.schema.json" } } } },
+          "403": { "description": "Only Platform API service identity may request the readiness check" },
+          "413": { "description": "Request exceeds the bounded body size" },
+          "422": { "description": "Malformed request, missing version, or exact binding mismatch" },
+          "503": { "description": "Quant Registry lookup is unavailable; no readiness conclusion was made" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

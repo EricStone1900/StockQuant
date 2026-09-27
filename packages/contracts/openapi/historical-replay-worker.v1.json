@@ -1,0 +1,50 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Historical Replay Worker Internal API", "version": "v1", "description": "Platform-only replay orchestration over historical data and the project's FakeBroker. These routes do not call a real broker or enable LIVE trading." },
+  "servers": [{ "url": "http://historical-replay-worker:3006" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/replays": {
+      "post": {
+        "operationId": "startHistoricalReplay",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/replay/historical-replay-command.schema.json" } } } },
+        "responses": { "200": { "description": "Synchronous single-bar historical replay result", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } }, "403": { "description": "Platform service identity rejected" }, "409": { "description": "Replay run is locked, conflicting or cancelled" }, "422": { "description": "Malformed replay command or failed replay" } }
+      }
+    },
+    "/internal/v1/replays/multi": {
+      "post": {
+        "operationId": "startHistoricalMultiBarReplay",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }, { "name": "async", "in": "query", "required": false, "schema": { "type": "string", "const": "true" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/replay/historical-replay-multi-command.schema.json" } } } },
+        "responses": { "200": { "description": "Synchronous multi-bar replay result", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } }, "202": { "description": "Asynchronous replay accepted", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/replay/historical-replay-accepted.schema.json" } } } }, "403": { "description": "Platform service identity rejected" }, "409": { "description": "Replay run is locked or the persisted checkpoint conflicts" }, "422": { "description": "Malformed replay command or failed replay" } }
+      }
+    },
+    "/internal/v1/replays/{testRunId}": {
+      "get": {
+        "operationId": "readHistoricalReplayRun",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }, { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Persisted replay state and checkpoint", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/replay/historical-replay-run.schema.json" } } } }, "403": { "description": "Platform service identity rejected" }, "404": { "description": "Replay run not found" }, "422": { "description": "testRunId must be a UUID" } }
+      }
+    },
+    "/internal/v1/replays/{testRunId}/{action}": {
+      "post": {
+        "operationId": "controlHistoricalReplayRun",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }, { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "action", "in": "path", "required": true, "schema": { "enum": ["pause", "resume", "cancel"] } }],
+        "responses": { "200": { "description": "Updated replay state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/replay/historical-replay-run.schema.json" } } } }, "403": { "description": "Platform service identity rejected" }, "404": { "description": "Replay run not found" }, "409": { "description": "Requested lifecycle transition is invalid" }, "422": { "description": "Invalid TestRun identifier" } }
+      }
+    },
+    "/internal/v1/replays/{testRunId}/recover-unknown": {
+      "post": {
+        "operationId": "recoverHistoricalReplayUnknownOrder",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }, { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Original order queried; an UNKNOWN order is never blindly resent", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } }, "403": { "description": "Platform service identity rejected" }, "422": { "description": "Original replay result or order is unavailable" } }
+      }
+    }
+  }
+}

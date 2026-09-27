@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-runner-execution.schema.json",
+  "title": "V3.1RunnerExecution",
+  "type": "object", "additionalProperties": false,
+  "required": ["status", "exitCode", "signal", "stdout", "stderr", "durationMs"],
+  "properties": {
+    "status": { "enum": ["COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED"] },
+    "exitCode": { "type": ["integer", "null"], "minimum": -255, "maximum": 255 },
+    "signal": { "type": ["string", "null"], "enum": ["SIGABRT", "SIGALRM", "SIGBUS", "SIGCHLD", "SIGCONT", "SIGFPE", "SIGHUP", "SIGILL", "SIGINT", "SIGIO", "SIGIOT", "SIGKILL", "SIGPIPE", "SIGPOLL", "SIGPROF", "SIGPWR", "SIGQUIT", "SIGSEGV", "SIGSTKFLT", "SIGSTOP", "SIGSYS", "SIGTERM", "SIGTRAP", "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGUSR1", "SIGUSR2", "SIGVTALRM", "SIGWINCH", "SIGXCPU", "SIGXFSZ", null] },
+    "stdout": { "type": "string", "maxLength": 8388608 },
+    "stderr": { "type": "string", "maxLength": 8388608 },
+    "durationMs": { "type": "integer", "minimum": 0, "maximum": 86400000 }
+  }
+}

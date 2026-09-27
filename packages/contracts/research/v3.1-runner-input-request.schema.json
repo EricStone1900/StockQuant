@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-runner-input-request.schema.json",
+  "title": "V3.1RunnerInputRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workerId", "fencingToken"],
+  "properties": {
+    "workerId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "fencingToken": { "type": "integer", "minimum": 1 }
+  }
+}

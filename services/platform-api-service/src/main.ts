@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule, PlatformContainer } from "./bootstrap/app.module.js";
 import { startTemporalRuntime } from "./integration/temporal-runtime.js";
 
@@ -7,7 +8,8 @@ async function bootstrap() {
   if (process.env.STOCKQUANT_LIVE_TRADING_ENABLED !== "false" || process.env.STOCKQUANT_BROKER_MODE !== "FAKE") {
     throw new Error("V1.1 refuses LIVE trading or non-FAKE broker mode");
   }
-  const app = await NestFactory.create(AppModule, { logger: ["error", "warn", "log"] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ["error", "warn", "log"], bodyParser: false });
+  app.useBodyParser("json", { limit: "1mb" });
   if (process.env.STOCKQUANT_TEMPORAL_ADDRESS) {
     await startTemporalRuntime();
   }
@@ -15,6 +17,7 @@ async function bootstrap() {
   const container = app.get(PlatformContainer);
   await container.repository.migrate();
   await container.stageRuns.migrate();
+  await container.repository.assertStorageReady();
   await container.migrateV24();
   if (process.env.STOCKQUANT_V24_AUTO_START === "true") {
     await container.scheduler.start();

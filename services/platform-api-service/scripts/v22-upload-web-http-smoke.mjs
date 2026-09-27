@@ -1,0 +1,135 @@
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { createServer } from "node:net";
+import { createHash, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { Client } from "pg";
+import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const adminUrl = new URL(process.env.STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
+assert.equal(adminUrl.username, "postgres"); assert.equal(`${adminUrl.hostname}:${adminUrl.port}${adminUrl.pathname}`, "127.0.0.1:5433/postgres", "smoke only uses the local PostgreSQL test endpoint");
+const suffix = randomUUID().replaceAll("-", ""); const platformDatabase = `sq_v22_web_platform_${suffix}`; const marketDatabase = `sq_v22_web_market_${suffix}`;
+const platformUrl = new URL(adminUrl); platformUrl.pathname = `/${platformDatabase}`; const marketUrl = new URL(adminUrl); marketUrl.pathname = `/${marketDatabase}`;
+const admin = new Client({ connectionString: adminUrl.toString() }); const platformDb = new Client({ connectionString: platformUrl.toString() }); const marketDb = new Client({ connectionString: marketUrl.toString() });
+const children = []; let platformCreated = false; let marketCreated = false; let testRunId; const testRunIds = []; let uploadId; let parquetUploadId; let archiveUploadId; let output = ""; let browser;
+function port() { return new Promise((resolvePort, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const value = server.address().port; server.close((error) => error ? reject(error) : resolvePort(value)); }); }); }
+function start(script, cwd, env, args = []) { const child = spawn(process.execPath, [script, ...args], { cwd, env, stdio: ["ignore", "pipe", "pipe"] }); const entry = { child, output: "" }; for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { if (entry.output.length < 6000) entry.output += chunk.toString().slice(0, 6000 - entry.output.length); }); children.push(entry); return entry; }
+async function waitLive(entry, url) { for (let i = 0; i < 120; i += 1) { if (entry.child.exitCode !== null) throw new Error(`service exited: ${entry.output}`); try { if ((await fetch(url, { signal: AbortSignal.timeout(1000) })).ok) return; } catch { /* starting */ } await delay(100); } throw new Error(`service did not become live: ${entry.output}`); }
+async function stop(entry) { if (!entry || entry.child.exitCode !== null) return; entry.child.kill("SIGTERM"); await Promise.race([new Promise(done => entry.child.once("exit", done)), delay(3000)]); if (entry.child.exitCode === null) entry.child.kill("SIGKILL"); }
+
+try {
+  await admin.connect(); await admin.query(`CREATE DATABASE "${platformDatabase}"`); platformCreated = true; await admin.query(`CREATE DATABASE "${marketDatabase}"`); marketCreated = true; await platformDb.connect(); await marketDb.connect(); console.log("isolated databases ready");
+  const repoRoot = resolve("../.."); const platformRoot = process.cwd(); const marketRoot = resolve(repoRoot, "services/market-data-service"); const baseEnv = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp" }; const platformServiceToken = `v22-upload-${randomUUID()}-${randomUUID()}`;
+  const marketPort = await port(); const platformPort = await port(); const webPort = await port(); const marketBase = `http://127.0.0.1:${marketPort}`; const platformBase = `http://127.0.0.1:${platformPort}`; const webBase = `http://127.0.0.1:${webPort}`;
+  const market = start(resolve(marketRoot, "dist/main.js"), marketRoot, { ...baseEnv, STOCKQUANT_PROJECT_ROOT: repoRoot, STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(marketPort), STOCKQUANT_DATABASE_URL: marketUrl.toString(), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: platformServiceToken, STOCKQUANT_SCHEDULER_WORKER: "0", STOCKQUANT_COLLECTION_EXECUTOR: "0" });
+  await waitLive(market, `${marketBase}/ready`); console.log("market-data-service ready");
+  const owner = "acceptance-owner-1";
+  const platform = start(resolve(platformRoot, "dist/main.js"), platformRoot, { ...baseEnv, NODE_ENV: "test", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(platformPort), STOCKQUANT_DATABASE_URL: platformUrl.toString(), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: platformServiceToken, STOCKQUANT_LIVE_TRADING_ENABLED: "false", STOCKQUANT_BROKER_MODE: "FAKE", STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true", STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_MARKET_DATA_URL: marketBase, STOCKQUANT_PORTFOLIO_API_URL: "http://127.0.0.1:1", STOCKQUANT_TRADE_EXECUTION_URL: "http://127.0.0.1:1", STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: "http://127.0.0.1:1" });
+  await waitLive(platform, `${platformBase}/live`); console.log("platform API ready");
+  const web = start(resolve(repoRoot, "apps/web/node_modules/vite/bin/vite.js"), resolve(repoRoot, "apps/web"), { ...baseEnv, STOCKQUANT_PLATFORM_API_URL: platformBase }, ["--host", "127.0.0.1", "--port", String(webPort), "--strictPort"]);
+  await waitLive(web, `${webBase}/acceptance/v2/v2.2`); console.log("Vite ready");
+  const requireFromWeb = createRequire(resolve(repoRoot, "apps/web/package.json")); const { chromium } = requireFromWeb("@playwright/test"); browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage(); page.setDefaultTimeout(10000); page.on("request", request => { const url = new URL(request.url()); if (request.method() === "POST" && url.pathname.endsWith("/csv/uploads")) { const body = request.postDataJSON(); if (body.metadata?.frequency === "5m") archiveUploadId = body.uploadId; else uploadId = body.uploadId; } if (request.method() === "POST" && url.pathname.endsWith("/parquet/uploads")) parquetUploadId = request.postDataJSON().uploadId; }); page.on("response", response => { if (/\/(?:csv|parquet)\//u.test(new URL(response.url()).pathname)) console.log(`upload HTTP ${response.status()} ${new URL(response.url()).pathname}`); }); page.on("console", message => { if (message.type() === "error") console.log(`browser console: ${message.text()}`); }); await page.goto(`${webBase}/acceptance/v2/v2.2`); console.log("browser page loaded");
+  await page.getByRole("button", { name: "运行正常" }).click();
+  await page.getByTestId("v22-test-run-id").waitFor({ state: "visible", timeout: 10000 }); console.log("normal TestRun completed in browser");
+  testRunId = (await page.getByTestId("v22-test-run-id").textContent())?.trim(); assert.ok(testRunId); testRunIds.push(testRunId); const normalTestRunId = testRunId;
+  const stageRun = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/runs/${testRunId}`, { headers: { cookie: `sq_session=${owner}` } }).then(response => response.json());
+  assert.equal(stageRun.status, "COMPLETED"); assert.ok(stageRun.assertions.length > 0); assert.ok(stageRun.assertions.every(item => item.status === "PASS"), JSON.stringify(stageRun.assertions));
+  const rows = ["securityId,timestamp,open,high,low,close,volume,amount"];
+  for (let minute = 0; minute < 160; minute += 1) { const totalMinutes = minute < 120 ? 570 + minute : 780 + minute - 120; const stamp = `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`; for (let security = 0; security < 100; security += 1) rows.push(`${String(600000 + security).padStart(6, "0")}.SH,2026-09-24 ${stamp},10,10.2,9.9,10.1,100,1000`); }
+  const csvBytes = Buffer.from(`${rows.join("\n")}\n`); assert.ok(csvBytes.length > 700000);
+  await page.getByLabel("CSV 或 Parquet 文件").setInputFiles({ name: "minute.csv", mimeType: "text/csv", buffer: csvBytes });
+  await page.getByLabel("数据来源名称").fill(`web-http-${suffix}`); await page.getByLabel("许可声明").fill("Synthetic end-to-end smoke input"); await page.getByLabel("取得时间").fill("2026-09-24T09:35"); await page.getByLabel("我确认已核对许可允许研究使用（这是操作者声明，不代表系统完成法律审查）").check();
+  await page.getByRole("button", { name: "上传并预览" }).click(); console.log("upload preview started"); await page.waitForFunction(() => { const button = [...document.querySelectorAll("button")].find(item => item.textContent?.includes("确认并导入")); return Boolean(button && !button.disabled); }, { timeout: 20000 }).catch(async error => { const alert = await page.getByRole("alert").textContent().catch(() => "no alert"); throw new Error(`preview did not enable import: ${alert}; ${error}`); }); console.log("upload preview accepted"); await page.getByRole("button", { name: "确认并导入" }).click();
+  await page.waitForFunction(() => { try { const evidence = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}"); return evidence.csv?.status === "PUBLISHED" && evidence.csv?.uploadStatus === "COMPLETED"; } catch { return false; } }, { timeout: 15000 });
+  const evidenceText = await page.getByTestId("v22-evidence").innerText(); assert.match(evidenceText, /"accepted": 16000/u); assert.match(evidenceText, /"status": "PUBLISHED"/u);
+    assert.ok(uploadId, "browser created a durable upload session through the platform proxy");
+  const uploads = await marketDb.query("SELECT upload_id::text, owner_id, status, expected_bytes, completed_result FROM market_data_minute_uploads WHERE upload_id=$1", [uploadId]);
+  assert.equal(uploads.rowCount, 1); assert.equal(uploads.rows[0].owner_id, owner); assert.equal(uploads.rows[0].status, "COMPLETED");
+  const imports = await marketDb.query("SELECT import_id, version, status, accepted, source_sha256, import_manifest FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName'=$1", [`web-http-${suffix}`]);
+  assert.equal(imports.rowCount, 1); assert.equal(imports.rows[0].status, "PUBLISHED"); assert.equal(imports.rows[0].accepted, 16000); assert.equal(imports.rows[0].source_sha256, JSON.parse(evidenceText).csv.sha256); assert.equal(imports.rows[0].import_manifest.provenance.sourceName, `web-http-${suffix}`);
+  const importDetailsPath = `/api/v1/acceptance/v2/v2.2/imports/${encodeURIComponent(imports.rows[0].version)}`;
+  const anonymousImportDetails = await fetch(`${platformBase}${importDetailsPath}`); assert.equal(anonymousImportDetails.status, 401, "import details require a local user session");
+  const ownerImportDetails = await fetch(`${platformBase}${importDetailsPath}`, { headers: { cookie: `sq_session=${owner}` } }); assert.equal(ownerImportDetails.status, 200); assert.equal((await ownerImportDetails.json()).sha256, imports.rows[0].source_sha256);
+  const ownerImportBars = await fetch(`${platformBase}${importDetailsPath}/bars?pageSize=3`, { headers: { cookie: `sq_session=${owner}` } }); assert.equal(ownerImportBars.status, 200); assert.equal((await ownerImportBars.json()).items.length, 3);
+  const foreignImportDetails = await fetch(`${platformBase}${importDetailsPath}`, { headers: { cookie: "sq_session=another-owner" } }); assert.equal(foreignImportDetails.status, 403, "import details are not readable without an authenticated local owner");
+  await page.getByTestId("v22-record-upload-run").click();
+  await page.waitForFunction(() => { try { const evidence = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}"); return evidence.run?.scenarioId === "uploaded-csv" && evidence.run?.assertions?.some(item => item.assertionId === "V2.2-CSV-UPLOAD-001" && item.status === "PASS"); } catch { return false; } }, { timeout: 10000 });
+  testRunId = (await page.getByTestId("v22-test-run-id").textContent())?.trim(); assert.ok(testRunId); testRunIds.push(testRunId);
+  const runAfterUpload = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/runs/${testRunId}`, { headers: { cookie: `sq_session=${owner}` } }).then(response => response.json());
+  assert.equal(runAfterUpload.testRunId, testRunId); assert.equal(runAfterUpload.scenarioId, "uploaded-csv"); assert.equal(runAfterUpload.assertions[0].assertionId, "V2.2-CSV-UPLOAD-001"); assert.equal(runAfterUpload.assertions[0].status, "PASS");
+  assert.deepEqual(runAfterUpload.evidence.upload, { uploadId, fileFormat: "CSV", importId: imports.rows[0].import_id, version: imports.rows[0].version, sha256: imports.rows[0].source_sha256, accepted: 16000, researchUseAllowed: true });
+  const countsBeforeCli = await platformDb.query("SELECT count(*)::int AS count FROM acceptance_stage_runs");
+  const cliCheck = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V2.2", "--run", testRunId, "--check-only"], { cwd: repoRoot, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: platformBase }, encoding: "utf8" });
+  assert.equal(cliCheck.status, 0, cliCheck.stderr || cliCheck.stdout); assert.match(cliCheck.stdout, /V2.2-CSV-UPLOAD-001/u);
+  const countsAfterCli = await platformDb.query("SELECT count(*)::int AS count FROM acceptance_stage_runs"); assert.equal(countsAfterCli.rows[0].count, countsBeforeCli.rows[0].count, "CLI check-only does not create TestRuns");
+  const foreignRun = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/runs/${testRunId}`, { headers: { cookie: "sq_session=another-owner" } }); assert.equal(foreignRun.status, 403);
+  const foreignUpload = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/csv/uploads/${uploadId}`, { headers: { cookie: "sq_session=another-owner" } }); assert.equal(foreignUpload.status, 403);
+
+  const parquetPath = resolve(repoRoot, "fixtures/v2/v2.2-parquet-smoke-mapped/minute-upload.parquet");
+  await page.getByLabel("CSV 或 Parquet 文件").setInputFiles(parquetPath);
+  const parquetColumnMap = { securityId: "instrument", timestamp: "bar_time", open: "o", high: "h", low: "l", close: "c", volume: "qty_shares", amount: "turnover_cny" };
+  for (const [field, sourceColumn] of Object.entries(parquetColumnMap)) await page.getByLabel(`${field} Parquet 源列名`).fill(sourceColumn);
+  await page.getByLabel("数据来源名称").fill(`web-parquet-${suffix}`); await page.getByLabel("许可声明").fill("Synthetic end-to-end Parquet smoke input"); await page.getByLabel("取得时间").fill("2026-09-24T09:35");
+  await page.getByRole("button", { name: "上传并预览" }).click();
+  await page.waitForFunction(() => { const button = [...document.querySelectorAll("button")].find(item => item.textContent?.includes("确认并导入")); return Boolean(button && !button.disabled); }, { timeout: 20000 });
+  const parquetPreview = JSON.parse(await page.getByTestId("v22-evidence").innerText()); assert.equal(parquetPreview.csv.totalRows, 2); assert.equal(parquetPreview.csv.acceptedRows, 2); assert.deepEqual(parquetPreview.csv.errors, []);
+  await page.getByRole("button", { name: "确认并导入" }).click();
+  await page.waitForFunction(() => { try { const evidence = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}"); return evidence.csv?.status === "PUBLISHED" && evidence.csv?.uploadStatus === "COMPLETED"; } catch { return false; } }, { timeout: 15000 });
+  const parquetEvidence = JSON.parse(await page.getByTestId("v22-evidence").innerText()); assert.equal(parquetEvidence.csv.accepted, 2); assert.equal(parquetEvidence.csv.manifest.semantics.fileFormat, "PARQUET");
+  assert.ok(parquetUploadId); const parquetUpload = await marketDb.query("SELECT upload_id::text,owner_id,status,completed_result FROM market_data_minute_uploads WHERE upload_id=$1", [parquetUploadId]); assert.equal(parquetUpload.rowCount, 1); assert.equal(parquetUpload.rows[0].owner_id, owner); assert.equal(parquetUpload.rows[0].status, "COMPLETED");
+  const parquetImport = await marketDb.query("SELECT import_id,version,status,accepted,source_sha256,import_manifest FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName'=$1", [`web-parquet-${suffix}`]); assert.equal(parquetImport.rowCount, 1); assert.equal(parquetImport.rows[0].status, "PUBLISHED"); assert.equal(parquetImport.rows[0].accepted, 2); assert.equal(parquetImport.rows[0].source_sha256, parquetEvidence.csv.sha256); assert.equal(parquetImport.rows[0].import_manifest.semantics.fileFormat, "PARQUET"); assert.deepEqual(parquetImport.rows[0].import_manifest.mapping, parquetColumnMap);
+  await page.getByTestId("v22-record-upload-run").click();
+  await page.waitForFunction(() => { try { const evidence = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}"); return evidence.run?.scenarioId === "uploaded-csv" && evidence.run?.evidence?.upload?.fileFormat === "PARQUET" && evidence.run?.assertions?.some(item => item.assertionId === "V2.2-CSV-UPLOAD-001" && item.status === "PASS"); } catch { return false; } }, { timeout: 10000 });
+  testRunId = (await page.getByTestId("v22-test-run-id").textContent())?.trim(); assert.ok(testRunId); testRunIds.push(testRunId);
+  const parquetRun = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/runs/${testRunId}`, { headers: { cookie: `sq_session=${owner}` } }).then(response => response.json()); assert.equal(parquetRun.evidence.upload.fileFormat, "PARQUET"); assert.equal(parquetRun.assertions[0].status, "PASS");
+  const parquetForeignUpload = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/parquet/uploads/${parquetUploadId}`, { headers: { cookie: "sq_session=another-owner" } }); assert.equal(parquetForeignUpload.status, 403);
+  const archiveRoot = resolve(repoRoot, "data/local/baostock-minute-500x60-2024-01-02-2024-04-02-v1");
+  const archiveManifest = JSON.parse(await readFile(resolve(archiveRoot, "manifest.json"), "utf8"));
+  const archiveCodes = ["sh.600000", "sh.600004", "sh.600006"];
+  const archiveRows = [];
+  for (const code of archiveCodes) {
+    const artifact = archiveManifest.artifacts[code]; assert.ok(artifact, `frozen archive manifest must include ${code}`);
+    const source = await readFile(resolve(archiveRoot, artifact.path));
+    assert.equal(createHash("sha256").update(source).digest("hex"), artifact.sha256, `${code} frozen source hash`);
+    const lines = source.toString("utf8").trimEnd().split(/\r?\n/u); assert.equal(lines.length - 1, artifact.rows);
+    archiveRows.push(...lines.slice(1));
+  }
+  const archiveCsv = Buffer.from(`date,time,code,open,high,low,close,volume,amount\n${archiveRows.join("\n")}\n`);
+  assert.ok(archiveCsv.length > 700_000, "three verified frozen securities exercise the resumable Web upload path");
+  const archiveSha256 = createHash("sha256").update(archiveCsv).digest("hex");
+  const archiveSourceName = `baostock-web-${suffix}`;
+  await page.getByLabel("CSV 或 Parquet 文件").setInputFiles({ name: "baostock-frozen-3-security-5m.csv", mimeType: "text/csv", buffer: archiveCsv });
+  for (const [field, column] of Object.entries({ securityId: "code", timestamp: "time", open: "open", high: "high", low: "low", close: "close", volume: "volume", amount: "amount" })) await page.getByLabel(`${field} CSV 源列`).selectOption(column);
+  await page.getByLabel("分钟频率").selectOption("5m"); await page.getByLabel("时间戳语义").selectOption("BAR_END");
+  await page.getByLabel("数据来源名称").fill(archiveSourceName);
+  await page.getByLabel("来源链接或引用（可留空）").fill(`frozen:${archiveCodes.join(",")}; manifest=data/local/baostock-minute-500x60-2024-01-02-2024-04-02-v1/manifest.json`);
+  await page.getByLabel("许可声明").fill("Frozen BaoStock archive; terms remain unconfirmed");
+  await page.getByLabel("取得时间").fill("2026-09-18T19:14");
+  const licenseConfirmation = page.getByLabel("我确认已核对许可允许研究使用（这是操作者声明，不代表系统完成法律审查）");
+  if (await licenseConfirmation.isChecked()) await licenseConfirmation.uncheck();
+  await page.getByRole("button", { name: "上传并预览" }).click();
+  await page.waitForFunction(() => { const button = [...document.querySelectorAll("button")].find(item => item.textContent?.includes("确认并导入")); return Boolean(button && !button.disabled); }, { timeout: 30000 });
+  const archivePreview = JSON.parse(await page.getByTestId("v22-evidence").innerText()).csv;
+  assert.equal(archivePreview.totalRows, 8640); assert.equal(archivePreview.acceptedRows, 8640); assert.equal(archivePreview.bars.length, 100); assert.equal(archivePreview.barsTruncated, true); assert.deepEqual(archivePreview.errors, []);
+  await page.getByRole("button", { name: "确认并导入" }).click();
+  await page.waitForFunction(() => { try { const value = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}").csv; return value?.status === "PUBLISHED" && value?.uploadStatus === "COMPLETED"; } catch { return false; } }, { timeout: 30000 });
+  const archiveEvidence = JSON.parse(await page.getByTestId("v22-evidence").innerText()).csv;
+  assert.equal(archiveEvidence.sha256, archiveSha256); assert.equal(archiveEvidence.accepted, 8640); assert.equal(archiveEvidence.manifest.semantics.frequency, "5m"); assert.equal(archiveEvidence.manifest.semantics.timestampSemantics, "BAR_END"); assert.equal(archiveEvidence.manifest.researchUseAllowed, false);
+  archiveUploadId = archiveEvidence.uploadId; assert.ok(archiveUploadId); const archiveUpload = await marketDb.query("SELECT owner_id,status FROM market_data_minute_uploads WHERE upload_id=$1", [archiveUploadId]); assert.equal(archiveUpload.rowCount, 1); assert.equal(archiveUpload.rows[0].owner_id, owner); assert.equal(archiveUpload.rows[0].status, "COMPLETED");
+  const archiveImport = await marketDb.query("SELECT import_id,version,status,accepted,source_sha256,import_manifest FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName'=$1", [archiveSourceName]); assert.equal(archiveImport.rowCount, 1); assert.equal(archiveImport.rows[0].status, "PUBLISHED"); assert.equal(archiveImport.rows[0].accepted, 8640); assert.equal(archiveImport.rows[0].source_sha256, archiveSha256); assert.equal(archiveImport.rows[0].import_manifest.semantics.frequency, "5m"); assert.equal(archiveImport.rows[0].import_manifest.semantics.timestampSemantics, "BAR_END"); assert.equal(archiveImport.rows[0].import_manifest.researchUseAllowed, false);
+  await page.getByTestId("v22-record-upload-run").click();
+  await page.waitForFunction((expectedUploadId) => { try { const run = JSON.parse(document.querySelector("[data-testid=\"v22-evidence\"]")?.textContent ?? "{}").run; return run?.scenarioId === "uploaded-csv" && run?.evidence?.upload?.uploadId === expectedUploadId && run?.assertions?.some(item => item.assertionId === "V2.2-CSV-UPLOAD-001" && item.status === "PASS"); } catch { return false; } }, archiveUploadId, { timeout: 10000 });
+  testRunId = (await page.getByTestId("v22-test-run-id").textContent())?.trim(); assert.ok(testRunId); testRunIds.push(testRunId);
+  const archiveRun = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/runs/${testRunId}`, { headers: { cookie: `sq_session=${owner}` } }).then(response => response.json()); assert.equal(archiveRun.scenarioId, "uploaded-csv"); assert.equal(archiveRun.assertions[0].status, "PASS"); assert.equal(archiveRun.evidence.upload.uploadId, archiveUploadId); assert.equal(archiveRun.evidence.upload.sha256, archiveSha256); assert.equal(archiveRun.evidence.upload.accepted, 8640); assert.equal(archiveRun.evidence.upload.researchUseAllowed, false);
+  const archiveCli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V2.2", "--run", testRunId, "--check-only"], { cwd: repoRoot, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: platformBase }, encoding: "utf8" }); assert.equal(archiveCli.status, 0, archiveCli.stderr || archiveCli.stdout); assert.match(archiveCli.stdout, /V2.2-CSV-UPLOAD-001/u);
+  const archiveForeignUpload = await fetch(`${platformBase}/api/v1/acceptance/v2/v2.2/csv/uploads/${archiveUploadId}`, { headers: { cookie: "sq_session=another-owner" } }); assert.equal(archiveForeignUpload.status, 403);
+  console.log(JSON.stringify({ status: "PASS", normalTestRunId, testRunId, scenario: "uploaded-csv", assertionId: archiveRun.assertions[0].assertionId, cliCheckOnlyExitCode: archiveCli.status, cliCheckOnlyNoMutation: true, browserToPlatformToMarketData: true, importedDataReadAuth: { anonymous: anonymousImportDetails.status, ownerDetails: ownerImportDetails.status, ownerBars: ownerImportBars.status, foreignOwner: foreignImportDetails.status }, frozenSourceFiles: archiveCodes.length, sourceRows: 8640, frequency: "5m", timestampSemantics: "BAR_END", combinedSha256: archiveSha256, archiveTestRunId: testRunId, csvUploadId: uploadId, parquetUploadId, parquetSha256: parquetImport.rows[0].source_sha256, parquetRows: parquetImport.rows[0].accepted, ownerBoundary: { csvUpload: foreignUpload.status, parquetUpload: parquetForeignUpload.status, baostockUpload: archiveForeignUpload.status }, liveMode: "FAKE" }));
+} finally {
+  await browser?.close(); for (const entry of [...children].reverse()) await stop(entry);
+  if (platformCreated) { if (testRunIds.length) await platformDb.query("DELETE FROM acceptance_stage_runs WHERE test_run_id=ANY($1::uuid[])", [testRunIds]); await platformDb.end(); }
+  if (marketCreated) { if (uploadId || parquetUploadId || archiveUploadId) await marketDb.query("DELETE FROM market_data_minute_uploads WHERE upload_id=ANY($1::uuid[])", [[uploadId, parquetUploadId, archiveUploadId].filter(Boolean)]); await marketDb.query("DELETE FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName' = ANY($1::text[])", [[`web-http-${suffix}`, `web-parquet-${suffix}`, `baostock-web-${suffix}`]]); await marketDb.end(); }
+  const cleanup = new Client({ connectionString: adminUrl.toString() }); await cleanup.connect(); if (platformCreated) await cleanup.query(`DROP DATABASE "${platformDatabase}" WITH (FORCE)`); if (marketCreated) await cleanup.query(`DROP DATABASE "${marketDatabase}" WITH (FORCE)`); const leftovers = await cleanup.query("SELECT datname FROM pg_database WHERE datname=ANY($1::text[])", [[platformDatabase, marketDatabase]]); assert.equal(leftovers.rowCount, 0, "isolated browser smoke databases must be gone after cleanup"); await cleanup.end(); await admin.end().catch(() => undefined);
+}

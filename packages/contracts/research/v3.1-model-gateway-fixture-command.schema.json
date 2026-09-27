@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://stockquant.local/schemas/research/v3.1-model-gateway-fixture-command.schema.json", "title": "V31ModelGatewayFixtureCommand",
+  "type": "object", "additionalProperties": false, "required": ["experimentId", "modelRunId", "requestedCents", "scenario"],
+  "properties": { "experimentId": { "type": "string", "format": "uuid" }, "modelRunId": { "type": "string", "minLength": 1, "maxLength": 128 }, "requestedCents": { "type": "integer", "minimum": 1, "maximum": 1000 }, "scenario": { "enum": ["COMPLETED", "TIMEOUT", "OVER_BUDGET"] } }
+}

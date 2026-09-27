@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
 
 function sourceFreshnessExpected(calendar, now) {
   if (calendar?.status !== "TRADING" && calendar?.status !== "CLOSED") return true;
@@ -39,7 +40,8 @@ export function buildHealthReport({ capturedAt, ready, scheduler, activeSubscrip
 export async function createHealthReport({ baseUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", activeSubscription = process.env.DC08A_SUBSCRIPTION_ID ?? "dc08a-20260917-20-v1", output = "evidence/dc08a/health-report.json" } = {}) {
   const capturedAt = new Date().toISOString();
   const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date(capturedAt));
-  const [readyResponse, schedulerResponse, sourcesResponse, qualityResponse, calendarResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/minute/sources`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection/health?subscriptionId=${encodeURIComponent(activeSubscription)}`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/calendar/cn-a-share/${localDate}`, { signal: AbortSignal.timeout(3000) }).catch(() => null)]);
+  const platformHeaders = platformMarketDataHeaders();
+  const [readyResponse, schedulerResponse, sourcesResponse, qualityResponse, calendarResponse] = await Promise.all([fetch(`${baseUrl}/ready`, { signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection-scheduler/status`, { headers: platformHeaders, signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/minute/sources`, { headers: platformHeaders, signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/collection/health?subscriptionId=${encodeURIComponent(activeSubscription)}`, { headers: platformHeaders, signal: AbortSignal.timeout(3000) }), fetch(`${baseUrl}/v2/calendar/cn-a-share/${localDate}`, { signal: AbortSignal.timeout(3000) }).catch(() => null)]);
   const quality = qualityResponse.ok ? await qualityResponse.json() : {};
   const calendar = calendarResponse?.ok ? await calendarResponse.json() : { status: "UNAVAILABLE" };
   const report = buildHealthReport({ capturedAt, ready: await readyResponse.json(), scheduler: await schedulerResponse.json(), sources: (await sourcesResponse.json()).sources ?? [], activeSubscription, quality, calendar });

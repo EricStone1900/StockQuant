@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-execution-policy.schema.json",
+  "title": "V24PaperExecutionPolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyId", "policyVersion", "status", "environmentMode", "brokerMode", "liveTradingEnabled", "supportedMarkets", "signal", "execution", "quoteRules", "approval", "risk", "configurationGaps"],
+  "properties": {
+    "schemaVersion": { "const": "v24-paper-execution-policy-v1" },
+    "policyId": { "const": "v24-snapshot-paper-policy" },
+    "policyVersion": { "const": "1.0.0" },
+    "status": { "const": "PREPARATION_ONLY" },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "liveTradingEnabled": { "const": false },
+    "supportedMarkets": { "const": ["CN_A"] },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frequency", "asOfRequired", "strategyVersion"],
+      "properties": {
+        "frequency": { "const": "DAILY_BAR" },
+        "asOfRequired": { "const": true },
+        "strategyVersion": { "const": "UNSET" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "windowTimeZone", "windowStart", "windowEndExclusive", "requiresMandate", "mandateVersion"],
+      "properties": {
+        "model": { "const": "SNAPSHOT" },
+        "windowTimeZone": { "const": "Asia/Shanghai" },
+        "windowStart": { "const": "09:31" },
+        "windowEndExclusive": { "const": "09:35" },
+        "requiresMandate": { "const": true },
+        "mandateVersion": { "const": "UNSET" }
+      }
+    },
+    "quoteRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priceBasis", "mustBeObservedAfterAcceptance", "freshnessLimitSeconds", "maxDeviationBps"],
+      "properties": {
+        "priceBasis": { "const": "FIRST_QUALIFYING_SNAPSHOT" },
+        "mustBeObservedAfterAcceptance": { "const": true },
+        "freshnessLimitSeconds": { "const": 1800 },
+        "maxDeviationBps": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["riskPolicyVersion", "feePolicyVersion"],
+      "properties": {
+        "riskPolicyVersion": { "const": "UNSET" },
+        "feePolicyVersion": { "const": "UNSET" }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiresPassingEvaluation", "requiresResourceReservation"],
+      "properties": {
+        "requiresPassingEvaluation": { "const": true },
+        "requiresResourceReservation": { "const": true }
+      }
+    },
+    "configurationGaps": {
+      "type": "array",
+      "items": { "enum": ["STRATEGY_VERSION", "MANDATE_VERSION", "MAX_DEVIATION_BPS", "RISK_POLICY_VERSION", "FEE_POLICY_VERSION", "US_MARKET_POLICY"] },
+      "uniqueItems": true,
+      "minItems": 1
+    }
+  }
+}

@@ -44,6 +44,14 @@ Manifest 必须记录来源种类、说明、许可/授权和采集时间。用�
 
 期望每个账户只有一笔期初流水，重复相同幂等请求十次后金额和流水数不变；同键异载荷必须拒绝且无副作用。完整场景仍需后端、真实 PostgreSQL、Web 和 CLI 实现后才能冻结为可执行验收。
 
+## V3.2 研究侧验证 sidecar
+
+`packages/contracts/fixtures/v3.2-data-manifest-fixture-v1.json` 与 `packages/contracts/fixtures/v3.2-validation-plan-fixture-v1.json` 是契约形状样例，不是行情数据或已完成的验证证据。验证计划用数据 Manifest 原始 UTF-8 字节的 SHA-256 建立绑定；任何内容变更都必须生成新版本及新 Hash。Runner输入包中的 `dataContentSha256` 定义为：排除两个sidecar后，对其余`data/`文件按ASCII相对路径字节序排列，生成`[{path,sha256}]` JSON UTF-8字节，再取SHA-256。每个文件Hash直接从原始字节计算。验证计划还声明`candidateOutputPath`、`generatedCodeOutputPath`和`metricsOutputPath`；PromotionRequest构造器以Runner Job ID、fencing sourceRef及路径派生artifactId核实角色对应的实际OUTPUT产物。这个输入包校验不能替代对数据来源、授权、市场覆盖或时间可用性的独立验证；来源、许可、时间范围和数据版本须与候选及TestRun同时固定。
+
 ## 校验与发布
 
 基础 JSON 语法检查由 `pnpm contracts:check` 执行，Manifest 文件存在性与 SHA-256 重算由 `pnpm fixtures:check` 执行。V1.1 仍需实现 JSON Schema 实例校验、引用解析、TS/Python 往返和兼容性检查；缺少任何一项不得将阶段契约任务标为完成。
+
+V3.2另有可复算开发输入 [`v3.2-independent-validation-v1`](./v3/v3.2-independent-validation-v1/manifest.json)：两只合成A股、每只180个weekday sessions的日线，以及固定SMA交叉候选和PIT/OOS/成本/容量验证设计。市场日历、公司行动、退市证券和收益能力均未建模；数据仅`RESEARCH_ONLY`。它是独立复算实现的冻结测试输入，不是实测报告或真实市场证据。`pnpm fixtures:check`同时核对Manifest文件Hash与确定性生成器输出；内容变化应另建新版本，不覆盖此版本。
+
+The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-research-service v32:fixture-recompute`; the V3.2 code suite runs it automatically. It produces an in-memory `FIXTURE` report from a separately implemented allowlisted SMA reference and does not execute candidate source or persist a business TestRun. `ELIGIBLE_FOR_REVIEW` in that output is a deterministic fixture assertion only; it is not a real-candidate V3.2 acceptance.

@@ -1,0 +1,640 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StockQuant V2.2 Minute CSV Import API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://platform-api-service:3000"
+    }
+  ],
+  "security": [
+    {
+      "localSession": []
+    }
+  ],
+  "paths": {
+    "/api/v1/acceptance/v2/v2.2/csv/preview": {
+      "post": {
+        "operationId": "previewV22MinuteCsvImport",
+        "summary": "Validate an explicitly mapped small RAW A-share minute CSV without publishing it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-import-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Parsed rows, explicit semantics, accepted rows and row-addressed quality errors"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "403": {
+            "description": "The authenticated user is outside the local acceptance scope"
+          },
+          "413": {
+            "description": "The HTTP request body exceeds the 1 MiB platform parser limit"
+          },
+          "422": {
+            "description": "Mapping, semantics, CSV syntax or the 700 KB content limit is invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/import": {
+      "post": {
+        "operationId": "publishV22MinuteCsvImport",
+        "summary": "Persist a previously previewed CSV payload by its immutable content hash",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-import-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A new import was persisted or identical content already exists; `idempotent` distinguishes the result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "403": {
+            "description": "The authenticated user is outside the local acceptance scope"
+          },
+          "413": {
+            "description": "The HTTP request body exceeds the 1 MiB platform parser limit"
+          },
+          "422": {
+            "description": "The CSV contains invalid rows or unsupported semantics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "code"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads": {
+      "post": {
+        "operationId": "createV22ResumableMinuteCsvUpload",
+        "summary": "Create or resume an owner-scoped bounded minute data file upload session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-create-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New or idempotently resumed upload session and current durable chunk progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "The upload identifier is bound to different content"
+          },
+          "429": {
+            "description": "Per-owner active-upload quota is exhausted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads/{uploadId}/chunks/{index}": {
+      "put": {
+        "operationId": "putV22ResumableMinuteCsvChunk",
+        "summary": "Store one immutable, SHA-256 checked minute file chunk",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-chunk-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chunk stored or identical retry acknowledged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Chunk hash, size, owner or session state conflicts"
+          },
+          "413": {
+            "description": "HTTP request body exceeds the platform limit"
+          },
+          "429": {
+            "description": "Per-owner active-upload quota is exhausted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads/{uploadId}": {
+      "get": {
+        "operationId": "getV22ResumableMinuteCsvUploadProgress",
+        "summary": "Read owner-scoped durable upload progress for resume",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "404": {
+            "description": "Upload does not exist for the authenticated owner"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads/{uploadId}/preview": {
+      "post": {
+        "operationId": "previewV22ResumableMinuteCsvUpload",
+        "summary": "Verify assembled SHA-256 and preview a complete upload without publishing",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preview with complete row-level errors and at most 100 valid Bar samples; barsTruncated indicates sample truncation"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "One or more chunks are missing or the assembled hash differs"
+          },
+          "422": {
+            "description": "CSV encoding, structure, semantics or row count is invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads/{uploadId}/finalize": {
+      "post": {
+        "operationId": "finalizeV22ResumableMinuteCsvUpload",
+        "summary": "Validate, publish and persist a complete resumable minute file import",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import published or idempotently replayed"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Upload hash or state conflicts"
+          },
+          "422": {
+            "description": "CSV rows are rejected and the errors are persisted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/csv/uploads/{uploadId}/cancel": {
+      "post": {
+        "operationId": "cancelV22ResumableMinuteCsvUpload",
+        "summary": "Cancel an open upload and release its chunks and quota",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled or already cancelled"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Finalizing or completed uploads cannot be cancelled"
+          },
+          "404": {
+            "description": "Upload does not exist for the authenticated owner"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/runs": {
+      "post": {
+        "operationId": "createV22StageRun",
+        "summary": "Create a V2.2 scenario TestRun; uploaded-csv binds owner-scoped durable upload evidence",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/v22-stage-run-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Persistent TestRun accepted; uploaded-csv records import identity, SHA-256, version and row count"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "403": {
+            "description": "The user is outside the local acceptance scope"
+          },
+          "404": {
+            "description": "The upload does not exist in the authenticated owner scope"
+          },
+          "422": {
+            "description": "The scenario or upload state is invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/runs/{testRunId}": {
+      "get": {
+        "operationId": "getV22StageRun",
+        "summary": "Read an owner-scoped V2.2 TestRun and its immutable assertions/evidence",
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persistent V2.2 TestRun, assertions and uploaded CSV evidence"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "403": {
+            "description": "The user is outside the local acceptance scope"
+          },
+          "404": {
+            "description": "The TestRun does not exist in the authenticated owner scope"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads": {
+      "post": {
+        "operationId": "createV22ResumableMinuteParquetUpload",
+        "summary": "Create or resume an owner-scoped bounded minute Parquet upload session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-create-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New or idempotently resumed upload session and current durable chunk progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "The upload identifier is bound to different content"
+          },
+          "429": {
+            "description": "Per-owner active-upload quota is exhausted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads/{uploadId}/chunks/{index}": {
+      "put": {
+        "operationId": "putV22ResumableMinuteParquetChunk",
+        "summary": "Store one immutable, SHA-256 checked Parquet chunk",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-chunk-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chunk stored or identical retry acknowledged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Chunk hash, size, owner or session state conflicts"
+          },
+          "413": {
+            "description": "HTTP request body exceeds the platform limit"
+          },
+          "429": {
+            "description": "Per-owner active-upload quota is exhausted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads/{uploadId}": {
+      "get": {
+        "operationId": "getV22ResumableMinuteParquetUploadProgress",
+        "summary": "Read owner-scoped durable upload progress for resume",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "404": {
+            "description": "Upload does not exist for the authenticated owner"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads/{uploadId}/preview": {
+      "post": {
+        "operationId": "previewV22ResumableMinuteParquetUpload",
+        "summary": "Verify assembled SHA-256 and preview a complete upload without publishing",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preview with complete row-level errors and at most 100 valid Bar samples; barsTruncated indicates sample truncation"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "One or more chunks are missing or the assembled hash differs"
+          },
+          "422": {
+            "description": "CSV encoding, structure, semantics or row count is invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads/{uploadId}/finalize": {
+      "post": {
+        "operationId": "finalizeV22ResumableMinuteParquetUpload",
+        "summary": "Validate, publish and persist a complete resumable Parquet import",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import published or idempotently replayed"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Upload hash or state conflicts"
+          },
+          "422": {
+            "description": "CSV rows are rejected and the errors are persisted"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.2/parquet/uploads/{uploadId}/cancel": {
+      "post": {
+        "operationId": "cancelV22ResumableMinuteParquetUpload",
+        "summary": "Cancel an open upload and release its chunks and quota",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled or already cancelled"
+          },
+          "401": {
+            "description": "A local session is required"
+          },
+          "409": {
+            "description": "Finalizing or completed uploads cannot be cancelled"
+          },
+          "404": {
+            "description": "Upload does not exist for the authenticated owner"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "localSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sq_session"
+      }
+    }
+  }
+}

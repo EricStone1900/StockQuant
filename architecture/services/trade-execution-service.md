@@ -80,3 +80,13 @@ TypeScript / NestJS API + Gateway/报告Worker + PostgreSQL组件按已启用能
 实现复核补充（2026-09-25）：FakeBroker 历史执行现在为 `(namespace, clientOrderId)` 保存完整语义请求的 SHA-256 指纹；同键并发请求由事务级 advisory lock 串行化，异载荷或无法核验的旧行重放返回 409，避免错误复用先前订单/Fill。专用 `trade_execution_test` 集成测试覆盖并发同载荷重放、数量/价格冲突零副作用、重连后结果一致。当前工作区单测/类型检查/构建通过；由于沙箱禁止访问 Docker socket 和本机 PostgreSQL 端口，本轮数据库集成验证未运行，不能标记为数据库验收完成。现存升级前订单无请求指纹，重放会失败关闭，需由上层查询原订单事实，不得盲目用新载荷重试。
 
 实现复核补充（2026-09-25）：`calculateSnapshotFixtureExecution` 只把符合既有 eligibility 结果的冻结 Fixture 生成 `PROJECTED_ONLY` 值，固定费用必须来自 Fixture，假设全量成交并显式标出参与率未验证；它不持久化或产生实际FakeBroker/Portfolio事实。真实 Paper 路径还缺 Mandate/治理授权、风控评估与账户资源预留、费用/成交规则审批、SNAPSHOT FakeBroker持久接受、组合账本和对账闭环。
+
+实现复核补充（2026-09-25）：按项目所有者确认的每服务独立Bearer身份，内部路由现要求 `service-id` 与对应的独立平台/历史回放Bearer同时匹配，并按调用方限制历史执行、订单读取、撤单和补偿范围；回放工作进程用自身身份调用受治理历史执行，V2.4日终对账使用平台身份。缺少、过短或重复token时服务启动失败。单元测试覆盖伪造/缺失身份、调用方错配及路由越权；专用`trade_execution_test`中的临时HTTP进程实测了403/200/404路由行为和向治理服务传递执行服务Bearer，并精确清理拒绝单。该代码尚未部署到活动容器。
+
+调用链收口（2026-09-25）：交易执行消费治理授权时使用 `trade-execution-service` 自身身份；授权只由 `historical-replay-worker` 申请，只有该服务可发起历史 FakeBroker 执行。历史回放服务的入站运行/控制端点要求平台Bearer。
+
+治理拒绝集成补充（2026-09-27）：在隔离`trade_execution_test`中对历史FakeBroker HTTP路径验证调用方scope拒绝先于Governance；有效Replay调用方但Governance拒绝时，订单、Fill、事件、Outbox零写入。Governance通过后仅固定零成交量拒绝样例进入可审计FakeBroker拒绝结果。详见[P5治理拒绝审计](../../evidence/audits/2026-09-27-p5-governance-denial-no-side-effects.md)。该路径仍是BACKTEST历史执行，不代表V2.4 Paper Mandate或SNAPSHOT接线已实现。
+
+V2.4准备态只读端点补充（2026-09-27）：`GET /internal/v1/v24/paper-readiness?market=CN_A|US_EQUITY`仅接受带Platform API专属Bearer的内部请求；读取版本化策略/Mandate准备Fixture，汇总既有领域门禁。CN_A保持BLOCKED、US_EQUITY保持REJECTED，响应明确风险评估与资源预留为NOT_RUN、`orderSubmissionEnabled=false`。该端点不查询或写入FakeBroker，不能表示执行已授权。schema/OpenAPI纳入contracts检查和V2.4 code suite。详见[P5.5 readiness审计](../../evidence/audits/2026-09-27-p5-5-paper-readiness.md)。
+
+V2.4生产镜像验证补充（2026-09-27）：隔离internal-only容器烟测已用Linux/ARM64原生及Linux/AMD64仿真运行本服务的实际Dockerfile，启动临时PostgreSQL并通过容器HTTP探针读取readiness；确认runtime fixture copy正确、服务进程为node用户、rootfs只读，鉴权拒绝及FakeBroker零账本副作用。一次性镜像与容器已清理。AMD64仿真不表示已通过Ubuntu部署验收，详情见同一[P5.5 readiness审计](../../evidence/audits/2026-09-27-p5-5-paper-readiness.md)。

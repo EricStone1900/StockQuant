@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-independent-validation-input.schema.json",
+  "title": "V32IndependentValidationInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "requestFingerprint", "request"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-independent-validation-input-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "requestFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "request": { "$ref": "./v3.2-promotion-request.schema.json" }
+  }
+}

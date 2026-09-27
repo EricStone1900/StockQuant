@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-stage-run-request.schema.json",
+  "title": "V24PaperStageRunRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenarioId", "seed"],
+  "properties": {
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+  }
+}

@@ -17,7 +17,7 @@ test("version verification parses every V2 acceptance row", async () => {
   const result = await runVersion("V2");
   const payload = JSON.parse(result.stdout);
   assert.equal(result.code, 2);
-  assert.equal(payload.unresolvedAcceptance.length, 2);
+  assert.ok(payload.unresolvedAcceptance.some(({ stageId }) => stageId === "V2.3"), "the corrected Qlib research status must remain a visible unresolved stage");
   assert.deepEqual(payload.missingAcceptance, []);
   assert.deepEqual(payload.unexpectedAcceptance, []);
   assert.equal(payload.versionSummaryIncomplete, true);

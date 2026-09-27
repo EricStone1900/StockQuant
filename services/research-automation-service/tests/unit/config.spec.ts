@@ -56,4 +56,16 @@ describe("V3.1 research configuration", () => {
     expect(() => loadResearchAutomationConfig({ STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS: "768" })).toThrow("exactly 1024");
     expect(loadResearchAutomationConfig({}).embeddingDimensions).toBe(1024);
   });
+
+  it("accepts only sufficiently long per-service credentials", () => {
+    expect(() => loadResearchAutomationConfig({ STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "short" })).toThrow("at least 32 characters");
+    expect(loadResearchAutomationConfig({ STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "x".repeat(32) }).trustedServiceTokens)
+      .toEqual({ "platform-api-service": "x".repeat(32) });
+  });
+
+  it("requires a distinct token for every configured service identity", () => {
+    const token = "x".repeat(32);
+    expect(() => loadResearchAutomationConfig({ STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: token, STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST: token }))
+      .toThrow("distinct Bearer token");
+  });
 });

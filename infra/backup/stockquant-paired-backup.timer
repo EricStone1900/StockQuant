@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily StockQuant paired backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+RandomizedDelaySec=5m
+AccuracySec=1m
+Unit=stockquant-paired-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -4,6 +4,7 @@ import type { ExperimentRepository } from "../ports/experiment-repository.js";
 export type ExperimentBudgetLedger = {
   reserve(experimentId: string, requestedCents: number): Promise<unknown> | unknown;
   get?(experimentId: string): Promise<unknown> | unknown;
+  settle?(experimentId: string, spentCents: number | "UNKNOWN"): Promise<unknown> | unknown;
   reject?(experimentId: string): Promise<unknown> | unknown;
 };
 
@@ -22,6 +23,7 @@ export class ExperimentService {
     const existing = await this.repository.findByIdempotencyKey(request.idempotencyKey);
     if (existing) {
       const same = existing.fixtureId === request.fixtureId
+        && existing.testRunId === request.testRunId
         && existing.modelProfile === request.modelProfile
         && existing.rounds === request.rounds
         && existing.budgetCurrency === request.budgetCurrency
@@ -47,6 +49,14 @@ export class ExperimentService {
   async cancel(experimentId: string): Promise<Experiment | null> {
     const experiment = await this.repository.findById(experimentId);
     if (!experiment) return null;
-    return this.repository.save(cancelExperiment(experiment));
+    const cancelled = await this.repository.save(cancelExperiment(experiment));
+    // This service has no model-call path while an experiment is
+    // PENDING_PREREQUISITES, so a still-RESERVED amount is known unused.
+    // UNKNOWN and already settled reservations are deliberately untouched.
+    if (cancelled.status === "CANCELLED" && this.budgetLedger?.get && this.budgetLedger.settle) {
+      const reservation = await this.budgetLedger.get(experimentId) as { status?: string } | null;
+      if (reservation?.status === "RESERVED") await this.budgetLedger.settle(experimentId, 0);
+    }
+    return cancelled;
   }
 }

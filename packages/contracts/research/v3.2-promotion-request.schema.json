@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json",
+  "title": "V3.2PromotionRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "testRunId", "experimentId", "candidateSource", "candidateArtifact", "codeSha256", "dataManifestSha256", "metricsManifestSha256", "validationPlanSha256", "budget", "idempotencyKey"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-request-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "experimentId": { "type": "string", "format": "uuid" },
+    "candidateSource": { "enum": ["RD_AGENT", "FIXTURE"] },
+    "candidateArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "namespace", "sha256"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "pattern": "^research/[^/]+/[^/]+/outputs$" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "codeSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "dataManifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "metricsManifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "validationPlanSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allocationId", "currency", "reservedMinor", "consumedMinor"],
+      "properties": {
+        "allocationId": { "type": "string", "minLength": 1 },
+        "currency": { "const": "USD" },
+        "reservedMinor": { "type": "integer", "minimum": 0 },
+        "consumedMinor": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 }
+  }
+}

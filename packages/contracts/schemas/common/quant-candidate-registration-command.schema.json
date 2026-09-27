@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/quant-candidate-registration-command.schema.json",
+  "title": "QuantCandidateRegistrationCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["qlibVersion", "algorithm", "artifactHash"],
+  "properties": {
+    "candidateId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "qlibVersion": { "const": "0.9.6" },
+    "algorithm": { "const": "deterministic-sma" },
+    "artifactHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "approvedBy": { "type": "string", "minLength": 1, "maxLength": 128, "description": "Must match the authenticated platform user context; omitted requests remain pending." }
+  }
+}

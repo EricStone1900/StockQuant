@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/minute-csv-upload-chunk-v1.schema.json",
+  "title": "MinuteCsvUploadChunkRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contentBase64", "sha256"],
+  "properties": {
+    "contentBase64": { "type": "string", "minLength": 4, "maxLength": 699052, "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

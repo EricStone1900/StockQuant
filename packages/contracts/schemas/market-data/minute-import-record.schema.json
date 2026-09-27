@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/minute-import-record-v1.schema.json",
+  "title": "MinuteImportRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["importId", "version", "status", "accepted", "errors", "sha256", "manifest", "idempotent"],
+  "properties": {
+    "importId": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PUBLISHED", "REJECTED"]},
+    "accepted": {"type": "integer", "minimum": 0},
+    "errors": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping", "semantics", "provenance", "researchUseAllowed"],
+      "properties": {
+        "mapping": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
+        "semantics": {"type": "object", "additionalProperties": {"type": "string"}},
+        "provenance": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["sourceName", "sourceReference", "licenseStatement", "licenseVerification", "acquiredAt"],
+              "properties": {
+                "sourceName": {"type": "string", "minLength": 1, "maxLength": 160},
+                "sourceReference": {"type": ["string", "null"], "maxLength": 500},
+                "licenseStatement": {"type": "string", "minLength": 1, "maxLength": 500},
+                "licenseVerification": {"enum": ["OPERATOR_CONFIRMED", "UNCONFIRMED"]},
+                "acquiredAt": {"type": "string", "format": "date-time"}
+              }
+            }
+          ]
+        },
+        "researchUseAllowed": {"type": "boolean"}
+      }
+    },
+    "idempotent": {"type": "boolean"}
+  }
+}

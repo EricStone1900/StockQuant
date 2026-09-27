@@ -6,9 +6,9 @@
 
 | 阶段 | 自动检查 | 人工操作 |
 |---|---|---|
-| V3.1 | 实际RD-Agent小实验、真实Runner权限/资源隔离、模型故障与预算、任务/Artifact持久化及研究Web E2E。 | [阶段验收步骤](./01-rdagent-small-experiments.md) |
+| V3.1 | 实际RD-Agent小实验、真实Runner权限/资源隔离、模型故障与预算、任务/Artifact持久化及研究Web E2E。固定Fixture本地全链路另用`pnpm --filter @stockquant/platform-api-service v31:fixed-pipeline-web-http-smoke`覆盖Chromium→Vite→平台→研究→冻结Runner→同TestRun输出读取和关页恢复；隔离HTTP smoke覆盖exit-17失败、一秒超时、128 MiB OOM、`--network none`连接拒绝及活动Runner持久取消（无输出Artifact、容器移除、费用只结算一次、零外部模型调用）。OOM/网络失败各自与Market Data隔离PG集成、P5.7订单恢复并发运行通过，但不构成生产Paper连续可用性或容量证据。生产出口/DNS策略、固定Fixture检查不能替代真实RD-Agent及人工验收。 | [阶段验收步骤](./01-rdagent-small-experiments.md) |
 | V3.2 | 研究身份越权、独立复算/批准状态机、版本失效、候选到Paper全链路E2E，真实候选与Fixture来源区分。 | [阶段验收步骤](./02-candidate-validation-and-promotion.md) |
-| V3.3 | 预算/并发/恢复/取消、不可重复发布、录制回放与代码复算、研究压力下核心Paper可用性。 | [阶段验收步骤](./03-research-scale-and-recovery.md) |
+| V3.3 | 预算/并发/恢复/取消、不可重复发布、录制回放与代码复算、研究压力下核心Paper可用性。现有证据覆盖队列/分页账本只读 API、持久化WAITING准备态TestRun、Platform Owner边界、同run CLI check-only及Web E2E；code suite含专用PG与loopback HTTP。真实阶段执行、预算控制、检查点/连续性测试仍待实现。 | [阶段验收步骤](./03-research-scale-and-recovery.md)；[V3.3队列读取审计](../../../evidence/audits/2026-09-27-v33-runner-queue-read.md) |
 | V3.4 | Ubuntu真实镜像/迁移/恢复/模型烟测、全阶段浏览器与领域E2E、架构数值比较、连续Paper观察。 | [阶段验收步骤](./04-ubuntu-migration-and-release.md) |
 
 ## 2. 共同测试流程

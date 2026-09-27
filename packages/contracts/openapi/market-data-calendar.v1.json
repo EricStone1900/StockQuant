@@ -1,0 +1,22 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "StockQuant Market Calendar API", "version": "1.0.0"},
+  "servers": [{"url": "http://market-data-service:3002"}],
+  "paths": {
+    "/v2/calendar/cn-a-share/{date}": {
+      "get": {
+        "operationId": "getCnAShareCalendarSession",
+        "summary": "Read the versioned Shanghai/Shenzhen A-share session calendar",
+        "parameters": [{"name": "date", "in": "path", "required": true, "schema": {"type": "string", "format": "date"}}],
+        "responses": {
+          "200": {
+            "description": "Calendar status; UNKNOWN is returned outside the calendar's authoritative coverage.",
+            "content": {"application/json": {"schema": {"$ref": "https://stockquant.local/schemas/market-data/cn-a-share-calendar-session.schema.json"}}}
+          },
+          "400": {"description": "The date path parameter is not a valid calendar date."},
+          "404": {"description": "No matching calendar route."}
+        }
+      }
+    }
+  }
+}

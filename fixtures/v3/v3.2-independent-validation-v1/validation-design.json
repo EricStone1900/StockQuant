@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "v3.2-independent-validation-design-v1",
+  "fixtureVersion": "v3.2-independent-validation-1",
+  "sourceMode": "FIXTURE",
+  "financialData": {
+    "markets": [
+      "CN_A"
+    ],
+    "securities": [
+      "000001.SZ",
+      "600000.SH"
+    ],
+    "venue": "SYNTHETIC_WEEKDAY_SESSIONS",
+    "timezone": "Asia/Shanghai",
+    "currencyByMarket": {
+      "CN_A": "CNY"
+    },
+    "frequency": "DAILY_BAR",
+    "priceAdjustment": "SYNTHETIC_UNADJUSTED",
+    "priceUnit": "CNY_PER_SHARE",
+    "volumeUnit": "SHARES",
+    "barTime": "SESSION_CLOSE",
+    "availableAtField": "availableAt",
+    "calendarVersion": "synthetic-weekday-calendar-v1",
+    "corporateActions": "NOT_MODELED",
+    "delistedSecurities": "NOT_MODELED",
+    "license": "Internal synthetic fixture; no external market data"
+  },
+  "split": {
+    "train": [
+      0,
+      108
+    ],
+    "validation": [
+      108,
+      144
+    ],
+    "test": [
+      144,
+      180
+    ],
+    "endExclusive": true,
+    "perSecurity": true
+  },
+  "checks": {
+    "pit": "Every feature timestamp must be no later than the decision timestamp; execution uses the following session open.",
+    "outOfSample": "Recompute test-window trades and net returns from frozen bars; report exact trade sequence and frozen tolerance.",
+    "cost": {
+      "commissionBpsPerSide": 5,
+      "slippageBpsPerSide": 5,
+      "costBasis": "turnover",
+      "toleranceAbsoluteReturn": 0.000001
+    },
+    "rules": {
+      "allowedAlgorithm": "SMA_CROSS",
+      "fastWindow": 5,
+      "slowWindow": 20,
+      "requireFastLessThanSlow": true
+    },
+    "capacity": {
+      "maximumParticipation": 0.01,
+      "measure": "order quantity / next-session volume"
+    }
+  },
+  "limitations": [
+    "Synthetic-only; does not support profitability or real-market claims.",
+    "No suspensions, holidays, corporate actions, delisted securities, or market-specific execution rules are modeled."
+  ]
+}

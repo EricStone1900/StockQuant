@@ -45,8 +45,9 @@ export const V24_SNAPSHOT_FIXTURE_EXECUTION_POLICY = {
 } as const;
 
 export type SnapshotExecutionResult =
-  | { status: "PROJECTED_ONLY"; proposedOrderId: string; proposedFillId: string; quantity: number; price: string; fee: string; currency: "CNY" | "USD"; effectiveAt: string; snapshotId: string; executionModel: "SNAPSHOT"; policyVersion: string; liquidityParticipation: "NOT_VERIFIED" }
+  | { status: "PROJECTED_ONLY"; proposedOrderId: string; proposedFillId: string; quantity: number; price: string; fee: string; currency: "CNY" | "USD"; effectiveAt: string; snapshotId: string; executionModel: "SNAPSHOT"; policyVersion: string; liquidityParticipation: "NOT_VERIFIED"; quoteAgeSeconds: number; deviationBps: number }
   | { status: "WAITING"; reason: string }
+  | { status: "BLOCKED"; reason: "RISK_POLICY_UNSET" }
   | { status: "REJECTED"; reason: string };
 
 export interface Clock { now(): Date }
@@ -61,6 +62,7 @@ export function calculateSnapshotFixtureExecution(input: {
   eligibility: SnapshotEligibility;
   order: SnapshotExecutionOrder & { namespace: string; accountId: string; clientOrderId: string; requestedQuantity: number };
   fixtureFee: string;
+  risk: { referencePrice: string; evaluatedAt: string; freshnessLimitSeconds: number; maxDeviationBps: number | null; supportedMarkets: Array<"CN_A" | "US_EQUITY"> };
   ids: { orderId: string; externalFillId: string };
 }): SnapshotExecutionResult {
   if (input.mode.environmentMode !== "PAPER" || input.mode.brokerMode !== "FAKE" || input.mode.liveTradingEnabled) {
@@ -78,13 +80,27 @@ export function calculateSnapshotFixtureExecution(input: {
   if (input.eligibility.sourceMode !== "FIXTURE" || input.eligibility.security !== input.order.security || input.eligibility.market !== input.order.market) {
     return { status: "REJECTED", reason: "FIXTURE_SNAPSHOT_SCOPE_MISMATCH" };
   }
+  const risk = assessV24SnapshotRisk({
+    security: input.order.security,
+    expectedSecurity: input.order.security,
+    market: input.order.market,
+    supportedMarkets: input.risk.supportedMarkets,
+    acceptedAt: input.order.acceptedAt,
+    evaluatedAt: input.risk.evaluatedAt,
+    quote: { security: input.eligibility.security, observedAt: input.eligibility.observedAt, price: input.eligibility.price },
+    referencePrice: input.risk.referencePrice,
+    freshnessLimitSeconds: input.risk.freshnessLimitSeconds,
+    maxDeviationBps: input.risk.maxDeviationBps
+  });
+  if (risk.status === "BLOCKED") return { status: "BLOCKED", reason: risk.reason };
+  if (risk.status === "REJECTED") return { status: "REJECTED", reason: risk.reason };
   return {
     status: "PROJECTED_ONLY", proposedOrderId: input.ids.orderId, proposedFillId: input.ids.externalFillId,
     quantity: input.order.requestedQuantity, price: input.eligibility.price, fee: input.fixtureFee,
     currency: input.order.market === "CN_A" ? "CNY" : "USD", effectiveAt: input.eligibility.observedAt,
     snapshotId: input.eligibility.snapshotId, executionModel: "SNAPSHOT",
     policyVersion: V24_SNAPSHOT_FIXTURE_EXECUTION_POLICY.version,
-    liquidityParticipation: "NOT_VERIFIED"
+    liquidityParticipation: "NOT_VERIFIED", quoteAgeSeconds: risk.quoteAgeSeconds, deviationBps: risk.deviationBps
   };
 }
 
@@ -156,3 +172,4 @@ export function selectFirstQualifyingSnapshot(input: {
 
   return { status: "WAITING", reason: "SNAPSHOT_NOT_FRESH" };
 }
+import { assessV24SnapshotRisk } from "./v24-snapshot-risk.js";

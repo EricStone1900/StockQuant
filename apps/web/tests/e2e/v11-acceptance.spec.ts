@@ -1,4 +1,18 @@
 import { expect, test } from "@playwright/test";
+import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
+
+function verifyV11RunWithCli(testRunId: string) {
+  console.info(`[V1.1 Web/CLI same-run] testRunId=${testRunId}`);
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.1", "--run", testRunId, "--check-only"], {
+    cwd: resolve(process.cwd(), "../.."),
+    encoding: "utf8",
+    env: process.env
+  });
+  expect(cli.status, cli.stderr).toBe(0);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "COMPLETED"');
+}
 
 test("V1.1 normal scenario creates an isolated run with backend assertions", async ({ page }) => {
   await page.goto("/acceptance/v1/v1.1");
@@ -8,6 +22,48 @@ test("V1.1 normal scenario creates an isolated run with backend assertions", asy
   await expect(page.getByTestId("run-status")).toHaveText("COMPLETED", { timeout: 10_000 });
   await expect(page.getByText("V1.1-ACCOUNT-INIT-001")).toBeVisible();
   await expect(page.getByText("PASS").first()).toBeVisible();
+  const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV11RunWithCli(testRunId!);
+});
+
+test("V1.1 rejection scenario persists denial assertions visible to the same-run CLI", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.1");
+  await page.getByRole("button", { name: "准备隔离运行：rejection" }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("COMPLETED", { timeout: 10_000 });
+  await expect(page.getByText("V1.1-ACCOUNT-AUTHORIZATION-001")).toBeVisible();
+  await expect(page.getByText("V1.1-ACCOUNT-CONFLICT-001")).toBeVisible();
+  const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV11RunWithCli(testRunId!);
+});
+
+test("V1.1 recovery resumes the same run after restarting only the verified isolated Portfolio container", async ({ page }) => {
+  const project = process.env.STOCKQUANT_ISOLATED_V11_PROJECT;
+  expect(project, "recovery E2E requires the isolated V1.1 harness").toMatch(/^sq-v11-stage-(?:[a-f0-9]{20}|web)$/u);
+  await page.goto("/acceptance/v1/v1.1");
+  await page.getByRole("button", { name: "准备隔离运行：recovery" }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("WAITING", { timeout: 10_000 });
+  const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+
+  const expected = spawnSync("docker", ["compose", "-p", project!, "-f", "infra/compose/docker-compose.v11-integration.yml", "ps", "-q", "portfolio-risk-service"], { encoding: "utf8" });
+  expect(expected.status, expected.stderr).toBe(0);
+  expect(expected.stdout.trim()).not.toBe("");
+  const actual = spawnSync("docker", ["compose", "-p", project!, "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", "ps", "-q", "portfolio-risk-service"], { encoding: "utf8" });
+  expect(actual.status, actual.stderr).toBe(0);
+  expect(actual.stdout.trim()).toBe(expected.stdout.trim());
+  const restart = spawnSync("docker", ["compose", "-p", project!, "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", "restart", "portfolio-risk-service"], { encoding: "utf8" });
+  expect(restart.status, restart.stderr).toBe(0);
+  await expect.poll(() => {
+    const health = spawnSync("docker", ["inspect", "--format", "{{.State.Health.Status}}", expected.stdout.trim()], { encoding: "utf8" });
+    return health.status === 0 ? health.stdout.trim() : `inspect failed: ${health.stderr}`;
+  }, { timeout: 30_000, message: "isolated Portfolio Risk must pass its ready healthcheck before recovery continues" }).toBe("healthy");
+
+  await page.getByRole("button", { name: "重启后继续核对" }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("COMPLETED", { timeout: 15_000 });
+  await expect(page.getByText("V1.1-RECOVERY-001")).toBeVisible();
+  verifyV11RunWithCli(testRunId!);
 });
 
 test("V1.2 data and Qlib probe page shows real container evidence", async ({ page }) => {
@@ -104,17 +160,33 @@ test("V2.3 long replay pauses and resumes from a committed checkpoint", async ({
   await expect(page.getByTestId("v23-worker-status")).toContainText('"status": "COMPLETED"', { timeout: 10_000 });
 });
 
-test("V2.4 continuous paper page shows stale and recovery evidence", async ({ page }) => {
+test("V2.4 continuous paper page shows unconnected execution scenarios as WAITING", async ({ page }) => {
+  const testRunId = "123e4567-e89b-42d3-a456-426614174099";
+  await page.route("**/api/v1/session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ownerId: "acceptance-owner-1" }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.4/observation-summary", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ countedDays: 4, targetDays: 20, remainingDays: 16, status: "WAITING" }) }));
+  const evidence = { testRunId, stageId: "V2.4", scenarioId: "rejection", status: "WAITING", dataMode: "NOT_CONNECTED", executionPolicy: "PREPARATION_ONLY", executionGate: { status: "BLOCKED" }, mandate: { status: "PREPARATION_ONLY" }, source: { status: "NOT_RUN" }, orders: [], fills: [], reconciliation: { status: "NOT_RUN" }, assertions: [{ assertionId: "V2.4-REJECTION-CHAIN-001", status: "WAITING", expected: "real isolated execution chain", actual: "NOT_RUN" }] };
+  await page.route("**/api/v1/acceptance/v2/v2.4/runs", async (route) => {
+    if (route.request().method() === "POST") await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ accepted: true, testRunId, status: "WAITING" }) });
+    else await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(evidence) });
+  });
+  await page.route(`**/api/v1/acceptance/v2/v2.4/runs/${testRunId}`, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(evidence) }));
   await page.goto("/acceptance/v2/v2.4");
   await expect(page.getByRole("heading", { name: "V2.4 真实时钟下持续模拟交易" })).toBeVisible();
+  await expect(page.getByTestId("v24-mode")).toContainText("NOT_CONNECTED");
   await page.getByRole("button", { name: "查看日终观察进度" }).click();
-  await expect(page.getByTestId("v24-observed-days")).toContainText("6/20");
-  await expect(page.getByTestId("v24-remaining-days")).toHaveText("14");
-  await expect(page.getByTestId("v24-observation-status")).toHaveText("WAITING");
-  await page.getByRole("button", { name: "运行陈旧/重复拒绝" }).click();
-  await expect(page.getByTestId("v24-evidence")).toContainText("STALE_SNAPSHOT");
-  await page.getByRole("button", { name: "运行断网恢复" }).click();
-  await expect(page.getByTestId("v24-evidence")).toContainText("SOURCE_DISCONNECTED");
+  const observedDaysText = await page.getByTestId("v24-observed-days").textContent();
+  expect(observedDaysText).toMatch(/^\d+\/20$/u);
+  const countedDays = Number(observedDaysText?.split("/")[0]);
+  await expect(page.getByTestId("v24-remaining-days")).toHaveText(String(Math.max(0, 20 - countedDays)));
+  await expect(page.getByTestId("v24-observation-status")).toHaveText(countedDays >= 20 ? "PASS" : "WAITING");
+  await page.getByRole("button", { name: "检查拒绝路径前置" }).click();
+  await expect(page.getByTestId("v24-evidence")).toContainText('"status": "WAITING"');
+  await expect(page.getByTestId("v24-evidence")).toContainText('"actual": "NOT_RUN"');
+  await expect(page.getByTestId("v24-evidence")).not.toContainText("STALE_SNAPSHOT");
+  await expect(page.getByTestId("v24-evidence")).not.toContainText('"status": "ACTIVE"');
+  await page.getByRole("button", { name: "检查恢复路径前置" }).click();
+  await expect(page.getByTestId("v24-evidence")).toContainText('"reconciliation": {\n    "status": "NOT_RUN"');
+  await expect(page.getByTestId("v24-evidence")).not.toContainText("SOURCE_DISCONNECTED");
 });
 
 test("V2.4 observation history displays preserved prior evidence revisions", async ({ page }) => {

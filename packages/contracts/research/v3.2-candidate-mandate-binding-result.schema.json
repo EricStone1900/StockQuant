@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-candidate-mandate-binding-result.schema.json",
+  "title": "V32CandidateMandateBindingResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "reason", "mandateId"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-candidate-mandate-binding-result-v1" },
+    "status": { "enum": ["EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW", "WAITING", "REJECTED"] },
+    "reason": { "enum": ["APPROVED_REGISTRY_VERSION_NOT_FOUND", "REGISTRY_LOOKUP_UNAVAILABLE", "APPROVED_VERSION_AND_CANDIDATE_ARTIFACT_MATCH", "REGISTRY_VERSION_OR_CANDIDATE_ARTIFACT_MISMATCH"] },
+    "mandateId": { "type": "string", "format": "uuid" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "ownerId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "market": { "const": "CN_A" },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "versionFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "registryStatus": { "const": "CANDIDATE_APPROVED" },
+    "activation": { "const": "DISABLED_UNTIL_MANDATE" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "accountValidation": { "const": "NOT_PERFORMED" },
+    "mandatePersistence": { "const": "NOT_PERFORMED" }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW" } } }, "then": { "required": ["testRunId", "ownerId", "accountId", "market", "environmentMode", "brokerMode", "versionFingerprint", "registryStatus", "activation", "promotionRequestId", "accountValidation", "mandatePersistence"] } },
+    { "if": { "properties": { "status": { "const": "WAITING" } } }, "then": { "required": ["versionFingerprint"] } },
+    { "if": { "properties": { "status": { "const": "REJECTED" } } }, "then": { "required": ["reason"] } }
+  ]
+}

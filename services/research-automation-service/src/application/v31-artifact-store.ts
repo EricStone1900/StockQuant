@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { sha256, validateArtifactRef, type ArtifactRef } from "./v31-runtime-guards.js";
 
@@ -32,6 +32,8 @@ export class FileArtifactStore {
   }
 
   async read(ref: ArtifactRef): Promise<Uint8Array> { return readFile(this.pathFor(ref)); }
+  async size(ref: ArtifactRef): Promise<number> { return (await stat(this.pathFor(ref))).size; }
+  async remove(ref: ArtifactRef): Promise<void> { await unlink(this.pathFor(ref)).catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; }); }
 }
 
 export function artifactPath(root: string, ref: ArtifactRef): string {

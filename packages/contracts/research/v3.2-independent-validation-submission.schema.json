@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-independent-validation-submission.schema.json",
+  "title": "V32IndependentValidationSubmission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "report", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-independent-validation-submission-v1" },
+    "report": { "$ref": "./v3.2-independent-validation-report.schema.json" },
+    "evidence": { "$ref": "./v3.2-independent-validation-evidence-bundle.schema.json" }
+  }
+}

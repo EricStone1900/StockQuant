@@ -4,6 +4,38 @@ import { V24AcceptanceController } from "../../src/bootstrap/app.module.js";
 describe("V2.4 observation revision access", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("persists V2.4 scenario checks as WAITING without fetching or inventing Paper evidence", async () => {
+    const save = vi.fn(async (value: any) => value);
+    const controller = new V24AcceptanceController({
+      scheduler: {},
+      stageRuns: { save },
+      v24Observation: { listRunRevisions: vi.fn(), listObservationsForOwner: vi.fn() }
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    expect(() => controller.preview(undefined, undefined)).toThrow("local session is required");
+    await expect(controller.create(undefined, undefined, { scenarioId: "normal" })).rejects.toThrow("local session is required");
+    expect(save).not.toHaveBeenCalled();
+
+    const result = await controller.create("sq_session=acceptance-owner-1", undefined, { scenarioId: "normal" });
+    expect(result.status).toBe("WAITING");
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0]).toMatchObject({
+      status: "WAITING",
+      evidence: {
+        dataMode: "NOT_CONNECTED",
+        executionPolicy: "PREPARATION_ONLY",
+        mandate: { status: "PREPARATION_ONLY" },
+        source: { status: "NOT_RUN" },
+        orders: [],
+        fills: [],
+        reconciliation: { status: "NOT_RUN" },
+        assertions: [{ status: "WAITING", actual: "NOT_RUN" }]
+      }
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("returns revisions only after owner-scoped TestRun lookup", async () => {
     const revision = {
       revisionId: "1",

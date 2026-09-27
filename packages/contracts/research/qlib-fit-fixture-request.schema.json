@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/qlib-fit-fixture-request.schema.json",
+  "title": "QlibFitFixtureRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceMode", "featureRows", "labels", "splits"],
+  "properties": {
+    "schemaVersion": { "const": "qlib-fit-fixture-v1" },
+    "sourceMode": { "const": "FIXTURE" },
+    "featureRows": { "type": "array", "minItems": 30, "maxItems": 10000, "items": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "number" } } },
+    "labels": { "type": "array", "minItems": 30, "maxItems": 10000, "items": { "type": "number" } },
+    "splits": {
+      "type": "object", "additionalProperties": false, "required": ["train", "valid", "test"],
+      "properties": {
+        "train": { "type": "array", "prefixItems": [{ "type": "integer", "minimum": 0 }, { "type": "integer", "minimum": 1 }], "minItems": 2, "maxItems": 2 },
+        "valid": { "type": "array", "prefixItems": [{ "type": "integer", "minimum": 0 }, { "type": "integer", "minimum": 1 }], "minItems": 2, "maxItems": 2 },
+        "test": { "type": "array", "prefixItems": [{ "type": "integer", "minimum": 0 }, { "type": "integer", "minimum": 1 }], "minItems": 2, "maxItems": 2 }
+      }
+    }
+  }
+}

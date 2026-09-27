@@ -1,0 +1,24 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Historical Fake Execution Internal API", "version": "v1", "description": "Historical replay only. All execution is through the isolated FakeBroker; real brokers and LIVE execution are excluded." },
+  "servers": [{ "url": "http://trade-execution-service:3005" }],
+  "security": [{ "ServiceBearer": [] }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/historical-orders/execute": {
+      "post": {
+        "operationId": "executeHistoricalFakeOrder",
+        "security": [{ "ServiceBearer": [] }],
+        "summary": "Authorize and execute one idempotent historical order through FakeBroker",
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "historical-replay-worker" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-command.schema.json" } } }, "description": "The authorizationId is validated by Governance before any FakeBroker write. Reuse namespace/clientOrderId only with the identical semantic payload." },
+        "responses": {
+          "200": { "description": "Persisted FakeBroker result or idempotent replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-result.schema.json" } } } },
+          "403": { "description": "Service identity or governance authorization rejected" },
+          "409": { "description": "Idempotency identity reused with a different payload" },
+          "422": { "description": "Invalid execution command or failed ledger delivery" }
+        }
+      }
+    }
+  }
+}

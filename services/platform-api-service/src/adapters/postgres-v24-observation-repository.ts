@@ -1,6 +1,8 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
 import { ConflictException } from "@nestjs/common";
+import { calculateObservationDayQuality, type ObservationDayQuality } from "../application/v24-observation-quality.js";
+export type { ObservationDayQuality } from "../application/v24-observation-quality.js";
 
 export type PersistedSchedulerState = {
   status: "STOPPED" | "RUNNING";
@@ -58,13 +60,6 @@ export type ObservationSummary = {
   remainingDays: number;
   status: "WAITING" | "PASS";
   dates: ObservationFinalization[];
-};
-
-export type ObservationDayQuality = {
-  samplingEvents: number;
-  executionEvents: number;
-  invalidSamplingEvents: number;
-  errors: string[];
 };
 
 export function summarizeObservationFinalizations(dates: ObservationFinalization[], targetDays = 20): ObservationSummary {
@@ -292,30 +287,18 @@ export class PostgresV24ObservationRepository {
       "SELECT record->'evidence'->>'eventKind' AS event_kind, record FROM v24_observation_events WHERE observation_date=$1",
       [observationDate]
     );
-    const quality: ObservationDayQuality = { samplingEvents: 0, executionEvents: 0, invalidSamplingEvents: 0, errors: [] };
-    for (const row of result.rows) {
-      const record = row.record;
-      if (row.event_kind === "EXECUTION_WINDOW") quality.executionEvents += 1;
-      if (row.event_kind !== "SAMPLING_SLOT") continue;
-      quality.samplingEvents += 1;
-      if (record.errors.length > 0 || record.sourceAvailable !== true || record.dataAgeSeconds === null || record.outageStatus !== "NONE") {
-        quality.invalidSamplingEvents += 1;
-      }
-      quality.errors.push(...record.errors);
-    }
-    quality.errors = [...new Set(quality.errors)];
-    return quality;
+    return calculateObservationDayQuality(observationDate, result.rows.map((row) => ({ eventKind: row.event_kind, record: row.record })));
   }
 
   async listObservationsForOwner(ownerId: string, limit = 30): Promise<ObservationRecord[]> {
     const result = await this.pool.query(`
-      SELECT o.* FROM v24_observation_days o
+      SELECT o.*, to_char(o.observation_date,'YYYY-MM-DD') AS observation_date_text FROM v24_observation_days o
       JOIN acceptance_stage_runs s ON s.test_run_id=o.test_run_id
       WHERE s.owner_id=$1 AND s.stage_id='V2.4' AND s.scenario_id='observation'
       ORDER BY o.observation_date DESC LIMIT $2
     `, [ownerId, limit]);
     return result.rows.map((row) => ({
-      observationDate: row.observation_date.toISOString().slice(0, 10), sourceAvailable: row.source_available,
+      observationDate: row.observation_date_text, sourceAvailable: row.source_available,
       lastSnapshotAt: row.last_snapshot_at?.toISOString() ?? null, dataAgeSeconds: row.data_age_seconds,
       samplingEvery30Minutes: row.sampling_every_30_minutes, enteredExecutionWindow: row.entered_execution_window,
       signalStatus: row.signal_status, simulatedOrderStatus: row.simulated_order_status, fillStatus: row.fill_status,
@@ -330,9 +313,9 @@ export class PostgresV24ObservationRepository {
   }
 
   async listFinalizations(limit = 30): Promise<ObservationFinalization[]> {
-    const result = await this.pool.query("SELECT observation_date, finalized_at, final_observation_counted, final_record, source_event_id FROM v24_observation_day_finalizations ORDER BY observation_date DESC LIMIT $1", [limit]);
+    const result = await this.pool.query("SELECT observation_date, to_char(observation_date,'YYYY-MM-DD') AS observation_date_text, finalized_at, final_observation_counted, final_record, source_event_id FROM v24_observation_day_finalizations ORDER BY observation_date DESC LIMIT $1", [limit]);
     return result.rows.map((row) => ({
-      observationDate: row.observation_date.toISOString().slice(0, 10),
+      observationDate: row.observation_date_text,
       finalizedAt: row.finalized_at.toISOString(),
       observationCounted: row.final_observation_counted === true,
       record: row.final_record as ObservationRecord,

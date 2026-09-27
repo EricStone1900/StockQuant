@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-registry-version.schema.json",
+  "title": "V32PromotionRegistryVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "versionFingerprint", "candidateArtifact", "codeSha256", "dataManifestSha256", "metricsManifestSha256", "validationPlanSha256", "approvedBy", "status", "activation"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-registry-version-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "versionFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "candidateArtifact": { "type": "object", "additionalProperties": false, "required": ["artifactId", "namespace", "sha256"], "properties": { "artifactId": { "type": "string", "minLength": 1 }, "namespace": { "type": "string", "minLength": 1 }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } } },
+    "codeSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "dataManifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "metricsManifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "validationPlanSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "approvedBy": { "type": "string", "minLength": 1 },
+    "status": { "const": "CANDIDATE_APPROVED" },
+    "activation": { "const": "DISABLED_UNTIL_MANDATE" }
+  }
+}

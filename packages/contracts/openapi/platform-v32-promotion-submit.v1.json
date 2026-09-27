@@ -1,0 +1,87 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Platform V3.2 owner-scoped promotion actions", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "paths": {
+    "/api/v1/acceptance/v3/v3.2/promotions/{promotionRequestId}": {
+      "get": {
+        "operationId": "readOwnedPromotionEvidence",
+        "summary": "Read PromotionRequest and its validation report only when the session owns its normal V3.1 source run",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Owner-scoped immutable request, report, and decision evidence", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-platform-promotion-evidence.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Owned normal V3.1 source run or PromotionRequest was not found" },
+          "409": { "description": "PromotionRequest does not have a valid V3.1 source identity" },
+          "503": { "description": "Quant Research is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.2/runs/{testRunId}/promotion-submission": {
+      "post": {
+        "operationId": "submitV32PromotionForOwnedV31Run",
+        "summary": "Forward an explicit owner action to the guarded Research Automation coordinator; does not accept V3.1 or approve a candidate",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-user-promotion-submit-command.schema.json" } } } },
+        "responses": {
+          "202": { "description": "Submission is waiting, submitted, or requires exact-key reconciliation", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-user-promotion-submit-result.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Owned normal V3.1 run was not found" },
+          "409": { "description": "Run has no persisted experiment identity" },
+          "422": { "description": "Invalid explicit submission confirmation" },
+          "503": { "description": "Research Automation is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.2/promotions/{promotionRequestId}/decision": {
+      "post": {
+        "operationId": "decideOwnedPromotionVersion",
+        "summary": "Persist an explicit approval or rejection for the exact report and candidate version owned through its accepted V3.1 run",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-user-promotion-decision-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Exact-version decision was recorded or replayed; idempotent indicates which", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-user-promotion-decision-result.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Owned normal V3.1 run or PromotionRequest was not found" },
+          "409": { "description": "Exact V3.1 acceptance or immutable validation report is missing, or decision conflicts" },
+          "422": { "description": "Invalid explicit exact-version decision" },
+          "503": { "description": "Quant Research is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.2/candidate-mandate-binding": {
+      "post": {
+        "operationId": "assessOwnedCandidateMandateBinding",
+        "summary": "Read-only exact candidate-version check after owner and accepted V3.1 run verification; creates or activates no Mandate",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-candidate-mandate-binding-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Exact approved version and Artifact match is ready for separate Mandate review", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-candidate-mandate-binding-result.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "Owner identity does not match the session" },
+          "404": { "description": "Owned normal V3.1 source run was not found" },
+          "409": { "description": "Exact source V3.1 run is not accepted" },
+          "422": { "description": "Malformed binding command or exact candidate mismatch" },
+          "503": { "description": "Governance or Quant Registry lookup is unavailable" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" } } }
+}

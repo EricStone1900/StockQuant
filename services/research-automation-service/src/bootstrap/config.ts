@@ -24,6 +24,7 @@ export type ResearchAutomationConfig = {
   budgetWarningPercent: number;
   workerConcurrency: 1;
   prerequisiteStatus: "PENDING_PREREQUISITES" | "CONFIGURED";
+  trustedServiceTokens: Partial<Record<"platform-api-service" | "runner-host" | "quant-validation-worker", string>>;
 };
 
 const parsePositiveInteger = (name: string, value: string | undefined, fallback: number): number => {
@@ -82,6 +83,15 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
   if (workerConcurrency !== 1) throw new Error("STOCKQUANT_RESEARCH_WORKER_CONCURRENCY must remain 1 for V3.1");
 
   const configured = runnerMode === "ISOLATED" && modelGatewayMode === "LIVE";
+  const trustedServiceTokens: ResearchAutomationConfig["trustedServiceTokens"] = {};
+  for (const [serviceId, envName] of [["platform-api-service", "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API"], ["runner-host", "STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST"], ["quant-validation-worker", "STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER"]] as const) {
+    const token = env[envName]?.trim();
+    if (token && token.length < 32) throw new Error(`${envName} must contain at least 32 characters`);
+    if (token) trustedServiceTokens[serviceId] = token;
+  }
+  if (Object.values(trustedServiceTokens).filter(Boolean).length !== new Set(Object.values(trustedServiceTokens).filter(Boolean)).size) {
+    throw new Error("each research service identity must use a distinct Bearer token");
+  }
   return {
     environmentMode: "RESEARCH",
     brokerMode: "FAKE",
@@ -107,6 +117,7 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
     stageBudgetCents,
     budgetWarningPercent,
     workerConcurrency: 1,
-    prerequisiteStatus: configured ? "CONFIGURED" : "PENDING_PREREQUISITES"
+    prerequisiteStatus: configured ? "CONFIGURED" : "PENDING_PREREQUISITES",
+    trustedServiceTokens
   };
 }

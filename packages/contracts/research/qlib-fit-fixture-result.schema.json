@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/qlib-fit-fixture-result.schema.json",
+  "title": "QlibFitFixtureResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "sourceMode", "modelTraining", "modelValidation", "candidateSourceExecution", "qlibVersion", "lightgbmVersion", "model", "segments", "testPredictionCount", "testPredictionsFinite", "testPredictionsSha256", "modelSha256", "evaluationMetrics", "tracking", "profitabilityClaim"],
+  "properties": {
+    "schemaVersion": { "const": "qlib-fit-fixture-result-v1" },
+    "status": { "const": "COMPLETED" },
+    "sourceMode": { "const": "FIXTURE" },
+    "modelTraining": { "const": "PASS" },
+    "modelValidation": { "const": "NOT_RUN" },
+    "candidateSourceExecution": { "const": "NOT_PERFORMED" },
+    "qlibVersion": { "type": "string", "minLength": 1 },
+    "lightgbmVersion": { "type": "string", "minLength": 1 },
+    "model": { "const": "qlib.contrib.model.gbdt.LGBModel" },
+    "segments": {
+      "type": "object", "additionalProperties": false, "required": ["train", "valid", "test"],
+      "properties": {
+        "train": { "type": "object", "additionalProperties": false, "required": ["start", "end", "rows"], "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 1 }, "rows": { "type": "integer", "minimum": 1 } } },
+        "valid": { "type": "object", "additionalProperties": false, "required": ["start", "end", "rows"], "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 1 }, "rows": { "type": "integer", "minimum": 1 } } },
+        "test": { "type": "object", "additionalProperties": false, "required": ["start", "end", "rows"], "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 1 }, "rows": { "type": "integer", "minimum": 1 } } }
+      }
+    },
+    "testPredictionCount": { "type": "integer", "minimum": 5 },
+    "testPredictionsFinite": { "const": true },
+    "testPredictionsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "modelSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "evaluationMetrics": { "type": "object" },
+    "tracking": { "const": "temporary SQLite under /tmp; removed with the worker container" },
+    "profitabilityClaim": { "const": "NOT_MADE" }
+  }
+}

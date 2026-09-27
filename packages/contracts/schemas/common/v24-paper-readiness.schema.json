@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-readiness.schema.json",
+  "title": "V24PaperReadiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "market", "environmentMode", "brokerMode", "liveTradingEnabled", "status", "policyReadiness", "mandateReadiness", "riskEvaluation", "resourceReservation", "orderSubmissionEnabled"],
+  "properties": {
+    "schemaVersion": { "const": "v24-paper-execution-readiness-v1" },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "liveTradingEnabled": { "const": false },
+    "status": { "enum": ["BLOCKED", "REJECTED"] },
+    "policyReadiness": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["status", "reason", "configurationGaps"], "properties": { "status": { "const": "BLOCKED" }, "reason": { "const": "POLICY_PREPARATION_ONLY" }, "configurationGaps": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true } } },
+        { "type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": { "status": { "const": "REJECTED" }, "reason": { "enum": ["LIVE_OR_NON_FAKE_MODE", "UNSUPPORTED_MARKET"] } } }
+      ]
+    },
+    "mandateReadiness": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["status", "reason", "configurationGaps"], "properties": { "status": { "const": "BLOCKED" }, "reason": { "const": "MANDATE_PREPARATION_ONLY" }, "configurationGaps": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true } } },
+        { "type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": { "status": { "const": "REJECTED" }, "reason": { "const": "UNSUPPORTED_MARKET" } } }
+      ]
+    },
+    "riskEvaluation": { "type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": { "status": { "const": "NOT_RUN" }, "reason": { "const": "NO_REQUEST_SCOPED_ORDER_AND_SNAPSHOT" } } },
+    "resourceReservation": { "type": "object", "additionalProperties": false, "required": ["status", "reason"], "properties": { "status": { "const": "NOT_RUN" }, "reason": { "const": "MANDATE_OR_ACCOUNT_UNSET" } } },
+    "orderSubmissionEnabled": { "const": false }
+  }
+}

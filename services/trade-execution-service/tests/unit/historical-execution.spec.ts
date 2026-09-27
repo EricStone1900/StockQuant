@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateFee, calculateHistoricalExecution, cancelTransition, historicalExecutionFingerprint } from "../../src/domain/historical-execution.js";
+import { calculateFee, calculateHistoricalExecution, cancelTransition, historicalExecutionFingerprint, validateExecutionReservation } from "../../src/domain/historical-execution.js";
 describe("historical FakeBroker execution", () => {
   it("uses next bar open and participation cap without floating-point money", () => {
     const result = calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } }, { orderId:"o", externalFillId:"f" });
@@ -30,5 +30,13 @@ describe("historical FakeBroker execution", () => {
     expect(historicalExecutionFingerprint(command)).toBe(historicalExecutionFingerprint({ ...command, side:"BUY", orderType:"MARKET", timeInForce:"DAY", participationRate:0.1, slippageBps:10 }));
     expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, requestedQuantity:99 }));
     expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, bar:{ ...command.bar, open:"10.2100" } }));
+  });
+  it("binds reservation identity and side/currency to the idempotent request", () => {
+    const command = { namespace:"n", accountId:"a", clientOrderId:"o6", security:"600000.SH", requestedQuantity:100, side:"SELL" as const, currency:"CNY", reservation:{ reservationId:"r", ownerId:"owner", testRunId:"run", clientOrderId:"o6" }, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } };
+    expect(() => validateExecutionReservation(command)).not.toThrow();
+    expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, reservation:undefined }));
+    expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, side:"BUY" }));
+    expect(() => validateExecutionReservation({ ...command, reservation:{ ...command.reservation, clientOrderId:"other-order" } })).toThrow("RESERVATION_ORDER_MISMATCH");
+    expect(() => validateExecutionReservation({ ...command, currency:"CNY;DROP" })).toThrow("INVALID_CURRENCY");
   });
 });

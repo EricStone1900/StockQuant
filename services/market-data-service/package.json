@@ -3,7 +3,42 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {"build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit", "lint": "tsc -p tsconfig.json --noEmit", "test": "vitest run tests/unit", "test:integration": "vitest run tests/integration"},
-  "dependencies": {"@nestjs/common": "12.0.1", "@nestjs/core": "12.0.1", "pg": "8.23.0", "reflect-metadata": "0.2.2", "rxjs": "7.8.2"},
-  "devDependencies": {"@types/node": "26.5.0", "@types/pg": "8.23.1", "typescript": "7.0.2", "vitest": "5.0.0"}
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "calendar:http-smoke": "pnpm build && node scripts/calendar-http-smoke.mjs",
+    "service-auth:http-smoke": "pnpm build && node scripts/service-auth-http-smoke.mjs",
+    "http-body-limit:http-smoke": "pnpm build && node scripts/http-body-limit-smoke.mjs",
+    "minute-import:http-restart-smoke": "node scripts/minute-import-http-restart-smoke.mjs",
+    "minute-csv-identity:http-restart-smoke": "node scripts/minute-csv-identity-http-restart-smoke.mjs",
+    "minute-upload:http-restart-smoke": "pnpm build && node scripts/minute-upload-http-restart-smoke.mjs",
+    "minute-parquet:upload-restart-smoke": "pnpm build && node scripts/minute-parquet-upload-restart-smoke.mjs",
+    "minute-parquet:container-db-restart-smoke": "pnpm build && node scripts/minute-parquet-container-db-restart-smoke.mjs",
+    "minute-partition:backfill": "pnpm build && node scripts/minute-import-partition-backfill.mjs",
+    "minute-partition:capacity-smoke": "pnpm build && node scripts/minute-import-partition-capacity-smoke.mjs",
+    "minute-archive:http-smoke": "pnpm build && node scripts/baostock-minute-archive-http-smoke.mjs",
+    "minute-csv:error-capacity-smoke": "pnpm build && node scripts/minute-csv-error-capacity-smoke.mjs",
+    "minute-upload:error-capacity-http-smoke": "pnpm build && node scripts/minute-upload-error-capacity-http-smoke.mjs",
+    "minute-parquet:capacity-http-smoke": "pnpm build && node scripts/minute-parquet-capacity-http-smoke.mjs",
+    "minute-parquet:container-capacity-smoke": "pnpm build && node scripts/minute-parquet-container-capacity-smoke.mjs",
+    "minute-parquet:compression-sensitivity-smoke": "pnpm build && node scripts/minute-parquet-compression-sensitivity-smoke.mjs",
+    "minute-import:cross-process-gate-smoke": "pnpm build && node scripts/minute-import-cross-process-gate-smoke.mjs",
+    "minute-import:container-gate-smoke": "node scripts/minute-import-container-gate-smoke.mjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "pg": "8.23.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.0",
+    "@types/pg": "8.23.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
 }

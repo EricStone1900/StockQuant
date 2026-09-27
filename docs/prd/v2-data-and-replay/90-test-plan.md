@@ -10,8 +10,8 @@
 |---|---|---|
 | V2.1 | Adapter契约与真实来源烟测、分批限流/缓存/去重、50/80/100容量和101拒绝、时间戳/陈旧/新闻注入浏览器测试。 | [阶段验收步骤](./01-free-data-and-news.md) |
 | V2.2 | 字段单位/时间边界/质量规则、真实存储导入幂等与中断恢复、分钟查询分页及Web导入E2E。 | [阶段验收步骤](./02-minute-data-import.md) |
-| V2.3 | 同Bar未来泄漏、订单因果顺序/参与率、领域规则一致性、检查点恢复、两次运行隔离及分钟回放Web E2E。 | [阶段验收步骤](./03-historical-minute-replay.md) |
-| V2.4 | 调度/新鲜度/窗口规则、真实来源与FakeBroker集成、浏览器关闭、断网恢复、实际交易日观察。 | [阶段验收步骤](./04-continuous-paper-trading.md) |
+| V2.3 | 同Bar未来泄漏、订单因果顺序/参与率、领域规则一致性、检查点恢复、两次运行隔离及分钟回放Web E2E；code suite另执行锁定Linux/amd64 Qlib Worker `LGBModel.fit/predict` 合成Fixture冒烟（Mac ARM宿主为仿真）。该冒烟不替代冻结市场数据、生产研究路由或独立模型验证。 | [阶段验收步骤](./03-historical-minute-replay.md) |
+| V2.4 | 十个唯一采样窗口及±60秒排程质量、唯一09:31执行窗口、逐请求证券覆盖/唯一性/LIVE_SOURCE/0～1800秒新鲜度、真实来源与FakeBroker集成、浏览器关闭、断网恢复、实际交易日观察；code suite另经隔离PostgreSQL和真实HTTP核验normal/rejection/recovery持久化为WAITING、session/owner拒绝；真实Chromium→Vite→Platform API→隔离PostgreSQL→CLI核验同一TestRun并以`--check-only`保留WAITING/exit 2；P5.5只读就绪端点以Trade Execution容器+临时PostgreSQL实测CN_A BLOCKED、US_EQUITY REJECTED、错误身份403及FakeBroker账本零写。准备态 smoke 不表示Paper执行链完成；容器AMD64仿真不替代Ubuntu实机。 | [阶段验收步骤](./04-continuous-paper-trading.md) |
 | V2.5 | 扩容前后小样本回归、缓存隔离、Walk-forward/PIT、资源预算/取消/恢复、V2全阶段Web回归。 | [阶段验收步骤](./05-data-scale-and-v2-acceptance.md) |
 
 ## 2. 共同测试流程

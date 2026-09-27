@@ -1,0 +1,9 @@
+# P5.6 FakeBroker persistence recheck
+
+Date: 2026-09-25. This is an isolated repository-level integration check, not a deployed Paper order workflow or a strategy authorization.
+
+Reverification on 2026-09-25: `pnpm --filter @stockquant/trade-execution-service test` passed 31/31 unit tests and `typecheck` passed. `pnpm --filter @stockquant/trade-execution-service test:integration` built the service and exited 0 against the dedicated `trade_execution_test` database. Its randomly scoped persistence case and temporary HTTP process were cleaned up by the scripts. The HTTP smoke namespace was `service-auth-http-smoke/b0b7f670-4483-47cc-9f82-263f47510f4d`.
+
+The PostgreSQL run verified: concurrent same-key requests persist exactly one Order, Fill, order Event, and Outbox row; changed quantity or price returns 409 without side effects; legacy rows with no request fingerprint reject replay; reconnect replay returns the persisted result. The HTTP run verified missing, forged, and unknown identities are rejected; the platform can read but cannot execute historical orders; the replay worker cannot cancel; and a correctly governed replay reaches execution. Broker mode remained FAKE. The earlier sandbox attempt failed to connect to loopback PostgreSQL with `EPERM`; rerunning the same guarded integration command with local test-database access passed.
+
+Still incomplete for P5.6: P5.5 Mandate/risk/cash or security reservation is not implemented; the snapshot projection remains `PROJECTED_ONLY` and does not create Broker facts; no deployed V2.4 strategy route is enabled. The existing historical replay path requires governance authorization, but this does not prove the new Paper flow. P5.7 fill-to-Portfolio delivery/reconciliation has code and separate recovery checks but is not yet integrated with this snapshot projection. No live trading occurred.

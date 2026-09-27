@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-independent-validation-report.schema.json",
+  "title": "V3.2IndependentValidationReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "testRunId", "sourceMode", "disposition", "reason", "checks", "registryMutation"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-independent-validation-report-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "sourceMode": { "enum": ["FIXTURE", "REAL_CANDIDATE"] },
+    "disposition": { "enum": ["ELIGIBLE_FOR_REVIEW", "REJECTED", "INCOMPLETE"] },
+    "reason": { "enum": ["ALL_REQUIRED_CHECKS_PASSED", "REQUIRED_CHECK_FAILED", "REQUIRED_CHECK_NOT_RUN"] },
+    "checks": {
+      "type": "array", "minItems": 5, "maxItems": 5,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["checkId", "status", "evidenceSha256"],
+        "properties": {
+          "checkId": { "enum": ["PIT", "OUT_OF_SAMPLE", "COST", "RULES", "CAPACITY"] },
+          "status": { "enum": ["PASS", "FAIL", "NOT_RUN"] },
+          "evidenceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "registryMutation": { "const": "NOT_PERFORMED" }
+  }
+}

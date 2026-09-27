@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-submit-result.schema.json",
+  "title": "V3.2 PromotionRequest submission result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status"],
+  "properties": {
+    "status": { "enum": ["WAITING", "SUBMITTED", "SUBMISSION_UNKNOWN"] },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "quantResult": { "type": "null" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "quantStatus": { "const": "AWAITING_INDEPENDENT_VALIDATION" },
+    "idempotent": { "type": "boolean" },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

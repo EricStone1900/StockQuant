@@ -1,16 +1,22 @@
 import type { ObservationRecord } from "../adapters/postgres-v24-observation-repository.js";
 import { PostgresV24ObservationRepository, type ObservationDayQuality } from "../adapters/postgres-v24-observation-repository.js";
+import { V24_MAX_QUOTE_AGE_SECONDS } from "./v24-observation-quality.js";
 import type { SchedulerTickHandler } from "./v24-scheduler.js";
+import type { CnAShareCalendarSession } from "../contracts/generated-types.js";
 
-type Calendar = { status?: "TRADING" | "CLOSED" | "UNKNOWN"; calendarVersion?: string; reason?: string };
+type Calendar = Partial<CnAShareCalendarSession>;
 
 export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[]; quality?: ObservationDayQuality }): boolean {
-  const qualityPass = quality !== undefined && quality.samplingEvents >= 10 && quality.executionEvents >= 1 && quality.invalidSamplingEvents === 0 && quality.errors.length === 0;
+  const qualityPass = quality !== undefined
+    && quality.samplingEvents === 10 && quality.uniqueSamplingWindows === 10 && quality.missingSamplingWindows.length === 0
+    && quality.uniqueExecutionWindows === 1 && quality.invalidSamplingEvents === 0 && quality.invalidExecutionEvents === 0
+    && quality.invalidSecuritySamples === 0 && quality.expectedSecuritySamples > 0
+    && quality.validSecuritySamples === quality.expectedSecuritySamples && quality.errors.length === 0;
   return actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0 && qualityPass;
 }
 
 export class V24LiveObservationHandler implements SchedulerTickHandler {
-  constructor(private readonly repository: PostgresV24ObservationRepository, private readonly marketUrl: string, private readonly executionUrl = "http://127.0.0.1:3005") {}
+  constructor(private readonly repository: PostgresV24ObservationRepository, private readonly marketUrl: string, private readonly executionUrl = "http://127.0.0.1:3005", private readonly executionToken = "") {}
 
   async handleTick({ now, previousSampleAt, kind, scheduledFor }: Parameters<SchedulerTickHandler["handleTick"]>[0]): Promise<void> {
     const observationDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(now);
@@ -29,11 +35,21 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
       try {
         const response = await fetch(`${this.marketUrl}/v2/quote/preview`, { signal: AbortSignal.timeout(8_000) });
         quote = await response.json();
-        sourceAvailable = response.ok && typeof quote === "object" && quote !== null && Array.isArray((quote as { securities?: unknown }).securities) && ((quote as { securities: unknown[] }).securities.length > 0);
-        const observed = sourceAvailable ? ((quote as { securities: Array<{ observedAt?: string }> }).securities.map((item) => item.observedAt).filter((value): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value))).sort().at(-1) ?? null) : null;
+        const probe = typeof quote === "object" && quote !== null ? quote as { requestedSymbols?: unknown; securities?: unknown } : null;
+        const requested = Array.isArray(probe?.requestedSymbols) ? probe.requestedSymbols.filter((item): item is string => typeof item === "string") : [];
+        const securities = Array.isArray(probe?.securities) ? probe.securities.filter((item): item is { symbol: string; observedAt?: string | null; status?: string } => typeof item === "object" && item !== null && typeof (item as { symbol?: unknown }).symbol === "string") : [];
+        const ages = securities.map((item) => typeof item.observedAt === "string" && !Number.isNaN(Date.parse(item.observedAt)) ? Math.floor((now.getTime() - Date.parse(item.observedAt)) / 1000) : null);
+        const observed = securities.map((item) => item.observedAt).filter((value): value is string => typeof value === "string" && !Number.isNaN(Date.parse(value))).sort().at(-1) ?? null;
+        const expected = new Set(requested);
+        const covered = securities.length === expected.size && new Set(securities.map((item) => item.symbol)).size === expected.size && requested.length === expected.size && requested.every((symbol) => {
+          const item = securities.find((candidate) => candidate.symbol === symbol);
+          const age = item?.observedAt ? (now.getTime() - Date.parse(item.observedAt)) / 1000 : Number.NaN;
+          return item?.status === "LIVE_SOURCE" && Number.isFinite(age) && age >= 0 && age <= V24_MAX_QUOTE_AGE_SECONDS;
+        });
+        sourceAvailable = response.ok && requested.length > 0 && covered;
         lastSnapshotAt = observed;
-        dataAgeSeconds = observed ? Math.max(0, Math.floor((now.getTime() - new Date(observed).getTime()) / 1000)) : null;
-        outageStatus = sourceAvailable ? (dataAgeSeconds !== null && dataAgeSeconds > 1800 ? "STALE" : "NONE") : "DISCONNECTED";
+        dataAgeSeconds = ages.length > 0 && ages.every((age): age is number => age !== null) ? Math.max(...ages) : null;
+        outageStatus = sourceAvailable ? "NONE" : ages.some((age) => age !== null && (age < 0 || age > V24_MAX_QUOTE_AGE_SECONDS)) ? "STALE" : "DISCONNECTED";
       } catch (error) { errors.push(error instanceof Error ? error.message : "quote probe failed"); outageStatus = "DISCONNECTED"; }
     }
 
@@ -42,7 +58,7 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
     const localTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
     const sameDayGap = previousDate === observationDate && intervalSeconds !== null && intervalSeconds > 31 * 60;
     const startupAfterFirstSlot = previousDate !== observationDate && localTime >= "09:35" && localTime < "15:00";
-    const scheduledDelaySeconds = scheduledFor ? Math.floor((now.getTime() - new Date(scheduledFor).getTime()) / 1000) : null;
+    const scheduledDelaySeconds = scheduledFor ? (now.getTime() - new Date(scheduledFor).getTime()) / 1000 : null;
     const samplingEvery30Minutes = kind === "SAMPLING_SLOT" ? scheduledDelaySeconds !== null && Math.abs(scheduledDelaySeconds) <= 60 : sameDayGap ? false : null;
     if (kind === "RECOVERY_CHECK" && actualTradingDay && (sameDayGap || startupAfterFirstSlot)) recoveryActions.push("RECOVERY_GAP_RECORDED_NO_BACKFILL");
     const enteredExecutionWindow = kind === "EXECUTION_WINDOW";
@@ -59,7 +75,7 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
     if (kind === "END_OF_DAY" && actualTradingDay) {
       try {
         const namespace = `v24-observation-${observationDate}`;
-        const response = await fetch(`${this.executionUrl}/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, { headers: { "x-stockquant-service-id": "platform-api-service" }, signal: AbortSignal.timeout(5_000) });
+        const response = await fetch(`${this.executionUrl}/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, { headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.executionToken}` }, signal: AbortSignal.timeout(5_000) });
         if (!response.ok) throw new Error(`reconciliation status ${response.status}`);
         reconciliation = await response.json();
         const facts = reconciliation as { unresolved_order_count?: number; pending_outbox_count?: number };

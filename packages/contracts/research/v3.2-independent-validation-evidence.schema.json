@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-independent-validation-evidence.schema.json",
+  "title": "V32IndependentValidationEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidenceSha256", "details"],
+  "properties": {
+    "evidenceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "details": { "type": "object", "additionalProperties": true }
+  }
+}

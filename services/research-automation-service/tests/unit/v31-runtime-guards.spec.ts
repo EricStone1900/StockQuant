@@ -22,6 +22,7 @@ describe("V3.1 runtime guards", () => {
   });
   it("validates content-addressed ArtifactRefs", () => {
     expect(() => validateArtifactRef({ schemaVersion: "v3.1-artifact-ref-v1", artifactId: "input-1", kind: "INPUT", namespace: "research/run-1/exp-1/inputs", sha256: "c".repeat(64), status: "PUBLISHED", sourceRef: "fixture:v3.1" })).not.toThrow();
+    expect(() => validateArtifactRef({ schemaVersion: "v3.1-artifact-ref-v1", artifactId: "output-1", kind: "OUTPUT", namespace: "research/run-1/exp-1/outputs", sha256: "c".repeat(64), status: "PENDING", sourceRef: "runner:job-1" })).not.toThrow();
     expect(() => validateArtifactRef({ schemaVersion: "v3.1-artifact-ref-v1", artifactId: "bad", kind: "INPUT", namespace: "research/run-1/exp-1/outputs", sha256: "c".repeat(64), status: "PUBLISHED", sourceRef: "fixture:v3.1" })).toThrow("inputs");
     expect(sha256("fixture")).toHaveLength(64);
   });
@@ -40,6 +41,59 @@ describe("V3.1 runtime guards", () => {
     expect(() => ledger.reserve("exp-3", 1000)).not.toThrow();
   expect(() => ledger.reserve("exp-4", 1000)).toThrow("stage budget exhausted");
   expect(ledger.reject("exp-3").status).toBe("REJECTED");
-  expect(() => ledger.reject("exp-3")).toThrow("only a reserved budget");
-});
+    expect(() => ledger.reject("exp-3")).toThrow("only a reserved budget");
+  });
+
+  it("reserves each model request before dispatch and keeps UNKNOWN request cost inside the experiment cap", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80);
+    ledger.reserve("exp-calls", 80);
+    const first = ledger.reserveModelCall("exp-calls", "model-run-1", "a".repeat(64), 60);
+    expect(first).toMatchObject({ created: true, reservation: { status: "RESERVED", reservedCents: 60 } });
+    expect(ledger.reserveModelCall("exp-calls", "model-run-1", "a".repeat(64), 60)).toMatchObject({ created: false, reservation: { status: "RESERVED" } });
+    expect(() => ledger.reserveModelCall("exp-calls", "model-run-1", "b".repeat(64), 60)).toThrow("reused with different");
+
+    ledger.dispatchModelCall("exp-calls", "model-run-1");
+    expect(ledger.markModelCallUnknown("exp-calls", "model-run-1").status).toBe("UNKNOWN");
+    expect(() => ledger.dispatchModelCall("exp-calls", "model-run-1")).toThrow("only be dispatched from RESERVED");
+    expect(() => ledger.settle("exp-calls", 0)).toThrow("model call budget remains unresolved");
+    expect(() => ledger.reserveModelCall("exp-calls", "model-run-2", "c".repeat(64), 21)).toThrow("budget exhausted");
+
+    ledger.reserveModelCall("exp-calls", "model-run-2", "c".repeat(64), 20);
+    ledger.dispatchModelCall("exp-calls", "model-run-2");
+    expect(ledger.settleModelCall("exp-calls", "model-run-2", 15)).toMatchObject({ status: "SETTLED", spentCents: 15 });
+    expect(ledger.settleModelCall("exp-calls", "model-run-1", 40)).toMatchObject({ status: "SETTLED", spentCents: 40 });
+    expect(ledger.settleModelCall("exp-calls", "model-run-1", 40).status).toBe("SETTLED");
+    expect(() => ledger.settleModelCall("exp-calls", "model-run-1", 41)).toThrow("cannot be changed");
+    expect(() => ledger.settleModelCall("exp-calls", "model-run-2", 21)).toThrow("outside the reservation");
+    expect(ledger.reserveModelCall("exp-calls", "model-run-3", "d".repeat(64), 25).created).toBe(true);
+    expect(ledger.getModelCall("exp-calls", "model-run-1")).toMatchObject({ status: "SETTLED", requestedCents: 60, spentCents: 40 });
+    ledger.rejectModelCall("exp-calls", "model-run-3");
+    expect(() => ledger.settle("exp-calls", 54)).toThrow("below its settled model call costs");
+    expect(ledger.settle("exp-calls", 55)).toMatchObject({ status: "SETTLED", spentCents: 55 });
+    expect(() => ledger.reserveModelCall("exp-calls", "model-run-4", "1".repeat(64), 1)).toThrow("unavailable");
+  });
+
+  it("releases only model-call reservations proven not dispatched", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80);
+    ledger.reserve("exp-reject-call", 50);
+    ledger.reserveModelCall("exp-reject-call", "model-run", "e".repeat(64), 50);
+    expect(ledger.rejectModelCall("exp-reject-call", "model-run").status).toBe("REJECTED");
+    expect(() => ledger.rejectModelCall("exp-reject-call", "model-run")).toThrow("only an undispatched");
+    expect(ledger.reserveModelCall("exp-reject-call", "model-run-2", "f".repeat(64), 50).created).toBe(true);
+  });
+
+  it("reports settled and uncertain model-call amounts in read-only budget snapshots", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80);
+    ledger.reserve("exp-snapshot", 100);
+    ledger.reserveModelCall("exp-snapshot", "settled", "1".repeat(64), 40);
+    ledger.dispatchModelCall("exp-snapshot", "settled");
+    ledger.settleModelCall("exp-snapshot", "settled", 23);
+    ledger.reserveModelCall("exp-snapshot", "unknown", "2".repeat(64), 30);
+    ledger.dispatchModelCall("exp-snapshot", "unknown");
+    ledger.markModelCallUnknown("exp-snapshot", "unknown");
+    expect(ledger.snapshot(["exp-snapshot", "missing"])).toEqual([{
+      experimentId: "exp-snapshot", requestedCents: 100, reservedCents: 100, spentCents: 0, status: "RESERVED",
+      modelCallSettledCents: 23, modelCallUnknownReservedCents: 30,
+    }]);
+  });
 });

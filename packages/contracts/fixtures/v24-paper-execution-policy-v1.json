@@ -1,0 +1,48 @@
+{
+  "$schema": "../schemas/common/v24-paper-execution-policy.schema.json",
+  "schemaVersion": "v24-paper-execution-policy-v1",
+  "policyId": "v24-snapshot-paper-policy",
+  "policyVersion": "1.0.0",
+  "status": "PREPARATION_ONLY",
+  "environmentMode": "PAPER",
+  "brokerMode": "FAKE",
+  "liveTradingEnabled": false,
+  "supportedMarkets": [
+    "CN_A"
+  ],
+  "signal": {
+    "frequency": "DAILY_BAR",
+    "asOfRequired": true,
+    "strategyVersion": "UNSET"
+  },
+  "execution": {
+    "model": "SNAPSHOT",
+    "windowTimeZone": "Asia/Shanghai",
+    "windowStart": "09:31",
+    "windowEndExclusive": "09:35",
+    "requiresMandate": true,
+    "mandateVersion": "UNSET"
+  },
+  "quoteRules": {
+    "priceBasis": "FIRST_QUALIFYING_SNAPSHOT",
+    "mustBeObservedAfterAcceptance": true,
+    "freshnessLimitSeconds": 1800,
+    "maxDeviationBps": null
+  },
+  "approval": {
+    "riskPolicyVersion": "UNSET",
+    "feePolicyVersion": "UNSET"
+  },
+  "risk": {
+    "requiresPassingEvaluation": true,
+    "requiresResourceReservation": true
+  },
+  "configurationGaps": [
+    "STRATEGY_VERSION",
+    "MANDATE_VERSION",
+    "MAX_DEVIATION_BPS",
+    "RISK_POLICY_VERSION",
+    "FEE_POLICY_VERSION",
+    "US_MARKET_POLICY"
+  ]
+}

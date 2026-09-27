@@ -10,7 +10,8 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "pnpm build && PORTFOLIO_RISK_TEST_DATABASE_URL=\"${PORTFOLIO_RISK_TEST_DATABASE_URL:-postgresql://portfolio_risk@127.0.0.1:5433/portfolio_risk_test}\" vitest run tests/integration && node scripts/service-auth-http-smoke.mjs",
+    "service-auth:http-smoke": "node scripts/service-auth-http-smoke.mjs"
   },
   "dependencies": {
     "@nestjs/common": "12.0.1",

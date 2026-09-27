@@ -14,6 +14,7 @@ RUN pnpm --filter @stockquant/web build
 FROM node:24.1.0-alpine
 WORKDIR /workspace
 COPY --from=build /workspace/node_modules ./node_modules
+COPY --from=build /workspace/apps/web/package.json ./apps/web/package.json
 COPY --from=build /workspace/apps/web/node_modules ./apps/web/node_modules
 COPY --from=build /workspace/apps/web/dist ./apps/web/dist
 COPY --from=build /workspace/apps/web/vite.config.ts ./apps/web/vite.config.ts

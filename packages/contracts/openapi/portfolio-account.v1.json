@@ -1,8 +1,18 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "StockQuant Portfolio Account Internal API", "version": "v1" },
+  "info": { "title": "StockQuant Portfolio Account Internal API", "version": "v1", "description": "Internal calls use an independent Bearer token per service; x-stockquant-service-id selects the caller whose route scope is checked." },
   "servers": [{ "url": "http://portfolio-risk-service:3001" }],
+  "security": [{ "ServiceBearer": [] }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
   "paths": {
+    "/internal/v1/accounts/{accountId}/fills": {
+      "post": {
+        "operationId": "recordAccountFill",
+        "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/reserved-fill-command.schema.json" } } } },
+        "responses": { "200": { "description": "Fill replayed idempotently", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "const": true } } } } } }, "201": { "description": "New fill posted with optional atomic reservation capture", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "const": false } } } } } }, "400": { "description": "Invalid fill" }, "403": { "description": "Caller or reservation scope rejected" }, "404": { "description": "Account not found" }, "409": { "description": "Reservation or fill conflict" } }
+      }
+    },
     "/internal/v1/accounts/initialize": {
       "post": {
         "operationId": "initializeAccount",
@@ -19,6 +29,22 @@
         "operationId": "getAccountSnapshot",
         "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }],
         "responses": { "200": { "description": "Account snapshot", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" } } } }, "403": { "description": "Owner scope rejected" }, "404": { "description": "Account not found" } }
+      }
+    },
+    "/internal/v1/accounts/{accountId}/reservations": {
+      "post": {
+        "operationId": "reserveAccountResources",
+        "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["namespace", "testRunId", "ownerId", "idempotencyKey", "clientOrderId", "side", "currency"], "properties": { "namespace": { "type": "string", "minLength": 1 }, "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string", "minLength": 1 }, "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128 }, "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 }, "side": { "enum": ["BUY", "SELL"] }, "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }, "cashAmount": { "type": ["string", "null"] }, "security": { "type": ["string", "null"] }, "quantity": { "type": ["integer", "null"], "minimum": 1 } } } } } },
+        "responses": { "201": { "description": "Held reservation or idempotent replay", "content": { "application/json": { "schema": { "type": "object", "required": ["reservation", "replayed"], "properties": { "reservation": { "$ref": "https://stockquant.local/schemas/common/resource-reservation.schema.json" }, "replayed": { "type": "boolean" } } } } } }, "400": { "description": "Invalid reservation input" }, "403": { "description": "Caller or account scope rejected" }, "409": { "description": "Insufficient resources or idempotency conflict" } }
+      }
+    },
+    "/internal/v1/accounts/{accountId}/reservations/{reservationId}/resolve": {
+      "post": {
+        "operationId": "resolveAccountReservation",
+        "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "reservationId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["namespace", "testRunId", "ownerId", "outcome", "evidenceRef"], "properties": { "namespace": { "type": "string", "minLength": 1 }, "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string", "minLength": 1 }, "outcome": { "enum": ["FILLED", "CANCELLED", "REJECTED", "EXPIRED", "UNKNOWN"] }, "evidenceRef": { "type": "string", "minLength": 1, "maxLength": 512 } } } } } },
+        "responses": { "200": { "description": "Updated reservation state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/resource-reservation.schema.json" } } } }, "400": { "description": "Resolution evidence or outcome is invalid" }, "403": { "description": "Caller or account scope rejected" }, "404": { "description": "Reservation not found" }, "409": { "description": "Reservation already resolved differently or has no captured fill" } }
       }
     }
   }

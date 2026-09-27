@@ -1,0 +1,20 @@
+{
+  "$schema": "../schemas/common/paired-backup-manifest.schema.json",
+  "format": "stockquant.paired-backup.v1",
+  "backupId": "paired-2026-09-25T10-00-00Z-a1b2c3d4",
+  "createdAt": "2026-09-25T10:00:00Z",
+  "retentionClass": "DAILY",
+  "database": "research_automation",
+  "artifactVolume": "research-artifacts-v1",
+  "restoreValidation": {
+    "status": "PASS",
+    "checkedAt": "2026-09-25T10:10:00Z",
+    "publishedArtifactRefs": 23,
+    "method": "PG_RESTORE_AND_ARTIFACT_SHA256"
+  },
+  "files": [
+    {"path": "database.dump", "bytes": 1843200, "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+    {"path": "artifacts.tar", "bytes": 512000, "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"},
+    {"path": "artifact-files.json", "bytes": 2048, "sha256": "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0"}
+  ]
+}

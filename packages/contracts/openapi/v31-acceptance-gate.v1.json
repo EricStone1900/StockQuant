@@ -1,0 +1,57 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V3.1 exact-run acceptance and promotion gate", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "paths": {
+    "/api/v1/acceptance/v3/v3.1/runs/{testRunId}/promotion-gate": {
+      "get": {
+        "operationId": "readOwnedV31PromotionGate",
+        "summary": "Read stage evidence eligibility and existing exact-run human acceptance for the owner",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Gate for the owner's exact V3.1 run", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-promotion-gate.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Run is missing or unowned" },
+          "422": { "description": "Invalid run ID" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.1/runs/{testRunId}/acceptance": {
+      "post": {
+        "operationId": "acceptExactV31Run",
+        "summary": "Record explicit local-user acceptance for one evidence-complete V3.1 run",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-human-acceptance.schema.json" } } } },
+        "responses": { "201": { "description": "Immutable acceptance record for the exact evidence hash" }, "401": { "description": "A local user session is required" }, "403": { "description": "The user is outside the local acceptance scope" }, "404": { "description": "Run was not found in user scope" }, "409": { "description": "Run is ineligible or an immutable record already differs" }, "422": { "description": "Invalid command or run ID"} }
+      }
+    },
+    "/internal/v1/acceptance/v3/v3.1/gate/{testRunId}": {
+      "get": {
+        "operationId": "readV31PromotionGate",
+        "summary": "Read exact-run evidence status and persisted human acceptance for Research Automation",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "research-automation-service" } }
+        ],
+        "responses": {
+          "200": { "description": "Current gate for exact immutable run evidence", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-promotion-gate.schema.json" } } } },
+          "401": { "description": "Service identity is required" },
+          "403": { "description": "Service identity is invalid" },
+          "404": { "description": "Run was not found" },
+          "422": { "description": "Invalid run ID" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" }, "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

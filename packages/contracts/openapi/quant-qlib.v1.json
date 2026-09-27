@@ -1,0 +1,25 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Qlib Fixture Fit API", "version": "1.0.0" },
+  "servers": [{ "url": "http://127.0.0.1:3003" }],
+  "security": [{ "ServiceBearer": [] }],
+  "paths": {
+    "/v1/research/qlib/fit-fixture": {
+      "post": {
+        "operationId": "fitQlibFixtureModel",
+        "summary": "Run a bounded Qlib LGBModel fit on explicitly synthetic fixture data; does not evaluate candidate source",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-fit-fixture-request.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Actual Qlib fit and test-segment prediction on FIXTURE rows", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-fit-fixture-result.schema.json" } } } },
+          "403": { "description": "Service identity or route scope is not allowed" },
+          "413": { "description": "Request exceeds 1 MiB" },
+          "422": { "description": "Input, split, or Qlib runtime rejected the fixture" },
+          "503": { "description": "Qlib runtime or service identity is unavailable" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

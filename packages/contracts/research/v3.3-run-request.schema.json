@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-run-request.schema.json",
+  "title": "V33ReadinessRunRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenarioId"],
+  "properties": {
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647, "default": 20260907 },
+    "sourceV31TestRunId": { "type": "string", "format": "uuid" },
+    "promotionRequestId": { "type": "string", "format": "uuid" }
+  }
+}

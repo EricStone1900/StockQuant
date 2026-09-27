@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-scenario.schema.json",
+  "title": "V3.2PromotionScenarioFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarioId", "sourceMode", "request", "independentValidationExpectation"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-scenario-v1" },
+    "scenarioId": { "enum": ["eligible-fixture", "future-data-rejected-fixture"] },
+    "sourceMode": { "const": "FIXTURE" },
+    "request": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json" },
+    "independentValidationExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "reason"],
+      "properties": {
+        "disposition": { "enum": ["ELIGIBLE_FOR_REVIEW", "REJECTED"] },
+        "reason": { "enum": ["WITHIN_FROZEN_RULES", "FUTURE_DATA_LEAKAGE"] }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "scenarioId": { "const": "eligible-fixture" } }, "required": ["scenarioId"] },
+      "then": { "properties": { "independentValidationExpectation": { "properties": { "disposition": { "const": "ELIGIBLE_FOR_REVIEW" }, "reason": { "const": "WITHIN_FROZEN_RULES" } } } } }
+    },
+    {
+      "if": { "properties": { "scenarioId": { "const": "future-data-rejected-fixture" } }, "required": ["scenarioId"] },
+      "then": { "properties": { "independentValidationExpectation": { "properties": { "disposition": { "const": "REJECTED" }, "reason": { "const": "FUTURE_DATA_LEAKAGE" } } } } }
+    }
+  ]
+}

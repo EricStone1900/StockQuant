@@ -1,8 +1,28 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24.1.0-alpine
+FROM python:3.11-slim-bookworm AS python-runtime
 ARG STOCKQUANT_INSTALL_TDX=0
 WORKDIR /workspace
-RUN apk add --no-cache python3 py3-pip && corepack enable
+COPY services/market-data-adapter/requirements.lock services/market-data-adapter/requirements.lock
+RUN python -m pip install --no-cache-dir --require-hashes -r services/market-data-adapter/requirements.lock
+COPY services/market-data-adapter services/market-data-adapter
+RUN python -m pip install --no-cache-dir --no-deps ./services/market-data-adapter
+RUN if [ "$STOCKQUANT_INSTALL_TDX" = "1" ]; then \
+      python -m pip install --no-cache-dir --require-hashes -r services/market-data-adapter/requirements-tdx-runtime.lock \
+      && python -m pip install --no-cache-dir --no-deps "easy-tdx @ https://github.com/clong365/easy_tdx/archive/4820b4a0496899ece0b8ca4d7f4d66a5159da7f8.zip"; \
+    fi
+
+FROM node:24.1.0-bookworm-slim
+WORKDIR /workspace
+COPY --from=python-runtime /usr/local/bin/python3 /usr/local/bin/python3
+COPY --from=python-runtime /usr/local/bin/python3.11 /usr/local/bin/python3.11
+COPY --from=python-runtime /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=python-runtime /workspace/services/market-data-adapter/src/market_data_adapter/parquet_to_jsonl.py services/market-data-adapter/src/market_data_adapter/parquet_to_jsonl.py
+COPY --from=python-runtime /usr/local/lib/libpython3.11.so* /usr/local/lib/
+COPY --from=python-runtime /usr/lib/*-linux-gnu/libssl.so.3 /usr/lib/
+COPY --from=python-runtime /usr/lib/*-linux-gnu/libcrypto.so.3 /usr/lib/
+RUN ln -sf /usr/local/bin/python3.11 /usr/local/bin/python3 \
+ && corepack enable
+WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
 COPY apps/web/package.json apps/web/package.json
 COPY services/platform-api-service/package.json services/platform-api-service/package.json
@@ -14,17 +34,6 @@ RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locke
     pnpm install --store-dir /pnpm/store --frozen-lockfile
 COPY fixtures fixtures
 COPY services/market-data-service services/market-data-service
-COPY services/market-data-adapter services/market-data-adapter
-COPY services/market-data-adapter/requirements-tdx-runtime.lock services/market-data-adapter/requirements-tdx-runtime.lock
-# This disposable image has no system package manager state to preserve; Alpine
-# marks its interpreter externally managed, so acknowledge that boundary here.
-RUN python3 -m pip install --break-system-packages --no-cache-dir --require-hashes -r services/market-data-adapter/requirements.lock \
- && python3 -m pip install --break-system-packages --no-cache-dir --no-deps ./services/market-data-adapter
-RUN if [ "$STOCKQUANT_INSTALL_TDX" = "1" ]; then \
-      apk add --no-cache git \
-      && python3 -m pip install --break-system-packages --no-cache-dir --require-hashes -r services/market-data-adapter/requirements-tdx-runtime.lock \
-      && python3 -m pip install --break-system-packages --no-cache-dir --no-deps "easy-tdx @ git+https://github.com/clong365/easy_tdx.git@4820b4a0496899ece0b8ca4d7f4d66a5159da7f8" \
-      && apk del git; \
-    fi
+RUN python3 -c 'import pyarrow; from market_data_adapter import __name__; print("pyarrow", pyarrow.__version__)'
 RUN pnpm --filter @stockquant/market-data-service build
 CMD ["node","services/market-data-service/dist/main.js"]

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildExpectedKeys, buildGapPayload, coverageExitCode, summarizeCoverage } from "./data-coverage.mjs";
+import { buildExpectedKeys, buildGapPayload, coverageExitCode, persistGaps, summarizeCoverage } from "./data-coverage.mjs";
 
 const days = [{ date: "2026-09-14", status: "TRADING", sessions: [{ start: "09:30", end: "09:40" }, { start: "13:00", end: "13:10" }] }];
 
@@ -47,6 +47,23 @@ test("unknown calendar remains waiting dependency", () => {
 test("coverage produces durable gap records without fabricating bars", () => {
   const report = { subscriptionId: "sub", missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], duplicateKeys: [] };
   assert.deepEqual(buildGapPayload(report), [{ gapId: "gap:600000.SH|2026-09-14T01:30:00.000Z", securityId: "600000.SH", barStart: "2026-09-14T01:30:00.000Z", barEnd: "2026-09-14T01:35:00.000Z", reason: "MISSING", priority: "P1" }]);
+});
+
+test("gap reconciliation writes use the dedicated collection-control token", async () => {
+  const priorToken = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN;
+  const priorFetch = globalThis.fetch;
+  process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN = "test-collection-control-token";
+  let captured;
+  globalThis.fetch = async (url, options) => { captured = { url, options }; return new Response(JSON.stringify({ opened: 1, closed: 0 }), { status: 200 }); };
+  try {
+    await persistGaps("http://localhost:3002", { subscriptionId: "test", fromDate: "2026-09-14", toDate: "2026-09-14", securityIds: ["600000.SH"], missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], duplicateKeys: [] });
+    assert.equal(captured.url, "http://localhost:3002/v2/minute/gaps");
+    assert.equal(captured.options.headers["x-stockquant-control-token"], "test-collection-control-token");
+  } finally {
+    globalThis.fetch = priorFetch;
+    if (priorToken === undefined) delete process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN;
+    else process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN = priorToken;
+  }
 });
 
 test("closed non-trading day does not page", () => {

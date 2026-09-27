@@ -1,0 +1,18 @@
+# Paired-backup schedule (Ubuntu host template)
+
+The systemd timer and service provide a daily 02:30 UTC invocation of the paired PostgreSQL/Artifact producer. `Persistent=true` catches up a missed timer after host downtime; it does not waive a maintenance window. Month-end runs are classified by the producer and receive the existing 12-month retention class. Pruning remains a separate explicit operation; this unit never deletes backups or claims that an off-host copy exists.
+
+Install only after the target Ubuntu host, Compose project, database, Artifact volume, Docker access, storage location and maintenance window have been identified. The service runs as a dedicated host account with membership in the Docker group. Docker-group access is effectively host-administrator privilege and must be reviewed on the target machine; never give this socket to the Web service or Runner containers.
+
+Create `/etc/stockquant/backup.env` from `backup.env.example`, owned by `stockquant-backup:stockquant-backup` with mode `0600`; provision the backup root for the same account with no group/world write permission (for example `0750`). Install both hooks as root-owned executable files that the service account cannot modify, and configure their absolute paths:
+
+- The quiesce hook receives the exact database and Artifact volume as positional arguments. It must stop every writer/publisher for that pair, confirm the database has no remaining application writers and confirm the Artifact volume is no longer being published to. Exit nonzero unless the exact pair is safely quiesced. On Linux the wrapper enforces root ownership; on every platform the hook must be executable and have no write bits.
+- The resume hook receives the same pair and `STOCKQUANT_BACKUP_QUIESCE_RESULT=PASS|FAILED`. It must safely resume the services it stopped; it must be idempotent because it runs after both successful and failed quiesce/capture attempts. The same immutable-file ownership/mode checks apply.
+
+Do not point either hook at the active Mac observation stack. A failed or uncertain hook prevents backup capture; resume is still attempted after quiesce starts. The lock directory must be a real directory and must not be group- or world-writable; the supplied unit creates `/run/stockquant-backup` with mode `0700`. An existing lock is treated as an active run or stale-lock incident and is never removed automatically. After a SIGKILL or host crash, inspect the service, writer state and lock contents before manual recovery.
+
+The timer/service are deployment templates, not evidence of an installed schedule or successful backup. Before enablement, validate the unit on the actual Ubuntu release with `systemd-analyze verify`, review service access and hook behavior, run one maintenance-window backup, independently verify its manifest and restore, then record measured RPO/RTO. Active-source recovery, off-host replication, capacity, and user acceptance remain separate evidence gates.
+
+Retention stays manual and preview-first until the owner freezes the deployed retention policy and backup location. Review candidates with `pnpm backup:retention`; deletion requires `pnpm backup:retention:apply -- --confirm-root=/absolute/backup/root` where the confirmation exactly matches `STOCKQUANT_BACKUP_DIR`. The apply pass rehashes eligible archives immediately before removing only expired, restore-verified backup directories.
+
+The host-schedule wrapper contract can be tested without Docker or stopping services with `pnpm test:backup-scheduled`; production capture itself remains `pnpm backup:create` behind the wrapper's exact per-run quiescence argument.

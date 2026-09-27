@@ -43,6 +43,8 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 需求/测试追踪：POR、GOV、EXE-01～08模拟部分、AUT-01～03、MEM-01、XMK基础；T22～31、T42～49；DV-03、VT03。
 
+契约覆盖补充（2026-09-27）：已存在的历史回放 `POST /internal/v1/historical-orders/execute` 现有规范化命令/结果Schema、OpenAPI与兼容矩阵，生成TS/Python类型并由`pnpm contracts:check`校验；契约明确只允许`historical-replay-worker`身份及FakeBroker历史执行。Portfolio快照、Fill、预留/结算已有`portfolio-account.v1`契约。该增补弥补描述缺失，不代表服务新接线、Paper交易闭环或本阶段验收状态改变。
+
 退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
 
 ## 7. 阶段交付待办（完成后勾选）

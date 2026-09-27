@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/cn-a-share-calendar-session-v1.schema.json",
+  "title": "CnAShareCalendarSession",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["date", "status", "calendarVersion"],
+  "properties": {
+    "date": {"type": "string", "format": "date"},
+    "status": {"enum": ["TRADING", "CLOSED", "UNKNOWN"]},
+    "calendarVersion": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "format": "uri"},
+    "reason": {"type": "string", "minLength": 1},
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end"],
+        "properties": {
+          "start": {"type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"},
+          "end": {"type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"}
+        }
+      }
+    }
+  }
+}

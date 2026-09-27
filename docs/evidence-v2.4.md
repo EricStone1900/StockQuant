@@ -1,5 +1,7 @@
 # V2.4 持续 Paper 技术复核证据
 
+> **2026-09-27 状态更正：**本文件后续记录的 COMPLETED/PASS 场景来自静态验收引擎，不代表执行过其声称的快照、Mandate、拒绝、恢复、FakeBroker 订单或对账路径。原运行ID、Manifest和用户在2026-09-11的签署作为历史留存，不删除；对当前Paper交易链的证明力为 `NOT_VALID_FOR_CURRENT_IMPLEMENTATION`。当前 API 已改为 `WAITING/NOT_RUN`。详见[无伪造Paper证据审计](../evidence/audits/2026-09-27-v24-no-fabricated-paper-evidence.md)。
+
 验证日期：2026-09-11（Asia/Shanghai）。范围为容器化平台 API、Web 验收页和确定性持续 Paper 场景；所有订单均为 `PAPER + FAKE`，未连接真实券商或 LIVE 账户。
 
 - normal：`testRunId=a947f7d0-8b55-43ac-a522-e8007fa38ff1`，`COMPLETED`，退出码 0；使用新鲜 `SNAPSHOT`，无信号时 `HOLD`，日终对账 `PASS`。

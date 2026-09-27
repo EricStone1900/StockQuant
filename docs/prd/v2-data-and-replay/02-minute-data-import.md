@@ -45,6 +45,22 @@ V1数据Artifact可用，V2.1来源及用途标签规则已冻结。
 
 退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
 
+持久Fixture导入补充（2026-09-25）：市场数据服务的`normal`/`bad`分钟Fixture导入从进程内Map改为PostgreSQL持久导入记录与分钟行，新增并发SHA幂等、服务进程重启后查询、带cursor/pageSize和证券过滤的分页读取；平台API增加导入元数据及分钟页查询代理。35/35服务单测、18/18专用PG集成和临时真实服务HTTP重启烟测通过，记录已精确清理。这份记录反映固定Fixture迁移切片刚完成时的状态；同日后续实现增加了下方受限CSV小文件入口。两项后续工程验证均不改变2026-09-09人工签署事实，也不扩展签署范围。详见[P6持久分钟导入审计](../../../evidence/audits/2026-09-25-p6-persistent-minute-import.md)。
+
+受限CSV实现补充（2026-09-25）：V2.2页面`/acceptance/v2/v2.2`新增小文件CSV上传、列映射、预览/逐行错误和确认导入，API为`POST /api/v1/acceptance/v2/v2.2/csv/preview`与`/csv/import`。当前仅接收CN_A、1m、RAW，强制Asia/Shanghai、BAR_START、SHARES、CNY语义，上限700 KB/10,000行；导入复用PostgreSQL持久仓储，以原始内容SHA-256实现同内容幂等，页面/API要求本地用户会话。冻结的有效/无效合成输入在`fixtures/v2/v2.2-csv-smoke/`，`pnpm fixtures:check`核对Hash。市场数据服务40项单测与临时HTTP→专用`market_data_test` PostgreSQL→进程重启→分页读取/幂等烟测通过（有效两行SHA-256 `86a4fcbb29d97f27925753c132c8d95ee1971c5f1c7583da6be2278be1c747d8`；无效文件逐行拒绝并持久保存）；平台/API与Web构建、类型检查及隔离Mock Playwright页面流程通过。CSV上传请求Schema、OpenAPI和消费者兼容规则已登记。尚未支持Parquet、分块流式大文件、断点续传、按日期物理分区、完整Web→平台API→市场服务同run场景证据；第2节任务与第7节交付清单保持未完成，原2026-09-09人工签署未被改写。见[P6 CSV小文件导入审计](../../../evidence/audits/2026-09-25-p6-csv-minute-import.md)。
+
+导入身份修复（2026-09-25）：持久导入唯一键现在包含原文SHA-256、规范列映射与冻结的市场/频率/复权/时区/时间戳/单位语义；同字节不同映射得到不同DataVersion，同解释重试仍幂等。`market_data_test`完成旧主键数据回填/迁移、19/19 PostgreSQL集成和临时真实HTTP服务重启读取；不同映射分别恢复正确证券，旧原文Hash继续作为数据来源校验值。Parquet、流式/续传、配额/取消、日期分区和完整浏览器链仍未完成。详见[导入身份审计](../../../evidence/audits/2026-09-25-p6-csv-import-identity.md)。
+
+来源与许可追踪增量（2026-09-25）：CSV上传现在要求明确来源名称、可选引用、许可声明、操作者确认状态及取得时间，并把这些字段纳入导入身份和持久版本Manifest。操作者未确认时仍可保留原始导入记录，但`researchUseAllowed=false`；确认状态只是操作者声明，不代表系统验证了许可或替代人工审查。旧导入迁移为来源未知、研究使用关闭。市场数据服务构建/41项单测、专用PostgreSQL集成20/20、三种实际HTTP导入（不同映射及相同映射不同许可声明）幂等/重启回读烟测通过；确认许可返回allowed，未知许可返回blocked。Web单项Playwright 1/1、Web类型检查及合同/Fixture基线通过。2026-09-09原人工验收未改写；Finalize流式读取已补，Parquet、有界批次处理、日期分区及完整Web→平台→业务服务同TestRun闭环仍未完成。详见[P6导入身份审计](../../../evidence/audits/2026-09-25-p6-csv-import-identity.md)。
+
+流式Finalize增量（2026-09-25）：最大64 MiB上传会话逐个查询512 KiB PostgreSQL块，送入增量SHA-256、fatal UTF-8解码和有状态CSV解析器，不组装整文件Buffer/string或输入行矩阵。接受Bar按最多1,000条批次写入事务临时表，整文件Hash和质量校验通过后原子发布；失败回滚并释放FINALIZING。重复键索引和错误详情仍受100,000行上限约束保存在内存。服务47项单测/类型检查/构建及随机专用PG双进程重启HTTP smoke（848,055字节/16,000行，落库行数精确匹配）通过。Parquet、日期物理分区和更大规模资源容量测试未完成；第2节与第7节未勾选，2026-09-09人工验收保持原样。见[P6流式Finalize审计](../../../evidence/audits/2026-09-25-p6-streaming-csv-finalize.md)。
+
+2026-09-26 跨实例容量保护：PostgreSQL配置下，CSV/Parquet预览、导入和Finalize现在共用数据库session advisory lock，连接持有到HTTP响应排空；竞争请求返回429和`Retry-After: 1`，数据库协调不可用时fail-closed返回503。两套独立Market Data进程共用随机隔离PG的HTTP smoke验证忙拒绝、正常响应后的锁释放、客户端断开后的锁释放及下一请求获准；数据库和进程均清理。`market-data-service`构建与单测57/57通过。此项只证明共享PostgreSQL进程间的并发互斥，不证明跨主机网络分区/故障切换、容器/Ubuntu内存预算、生产负载或Paper连续性。来源及命令见[P6解析器及闸门审计](../../../evidence/audits/2026-09-26-p6-minute-parser-memory.md)。
+
+Docker Desktop ARM64补充验证（2026-09-26）：以当前Market Data Dockerfile构建Linux/arm64镜像，在两只相互独立、各2 GiB RAM/2 CPU/128 PIDs的临时容器内，通过临时PG库复测并发拒绝和锁释放；活动服务容器未重启，精确测试库/容器已删除。此项仍非Ubuntu实机或正式行情采集压力验证。
+
+10万行拒绝路径容器容量补充（2026-09-26）：同一Linux/arm64镜像在单只2 GiB RAM/2 CPU/128 PID限制容器中完成100,000重复键和100,000坏OHLC两种真实HTTP分块上传→Preview→Finalize场景；各自100,000条拒绝错误持久化、0 Bar发布、重复Finalization幂等；服务RSS峰值330,584/339,960 KiB，cgroup总峰值461,256 KiB。两次并发请求均验证429/Retry-After；各自随机PostgreSQL库精确删除，临时容器移除，活动服务不重启。宿主默认smoke亦通过。此证据覆盖固定拒绝输入在Docker Desktop ARM64的有限资源表现，不等于Ubuntu原生、生产共享PG余量、长期持续流量或多机故障验收；详细方法与报告见[P6解析器及闸门审计](../../../evidence/audits/2026-09-26-p6-minute-parser-memory.md)。
+
 ## 7. 阶段交付待办（完成后勾选）
 
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
@@ -108,9 +124,10 @@ pnpm dev:web
 
 | 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
 |---|---|---|---|
-| normal | 分钟导入 | 上传固定小文件→映射字段/单位/时区→预览→确认导入→按股票日期查询分钟页。 | 导入行数与源文件/错误行报告可核对；价格未复权、时间语义明确；数据版本可查。 |
+| normal | 分钟导入 | 选择文件真实频率(1m/5m)和时间戳语义(BAR_START/BAR_END)，上传固定小文件→映射字段/单位/时区→预览→确认导入→按股票日期查询分钟页。BaoStock 5m文件用紧凑`YYYYMMDDHHmmssSSS`源时间、`BAR_END`和证券列映射。 | 导入行数与源文件/错误行报告可核对；价格未复权，频率、barStart/barEnd、许可用途明确；数据版本可查。 |
 | rejection | 坏行校验 | 分别上传单位错误、重复冲突、午休记录、缺分钟样本；查看错误行并尝试发布。 | 异常原因定位至字段/行；不填造可成交价；必要证据不足不发布合格回放数据。 |
 | recovery | 导入恢复 | 重复导入相同文件；再在中途按限定步骤重启导入Worker，续跑后上传修订版。 | 同输入幂等、重启无重复行/版本；修订为新版本且旧版本可读。 |
+| uploaded-csv | 已上传CSV TestRun | 大文件导入PUBLISHED后，点击“将此CSV导入记入验收运行”；记录的uploadId必须归属当前用户且状态为COMPLETED。 | 同一TestRun断言和证据绑定uploadId、importId、DataVersion、SHA-256、接收行数和许可用途标记；异主查询拒绝；CLI check-only读取相同TestRun且无写副作用。 |
 
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
@@ -127,13 +144,17 @@ pnpm verify:stage -- --stage V2.2 --scenario rejection --seed 20260907
  echo $?
 pnpm verify:stage -- --stage V2.2 --scenario recovery --seed 20260907
  echo $?
+# 对Web刚完成的、已PUBLISHED的大文件上传创建独立的同上传TestRun
+read -r completed_upload_id
+pnpm verify:stage -- --stage V2.2 --scenario uploaded-csv --upload-id "$completed_upload_id"
+ echo $?
 pnpm verify:stage -- --stage V2.2 --suite code
  echo $?
 pnpm test:e2e -- --stage V2.2
  echo $?
 ```
 
-预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
+预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。`uploaded-csv`只接受当前owner已完成且PUBLISHED的分块上传；无效/异主uploadId不应产生PASS。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
 
 再对Web中已运行的同一testRunId执行只读核对，避免仅创建新样本掩盖页面问题：
 
@@ -170,3 +191,21 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+
+
+可续传大文件与TestRun关联增量（2026-09-25）：登录用户可通过V2.2页面上传最大64 MiB/100,000行CSV，每块512 KiB，逐块和整文件SHA-256校验；PostgreSQL持久化上传会话/分块，支持刷新与服务重启后续传、owner隔离、配额、取消和幂等导入。独立HTTP重启烟测覆盖848,055字节、16,000行；真实Chromium→Vite→平台API→市场服务→双临时PG smoke经页面“将此CSV导入记入验收运行”创建`uploaded-csv` TestRun，绑定uploadId/importId/DataVersion/SHA/行数/许可用途，CLI对同run `--check-only`退出0且无写副作用，异主读取403。`pnpm verify:stage -- --stage V2.2 --suite code`退出0（合同73 JSON/41 schema/30兼容规则、运维94项、市场PG集成21项等）。Finalize现将Bar按最多1,000条批次暂存并原子发布；重复键索引与错误仍驻留内存。Parquet、日期物理分区和生产容量证据未完成，人工签署状态保持不变。详见[可续传分钟上传审计](../../../evidence/audits/2026-09-25-p6-resumable-minute-upload.md)及[流式Finalize审计](../../../evidence/audits/2026-09-25-p6-streaming-csv-finalize.md)。
+
+Parquet增量（2026-09-26）：Web支持Parquet八个目标字段逐项映射任意唯一源列，并复用同一续传/预览/Finalize/TestRun/CLI核验流程，解析使用锁定PyArrow并按最多1,000行批流处理；64 MiB/100,000行上限与源文件SHA保留。2,436字节合成Fixture的真实浏览器→API→隔离PG发布、同run CLI只读核对、异主403、CSV 16,000行回归及容器构建/容器内解析均通过。日期物理分区、容量测试和完整阶段人工验收仍未完成；不得将本增量视为V2.2整体PASS或改写2026-09-09签署。新增非标准列名冻结Fixture并经真实浏览器→API→隔离PG验证映射持久化。详见[P6 Parquet导入审计](../../../evidence/audits/2026-09-26-p6-parquet-minute-import.md)。
+
+每日物理分区增量（2026-09-26）：新发布的分钟Bar写入按Asia/Shanghai自然日RANGE分区的PostgreSQL表；分页API新增半开`fromBarStart`/`toBarStart`以触发日期裁剪。兼容旧未分区数据的安全回填使用独立连接变量和显式`--apply`，默认PREVIEW，最多10,000行逐批事务提交，重跑幂等并保留原表。专用PG测试验证两个日期分区及EXPLAIN裁剪、迁移中旧数据分页和CLI preview/apply/重跑。`pnpm verify:stage -- --stage V2.2 --suite code`退出0。后续仓储层容量smoke已用合成输入覆盖100,000行及500证券×60交易日×48条的1,440,000行档，实测完成发布、分页和日期裁剪；这不是冻结归档文件的CSV/Parquet→HTTP全链路容量验证。活动/正式库没有自动迁移；旧数据回填执行、生产/Ubuntu资源与并发边界、存储冗余/备份恢复和完整阶段人工验收仍待完成。原第2节与第7节总验收复选框及2026-09-09签署状态保持原样。详见[P6每日分区审计](../../../evidence/audits/2026-09-26-p6-daily-partition-storage.md)与[P6容量smoke](../../../evidence/audits/2026-09-26-p6-minute-capacity-smokes.md)。
+
+5m源语义及冻结归档导入（2026-09-26）：V2.2 CSV/Parquet合同现显式支持`1m`/`5m`及`BAR_START`/`BAR_END`。解析器接受BaoStock `YYYYMMDDHHmmssSSS`紧凑上海时间和`sh.`/`sz.`代码；按声明把BAR_END退回频率时长生成barStart，5m栅格不对齐则拒绝。真实HTTP导入本地只读500×60 BaoStock归档，500/500文件SHA、行数与Manifest逐项匹配，共1,440,000条/500 PUBLISHED版本/60日分区；首条OHLCV与源CSV相同，测试库随机创建并删除。来源许可未验证，每份导入均标记`UNCONFIRMED`和`researchUseAllowed=false`。此烟测直连Market Data小文件HTTP入口，未经过平台API/Web/TestRun或owner隔离分块上传，不能视作V2.2整体验收。详见[冻结归档HTTP导入审计](../../../evidence/audits/2026-09-26-p6-baostock-archive-import.md)。
+
+100,000行容量增量（2026-09-26）：隔离随机PostgreSQL数据库中实际通过`publishStream`逐批持久化100,000行，核对行数、分页和目标日期分区查询计划；macOS arm64/PostgreSQL 16.9导入原子提交2.494秒、40,096行/秒、峰值RSS 121,440 KiB、数据库大小增量64,897,024字节。测试数据库建后删除并确认。此为仓储层合成烟测，不覆盖完整文件解码、1.44M行历史规模、配额环境、Ubuntu或备份恢复，不能用于容量上线承诺。详见[P6 100k容量smoke](../../../evidence/audits/2026-09-26-p6-minute-capacity-smokes.md)。
+
+
+分块预览与Finalize容量增量（2026-09-26）：重复与坏OHLC行不会进入Finalize Bar暂存批次；若任一质量错误存在，整次事务仍REJECTED并原子回滚。分块CSV/Parquet预览响应最多保留100条有效Bar样本，新增`barsTruncated`布尔值，其余总行数和逐行错误保持完整。100,000行限制下的真实隔离HTTP→PG压力smoke分别上传5.4MB重复/唯一坏OHLC数据：100,000条错误均持久保存，0条Bar发布，随机测试库验证删除；Market Data服务峰值RSS为480,064/479,328 KiB（Preview 359,536/368,400 KiB；Finalize 480,064/479,328 KiB），烟测上限768 MiB。该串行单请求macOS结果不代表多并发、容器或Ubuntu容量。53项单测、类型检查及浏览器→API→PG真实归档分块流程验证通过，仍须完成平台级并发资源限额、Linux/Ubuntu及备份恢复验证。见[解析器内存与HTTP容量审计](../../../evidence/audits/2026-09-26-p6-minute-parser-memory.md)。
+
+服务身份加固（2026-09-27）：平台代理的Fixture导入、CSV预览/导入及CSV/Parquet分块上传、状态、预览、Finalize、取消、uploaded-csv状态、持久导入详情和Bar分页读取均先验证用户会话；转发到Market Data时附带`platform-api-service` Bearer与适用的owner范围。Market Data以Bearer Token识别服务；可选`x-stockquant-service-id`只能作为一致性检查，并在获取P6跨实例导入闸门前验证重型导入路由。真实Chromium→Vite→Platform API→Market Data→双随机PG Web smoke验证匿名导入读取401、用户详情/Bar页200、异主403，以及CSV/Parquet/5m归档上传、同run TestRun与CLI只读核对。缺失/伪造Bearer及错配身份拒绝，Bearer-only请求可通过服务身份。其他行情/日历读取仍允许内网直连；活动部署、密钥轮换和阶段人工验收仍待完成。详见[P7.2服务身份审计](../../../evidence/audits/2026-09-25-p7-2-service-identity.md)及[分钟导入边界审计](../../../evidence/audits/2026-09-27-p6-minute-import-boundary.md)。
+
+2026-09-27 路由收口续记：Market Data采集订阅/运行/缺口/回填状态、来源健康GET与固定Fixture分钟预览，以及质量/覆盖计算POST现要求平台Bearer；V2.2 Platform scenarios/Fixture preview先校验用户Session，Fixture代理加服务身份。运维脚本分别读取Bearer与采集控制令牌。扩展HTTP smoke/Platform代理单测和完整V2.1、V2.2 code suites通过；V2.2 CSV浏览器测试3/3通过（Mock API，不算服务端阶段场景验收）。日历与容器`/live`、`/ready`仍可读；本轮服务源码未部署到活动采集实例，长期观察继续依托原运行实例。详见[P7.2采集读取身份审计](../../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。

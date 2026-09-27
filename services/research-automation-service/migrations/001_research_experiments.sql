@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS research_experiments (
   experiment_id UUID PRIMARY KEY,
+  test_run_id UUID NULL,
   fixture_id TEXT NOT NULL,
   model_profile TEXT NOT NULL,
   rounds INTEGER NOT NULL CHECK (rounds BETWEEN 1 AND 3),

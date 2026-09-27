@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/v22-stage-run-request-v1.schema.json",
+  "title": "V22StageRunRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scenarioId": {
+      "enum": [
+        "normal",
+        "rejection",
+        "recovery",
+        "uploaded-csv"
+      ]
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uploadId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "fileFormat": {
+      "enum": ["CSV", "PARQUET"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "scenarioId": {
+            "const": "uploaded-csv"
+          }
+        },
+        "required": [
+          "scenarioId"
+        ]
+      },
+      "then": {
+        "required": [
+          "uploadId"
+        ]
+      }
+    }
+  ]
+}

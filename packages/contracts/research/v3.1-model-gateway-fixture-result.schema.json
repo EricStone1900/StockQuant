@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://stockquant.local/schemas/research/v3.1-model-gateway-fixture-result.schema.json", "title": "V31ModelGatewayFixtureResult",
+  "type": "object", "additionalProperties": false, "required": ["providerMode", "modelCalls", "status", "modelRunId"],
+  "properties": {
+    "providerMode": { "const": "FIXTURE" }, "modelCalls": { "const": "NO_EXTERNAL_CALL" }, "status": { "enum": ["BLOCKED", "ALREADY_EXISTS", "UNKNOWN", "COMPLETED"] },
+    "modelRunId": { "type": "string", "minLength": 1, "maxLength": 128 }, "reason": { "type": "string" }, "budgetStatus": { "enum": ["RESERVED", "DISPATCHED", "UNKNOWN", "SETTLED", "REJECTED"] },
+    "actualCostCents": { "type": "integer", "minimum": 0 }, "response": { "type": "object", "additionalProperties": true }
+  }
+}

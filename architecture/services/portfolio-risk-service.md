@@ -67,6 +67,14 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 
 自动检查与人工验收分别记录；使用阶段文件第7节待办及第8节手册交付，必须包含正常/拒绝/恢复、实际命令/URL与证据。共同测试见[总体测试](../../docs/prd/90-test-plan.md)及[三版规则](../../docs/prd/05-three-version-delivery.md)。
 
+## 实现证据补充（2026-09-25）
+
+早期准备记录（2026-09-25）：`PostgresAccountRepository`先增加了资源预留持久表及BUY现金/SELL可卖数量primitive；当时尚未暴露API或实现Fill与预留原子结算。后续的HTTP身份和结算实现见下面的补充记录；Portfolio的S0门禁仍未完成。
+
+服务身份补充（2026-09-25）：平台API、FakeBroker执行服务和历史回放Worker现使用各自独立Bearer Token；portfolio服务以恒定时间比较凭据并按调用方/HTTP方法/路径做最小授权，`service-id`只作身份选择器。缺失/无效token分别拒绝为503/401，未授权route为403；读账户仍强制owner scope。临时portfolio服务在`portfolio_risk_test`上通过HTTP smoke，覆盖有效平台初始化/查询、缺失/错token、跨route和跨owner拒绝；临时账户精确清理。Compose把对应引用注入收件服务/发件服务，静态配置检查通过；活动portfolio及其调用容器未重建。资源预留API和BUY/SELL原子Fill能力现已实现；Mandate readiness、risk evaluation和Paper执行调用仍未接线/启用，故P5.5继续未完成。
+
+原子Fill补充（2026-09-25）：`ReservedFillCommand`现由规范Schema/类型/OpenAPI描述。PAPER Fill必须绑定账户范围内的资源预留；账户、预留、Fill、现金/持仓和Ledger在同一事务更新，重复Fill做语义核对并幂等回放。部分成交仅扣减已使用的现金/数量，剩余HELD/UNKNOWN仍参与可用资源计算；SELL入账扣持仓并增加净现金。专用`portfolio_risk_test`覆盖BUY/SELL及HTTP实际路由。该能力未接FakeBroker Outbox，Mandate/报价/风险/订单前置仍未实现，不能视作完整Paper交易链；详见[原子Fill审计](../../evidence/audits/2026-09-25-p5-5-fill-reservation-atomicity.md)。
+
 ## 9. S0冻结与变更检查
 
 - [ ] 本服务实体/端口/所有权与上下游一致，API/事件Schema和错误码已生成。

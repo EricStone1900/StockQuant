@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json",
+  "title": "V3.1RunnerJobRecord",
+  "type": "object", "additionalProperties": false,
+  "required": ["jobId", "job", "status", "submittedAt", "startedAt", "completedAt", "execution", "artifacts", "attempt", "retryOf", "lease"],
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "job": { "$ref": "v3.1-runner-job.schema.json" },
+    "status": { "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"] },
+    "submittedAt": { "type": "string", "format": "date-time" },
+    "startedAt": { "type": ["string", "null"], "format": "date-time" },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" },
+    "execution": { "anyOf": [{ "$ref": "v3.1-runner-execution.schema.json" }, { "type": "null" }] },
+    "artifacts": { "type": "array", "items": { "$ref": "v3.1-artifact-ref.schema.json" } },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "retryOf": { "type": ["string", "null"], "minLength": 1, "maxLength": 300 },
+    "lease": { "anyOf": [{ "$ref": "v3.1-runner-lease.schema.json" }, { "type": "null" }] },
+    "claimStatus": { "const": "LEASED" }
+  }
+}

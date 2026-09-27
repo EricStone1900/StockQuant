@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "build": "tsc -p tsconfig.json", "lint": "tsc -p tsconfig.json --noEmit", "typecheck": "tsc -p tsconfig.json --noEmit", "start": "node dist/main.js", "test": "vitest run tests/unit", "test:integration": "pnpm build && node scripts/test-persistence.mjs" },
+  "scripts": { "build": "tsc -p tsconfig.json", "lint": "tsc -p tsconfig.json --noEmit", "typecheck": "tsc -p tsconfig.json --noEmit", "start": "node dist/main.js", "test": "vitest run tests/unit", "test:v24-readiness": "pnpm build && node scripts/v24-readiness-http-smoke.mjs", "test:v24-readiness:container": "node scripts/v24-readiness-container-smoke.mjs", "test:p5-7": "pnpm build && pnpm --filter @stockquant/portfolio-risk-service build && node scripts/p5-7-outbox-http-smoke.mjs", "test:integration": "pnpm build && node scripts/test-persistence.mjs && node scripts/service-auth-http-smoke.mjs && pnpm test:v24-readiness && pnpm test:p5-7" },
   "dependencies": { "pg": "8.23.0" },
   "devDependencies": { "@types/node": "26.5.0", "@types/pg": "8.23.1", "typescript": "7.0.2", "vitest": "5.0.0" }
 }

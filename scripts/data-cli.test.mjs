@@ -1,6 +1,10 @@
-import test from "node:test";
+import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { argsOf, isoDate, positiveInt, waitForRun } from "./data-cli.mjs";
+
+const previousPlatformToken = process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API;
+before(() => { process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API = "p".repeat(40); });
+after(() => { if (previousPlatformToken === undefined) delete process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API; else process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API = previousPlatformToken; });
 
 test("CLI argument parser ignores pnpm separator", () => {
   assert.deepEqual(argsOf(["--", "--subscription", "sub", "--wait-seconds", "2"]), { subscription: "sub", "wait-seconds": "2" });
@@ -9,11 +13,13 @@ test("CLI argument parser ignores pnpm separator", () => {
 test("bounded wait returns terminal run", async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
-  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify({ runId: "run-1", status: calls++ ? "COMPLETED" : "RUNNING" }) });
+  let authorization;
+  globalThis.fetch = async (_url, options) => { authorization = options.headers.authorization; return { ok: true, text: async () => JSON.stringify({ runId: "run-1", status: calls++ ? "COMPLETED" : "RUNNING" }) }; };
   try {
     const result = await waitForRun("run-1", 2);
     assert.equal(result.status, "COMPLETED");
     assert.equal(calls, 2);
+    assert.equal(authorization, `Bearer ${"p".repeat(40)}`);
   } finally {
     globalThis.fetch = originalFetch;
   }

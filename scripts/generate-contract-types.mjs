@@ -8,7 +8,11 @@ const tsOutput = join(outputDir, "types.ts");
 const pyOutput = join(outputDir, "types.py");
 const serviceTsOutputs = [
   join(repoRoot, "services", "portfolio-risk-service", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "platform-api-service", "src", "contracts", "generated-types.ts")
+  join(repoRoot, "services", "platform-api-service", "src", "contracts", "generated-types.ts"),
+  join(repoRoot, "services", "quant-research-service", "src", "contracts", "generated-types.ts"),
+  join(repoRoot, "services", "research-automation-service", "src", "contracts", "generated-types.ts"),
+  join(repoRoot, "services", "historical-replay-worker", "src", "contracts", "generated-types.ts"),
+  join(repoRoot, "services", "market-data-service", "src", "contracts", "generated-types.ts")
 ];
 const checkOnly = process.argv.includes("--check");
 
@@ -49,6 +53,8 @@ function pythonLiteral(value) {
 function tsType(schema) {
   if (!schema) return "unknown";
   if (schema.$ref) return refName(schema.$ref);
+  if (schema.oneOf || schema.anyOf) return (schema.oneOf ?? schema.anyOf).map(tsType).join(" | ");
+  if (schema.allOf) return schema.allOf.map(tsType).join(" & ");
   if (schema.const !== undefined) return literal(schema.const);
   if (schema.enum) return schema.enum.map(literal).join(" | ");
   if (Array.isArray(schema.type)) return schema.type.map((item) => tsType({ type: item })).join(" | ");

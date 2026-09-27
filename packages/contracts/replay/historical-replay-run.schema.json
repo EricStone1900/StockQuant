@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/replay/historical-replay-run.schema.json",
+  "title": "HistoricalReplayRun",
+  "type": "object", "additionalProperties": false,
+  "required": ["testRunId", "namespace", "ownerId", "scenarioId", "status", "checkpoint", "result", "createdAt", "completedAt"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "scenarioId": { "enum": ["normal", "recovery"] },
+    "status": { "enum": ["RUNNING", "PAUSED", "COMPLETED", "FAILED", "CANCELLED"] },
+    "checkpoint": { "type": "object" },
+    "result": { "type": ["object", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

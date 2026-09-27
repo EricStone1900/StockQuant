@@ -76,3 +76,27 @@ Python / FastAPI + 导入与采集Worker组件按已启用能力部署；API和�
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+受限CSV工程补充（2026-09-25）：现有实现还包含独立于初始FastAPI设计的Node HTTP/PostgreSQL分钟Fixture与CSV切片。平台V2.2路径`POST /api/v1/acceptance/v2/v2.2/csv/preview`和`/csv/import`要求本地用户会话；调用市场数据服务的`POST /v2/minute/csv/preview`和`/csv/import`，内容上限700 KB、最多10,000行，限定CN_A/1m/RAW、Asia/Shanghai/BAR_START、SHARES/CNY，显式列映射。版本身份绑定原文哈希、规范映射、固定语义及来源/许可元数据；旧记录迁移为来源未知且`researchUseAllowed=false`。`OPERATOR_CONFIRMED`只是操作者声明，不构成系统法律审查。请求体传输层现按UTF-8字节实施1,000,000字节上限，并对超限返回413；具体证据见[P6 body-limit审计](../../evidence/audits/2026-09-25-p6-http-body-limit.md)。这个单请求小文件路径仍经JSON传递、上限700 KB；与之独立的分块上传路径支持断点续传并流式读取Finalize输入，但尚无有界批次落库/Parquet/日期分区；HTTP/PG重启验证另见[P6 CSV审计](../../evidence/audits/2026-09-25-p6-csv-minute-import.md)。
+
+可续传上传Finalize补充（2026-09-25）：V2.2有owner-scoped 64 MiB/100,000行CSV上传协议，每块512 KiB持久化并可服务重启续传。Finalize逐块校验SHA并流入fatal UTF-8解码器、增量整文件SHA和有状态CSV解析器，不组装整文件Buffer或源行矩阵。接受Bar以最多1,000条批次写到事务临时表，完整Hash和质量检查通过后原子发布；失败回滚且释放FINALIZING。重复键索引和错误详情仍受100,000行上限约束保存在内存，临时表仍占数据库存储，因此不等同容量验收。Parquet、日期物理分区和更大规模资源界限实测仍缺。双进程重启HTTP烟测验证16,000行/848,055字节及精确落库行数通过；详见[P6流式Finalize审计](../../evidence/audits/2026-09-25-p6-streaming-csv-finalize.md)。
+
+平台服务身份增量（2026-09-27）：Market Data 的Fixture导入、`/v2/minute/csv/{preview,import}`、CSV/Parquet分块上传与状态、持久导入详情和Bar分页读取路由要求`STOCKQUANT_SERVICE_TOKEN_PLATFORM_API`。Bearer Token确定身份，`x-stockquant-service-id`可省略、若提供必须匹配；重型导入路由在背压闸门前验证。平台API只在本地用户会话验证后转发，导入详情/页要求会话；隔离smoke验证匿名401、登录用户200和异主403。写上传路径另将owner范围传给Market Data。日历及容器级`/live`、`/ready`仍供内网/编排探针读取；采集运维详情读取已有独立Bearer门禁，见[P7.2采集读取身份审计](../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。分钟导入边界见[分钟导入审计](../../evidence/audits/2026-09-27-p6-minute-import-boundary.md)。
+
+V2.1调用身份补充（2026-09-27）：同一平台Bearer也保护共享Watchlist、来源目录、采样设置与其读写、实时行情预览、实时新闻、来源主动Smoke/熔断切换；Platform API相应代理先验证本地session。交易日历及容器级`/live`、`/ready`仍可内网直读；运维控制面使用各自控制凭据。采集订阅/运行/缺口和来源健康等详细读取现另有Bearer门禁，见[P7.2采集读取身份审计](../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。认证loopback smoke、Platform controller identity单测及V2.1完整code suite通过；容量探针未运行（会主动请求外部实时行情并暂时修改共享Watchlist），活动Compose未部署，人工阶段验收未签收。
+
+采集控制身份补充（2026-09-27）：持久化的`POST /v2/minute/gaps`现要求`STOCKQUANT_COLLECTION_CONTROL_TOKEN`，避免任意内网调用者伪造/关闭订阅缺口；采集coverage工具只在显式`--record-gaps`时读取该控制令牌并写入。隔离HTTP smoke验证未授权401、正确控制令牌抵达数据库边界503；完整V2.1与V2.2 code suites、8项coverage规则单测通过。该令牌属于运维控制身份，和Platform API业务Bearer分离。
+
+P7.2采集运维读取身份补齐（2026-09-27）：采集调度状态/计划、订阅列表/详情、运行状态、缺口、回填任务、来源健康等内部GET现要求平台API独立Bearer；DC-08A Platform代理同时核验本地session。宿主健康/激活/状态命令从环境或忽略的`.env.local`读取同一平台服务令牌，写操作仍另需控制令牌。临时随机端口HTTP smoke验证9类读取匿名401、Bearer到达路由、声明错身份401；日历和`/live`、`/ready`保持独立开放。Market Data 62项、Platform 54项及运维96项测试、build和隔离HTTP smoke通过。活动Compose未更新，以免中断持续采集；运行态部署及其余内部只读路由分类仍未完成。详见[P7.2采集读取身份审计](../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
+
+V2.2读取/API计算边界补充（2026-09-27）：`GET /v2/minute/preview`固定Fixture、`POST /v2/minute/quality`和`/v2/minute/coverage`也要求同一平台Bearer，避免Fixture内容直出及匿名消耗解析/覆盖资源；V2.2 Platform scenarios/preview先校验本地Session，preview代理携带Bearer。扩展认证HTTP smoke与Platform Session代理单测通过；完整V2.2 code suite通过。活动容器未部署新源码。
+
+P6每日分区增量（2026-09-26）：受限CSV/Parquet的新发布版本写入按`bar_start` Asia/Shanghai自然日RANGE分区的`market_data_minute_import_bars_by_day`，小范围分页可通过半开起止时间触发PostgreSQL partition pruning。原`market_data_minute_import_rows`仍只读作历史兼容表，不在服务启动时自动迁移/删除；显式preview/apply CLI分批搬迁并保留旧表，操作范围由独立连接变量、目标库拒绝规则及`--apply`门槛限制。专用PG验证分区和EXPLAIN、旧数据过渡读取及CLI幂等回填通过。仍需数据库所有者安排旧数据迁移、容量/备份验证；本地未连接活动库。见[P6每日分区审计](../../evidence/audits/2026-09-26-p6-daily-partition-storage.md)。
+
+P6容量边界（2026-09-26）：每日分区存储层直接仓储流smoke已覆盖100,000行和合成的1,440,000行/60日/500证券档，分别实测2.467秒和39.224秒；高档数据库增量899,104,768 bytes、Node峰值RSS 213,264 KiB，随机本地PostgreSQL库结束后确认删除。结果不包括Parquet/CSV解析或HTTP上传，不证明容器峰值、并发、Ubuntu、保留清理或恢复。详见[P6容量证据](../../evidence/audits/2026-09-26-p6-minute-capacity-smokes.md)。
+
+P6冻结归档导入（2026-09-26）：CSV/Parquet入口现按声明支持CN_A `1m`/`5m`频率、`BAR_START`/`BAR_END`语义。5m路径解析BaoStock紧凑上海时间和交易所前缀证券码，并按BAR_END将时间戳转换为start/end。真实本地HTTP smoke逐个导入冻结BaoStock 500文件×2880行：每文件SHA与只读Manifest匹配、总行数1,440,000、500导入版本、60日分区，随机测试数据库导入后删除。未知来源许可持续标UNCONFIRMED，不能用于研究。该验证直连Market Data小文件HTTP入口，尚无平台API/Web/TestRun联验、分块传输规模、并发、Ubuntu和恢复证据。详见[P6冻结归档导入审计](../../evidence/audits/2026-09-26-p6-baostock-archive-import.md)。
+
+P6重型导入并发闸门（2026-09-26）：带PostgreSQL的Market Data实例对内存密集型CSV/Parquet预览、导入与Finalize使用固定session advisory lock；锁连接固定持有至HTTP响应排空，后续竞争实例快速返回429与`Retry-After: 1`。无法取得数据库协调锁时fail-closed返回503；无数据库的内存模式保留单进程闸门。双独立服务进程/随机PG烟测通过正常释放、忙拒绝和客户端断开释放。此验证覆盖共享PostgreSQL实例间互斥，不代表多主机断网/故障切换、DB池容量或生产Ubuntu负载；详情见[P6解析器及闸门审计](../../evidence/audits/2026-09-26-p6-minute-parser-memory.md)。
+
+Docker Desktop ARM64复验（2026-09-26）：当前源码Market Data镜像`sha256:8009ad45542e67438d9cdbf19ba1d847b01d4b35d0875b1191a27cfd42a193c9`在两只独立Linux/arm64容器（每只2 GiB/2 CPU/128 PIDs）中复现上述锁竞争与释放，随机测试库建于现有PostgreSQL服务器，验证后删除。测试关闭容器采集调度与执行器；没有重启/修改活动Market Data容器。容器网络同接开发栈网络以访问PG，测试代码未向行情、模型或券商发出请求。该结果不等同Ubuntu原生运行、资源容量或生产压力验证。

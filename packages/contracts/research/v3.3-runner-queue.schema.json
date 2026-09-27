@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-queue.schema.json",
+  "title": "V3.3RunnerQueue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "offset", "limit", "jobs", "hasMore"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-runner-queue-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "offset": { "type": "integer", "minimum": 0 },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "hasMore": { "type": "boolean" },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["jobId", "job", "status", "submittedAt", "startedAt", "completedAt", "execution", "artifacts", "attempt", "retryOf", "lease"],
+        "properties": {
+          "jobId": { "type": "string", "minLength": 1 },
+          "job": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job.schema.json" },
+          "status": { "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"] },
+          "submittedAt": { "type": "string", "format": "date-time" },
+          "startedAt": { "type": ["string", "null"], "format": "date-time" },
+          "completedAt": { "type": ["string", "null"], "format": "date-time" },
+          "execution": { "type": ["object", "null"], "additionalProperties": true },
+          "artifacts": { "type": "array", "items": { "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-ref.schema.json" } },
+          "attempt": { "type": "integer", "minimum": 1 },
+          "retryOf": { "type": ["string", "null"] },
+          "lease": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "object", "additionalProperties": false, "required": ["workerId", "fencingToken", "expiresAt"], "properties": { "workerId": { "type": "string" }, "fencingToken": { "type": "integer", "minimum": 1 }, "expiresAt": { "type": "string", "format": "date-time" } } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

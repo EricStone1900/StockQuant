@@ -2,7 +2,11 @@
 
 2026-09-19 技术复核：平台回放切片已补齐确定性 `nextAvailableBar`、多窗口参与率部分成交及逐窗口 `LEDGER_COMMITTED` 屏障；对应单元测试已通过。跨服务真实来源与人工验收已按本页收口范围完成复核。
 
-状态：PASS（本页定义的 Fixture/Backtest 技术收口范围，用户人工确认 2026-09-19；不包含真实模型、LIVE 或容量观察门禁）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（2026-09-27复核发现量化Worker把均值摘要标成Qlib训练、哈希复算标成独立模型验证；历史回放Web/模拟撮合的2026-09-19人工确认保留，但研究子能力需修复并重新验证）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。详见[Qlib训练就绪审计](../../../evidence/audits/2026-09-26-qlib-training-readiness.md)和[边界更正审计](../../../evidence/audits/2026-09-27-v23-qlib-boundary-correction.md)。
+
+2026-09-27 工程进展：新增受限 `POST /v1/research/qlib/fit-fixture` 及 Worker 实际 Qlib 0.9.6 `LGBModel.fit/predict` 路由，使用 1 MiB 上限、固定 FIXTURE 模式与独立服务 Bearer；真实隔离 HTTP/PG 代理测试及无网络 amd64 Qlib 容器冒烟通过。当前只在确定性合成内存数据上证明模型调用和重复运行哈希一致，`modelValidation=NOT_RUN`、候选代码未执行、无市场数据来源/PIT证明、无持久业务 TestRun。V2.3 阶段状态仍为 `PARTIALLY_IMPLEMENTED`，必须按本阶段 Web/CLI/真实数据和人工验收门槛重新验证研究能力；历史回放人工记录不覆盖此新增研究子范围。详见[Qlib Fixture Fit endpoint 审计](../../../evidence/audits/2026-09-27-v23-qlib-fit-endpoint.md)。
+
+2026-09-27 契约补齐切片：Historical Replay Worker 的单Bar/多Bar同步及异步提交、运行读取、暂停/继续/取消和UNKNOWN恢复入口新增JSON Schema、OpenAPI及兼容矩阵规则；运行时命令解析校验拒绝额外字段、无效UUID、非法场景/时间戳/价格精度及负成交量。Platform消费端HTTP client现由OpenAPI生成，已替换回放提交与状态/生命周期手写请求，并由`contracts:check`校验漂移；契约检查（89 Schema、75兼容规则、16 OpenAPI组）、Platform build/76单测、Worker build/17单测和完整V2.3 code suite均通过。跨所有者负向集成覆盖与其余契约盘点仍待完成；此次不代表新增Web/CLI端到端验收，V2.3研究子能力及人工验收状态不变。详见[Historical Replay契约审计](../../../evidence/audits/2026-09-27-p0-2-historical-replay-contract.md)。
 
 ## 1. 前置与范围
 
@@ -18,6 +22,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 - [x] 已支持限价 DAY、下一可用 Bar、窗口成交、滑点、参与率、部分成交、过期和撤单；费用随历史有效规则，未知路径采用版本化保守模型。
 - [x] 成交量作为模拟容量假设，不作为订单提交前可见信息；整 Bar OHLCV/amount 依赖 Bar 结束后的完整信息，窗口 VWAP 仅作为事后执行模型。
 - [x] V2.3 TestRun、断言和证据已持久化；`historical-replay-worker` 在独立数据库保存游标/时钟/种子/待处理订单，并在进程重启后按同一运行键返回已持久结果；多 Bar 端点已逐 Bar 推进并验证检查点幂等恢复。独立 FakeBroker 服务按客户订单幂等持久订单/成交并写入隔离 BACKTEST 组合账本；治理授权、费用、取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描、UNKNOWN 安全恢复及 `COMPENSATION_REQUIRED` Saga 状态机已实现，并完成真实账本故障注入与补偿演练。
+- [x] Qlib Worker 提供仅接收显式 FIXTURE 的实际 `LGBModel.fit/predict` 工程入口，平台代理路由只允许平台服务身份；Worker 的 `/probe`、`/train`、`/validate`、`/qlib/fit-fixture` 全部要求独立 quant-research-service Bearer 和匹配身份。容器重复训练确定性及坏切分拒绝已验证。该证据仅限合成内存样本，不等于市场数据、候选独立验证或阶段验收。
 
 ## 3. 同步 Web 开发
 
@@ -72,6 +77,8 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 2026-09-15 并发隔离实测：Docker Worker 同时运行 5 个隔离的 4 Bar 任务，5/5 完成到 cursor=4、每个任务 4 笔执行且账户 ID 独立。该结果覆盖小规模并发切片；长时容量压力和 Web 按钮驱动的实际暂停/恢复仍待补充。
 
 2026-09-15 并发压力边界：初始 10×12 Bar 压力切片使组合服务连接/请求耗尽并全部 `fetch failed`；Worker 增加默认并发上限 2 后，4×4 Bar 排队回归 4/4 完成，组合服务保持 ready。长时容量上限仍需在 V2.5 专项验证。
+
+2026-09-27 Qlib Worker身份收口：按用户确认的每服务独立Bearer，将身份门禁扩展至Worker全部HTTP操作（`/probe`、`/train`、`/validate`、`/qlib/fit-fixture`）；量化服务所有Worker调用和`/ready`探针携带专属token/service-id，Compose健康检查同步。服务单测39 TS+12 Python、随机隔离PG/HTTP集成、锁版Qlib 0.9.6 `LGBModel.fit/predict`容器冒烟均通过；完整`pnpm verify:stage -- --stage V2.3 --suite code`退出0。此次只证明合成FIXTURE工程路径和身份边界；未部署活动容器，生产密钥仍需由未跟踪配置提供，V2.3研究业务验证、原生Ubuntu与当前用户验收仍待完成。详见[Qlib Worker身份审计](../../../evidence/audits/2026-09-27-v23-qlib-worker-auth.md)。
 
 ## 8. 阶段验收操作手册
 
@@ -168,6 +175,10 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 2026-09-19 V2.3 人工验收复核：按执行顺序重新完成 normal `ca0678f9-7c24-4f99-ad58-59054dfac2f9`、rejection `79f5af32-9ede-492d-94b2-3a554394a06f`、recovery `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0`；三场景均 `COMPLETED` 且断言全 PASS，recovery 对比无重复 Fill。Web E2E 2/2 通过；完整 code suite、同 run `--check-only` 和证据导出均退出 0。normal 证据目录 `evidence/local/V2.3/ca0678f9-7c24-4f99-ad58-59054dfac2f9`，Manifest Hash `f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e`。用户已人工确认本收口范围通过。
 
+2026-09-27 研究边界复核：检查版本库提交`bfc7732`中的量化Worker源码以及只读活动Qlib容器后确认，`/train`从未调用Qlib模型API，而是计算open均值；`/validate`以相同统计重复计算摘要Hash。旧`/probe`只导入`qlib`，活动容器缺`libgomp.so.1`导致真实LightGBM模型类导入失败。修正后的接口把该研究结果明示为`adapter=fixture-summary`、`modelTraining=NOT_RUN`，哈希一致性仅标为Fixture summary复算；V2.3回放仍可独立完成模拟撮合，但阶段整体回到`PARTIALLY_IMPLEMENTED`，直到真实Qlib训练/独立验证完成。此前历史用户签署记录保留，不把旧自动断言继续表述成Qlib证据。Worker边界HTTP测试3/3、完整`pnpm verify:stage -- --stage V2.3 --suite code`退出0；历史normal/rejection/recovery Web验收记录保留，但研究子能力Web/CLI重验尚未执行。证据：[V2.3 Qlib边界更正审计](../../../evidence/audits/2026-09-27-v23-qlib-boundary-correction.md)。活动容器未更新。
+
+2026-09-27 后续验证：`verify:stage --stage V2.3 --suite code`现额外执行`pnpm --filter @stockquant/quant-research-service qlib:fit-smoke`，其它V2阶段不运行该重型镜像构建。完整V2.3 code suite退出0，包含全仓构建/lint/typecheck/unit、服务集成与PostgreSQL、Market Data 22项集成及Qlib容器冒烟。真实Qlib 0.9.6 `LGBModel.fit/predict`在120行确定性合成数据上使用72/24/24拆分，24个有限预测；相同输入重复拟合得到一致模型/预测SHA-256。运行于Mac Apple Silicon上的Linux/amd64仿真容器，脚本清理临时镜像。该结果只证明锁定容器内Qlib训练API可运行；不是市场数据或生产`/train`证据，独立模型验证仍`NOT_RUN`，阶段保持`PARTIALLY_IMPLEMENTED`。详见边界更正审计。
+
 ### 8.5 交叉核对、失败定位与恢复
 
 交叉核对：游标/虚拟时间/事件序号、订单/Fill/账本版本及净值与不中断参考对照；检查点恢复不是新建运行重头再算。
@@ -184,7 +195,7 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | rejection（含全部子场景） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario rejection --seed 20260907`，退出码 0；FUTURE_DATA/ZERO_VOLUME/MISSING_BAR，无 Fill | `79f5af32-9ede-492d-94b2-3a554394a06f` | PASS |
 | recovery（含实际外部动作） | Web 页面与 API 复验通过 | `pnpm verify:stage -- --stage V2.3 --scenario recovery --seed 20260907`，退出码 0；检查点恢复无重复 Fill | `5a98fffc-50f4-4fb7-a90c-3a44ce9542b0` | PASS |
 | Web同run只读核对与证据导出 | Web E2E 2/2 通过；V2.3 同run GET 通过 | `--check-only` 与 `pnpm evidence:export`，均退出码 0；Manifest `f8329e91ea592a90cf8db8cc5b0228883383425262fa7b7eb0e6cf8ff61c772e` | `ca0678f9-7c24-4f99-ad58-59054dfac2f9`；`evidence/local/V2.3/ca0678f9-7c24-4f99-ad58-59054dfac2f9` | PASS |
-| 本阶段代码测试/实际观察适用项 | 构建、类型、单元、契约、Fixture、运维和 market-data 集成检查通过；DC-08A 运行态未改变 | `pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0；`pnpm dc08a:supervise -- --check-only`，退出码 0 | 代码套件日志 `/tmp/v23-code-final.log`；运行态订阅 `dc08a-20260917-20-v1` | PASS |
+| 本阶段代码测试/实际观察适用项 | 构建、类型、单元、契约、Fixture、运维和 market-data 集成检查通过；本轮完整 code suite 重新通过，DC-08A 运行态未改变 | `pnpm verify:stage -- --stage V2.3 --suite code`，退出码 0；`pnpm dc08a:supervise -- --check-only`历史只读记录，退出码 0 | 代码与身份增量见[Qlib Worker身份审计](../../../evidence/audits/2026-09-27-v23-qlib-worker-auth.md)；既有运行态订阅 `dc08a-20260917-20-v1` | PASS |
 | 用户人工验收 | 用户明确确认本页收口范围通过；完整复核一致 | 不由脚本代签 | 本会话确认 / 2026-09-19 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。

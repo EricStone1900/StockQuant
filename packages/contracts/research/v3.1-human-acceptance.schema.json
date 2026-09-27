@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-human-acceptance.schema.json",
+  "title": "Exact V3.1 human acceptance command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["confirmation", "note"],
+  "properties": {
+    "confirmation": { "const": "ACCEPT_EXACT_V31_RUN" },
+    "note": { "type": "string", "minLength": 8, "maxLength": 500 }
+  }
+}

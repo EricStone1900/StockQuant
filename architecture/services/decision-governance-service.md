@@ -74,3 +74,7 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+实现复核补充（2026-09-25）：按每服务独立Bearer身份，`historical-replay-worker`仅可申请BACKTEST/FAKE执行授权，`trade-execution-service`仅可消费并验证授权；两个scope绑定不同token，缺失/弱/重复token时进程启动失败。身份/路由策略单测通过；实际服务HTTP与专用数据库烟测、活动部署仍未执行。
+
+V3.2 exact candidate binding (2026-09-27): Platform API may call `POST /internal/v1/candidate-mandates/readiness` with its own Bearer identity after it verifies the owner's session and accepted exact V3.1 TestRun. Governance performs a direct read of Quant's exact Registry fingerprint with its separate `decision-governance-service` token; Quant scopes that identity to the exact Registry GET only. The command binds PAPER/FAKE, owner, account, TestRun, fingerprint, and candidate Artifact ID/namespace/SHA. Only exact approved fingerprint and Artifact equality returns `EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW`; unknown/mismatched candidate is rejected and unavailable Registry returns WAITING. This route is read-only: no mandate is persisted, no execution authorization is issued, and no strategy is activated. Random-PG/HTTP integration exercises real Governance→Quant HTTP with synthetic approval only; active Paper and human acceptance remain NOT_RUN. Contract/OpenAPI: `decision-governance-candidate-mandate.v1.json`.

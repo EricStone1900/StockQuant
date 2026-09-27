@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand } from "../domain/account.js";
+import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand, ResourceReservation } from "../domain/account.js";
 
 interface StoredAccount {
   account_id: string;
@@ -78,8 +78,34 @@ export class PostgresAccountRepository {
         price NUMERIC(20, 4) NOT NULL CHECK (price > 0),
         currency CHAR(3) NOT NULL,
         effective_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(), fee NUMERIC(20,4) NOT NULL DEFAULT 0,
+        side TEXT NOT NULL DEFAULT 'BUY' CHECK (side IN ('BUY','SELL')),
+        reservation_id UUID NULL
       );
+      ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS fee NUMERIC(20,4) NOT NULL DEFAULT 0;
+      ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS side TEXT NOT NULL DEFAULT 'BUY';
+      ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS reservation_id UUID NULL;
+      CREATE TABLE IF NOT EXISTS resource_reservations (
+        reservation_id UUID PRIMARY KEY,
+        account_id UUID NOT NULL REFERENCES accounts(account_id),
+        namespace TEXT NOT NULL, test_run_id UUID NOT NULL, owner_id TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL, client_order_id TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('BUY','SELL')),
+        currency CHAR(3) NOT NULL, cash_amount NUMERIC(20,4) NULL CHECK (cash_amount > 0),
+        security TEXT NULL, quantity BIGINT NULL CHECK (quantity > 0),
+        captured_cash_amount NUMERIC(20,4) NOT NULL DEFAULT 0 CHECK (captured_cash_amount >= 0),
+        captured_quantity BIGINT NOT NULL DEFAULT 0 CHECK (captured_quantity >= 0),
+        status TEXT NOT NULL CHECK (status IN ('HELD','UNKNOWN','CAPTURED','RELEASED')),
+        evidence_ref TEXT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE(account_id,idempotency_key),
+        CHECK ((side='BUY' AND cash_amount IS NOT NULL AND security IS NULL AND quantity IS NULL)
+          OR (side='SELL' AND cash_amount IS NULL AND security IS NOT NULL AND quantity IS NOT NULL))
+      );
+      ALTER TABLE resource_reservations ADD COLUMN IF NOT EXISTS captured_cash_amount NUMERIC(20,4) NOT NULL DEFAULT 0;
+      ALTER TABLE resource_reservations ADD COLUMN IF NOT EXISTS captured_quantity BIGINT NOT NULL DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS resource_reservations_cash_held_idx ON resource_reservations(account_id,currency) WHERE status IN ('HELD','UNKNOWN') AND side='BUY';
+      CREATE INDEX IF NOT EXISTS resource_reservations_security_held_idx ON resource_reservations(account_id,security) WHERE status IN ('HELD','UNKNOWN') AND side='SELL';
+      CREATE UNIQUE INDEX IF NOT EXISTS resource_reservations_order_identity_idx ON resource_reservations(account_id,client_order_id);
     `);
   }
 
@@ -184,24 +210,61 @@ export class PostgresAccountRepository {
       const account = accountResult.rows[0];
       if (!account || account.namespace !== command.namespace) throw new Error("ACCOUNT_NOT_FOUND");
       if (account.currency !== command.currency) throw new Error("FILL_CURRENCY_MISMATCH");
+      const side = command.side ?? "BUY";
+      if (side !== "BUY" && side !== "SELL") throw new Error("INVALID_FILL_SIDE");
+      const previousFill = await client.query<any>(`SELECT *, (price=$2::numeric AND fee=$3::numeric AND effective_at=$4::timestamptz) AS values_match
+        FROM recorded_fills WHERE external_fill_id=$1`, [command.externalFillId, command.price, command.fee, command.effectiveAt]);
+      if (previousFill.rowCount) {
+        const row = previousFill.rows[0];
+        if (!row.values_match || row.account_id !== command.accountId || row.namespace !== command.namespace || row.security !== command.security || Number(row.quantity) !== command.quantity || row.currency.trim() !== command.currency || row.side !== side || (row.reservation_id ?? null) !== (command.reservation?.reservationId ?? null)) throw new Error("FILL_IDEMPOTENCY_CONFLICT");
+        if (command.reservation) {
+          const bound = await client.query("SELECT 1 FROM resource_reservations WHERE account_id=$1 AND reservation_id=$2 AND owner_id=$3 AND test_run_id=$4 AND namespace=$5 AND client_order_id=$6 AND side=$7 AND currency=$8", [command.accountId, command.reservation.reservationId, command.reservation.ownerId, command.reservation.testRunId, command.namespace, command.reservation.clientOrderId, side, command.currency]);
+          if (!bound.rowCount) throw new Error("FILL_RESERVATION_SCOPE_MISMATCH");
+        }
+        await client.query("COMMIT");
+        return { snapshot: await this.toSnapshot(account), replayed: true };
+      }
+      if (account.environment_mode === "PAPER" && !command.reservation) throw new Error("PAPER_FILL_REQUIRES_RESERVATION");
+      let reservation: any = null;
+      if (command.reservation) {
+        const found = await client.query<any>("SELECT * FROM resource_reservations WHERE account_id=$1 AND reservation_id=$2 FOR UPDATE", [command.accountId, command.reservation.reservationId]);
+        reservation = found.rows[0];
+        if (!reservation || reservation.namespace !== command.namespace || reservation.test_run_id !== command.reservation.testRunId || reservation.owner_id !== command.reservation.ownerId || reservation.client_order_id !== command.reservation.clientOrderId || reservation.side !== side || reservation.currency.trim() !== command.currency || (side === "SELL" && reservation.security !== command.security) || !["HELD", "UNKNOWN"].includes(reservation.status)) throw new Error("FILL_RESERVATION_SCOPE_MISMATCH");
+      }
+      const totalAmount = await client.query<{ amount: string }>("SELECT ($1::numeric * $2::numeric + $3::numeric)::numeric(20,4)::text AS amount", [command.quantity, command.price, command.fee]);
+      if (reservation && side === "BUY") {
+        const within = await client.query<{ ok: boolean }>("SELECT ($1::numeric + $2::numeric <= $3::numeric) AS ok", [reservation.captured_cash_amount, totalAmount.rows[0].amount, reservation.cash_amount]);
+        if (!within.rows[0].ok) throw new Error("FILL_EXCEEDS_RESERVED_CASH");
+      }
+      if (reservation && side === "SELL" && Number(reservation.captured_quantity) + command.quantity > Number(reservation.quantity)) throw new Error("FILL_EXCEEDS_RESERVED_QUANTITY");
       const inserted = await client.query(
-        `INSERT INTO recorded_fills (external_fill_id, account_id, namespace, security, quantity, price, currency, effective_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (external_fill_id) DO NOTHING RETURNING external_fill_id`,
-        [command.externalFillId, command.accountId, command.namespace, command.security, command.quantity, command.price, command.currency, command.effectiveAt]
+        `INSERT INTO recorded_fills (external_fill_id, account_id, namespace, security, quantity, price, currency, effective_at, side, reservation_id, fee)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (external_fill_id) DO NOTHING RETURNING external_fill_id`,
+        [command.externalFillId, command.accountId, command.namespace, command.security, command.quantity, command.price, command.currency, command.effectiveAt, side, reservation?.reservation_id ?? null, command.fee]
       );
       if (inserted.rowCount === 1) {
-        const amount = await client.query<{ amount: string }>("SELECT (-$1::numeric * $2::numeric - $3::numeric)::text AS amount", [command.quantity, command.price, command.fee]);
+        const amount = await client.query<{ amount: string }>("SELECT CASE WHEN $4='BUY' THEN (-$1::numeric * $2::numeric - $3::numeric)::text ELSE ($1::numeric * $2::numeric - $3::numeric)::text END AS amount", [command.quantity, command.price, command.fee, side]);
         await client.query("UPDATE accounts SET cash_amount = cash_amount + $1::numeric, ledger_version = ledger_version + 1 WHERE account_id = $2", [amount.rows[0].amount, command.accountId]);
         await client.query(
           `INSERT INTO ledger_entries (entry_id, account_id, namespace, entry_type, amount, currency, effective_at, source_ref)
            VALUES ($1,$2,$3,'TRADE_FILL',$4,$5,$6,$7)`,
           [randomUUID(), command.accountId, command.namespace, amount.rows[0].amount, command.currency, command.effectiveAt, command.externalFillId]
         );
-        await client.query(
+        if (side === "BUY") await client.query(
           `INSERT INTO account_positions (account_id, security, quantity) VALUES ($1,$2,$3)
            ON CONFLICT (account_id, security) DO UPDATE SET quantity = account_positions.quantity + EXCLUDED.quantity, updated_at = now()`,
           [command.accountId, command.security, command.quantity]
         );
+        else {
+          const position = await client.query("UPDATE account_positions SET quantity=quantity-$3,updated_at=now() WHERE account_id=$1 AND security=$2 AND quantity >= $3 RETURNING quantity", [command.accountId, command.security, command.quantity]);
+          if (position.rowCount !== 1) throw new Error("FILL_EXCEEDS_AVAILABLE_POSITION");
+        }
+        if (reservation && side === "BUY") await client.query("UPDATE resource_reservations SET captured_cash_amount=captured_cash_amount+$3::numeric,updated_at=now() WHERE account_id=$1 AND reservation_id=$2", [command.accountId, reservation.reservation_id, totalAmount.rows[0].amount]);
+        if (reservation && side === "SELL") await client.query("UPDATE resource_reservations SET captured_quantity=captured_quantity+$3,updated_at=now() WHERE account_id=$1 AND reservation_id=$2", [command.accountId, reservation.reservation_id, command.quantity]);
+      } else {
+        const previous = await client.query<any>("SELECT account_id,namespace,security,quantity,price=$3::numeric AS price_matches,fee=$4::numeric AS fee_matches,currency,side,reservation_id,effective_at=$2::timestamptz AS time_matches FROM recorded_fills WHERE external_fill_id=$1", [command.externalFillId, command.effectiveAt, command.price, command.fee]);
+        const row = previous.rows[0];
+        if (!row || row.account_id !== command.accountId || row.namespace !== command.namespace || row.security !== command.security || Number(row.quantity) !== command.quantity || !row.price_matches || !row.fee_matches || !row.time_matches || row.currency.trim() !== command.currency || row.side !== side || (row.reservation_id ?? null) !== (reservation?.reservation_id ?? null)) throw new Error("FILL_IDEMPOTENCY_CONFLICT");
       }
       const refreshed = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id = $1", [command.accountId]);
       await client.query("COMMIT");
@@ -210,6 +273,76 @@ export class PostgresAccountRepository {
       await client.query("ROLLBACK");
       throw error;
     } finally { client.release(); }
+  }
+
+  async reserveResource(command: ReserveResourceCommand): Promise<{ reservation: ResourceReservation; replayed: boolean }> {
+    if (!command.idempotencyKey || command.idempotencyKey.length > 128 || !command.clientOrderId || command.clientOrderId.length > 128) throw new Error("INVALID_RESERVATION_IDENTITY");
+    if (!command.namespace || !command.testRunId || !command.ownerId) throw new Error("INVALID_RESERVATION_SCOPE");
+    if (command.side !== "BUY" && command.side !== "SELL") throw new Error("INVALID_RESERVATION_SIDE");
+    if (!/^[A-Z]{3}$/u.test(command.currency)) throw new Error("INVALID_RESERVATION_CURRENCY");
+    if (command.side === "BUY" && (command.security !== null || command.quantity !== null || !/^(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,4})?$/u.test(command.cashAmount ?? "") || (command.cashAmount ?? "").replace(/[.0]/gu, "") === "")) throw new Error("INVALID_RESERVATION_AMOUNT");
+    if (command.side === "SELL" && (command.cashAmount !== null || !command.security || !/^[A-Z0-9.]{3,20}$/u.test(command.security) || !Number.isSafeInteger(command.quantity) || (command.quantity ?? 0) <= 0)) throw new Error("INVALID_RESERVATION_QUANTITY");
+    const normalizeCash = (amount: string | null) => amount === null ? null : `${amount.split(".")[0]}.${(amount.split(".")[1] ?? "").padEnd(4, "0")}`;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const accountResult = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1 FOR UPDATE", [command.accountId]);
+      const account = accountResult.rows[0];
+      if (!account || account.namespace !== command.namespace || account.test_run_id !== command.testRunId || account.owner_id !== command.ownerId) throw new Error("ACCOUNT_SCOPE_MISMATCH");
+      if (account.environment_mode !== "PAPER" || account.broker_mode !== "FAKE") throw new Error("RESERVATION_REQUIRES_PAPER_FAKE");
+      if (account.currency !== command.currency) throw new Error("RESERVATION_CURRENCY_MISMATCH");
+      const previous = await client.query<any>("SELECT * FROM resource_reservations WHERE account_id=$1 AND (idempotency_key=$2 OR client_order_id=$3) FOR UPDATE", [command.accountId, command.idempotencyKey, command.clientOrderId]);
+      if (previous.rowCount) {
+        const row = previous.rows[0];
+        const same = row.namespace === command.namespace && row.test_run_id === command.testRunId && row.owner_id === command.ownerId && row.idempotency_key === command.idempotencyKey && row.client_order_id === command.clientOrderId && row.side === command.side && row.currency.trim() === command.currency && normalizeCash(row.cash_amount) === normalizeCash(command.cashAmount) && row.security === command.security && (row.quantity == null ? command.quantity == null : String(row.quantity) === String(command.quantity));
+        if (!same) throw new Error("RESERVATION_IDEMPOTENCY_CONFLICT");
+        await client.query("COMMIT");
+        return { reservation: this.mapReservation(row), replayed: true };
+      }
+      if (command.side === "BUY") {
+        const available = await client.query<{ sufficient: boolean }>(`SELECT ($1::numeric - COALESCE(sum(cash_amount-captured_cash_amount),0) - $3::numeric) >= 0 AS sufficient
+          FROM resource_reservations WHERE account_id=$2 AND currency=$4 AND side='BUY' AND status IN ('HELD','UNKNOWN')`, [account.cash_amount, command.accountId, command.cashAmount, command.currency]);
+        if (!available.rows[0].sufficient) throw new Error("INSUFFICIENT_AVAILABLE_CASH");
+      } else {
+        const position = await client.query<{ quantity: string }>("SELECT quantity::text AS quantity FROM account_positions WHERE account_id=$1 AND security=$2 FOR UPDATE", [command.accountId, command.security]);
+        const available = await client.query<{ sufficient: boolean }>(`SELECT (COALESCE($1::bigint,0) - COALESCE(sum(quantity-captured_quantity),0) - $4::bigint) >= 0 AS sufficient
+          FROM resource_reservations WHERE account_id=$2 AND security=$3 AND side='SELL' AND status IN ('HELD','UNKNOWN')`, [position.rows[0]?.quantity ?? null, command.accountId, command.security, command.quantity]);
+        if (!available.rows[0].sufficient) throw new Error("INSUFFICIENT_SELLABLE_QUANTITY");
+      }
+      const inserted = await client.query<any>(`INSERT INTO resource_reservations(reservation_id,account_id,namespace,test_run_id,owner_id,idempotency_key,client_order_id,side,currency,cash_amount,security,quantity,status)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'HELD') RETURNING *`, [randomUUID(), command.accountId, command.namespace, command.testRunId, command.ownerId, command.idempotencyKey, command.clientOrderId, command.side, command.currency, command.cashAmount, command.security, command.quantity]);
+      await client.query("COMMIT");
+      return { reservation: this.mapReservation(inserted.rows[0]), replayed: false };
+    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+  }
+
+  async resolveReservation(input: { accountId: string; reservationId: string; namespace: string; testRunId: string; ownerId: string; outcome: "FILLED" | "CANCELLED" | "REJECTED" | "EXPIRED" | "UNKNOWN"; evidenceRef: string }): Promise<ResourceReservation | null> {
+    const { accountId, reservationId, namespace, testRunId, ownerId, outcome, evidenceRef } = input;
+    if (!["FILLED", "CANCELLED", "REJECTED", "EXPIRED", "UNKNOWN"].includes(outcome)) throw new Error("INVALID_RESOLUTION_OUTCOME");
+    if (!namespace || !testRunId || !ownerId) throw new Error("INVALID_RESOLUTION_SCOPE");
+    if (!evidenceRef || evidenceRef.length > 512) throw new Error("RESOLUTION_EVIDENCE_REQUIRED");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const account = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1 FOR UPDATE", [accountId]);
+      if (!account.rowCount || account.rows[0].namespace !== namespace || account.rows[0].test_run_id !== testRunId || account.rows[0].owner_id !== ownerId) throw new Error("ACCOUNT_SCOPE_MISMATCH");
+      const found = await client.query<any>("SELECT * FROM resource_reservations WHERE account_id=$1 AND reservation_id=$2 FOR UPDATE", [accountId, reservationId]);
+      if (!found.rowCount) { await client.query("COMMIT"); return null; }
+      const row = found.rows[0];
+      if (row.namespace !== namespace || row.test_run_id !== testRunId || row.owner_id !== ownerId) throw new Error("ACCOUNT_SCOPE_MISMATCH");
+      if (outcome === "FILLED" && Number(row.captured_cash_amount ?? 0) === 0 && Number(row.captured_quantity ?? 0) === 0) throw new Error("RESERVATION_FILL_REQUIRED");
+      const status = outcome === "UNKNOWN" ? "UNKNOWN" : outcome === "FILLED" ? "CAPTURED" : "RELEASED";
+      if (["CAPTURED", "RELEASED"].includes(row.status)) {
+        if (row.status !== status || row.evidence_ref !== evidenceRef) throw new Error("RESERVATION_ALREADY_RESOLVED");
+        await client.query("COMMIT"); return this.mapReservation(row);
+      }
+      const updated = await client.query<any>("UPDATE resource_reservations SET status=$3,evidence_ref=$4,updated_at=now() WHERE account_id=$1 AND reservation_id=$2 RETURNING *", [accountId, reservationId, status, evidenceRef]);
+      await client.query("COMMIT"); return this.mapReservation(updated.rows[0]);
+    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+  }
+
+  private mapReservation(row: any): ResourceReservation {
+    return { reservationId: row.reservation_id, accountId: row.account_id, namespace: row.namespace, testRunId: row.test_run_id, ownerId: row.owner_id, idempotencyKey: row.idempotency_key, clientOrderId: row.client_order_id, side: row.side, currency: row.currency.trim(), cashAmount: row.cash_amount, security: row.security, quantity: row.quantity == null ? null : Number(row.quantity), capturedCashAmount: row.captured_cash_amount ?? "0.0000", capturedQuantity: Number(row.captured_quantity ?? 0), status: row.status, evidenceRef: row.evidence_ref };
   }
 
   private async toSnapshot(account: StoredAccount, knownLedgerEntryCount?: number): Promise<AccountSnapshot> {

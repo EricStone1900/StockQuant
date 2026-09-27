@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Pool } from "pg";
+import { evaluateV31PromotionGate } from "../application/v31-acceptance-gate.js";
 
 export type StoredStageRun = {
   testRunId: string; stageId: string; scenarioId: string; scenarioVersion: string; ownerId: string;
@@ -21,6 +22,12 @@ export class PostgresStageRunRepository {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ NULL
       );
       CREATE INDEX IF NOT EXISTS acceptance_stage_runs_owner_idx ON acceptance_stage_runs(owner_id, test_run_id);
+      CREATE TABLE IF NOT EXISTS v31_acceptance_records (
+        test_run_id UUID PRIMARY KEY REFERENCES acceptance_stage_runs(test_run_id) ON DELETE RESTRICT,
+        owner_id TEXT NOT NULL, accepted_by TEXT NOT NULL, note TEXT NOT NULL,
+        evidence_sha256 CHAR(64) NOT NULL CHECK (evidence_sha256 ~ '^[a-f0-9]{64}$'),
+        accepted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
     `);
   }
 
@@ -59,6 +66,51 @@ export class PostgresStageRunRepository {
   async find(testRunId: string, ownerId: string): Promise<StoredStageRun | null> {
     const result = await this.pool.query("SELECT * FROM acceptance_stage_runs WHERE test_run_id=$1 AND owner_id=$2", [testRunId, ownerId]);
     return result.rowCount === 1 ? this.row(result.rows[0]) : null;
+  }
+
+  async getV31PromotionGate(testRunId: string): Promise<Record<string, unknown> | null> {
+    const result = await this.pool.query(`
+      SELECT r.*, a.owner_id AS accepted_owner_id, a.accepted_by, a.note AS acceptance_note,
+        a.evidence_sha256 AS accepted_evidence_sha256, a.accepted_at
+      FROM acceptance_stage_runs r LEFT JOIN v31_acceptance_records a USING (test_run_id)
+      WHERE r.test_run_id=$1 AND r.stage_id='V3.1'`, [testRunId]);
+    if (result.rowCount !== 1) return null;
+    const row = result.rows[0];
+    const run = this.row(row);
+    const gate = evaluateV31PromotionGate(run);
+    const accepted = gate.stageStatus === "PASS" && row.accepted_owner_id === run.ownerId
+      && row.accepted_by === run.ownerId && row.accepted_evidence_sha256?.trim() === gate.evidenceSha256;
+    return {
+      schemaVersion: "v3.1-promotion-gate-v1", testRunId, stageStatus: gate.stageStatus,
+      humanAcceptance: accepted ? "ACCEPTED" : "NOT_RUN", evidenceSha256: gate.evidenceSha256,
+      ...(accepted ? { acceptedBy: row.accepted_by, acceptedAt: row.accepted_at.toISOString(), note: row.acceptance_note } : {}),
+    };
+  }
+
+  async acceptV31Run(testRunId: string, ownerId: string, note: string): Promise<{ acceptedAt: string; evidenceSha256: string }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query("SELECT * FROM acceptance_stage_runs WHERE test_run_id=$1 AND stage_id='V3.1' AND owner_id=$2 FOR UPDATE", [testRunId, ownerId]);
+      if (result.rowCount !== 1) throw new NotFoundException("V3.1 run was not found in user scope");
+      const run = this.row(result.rows[0]);
+      const gate = evaluateV31PromotionGate(run);
+      if (gate.stageStatus !== "PASS") throw new ConflictException("V3.1 run does not meet the exact-run acceptance gate");
+      const inserted = await client.query(`INSERT INTO v31_acceptance_records(test_run_id,owner_id,accepted_by,note,evidence_sha256)
+        VALUES($1,$2,$2,$3,$4) ON CONFLICT(test_run_id) DO NOTHING RETURNING accepted_at`, [testRunId, ownerId, note, gate.evidenceSha256]);
+      if (inserted.rowCount === 1) {
+        await client.query("COMMIT");
+        return { acceptedAt: inserted.rows[0].accepted_at.toISOString(), evidenceSha256: gate.evidenceSha256 };
+      }
+      const existing = await client.query("SELECT owner_id,accepted_by,note,evidence_sha256,accepted_at FROM v31_acceptance_records WHERE test_run_id=$1", [testRunId]);
+      const row = existing.rows[0];
+      if (row.owner_id !== ownerId || row.accepted_by !== ownerId || row.note !== note || row.evidence_sha256.trim() !== gate.evidenceSha256) throw new ConflictException("V3.1 acceptance record already exists with different content");
+      await client.query("COMMIT");
+      return { acceptedAt: row.accepted_at.toISOString(), evidenceSha256: gate.evidenceSha256 };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
   }
 
   newId() { return randomUUID(); }

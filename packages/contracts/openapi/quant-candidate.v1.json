@@ -1,0 +1,28 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Quant Candidate Registration API", "version": "1.0.0" },
+  "servers": [{ "url": "http://127.0.0.1:3003" }],
+  "security": [{ "ServiceBearer": [] }],
+  "paths": {
+    "/v1/research/candidates": {
+      "post": {
+        "operationId": "registerQuantResearchCandidate",
+        "summary": "Register an exact candidate approval; activation remains disabled until a Mandate exists",
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Trusted platform user context; when approvedBy is supplied the values must match.", "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/quant-candidate-registration-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "New immutable candidate approval", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/quant-candidate-registration-result.schema.json" } } } },
+          "200": { "description": "Identical idempotent replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/quant-candidate-registration-result.schema.json" } } } },
+          "202": { "description": "Explicit approval is not present; no candidate row is written", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "reason"], "properties": { "status": { "const": "PENDING_APPROVAL" }, "reason": { "type": "string" } } } } } },
+          "403": { "description": "Caller scope or authenticated platform user does not match" },
+          "409": { "description": "Candidate ID is already bound to different immutable approval data" },
+          "422": { "description": "Candidate version or Artifact hash is not eligible" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

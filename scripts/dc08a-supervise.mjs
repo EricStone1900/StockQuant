@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
 
 export const composeArgs = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 
@@ -54,7 +55,7 @@ async function ready(url) {
     const baseUrl = url.replace(/\/ready\/?$/, "");
     let schedules = [];
     if (expected.subscriptionId) {
-      const schedulesResponse = await fetch(`${baseUrl}/v2/collection-schedules`, { signal: AbortSignal.timeout(3000) });
+      const schedulesResponse = await fetch(`${baseUrl}/v2/collection-schedules`, { headers: platformMarketDataHeaders(), signal: AbortSignal.timeout(3000) });
       schedules = schedulesResponse.ok ? (await schedulesResponse.json()).schedules ?? [] : [];
     }
     const match = runtimeMatches(body, schedules, expected);

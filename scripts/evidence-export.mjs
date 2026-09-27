@@ -1,45 +1,35 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { lstat, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { buildEvidenceBundle, evidenceRequest, parseEvidenceExportArgs, serializeEvidence } from "./evidence-export-core.mjs";
 
-const args = process.argv.slice(2);
-const runId = args[args.indexOf("--run") + 1];
-const stage = args.includes("--stage") ? args[args.indexOf("--stage") + 1] : "V1.1";
-const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
-if (!runId) {
-  console.error("usage: pnpm evidence:export -- --stage V2.1|V2.2|V2.3|V2.4|V2.5 --run RUN_ID");
-  process.exit(2);
+const baseUrl = (process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000").replace(/\/$/u, "");
+try {
+  const selection = parseEvidenceExportArgs(process.argv.slice(2));
+  const request = evidenceRequest({ ...selection, baseUrl, sessionCookie: process.env.STOCKQUANT_EVIDENCE_SESSION_COOKIE });
+  const response = await fetch(request.url, { headers: request.headers, signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) {
+    console.error(`evidence export failed: HTTP ${response.status}`);
+    process.exitCode = response.status === 401 || response.status === 403 ? 2 : 1;
+  } else {
+    const responseBody = await response.json();
+    const bundle = buildEvidenceBundle({ ...selection, responseBody });
+    const { serialized, manifest, manifestHash } = serializeEvidence(bundle);
+    const outputDirectory = resolve(process.cwd(), request.outputDirectory);
+    await mkdir(dirname(outputDirectory), { recursive: true });
+    try { await lstat(outputDirectory); throw new Error(`evidence output already exists; preserving it: ${outputDirectory}`); }
+    catch (error) { if (error?.code !== "ENOENT") throw error; }
+    const stagingDirectory = await mkdtemp(join(dirname(outputDirectory), ".evidence-export-"));
+    try {
+      await writeFile(join(stagingDirectory, "evidence.json"), serialized, { flag: "wx" });
+      await writeFile(join(stagingDirectory, "manifest.sha256"), manifest, { flag: "wx" });
+      await rename(stagingDirectory, outputDirectory);
+    } catch (error) {
+      await rm(stagingDirectory, { recursive: true, force: true });
+      throw error;
+    }
+    console.log(JSON.stringify({ outputDirectory, manifestHash, stageId: selection.stage, kind: selection.promotionRequestId ? "V3.2_PROMOTION_PREPARATION_SNAPSHOT" : "TEST_RUN_EVIDENCE" }, null, 2));
+  }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "evidence export failed");
+  process.exitCode = 2;
 }
-
-const v2RunRoutes = {
-  "V2.1": "/api/v1/acceptance/v2/v2.1/runs",
-  "V2.2": "/api/v1/acceptance/v2/v2.2/runs",
-  "V2.3": "/api/v1/acceptance/v2/v2.3/runs",
-  "V2.4": "/api/v1/acceptance/v2/v2.4/runs"
-  ,"V2.5": "/api/v1/acceptance/v2/v2.5/runs"
-};
-if (stage.startsWith("V2.") && !v2RunRoutes[stage]) {
-  console.error(`${stage} has no implemented evidence export endpoint`);
-  process.exit(2);
-}
-const path = v2RunRoutes[stage]
-  ? `${v2RunRoutes[stage]}/${runId}`
-  : `/api/v1/acceptance/runs/${runId}/evidence`;
-const response = await fetch(`${baseUrl}${path}`, { headers: { "x-stockquant-user": "acceptance-owner-1" } });
-if (!response.ok) {
-  console.error(`evidence export failed: ${response.status}`);
-  process.exit(1);
-}
-const run = await response.json();
-const evidence = v2RunRoutes[stage]
-  ? { evidenceVersion: "acceptance-export-v2-1", stageId: stage, testRunId: runId, run }
-  : run;
-const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
-const manifestHash = createHash("sha256").update(serialized).digest("hex");
-const outputDirectory = v2RunRoutes[stage]
-  ? join("evidence", "local", stage, runId)
-  : join("evidence", "local", runId);
-await mkdir(outputDirectory, { recursive: true });
-await writeFile(join(outputDirectory, "evidence.json"), serialized);
-await writeFile(join(outputDirectory, "manifest.sha256"), `${manifestHash}  evidence.json\n`);
-console.log(JSON.stringify({ outputDirectory, manifestHash }, null, 2));

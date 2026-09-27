@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "dc08a-dc-t19-run-summary-v1",
+  "runAt": "2026-09-25T04:31:58.713Z",
+  "commands": {
+    "monitor": { "command": "pnpm dc08a:monitor", "exitCode": 0, "status": "NOT_RUN" },
+    "eod": { "command": "pnpm dc08a:eod", "exitCode": 0, "status": "NOT_RUN" },
+    "healthReportSandbox": { "command": "pnpm dc08a:health-report", "exitCode": 1, "status": "FAILED", "error": "TypeError: fetch failed" },
+    "healthReportLocal": { "command": "pnpm dc08a:health-report", "exitCode": 0, "status": "HEALTHY" },
+    "observationSummary": { "command": "pnpm dc08a:observation-summary", "exitCode": 2, "status": "WAITING", "remainingDays": 15 },
+    "expiryCheck": { "command": "pnpm dc08a:expiry-check", "exitCode": 0, "status": "OK", "daysRemaining": 35 }
+  },
+  "subscription": {
+    "subscriptionId": "dc08a-20260917-20-v1",
+    "securityCount": 20,
+    "securityIds": [
+      "600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH",
+      "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH",
+      "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH",
+      "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"
+    ]
+  },
+  "calendarAndCoverage": {
+    "date": "2026-09-25",
+    "calendarStatus": "CLOSED",
+    "expectedBars": 0,
+    "actualBars": 0,
+    "missingBars": 0,
+    "duplicateBars": 0,
+    "unexpectedBars": 0,
+    "openGaps": 0,
+    "pendingOutbox": 0,
+    "delivered": 0
+  },
+  "scheduler": {
+    "status": "ENABLED",
+    "executor": "ENABLED",
+    "qualityReady": true,
+    "lastSuccessfulTickAt": "2026-09-25T04:31:08.038Z",
+    "nextExecutionAt": "2026-09-28T01:37:00.000Z"
+  },
+  "sources": [
+    { "sourceId": "baostock", "initialCircuit": "CLOSED", "circuit": "CLOSED", "failures": 0, "lastErrorCode": null },
+    { "sourceId": "sina", "takeover": "NOT_APPLICABLE_CLOSED_CALENDAR", "circuit": "CLOSED", "failures": 0, "lastErrorCode": null },
+    { "sourceId": "eastmoney", "circuit": "DISABLED", "failures": 0, "lastErrorCode": null }
+  ],
+  "sourceRecovery": {
+    "status": "COMPLETED",
+    "attempts": [],
+    "baostockToSinaTakeover": "NOT_OBSERVED",
+    "halfOpen600Seconds": "NOT_OBSERVED",
+    "successfulFailbackOrContinuedDegradation": "NOT_APPLICABLE_CLOSED_CALENDAR",
+    "sourceSchedulingPublishLatency": "NOT_APPLICABLE_CLOSED_CALENDAR",
+    "rawFieldsAndErrorCodes": "NO_FORMAL_REQUEST_TODAY"
+  },
+  "observation": {
+    "targetDays": 20,
+    "completedDays": 4,
+    "recoveredDays": 1,
+    "observedDays": 5,
+    "remainingDays": 15,
+    "status": "WAITING",
+    "malformedFiles": [],
+    "invalidTimestampFiles": [],
+    "ignoredSubscriptionCount": 185
+  },
+  "evidence": {
+    "dailyReport": "daily-report.json",
+    "healthReport": "health-report.json",
+    "observationSummary": "observation-summary.json",
+    "latestSourceRecoveryProbe": "source-recovery-probe-2026-09-25T04-31-34-500Z.json",
+    "latestObservation": "observation-2026-09-25T04-31-36-532Z.json"
+  },
+  "restrictionsObserved": [
+    "no data deletion",
+    "no subscription change",
+    "LIVE not enabled",
+    "no real broker connection",
+    "no manual backfill",
+    "no service restart"
+  ]
+}

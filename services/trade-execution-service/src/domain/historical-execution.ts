@@ -13,6 +13,8 @@ export interface HistoricalExecutionCommand {
   limitPrice?: string;
   participationRate?: number;
   slippageBps?: number;
+  currency?: string;
+  reservation?: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string };
 }
 
 /** Stable, semantic request identity for FakeBroker idempotency keys. */
@@ -33,9 +35,19 @@ export function historicalExecutionFingerprint(command: HistoricalExecutionComma
     timeInForce: command.timeInForce ?? "DAY",
     limitPrice: command.limitPrice ?? null,
     participationRate: command.participationRate ?? 0.1,
-    slippageBps: command.slippageBps ?? 10
+    slippageBps: command.slippageBps ?? 10,
+    currency: command.currency ?? "CNY",
+    reservation: command.reservation ?? null
   };
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+/** Refuse to persist a fill whose reservation is bound to another order. */
+export function validateExecutionReservation(command: HistoricalExecutionCommand): void {
+  if (command.currency !== undefined && !/^[A-Z]{3}$/u.test(command.currency)) throw new Error("INVALID_CURRENCY");
+  if (command.reservation && (!command.reservation.reservationId || !command.reservation.ownerId || !command.reservation.testRunId || command.reservation.clientOrderId !== command.clientOrderId)) {
+    throw new Error("RESERVATION_ORDER_MISMATCH");
+  }
 }
 
 export class IdempotencyConflictError extends Error {

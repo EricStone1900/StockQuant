@@ -1,4 +1,4 @@
-import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand } from "../domain/account.js";
+import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
 import { PostgresAccountRepository } from "../adapters/postgres-account-repository.js";
 
 export class AccountService {
@@ -23,4 +23,13 @@ export class AccountService {
     if (this.fillFailuresRemaining > 0) { this.fillFailuresRemaining -= 1; throw new Error("INJECTED_LEDGER_UNAVAILABLE"); }
     return this.repository.recordFill(command);
   }
+
+  reserveResource(command: ReserveResourceCommand & { accountId: string }) {
+    return this.repository.reserveResource(command);
+  }
+
+  resolveReservation(input: { accountId: string; reservationId: string; namespace: string; testRunId: string; ownerId: string; outcome: "FILLED" | "CANCELLED" | "REJECTED" | "EXPIRED" | "UNKNOWN"; evidenceRef: string }) {
+    return this.repository.resolveReservation(input);
+  }
+
 }

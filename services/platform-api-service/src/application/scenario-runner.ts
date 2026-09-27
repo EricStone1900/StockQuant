@@ -18,8 +18,13 @@ interface InitializeResult {
 export class ScenarioRunner {
   constructor(
     private readonly repository: PostgresTestRunRepository,
-    private readonly portfolioApiUrl: string
+    private readonly portfolioApiUrl: string,
+    private readonly portfolioToken = ""
   ) {}
+
+  private portfolioHeaders(extra: Record<string, string> = {}) {
+    return { ...extra, "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.portfolioToken}` };
+  }
 
   async start(testRunId: string, ownerId: string): Promise<void> {
     const run = await this.repository.find(testRunId, ownerId);
@@ -91,7 +96,7 @@ export class ScenarioRunner {
     } else {
       const conflictResponse = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/initialize`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service" },
+        headers: this.portfolioHeaders({ "content-type": "application/json" }),
         body: JSON.stringify(this.commandFor(run, "20000.00"))
       });
       const snapshot = await this.snapshot(accountId, run.ownerId);
@@ -141,7 +146,7 @@ export class ScenarioRunner {
   private async initialize(command: object): Promise<InitializeResult> {
     const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/initialize`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service" },
+      headers: this.portfolioHeaders({ "content-type": "application/json" }),
       body: JSON.stringify(command)
     });
     if (!response.ok) throw new Error(`portfolio initialize failed: ${response.status}`);
@@ -150,7 +155,7 @@ export class ScenarioRunner {
 
   private async snapshot(accountId: string, ownerId: string): Promise<AccountSnapshot> {
     const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/${accountId}/snapshot`, {
-      headers: { "x-stockquant-service-id": "platform-api-service", "x-stockquant-owner-id": ownerId }
+      headers: this.portfolioHeaders({ "x-stockquant-owner-id": ownerId })
     });
     if (!response.ok) throw new Error(`portfolio snapshot failed: ${response.status}`);
     return response.json() as Promise<AccountSnapshot>;
@@ -158,7 +163,7 @@ export class ScenarioRunner {
 
   private async snapshotStatus(accountId: string, ownerId: string): Promise<number> {
     const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/${accountId}/snapshot`, {
-      headers: { "x-stockquant-service-id": "platform-api-service", "x-stockquant-owner-id": ownerId }
+      headers: this.portfolioHeaders({ "x-stockquant-owner-id": ownerId })
     });
     return response.status;
   }

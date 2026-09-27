@@ -1,0 +1,25 @@
+
+> stockquant@0.0.0 dc08a:monitor /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/dc08a-operations.mjs monitor
+
+{
+  "status": "FAILED",
+  "readiness": {
+    "state": "REPAIR_FAILED",
+    "observation": {
+      "state": "UNHEALTHY",
+      "status": 0,
+      "body": {},
+      "error": "TypeError: fetch failed"
+    },
+    "actions": [
+      {
+        "command": "docker compose --env-file .env.local -f infra/compose/docker-compose.yml up -d market-data-service",
+        "exitCode": 1
+      }
+    ],
+    "exitCode": 1
+  },
+  "exitCode": 1
+}
+ ELIFECYCLE  Command failed with exit code 1.

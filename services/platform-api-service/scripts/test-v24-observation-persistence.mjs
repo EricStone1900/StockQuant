@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresV24ObservationRepository } from "../dist/adapters/postgres-v24-observation-repository.js";
+import { V24_EXPECTED_SAMPLING_SLOTS } from "../dist/application/v24-observation-quality.js";
 
 const connectionString = process.env.PLATFORM_API_TEST_DATABASE_URL ?? "postgresql://platform_api_test:platform_api_test@127.0.0.1:5433/platform_api_test";
 const parsed = new URL(connectionString);
@@ -56,6 +57,9 @@ try {
   assert.deepEqual(visibleRevisions[0].priorAssertions, priorAssertions);
   assert.deepEqual(visibleRevisions[0].priorEvidence, priorEvidence);
   assert.deepEqual(await repository.listRunRevisions(invalidatedRunId, randomUUID()), []);
+  const ownerObservations = await repository.listObservationsForOwner(ownerId);
+  const sameRunObservation = ownerObservations.find((item) => item.testRunId === invalidatedRunId);
+  assert.equal(sameRunObservation?.observationDate, observationDates[0]);
   assert.equal((await repository.listObservationsForOwner(ownerId)).some((item) => item.testRunId === invalidatedRunId), true);
   assert.equal((await repository.listObservationsForOwner(randomUUID())).some((item) => item.testRunId === invalidatedRunId), false);
   await repository.migrate();
@@ -65,7 +69,20 @@ try {
   const dailyRunId = await repository.ensureDailyTestRun(observationDates[1]);
   testRunIds.push(dailyRunId);
   assert.equal(dailyRunId, await repository.ensureDailyTestRun(observationDates[1]));
-  const completionEvidence = { observationCounted: true, reconciliation: { unresolvedOrders: 0 }, observationQuality: { samplingEvents: 10 } };
+  const observationRecord = (eventKind, time) => {
+    const scheduledFor = new Date(`${observationDates[1]}T${time}:00+08:00`).toISOString();
+    const securities = ["600000.SH", "000001.SZ"].map((symbol) => ({ symbol, status: "LIVE_SOURCE", observedAt: new Date(Date.parse(scheduledFor) - 5_000).toISOString() }));
+    return { observationDate: observationDates[1], sourceAvailable: true, lastSnapshotAt: scheduledFor, dataAgeSeconds: 5, samplingEvery30Minutes: eventKind === "SAMPLING_SLOT", enteredExecutionWindow: eventKind === "EXECUTION_WINDOW", signalStatus: "HOLD", simulatedOrderStatus: "NONE", fillStatus: "NONE", reconciliationStatus: "UNKNOWN", outageStatus: "NONE", testRunId: dailyRunId, errors: [], recoveryActions: [], evidence: { eventKind, scheduledFor, scheduledDelaySeconds: 0, recordedAt: scheduledFor, sourceProbe: { requestedSymbols: ["600000.SH", "000001.SZ"], securities } } };
+  };
+  for (const time of V24_EXPECTED_SAMPLING_SLOTS) {
+    const record = observationRecord("SAMPLING_SLOT", time);
+    await pool.query("INSERT INTO v24_observation_events (event_id,observation_date,record) VALUES ($1,$2,$3::jsonb)", [randomUUID(), observationDates[1], JSON.stringify(record)]);
+  }
+  const executionRecord = observationRecord("EXECUTION_WINDOW", "09:31");
+  await pool.query("INSERT INTO v24_observation_events (event_id,observation_date,record) VALUES ($1,$2,$3::jsonb)", [randomUUID(), observationDates[1], JSON.stringify(executionRecord)]);
+  const observationQuality = await repository.qualityForDate(observationDates[1]);
+  assert.deepEqual({ uniqueSamplingWindows: observationQuality.uniqueSamplingWindows, missingSamplingWindows: observationQuality.missingSamplingWindows, uniqueExecutionWindows: observationQuality.uniqueExecutionWindows, expectedSecuritySamples: observationQuality.expectedSecuritySamples, validSecuritySamples: observationQuality.validSecuritySamples, invalidSecuritySamples: observationQuality.invalidSecuritySamples }, { uniqueSamplingWindows: 10, missingSamplingWindows: [], uniqueExecutionWindows: 1, expectedSecuritySamples: 22, validSecuritySamples: 22, invalidSecuritySamples: 0 });
+  const completionEvidence = { observationCounted: true, reconciliation: { unresolvedOrders: 0 }, observationQuality };
   await repository.completeDailyTestRun(observationDates[1], dailyRunId, completionEvidence);
   const completed = await pool.query("SELECT status,assertions,evidence,completed_at FROM acceptance_stage_runs WHERE test_run_id=$1", [dailyRunId]);
   assert.equal(completed.rows[0].status, "COMPLETED");

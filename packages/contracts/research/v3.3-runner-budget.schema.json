@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-budget.schema.json",
+  "title": "V3.3RunnerBudget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "offset", "limit", "rows", "hasMore", "coverage", "note"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-runner-budget-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "offset": { "type": "integer", "minimum": 0 },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "hasMore": { "type": "boolean" },
+    "rows": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["jobId", "experimentId", "status", "source"], "properties": {
+      "jobId": { "type": "string", "minLength": 1 },
+      "experimentId": { "type": "string", "minLength": 1 },
+      "requestedCents": { "type": "integer", "minimum": 1 },
+      "reservedCents": { "type": "integer", "minimum": 1 },
+      "settledCents": { "type": "integer", "minimum": 0 },
+      "unknownReservedCents": { "type": "integer", "minimum": 0 },
+      "status": { "enum": ["RESERVED", "SETTLED", "UNKNOWN", "REJECTED", "NOT_FOUND"] },
+      "source": { "enum": ["POSTGRES_LEDGER", "IN_MEMORY_LEDGER", "LEDGER"] }
+    } } },
+    "coverage": { "type": "object", "additionalProperties": false, "required": ["jobsOnPage", "experimentsOnPage", "budgetsFound", "budgetsMissing"], "properties": {
+      "jobsOnPage": { "type": "integer", "minimum": 0 },
+      "experimentsOnPage": { "type": "integer", "minimum": 0 },
+      "budgetsFound": { "type": "integer", "minimum": 0 },
+      "budgetsMissing": { "type": "integer", "minimum": 0 }
+    } },
+    "note": { "type": "string", "minLength": 1 }
+  }
+}

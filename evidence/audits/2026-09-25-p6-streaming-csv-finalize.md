@@ -1,0 +1,19 @@
+# P6 streaming CSV finalization
+
+Date: 2026-09-25 (Asia/Shanghai). Scope: resumable V2.2 CSV upload finalization in `market-data-service`. This is local engineering evidence, not V2.2 re-acceptance or capacity evidence.
+
+Finalization no longer concatenates all PostgreSQL upload chunks into one Buffer and decodes a second full-file string before parsing. It atomically checks owner/status/chunk count/total bytes, marks the upload `FINALIZING`, then fetches and verifies one 512 KiB chunk at a time. A fatal UTF-8 decoder and incremental SHA-256 feed a stateful CSV row parser; the parser handles quoted fields, escaped quotes, CRLF and multibyte UTF-8 split across chunk boundaries without building a `string[][]` for the source rows. The computed source hash must equal the upload declaration before an import can publish. Preview temporarily uses the same finalization lock and returns the upload to `OPEN`; all parser, import or persistence failures release `FINALIZING` so the user can retry. Successful completion still deletes its temporary chunks.
+
+Finalize no longer retains all Bar objects in an application array. It validates each row and sends candidate bars in batches of at most 1,000 to a transaction-local PostgreSQL staging table. After the full-file SHA matches and validation completes, a single transaction writes the import manifest and moves staged rows into the published table; rejected or failed imports roll back without exposing partial rows. The parser still retains the duplicate-key index and validation error details (bounded by the 100,000-row ceiling), and PostgreSQL holds the staged rows for the transaction. This is bounded application-side Bar batching, not end-to-end bounded storage: Parquet output, physical date partitions, and larger resource-bound capacity tests remain open. Do not claim 64 MiB capacity from the current smaller smoke input.
+
+Verification:
+
+- `pnpm --filter @stockquant/market-data-service test`: 47 tests passed, including parser input split at every UTF-8 byte boundary, bounded batch emission without retaining Bar arrays, and the 100,000-row ceiling with no trailing newline.
+- `pnpm --filter @stockquant/market-data-service typecheck`: passed.
+- `pnpm --filter @stockquant/market-data-service build`: passed.
+- `pnpm test:integration:market-data`: passed, 21/21 isolated PostgreSQL integration tests, including repository recreation and streamed chunk reassembly/hash verification.
+- `pnpm --filter @stockquant/market-data-service minute-upload:http-restart-smoke`: passed against a uniquely named temporary PostgreSQL database; 848,055 bytes/16,000 rows, two persistent chunks, process restart/resume, owner refusal, preview, streamed batch finalization, SHA match, exactly 16,000 persisted rows, PUBLISHED import, completed status, pagination and exact temporary-database drop verified. A second malformed upload wrote one 1,000-row batch to transaction-local staging before its unterminated quote; it returned 422, restored status to `OPEN`, and left both import count and published-row count unchanged.
+- `pnpm verify:stage -- --stage V2.2 --suite code`: passed after the integration test was migrated to the streaming repository API; baseline contracts/fixtures, workspace build/lint/typecheck, 248 service/Web unit tests, Trade Execution/Portfolio PostgreSQL and HTTP recovery smokes, 55 Python Adapter tests, 94 operations tests, and all 21 Market Data PostgreSQL integration tests passed. This code suite does not alter V2.2 human acceptance or observation state.
+- `pnpm docs:check`: 599 local Markdown links, zero failures; `git diff --check`: passed.
+
+The existing 2026-09-09 V2.2 human acceptance remains unchanged. Parquet/date partitioning, larger resource-bound tests, full stage E2E and any new human acceptance remain open.

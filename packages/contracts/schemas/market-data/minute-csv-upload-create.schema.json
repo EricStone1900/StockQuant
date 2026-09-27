@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/minute-csv-upload-create-v1.schema.json",
+  "title": "MinuteCsvUploadCreateRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["uploadId", "expectedSha256", "expectedBytes", "metadata"],
+  "properties": {
+    "uploadId": { "type": "string", "format": "uuid" },
+    "expectedSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "expectedBytes": { "type": "integer", "minimum": 1, "maximum": 67108864 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapping", "provenance", "market", "frequency", "adjustment", "timezone", "timestampSemantics", "volumeUnit", "amountUnit"],
+      "properties": {
+        "fileFormat": { "enum": ["CSV", "PARQUET"] },
+        "mapping": { "type": "object", "additionalProperties": { "type": "string" }, "required": ["securityId", "timestamp", "open", "high", "low", "close", "volume", "amount"] },
+        "provenance": {
+          "type": "object", "additionalProperties": false,
+          "required": ["sourceName", "sourceReference", "licenseStatement", "licenseVerification", "acquiredAt"],
+          "properties": {
+            "sourceName": { "type": "string", "minLength": 1, "maxLength": 160 },
+            "sourceReference": { "type": ["string", "null"], "maxLength": 500 },
+            "licenseStatement": { "type": "string", "minLength": 1, "maxLength": 500 },
+            "licenseVerification": { "enum": ["OPERATOR_CONFIRMED", "UNCONFIRMED"] },
+            "acquiredAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "market": { "const": "CN_A" }, "frequency": { "enum": ["1m", "5m"] }, "adjustment": { "const": "RAW" },
+        "timezone": { "const": "Asia/Shanghai" }, "timestampSemantics": { "enum": ["BAR_START", "BAR_END"] },
+        "volumeUnit": { "const": "SHARES" }, "amountUnit": { "const": "CNY" }
+      }
+    }
+  }
+}

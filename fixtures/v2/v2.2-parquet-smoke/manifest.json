@@ -1,0 +1,34 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.2-minute-parquet-upload-smoke",
+  "fixtureVersion": "v2.2-minute-parquet-upload-smoke-1",
+  "stageId": "V2.2",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Two deterministic CN one-minute bars encoded as a canonical-column Apache Parquet file for upload, streaming decode and PostgreSQL publication verification",
+    "license": "Internal synthetic fixture; no external market data",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-26T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.2-parquet-smoke/minute-upload.parquet",
+      "sha256": "1758a42c2dee7c86160bf394b46804b8449d875a867f0f4f52a312e3f41d9744",
+      "mediaType": "application/vnd.apache.parquet",
+      "schemaRef": "minute-parquet-upload-smoke-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.2-MINUTE-PARQUET-001",
+      "description": "canonical column mapping and Asia/Shanghai BAR_START semantics produce two persisted minute bars"
+    },
+    {
+      "assertionId": "V2.2-MINUTE-PARQUET-HASH-001",
+      "description": "source parquet SHA-256 is preserved through normalized streamed parsing and stored in the published manifest"
+    }
+  ]
+}

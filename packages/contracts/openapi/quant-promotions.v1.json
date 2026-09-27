@@ -1,0 +1,147 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V3.2 PromotionRequest API", "version": "1.0.0" },
+  "servers": [{ "url": "http://127.0.0.1:3003" }],
+  "paths": {
+    "/v1/promotions": {
+      "post": {
+        "operationId": "submitPromotionRequest",
+        "summary": "Submit an immutable request for independent validation; this operation cannot approve or activate",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "research-automation-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json" } } } },
+        "responses": {
+          "201": { "description": "New request awaiting independent validation", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request-result.schema.json" } } } },
+          "200": { "description": "Identical idempotent replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request-result.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "409": { "description": "Idempotency key or request ID is already bound to different content" },
+          "413": { "description": "Request exceeds 64 KiB" },
+          "422": { "description": "Request does not match the V3.2 contract" }
+        }
+      }
+    },
+    "/v1/promotions/{promotionRequestId}": {
+      "get": {
+        "operationId": "getPromotionRequest",
+        "summary": "Read the immutable submission status",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Current request state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request-result.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "Request not found" }
+        }
+      }
+    },
+    "/v1/promotions/{promotionRequestId}/detail": {
+      "get": {
+        "operationId": "getPromotionRequestDetail",
+        "summary": "Read the immutable request payload for the Platform acceptance UI",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "enum": ["platform-api-service", "decision-governance-service"] } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable request detail", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request-detail.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "Request not found" },
+          "422": { "description": "Request ID is invalid" }
+        }
+      }
+    },
+    "/v1/promotions/{promotionRequestId}/validation-report": {
+      "post": {
+        "operationId": "recordIndependentValidationReport",
+        "summary": "Persist one immutable evidence-bearing validation report; does not approve, activate, or change Registry",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-validation-worker" } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-submission.schema.json" } } } },
+        "responses": {
+          "201": { "description": "Validation report persisted for the matching immutable request", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-result.schema.json" } } } },
+          "200": { "description": "Identical immutable report replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-result.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "PromotionRequest does not exist" },
+          "409": { "description": "A different report is already persisted for this request" },
+          "413": { "description": "Submission exceeds 1 MiB" },
+          "422": { "description": "Report, evidence, or request binding is invalid" }
+        }
+      },
+      "get": {
+        "operationId": "getIndependentValidationReport",
+        "summary": "Read persisted validation evidence without changing request or Registry state",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable validation report and evidence", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-result.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "Request or validation report does not exist" }
+        }
+      }
+    },
+    "/v1/promotions/{promotionRequestId}/validation-input": {
+      "get": {
+        "operationId": "getIndependentValidationInput",
+        "summary": "Read the immutable PromotionRequest for the independent validation worker",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-validation-worker" } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable request and fingerprint", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-input.schema.json" } } } },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "PromotionRequest does not exist" },
+          "422": { "description": "PromotionRequest ID is invalid" }
+        }
+      }
+    },
+    "/v1/promotions/{promotionRequestId}/decision": {
+      "post": {
+        "operationId": "recordExactPromotionVersionDecision",
+        "summary": "Persist an owner-authorized exact-version approval or rejection; approval stays disabled until a Mandate",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-decision-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "New immutable exact-version decision", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-decision-result.schema.json" } } } },
+          "200": { "description": "Identical decision replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-decision-result.schema.json" } } } },
+          "403": { "description": "Only the authenticated Platform API service may submit a decision" },
+          "404": { "description": "PromotionRequest or validation report not found" },
+          "409": { "description": "Report fingerprint is stale or an immutable decision already exists" },
+          "413": { "description": "Decision command exceeds 16 KiB" },
+          "422": { "description": "Command is invalid or report is not approvable" }
+        }
+      }
+    },
+    "/v1/registry/versions/{versionFingerprint}": {
+      "get": {
+        "operationId": "getApprovedPromotionRegistryVersion",
+        "summary": "Read the exact approved candidate version for downstream simulated Mandate binding; never activates it",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "versionFingerprint", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable approved Registry version; remains disabled pending Mandate", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-registry-version.schema.json" } } } },
+          "403": { "description": "Only the Platform API service may read downstream Registry versions" },
+          "404": { "description": "Approved version fingerprint not found" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

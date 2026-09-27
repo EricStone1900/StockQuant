@@ -8,26 +8,32 @@ if (!/^linux\/(amd64|arm64)$/.test(platform ?? "")) {
 }
 
 const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
-const run = (command, commandArgs) => {
+const run = (command, commandArgs, env = process.env) => {
   const result = spawnSync(command, commandArgs, {
     stdio: "inherit",
-    env: { ...process.env, DOCKER_DEFAULT_PLATFORM: platform },
+    env,
   });
   return result.status ?? 1;
 };
 
+const image = `stockquant-compat-platform-api:${platform.replaceAll("/", "-")}`;
+const expectedArch = platform === "linux/amd64" ? "x64" : "arm64";
+const architectureEmulatedAgainstHostProcess = process.arch !== expectedArch;
+const probe = `if (process.platform !== 'linux' || process.arch !== '${expectedArch}' || !process.version.startsWith('v24.')) process.exit(1); console.log(JSON.stringify({ platform: process.platform, arch: process.arch, node: process.version }))`;
+const composeValidationEnv = { ...process.env };
+delete composeValidationEnv.DOCKER_DEFAULT_PLATFORM;
 const checks = [
-  ["compose-config", ["docker", [...compose, "config", "--quiet"]]],
-  ["build-platform-api", ["docker", [...compose, "build", "--quiet", "platform-api-service"]]],
-  ["run-node-probe", ["docker", [...compose, "run", "--rm", "--no-deps", "platform-api-service", "node", "-e", "if (!process.version.startsWith('v24.')) process.exit(1); console.log(JSON.stringify({ platform: process.platform, arch: process.arch, node: process.version }))"]]],
+  ["compose-config", ["docker", [...compose, "config", "--quiet"], composeValidationEnv]],
+  ["build-platform-api", ["docker", ["buildx", "build", "--load", "--platform", platform, "--tag", image, "--file", "services/platform-api-service/Dockerfile", "."]]],
+  ["run-node-probe", ["docker", ["run", "--rm", "--platform", platform, image, "node", "-e", probe]]],
 ];
 
-for (const [name, [command, commandArgs]] of checks) {
-  const exitCode = run(command, commandArgs);
+for (const [name, [command, commandArgs, env]] of checks) {
+  const exitCode = run(command, commandArgs, env ?? process.env);
   if (exitCode !== 0) {
     console.error(`compatibility check failed: ${name}`);
     process.exit(exitCode);
   }
 }
 
-console.log(JSON.stringify({ status: "PASS", platform, architectureEvidence: "containerized platform-api-service probe" }, null, 2));
+console.log(JSON.stringify({ status: "PASS", platform, hostProcess: `${process.platform}/${process.arch}`, architectureEmulatedAgainstHostProcess, architectureEvidence: "containerized platform-api-service probe", image }, null, 2));

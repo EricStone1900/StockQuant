@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-mandate.schema.json",
+  "title": "V24PaperMandate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mandateId", "mandateVersion", "status", "ownerId", "accountId", "namespace", "testRunId", "market", "strategyVersion", "securityScope", "limits", "validity", "approvalEvidenceRef", "configurationGaps"],
+  "properties": {
+    "schemaVersion": { "const": "v24-paper-mandate-v1" },
+    "mandateId": { "const": "UNSET" },
+    "mandateVersion": { "const": "UNSET" },
+    "status": { "const": "PREPARATION_ONLY" },
+    "ownerId": { "const": "UNSET" },
+    "accountId": { "const": "UNSET" },
+    "namespace": { "const": "UNSET" },
+    "testRunId": { "const": "UNSET" },
+    "market": { "const": "CN_A" },
+    "strategyVersion": { "const": "UNSET" },
+    "securityScope": { "const": [] },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxOrderNotional", "maxGrossExposure", "maxDailyTurnover"],
+      "properties": {
+        "maxOrderNotional": { "type": "null" },
+        "maxGrossExposure": { "type": "null" },
+        "maxDailyTurnover": { "type": "null" }
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validFrom", "validUntil"],
+      "properties": {
+        "validFrom": { "type": "null" },
+        "validUntil": { "type": "null" }
+      }
+    },
+    "approvalEvidenceRef": { "const": "UNSET" },
+    "configurationGaps": {
+      "type": "array",
+      "items": { "enum": ["MANDATE_ID", "MANDATE_VERSION", "OWNER", "ACCOUNT", "NAMESPACE", "TESTRUN", "STRATEGY_VERSION", "SECURITY_SCOPE", "LIMITS", "VALIDITY", "APPROVAL_EVIDENCE"] },
+      "uniqueItems": true,
+      "minItems": 1
+    }
+  }
+}

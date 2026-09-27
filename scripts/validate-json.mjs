@@ -78,11 +78,13 @@ for (const [file, value] of parsedFiles.entries()) {
     continue;
   }
   try {
-    const valid = ajv.compile(schema)(value);
+    const validator = ajv.compile(schema);
+    const instance = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "$schema"));
+    const valid = validator(instance);
     fixturesValidated += 1;
     if (!valid) {
       failures += 1;
-      console.error(`${file}: fixture does not satisfy ${schemaFile}: ${ajv.errorsText(ajv.errors)}`);
+      console.error(`${file}: fixture does not satisfy ${schemaFile}: ${ajv.errorsText(validator.errors)}`);
     }
   } catch (error) {
     failures += 1;

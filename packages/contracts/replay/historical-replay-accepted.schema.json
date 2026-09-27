@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/replay/historical-replay-accepted.schema.json",
+  "title": "HistoricalReplayAccepted",
+  "type": "object", "additionalProperties": false,
+  "required": ["accepted", "testRunId", "status"],
+  "properties": {
+    "accepted": { "const": true },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "RUNNING" }
+  }
+}

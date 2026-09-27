@@ -13,4 +13,9 @@ const result = spawnSync("pnpm", ["--filter", "@stockquant/market-data-service",
   env: { ...process.env, MARKET_DATA_DATABASE_URL: connectionString },
 });
 
-process.exit(result.status ?? 1);
+if ((result.status ?? 1) !== 0) process.exit(result.status ?? 1);
+const partitionSmoke = spawnSync(process.execPath, ["services/market-data-service/scripts/minute-import-partition-backfill-smoke.mjs"], {
+  stdio: "inherit",
+  env: { ...process.env, MARKET_DATA_TEST_DATABASE_URL: connectionString },
+});
+process.exit(partitionSmoke.status ?? 1);

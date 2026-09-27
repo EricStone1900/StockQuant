@@ -14,7 +14,7 @@ export type RunnerJob = {
 export type ArtifactRef = {
   schemaVersion: "v3.1-artifact-ref-v1";
   artifactId: string;
-  kind: "INPUT" | "GENERATED_CODE" | "RUN_LOG" | "METRICS" | "ERROR" | "CANDIDATE";
+  kind: "INPUT" | "GENERATED_CODE" | "RUN_LOG" | "METRICS" | "ERROR" | "CANDIDATE" | "OUTPUT";
   namespace: string;
   sha256: string;
   status: "PENDING" | "PUBLISHED" | "FAILED" | "RETAINED";
@@ -28,6 +28,20 @@ export type BudgetReservation = {
   spentCents: number;
   status: "RESERVED" | "SETTLED" | "UNKNOWN" | "REJECTED";
 };
+
+export type BudgetSnapshotRow = BudgetReservation & { modelCallSettledCents: number; modelCallUnknownReservedCents: number };
+
+export type ModelCallBudgetReservation = {
+  experimentId: string;
+  modelRunId: string;
+  requestFingerprint: string;
+  requestedCents: number;
+  reservedCents: number;
+  spentCents: number;
+  status: "RESERVED" | "DISPATCHED" | "UNKNOWN" | "SETTLED" | "REJECTED";
+};
+
+export type ModelCallReservationResult = { reservation: ModelCallBudgetReservation; created: boolean };
 
 const DIGEST = /^sha256:[a-f0-9]{64}$/;
 const HASH = /^[a-f0-9]{64}$/;
@@ -70,6 +84,7 @@ export function sha256(content: string | Uint8Array): string { return createHash
 
 export class BudgetLedger {
   private readonly reservations = new Map<string, BudgetReservation>();
+  private readonly modelCalls = new Map<string, ModelCallBudgetReservation>();
   constructor(private readonly stageBudgetCents: number, private readonly maxExperimentBudgetCents: number, private readonly warningPercent = 80) {}
 
   reserve(experimentId: string, requestedCents: number): BudgetReservation {
@@ -103,16 +118,90 @@ export class BudgetLedger {
       return current;
     }
     if (current.status === "REJECTED") throw new Error("rejected budget cannot be settled");
+    const calls = [...this.modelCalls.values()].filter((item) => item.experimentId === experimentId);
+    if (calls.some((item) => item.status === "RESERVED" || item.status === "DISPATCHED" || item.status === "UNKNOWN")) throw new Error("model call budget remains unresolved");
+    const settledCallsCents = calls.reduce((sum, item) => sum + (item.status === "SETTLED" ? item.spentCents : 0), 0);
+    if (spentCents < settledCallsCents) throw new Error("experiment settlement is below its settled model call costs");
     return this.update({ ...current, spentCents, status: "SETTLED" });
   }
 
   warningThresholdCents(): number { return Math.ceil(this.stageBudgetCents * this.warningPercent / 100); }
   get(experimentId: string): BudgetReservation | null { return this.reservations.get(experimentId) ?? null; }
+  snapshot(experimentIds: string[]): BudgetSnapshotRow[] {
+    return [...new Set(experimentIds)].flatMap((experimentId) => {
+      const reservation = this.get(experimentId);
+      if (!reservation) return [];
+      const calls = [...this.modelCalls.values()].filter((call) => call.experimentId === experimentId);
+      return [{
+        ...reservation,
+        modelCallSettledCents: calls.filter((call) => call.status === "SETTLED").reduce((sum, call) => sum + call.spentCents, 0),
+        modelCallUnknownReservedCents: calls.filter((call) => call.status === "UNKNOWN" || call.status === "DISPATCHED").reduce((sum, call) => sum + call.reservedCents, 0),
+      }];
+    });
+  }
+
+  reserveModelCall(experimentId: string, modelRunId: string, requestFingerprint: string, requestedCents: number): ModelCallReservationResult {
+    if (!SAFE_ID.test(experimentId) || !SAFE_ID.test(modelRunId) || experimentId === "." || experimentId === ".." || modelRunId === "." || modelRunId === ".." || !HASH.test(requestFingerprint)) throw new Error("model call identity or request fingerprint is invalid");
+    if (!Number.isInteger(requestedCents) || requestedCents < 1) throw new Error("model call reservation must be a positive integer number of cents");
+    const experiment = this.reservations.get(experimentId);
+    if (!experiment || experiment.status !== "RESERVED") throw new Error("experiment budget is unavailable for a model call");
+    const key = `${experimentId}\0${modelRunId}`;
+    const existing = this.modelCalls.get(key);
+    if (existing) {
+      if (existing.requestFingerprint !== requestFingerprint || existing.requestedCents !== requestedCents) throw new Error("modelRunId was reused with different request or budget");
+      return { reservation: existing, created: false };
+    }
+    const used = [...this.modelCalls.values()].filter((item) => item.experimentId === experimentId).reduce((sum, item) => sum + (item.status === "RESERVED" || item.status === "DISPATCHED" || item.status === "UNKNOWN" ? item.reservedCents : item.status === "SETTLED" ? item.spentCents : 0), 0);
+    if (used + requestedCents > experiment.requestedCents) throw new Error("experiment model-call budget exhausted");
+    const reservation: ModelCallBudgetReservation = { experimentId, modelRunId, requestFingerprint, requestedCents, reservedCents: requestedCents, spentCents: 0, status: "RESERVED" };
+    this.modelCalls.set(key, reservation);
+    return { reservation, created: true };
+  }
+
+  dispatchModelCall(experimentId: string, modelRunId: string): ModelCallBudgetReservation {
+    const current = this.requireModelCall(experimentId, modelRunId);
+    if (current.status !== "RESERVED") throw new Error("model call can only be dispatched from RESERVED state");
+    return this.updateModelCall({ ...current, status: "DISPATCHED" });
+  }
+
+  markModelCallUnknown(experimentId: string, modelRunId: string): ModelCallBudgetReservation {
+    const current = this.requireModelCall(experimentId, modelRunId);
+    if (current.status === "UNKNOWN") return current;
+    if (current.status !== "DISPATCHED") throw new Error("only a dispatched model call can become UNKNOWN");
+    return this.updateModelCall({ ...current, status: "UNKNOWN" });
+  }
+
+  settleModelCall(experimentId: string, modelRunId: string, spentCents: number): ModelCallBudgetReservation {
+    const current = this.requireModelCall(experimentId, modelRunId);
+    if (!Number.isInteger(spentCents) || spentCents < 0 || spentCents > current.reservedCents) throw new Error("settled model call cost is outside the reservation");
+    if (current.status === "SETTLED") {
+      if (current.spentCents !== spentCents) throw new Error("settled model call cost cannot be changed");
+      return current;
+    }
+    if (current.status !== "DISPATCHED" && current.status !== "UNKNOWN") throw new Error("only a dispatched or UNKNOWN model call can be settled");
+    return this.updateModelCall({ ...current, spentCents, status: "SETTLED" });
+  }
+
+  rejectModelCall(experimentId: string, modelRunId: string): ModelCallBudgetReservation {
+    const current = this.requireModelCall(experimentId, modelRunId);
+    if (current.status !== "RESERVED") throw new Error("only an undispatched model call reservation can be rejected");
+    return this.updateModelCall({ ...current, status: "REJECTED" });
+  }
+
+  getModelCall(experimentId: string, modelRunId: string): ModelCallBudgetReservation | null { return this.modelCalls.get(`${experimentId}\0${modelRunId}`) ?? null; }
+
   reject(experimentId: string): BudgetReservation {
     const current = this.reservations.get(experimentId);
     if (!current) throw new Error("budget reservation not found");
     if (current.status !== "RESERVED") throw new Error("only a reserved budget can be rejected");
+    if ([...this.modelCalls.values()].some((item) => item.experimentId === experimentId && item.status !== "REJECTED")) throw new Error("experiment with model call reservations cannot be rejected");
     return this.update({ ...current, status: "REJECTED" });
   }
   private update(value: BudgetReservation): BudgetReservation { this.reservations.set(value.experimentId, value); return value; }
+  private requireModelCall(experimentId: string, modelRunId: string): ModelCallBudgetReservation {
+    const reservation = this.getModelCall(experimentId, modelRunId);
+    if (!reservation) throw new Error("model call reservation not found");
+    return reservation;
+  }
+  private updateModelCall(value: ModelCallBudgetReservation): ModelCallBudgetReservation { this.modelCalls.set(`${value.experimentId}\0${value.modelRunId}`, value); return value; }
 }

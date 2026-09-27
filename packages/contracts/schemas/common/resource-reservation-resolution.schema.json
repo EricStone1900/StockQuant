@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/resource-reservation-resolution.schema.json",
+  "title": "ResourceReservationResolution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcome", "evidenceRef"],
+  "properties": {
+    "outcome": { "enum": ["FILLED", "CANCELLED", "REJECTED", "EXPIRED", "UNKNOWN"] },
+    "evidenceRef": { "type": "string", "minLength": 1, "maxLength": 512 }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-platform-promotion-evidence.schema.json",
+  "title": "V3.2PlatformPromotionEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request", "validationReport", "registryMutation", "activation", "testRunId"],
+  "properties": {
+    "request": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request-detail.schema.json" },
+    "validationReport": { "oneOf": [{ "type": "null" }, { "$ref": "https://stockquant.local/schemas/research/v3.2-independent-validation-result.schema.json" }] },
+    "registryMutation": { "enum": ["NOT_PERFORMED", "CANDIDATE_APPROVED", "NOT_REGISTERED"] },
+    "activation": { "const": "DISABLED_UNTIL_MANDATE" },
+    "testRunId": { "type": "string", "format": "uuid" }
+  }
+}

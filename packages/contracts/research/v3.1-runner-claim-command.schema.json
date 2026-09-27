@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.1-runner-claim-command.schema.json",
+  "title": "V3.1RunnerClaimCommand",
+  "type": "object", "additionalProperties": false,
+  "required": ["workerId"],
+  "properties": {
+    "workerId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "testRunId": { "type": "string", "minLength": 1, "maxLength": 128 }
+  }
+}

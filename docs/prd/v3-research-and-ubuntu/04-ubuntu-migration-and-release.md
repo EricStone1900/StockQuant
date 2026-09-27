@@ -2,6 +2,8 @@
 
 状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
+2026-09-27 本地目标架构预检：当前工作树的`pnpm verify:compat -- --platform linux/amd64`和`--platform linux/arm64`均已退出0，Docker Desktop容器Node v24.1.0报告x64/arm64；外部冲突`DOCKER_DEFAULT_PLATFORM`交叉回归通过。此前误把全局Compose架构与Qlib固定amd64相撞的验证器已拆分架构构建/探针，详见[兼容矩阵与验证器修复审计](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。该结果不是目标Ubuntu主机/发行版验证，不涵盖数据库迁移、卷恢复、完整栈或Paper实际观察；目标主机资源信息尚未登记，本阶段保持NOT_RUN。
+
 ## 1. 前置与范围
 
 三版必需阶段通过；目标Ubuntu主机架构/资源已记录，V2连续观察证据满足要求；真实券商仍不接入。
@@ -83,6 +85,8 @@
 
 ### 8.2 初始化与启动（目标命令，待实现）
 
+当前已补充`verify:stage -- --stage V3.4 --scenario {normal|rejection|recovery}`本地准备检查入口：只读V1/V2/V3版本门禁并报告Ubuntu、V3.4工作流、Paper观察和人工验收阻塞，预期`WAITING`/exit 2，`testRunId=null`且无副作用。`--suite code`执行仓库基线、build/lint/typecheck/unit和CLI前置测试；它只代表本地代码预检，不代表本阶段验收。以下stack/Web部署步骤及业务TestRun仍待实现。详见[本地V3.4准备入口审计](../../../evidence/audits/2026-09-27-v34-local-preflight.md)。
+
 在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。首次开发由开发者生成锁文件和脚本，验收者不负责补建环境。环境变量按上表配置；保持FAKE券商与模拟账户，真实模型仅在本阶段明确要求且预算已配置的场景调用。
 
 ```bash
@@ -114,9 +118,9 @@ pnpm dev:web
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
 
-### 8.4 命令行复验与相同运行核对（待实现）
+### 8.4 命令行复验与相同运行核对（业务闭环待实现）
 
-在项目根目录执行以下目标命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
+当前V3.4仅提供本地准备检查，不创建业务TestRun；因此场景命令预期WAITING/exit 2。下列输出不是8.3业务结果，直到正式V3.4 Web/后端工作流及同run CLI核对实现后，才可按该业务验收口径执行。
 
 ```bash
 pnpm verify:stage -- --stage V3.4 --scenario normal --seed 20260907
@@ -132,9 +136,9 @@ pnpm test:e2e -- --stage V3.4
  echo $?
 ```
 
-预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
+当前场景入口输出版本门禁状态、具体阻塞项、`testRunId=null`和`sideEffects=NONE`，固定exit 2。`--suite code`只校验可本地执行的工作区代码，Ubuntu/业务工作流/阶段E2E/Paper观察仍各自未验证；浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
 
-再对Web中已运行的同一testRunId执行只读核对，避免仅创建新样本掩盖页面问题：
+正式V3.4 TestRun与同run Web/CLI核对尚未实现；下方命令只有实现该API后才可用，当前不得把本地准备检查当成业务运行：
 
 ```bash
 # 粘贴Web运行详情中的实际testRunId，再按回车；这是普通ID，不是凭证
@@ -169,3 +173,9 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+
+## 当前工作树 Linux 双架构 Web 容器代理烟测（2026-09-27）
+
+`pnpm v34:web-container-smoke`仍默认构建`linux/amd64`；新增`pnpm v34:web-container-smoke:arm64`构建`linux/arm64`。两个当前源码镜像均经internal-only Docker网络运行，只读根文件系统、非root用户及固定Mock Platform API；`/acceptance/v3/v3.3`、JS、CSS和`/api/v1/session`代理均返回200，零Vite配置警告。ARM64镜像SHA为`e0f2013ef842bafc29f2059094f465c442120893c3df438931596efd914c6125`；AMD64回归镜像SHA为`b68231964f8fe382e250611ec129cd9ba6ccd4aee9893492a67dacf402eef5bd`。本机Docker为Linux/aarch64，故ARM64是本机架构、AMD64为仿真。两者是Mac上的容器验证，不代表目标Ubuntu主机/发行版发布验收、真实Platform端到端或人工V3.4验收。完整限制和清理事实见[V3.4兼容矩阵审计](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。
+
+当前Research Automation源码另有`pnpm v34:research-container-smoke:arm64`和AMD64默认入口，在internal-only/read-only容器中检查身份、TestRun绑定实验预算预留及队列副作用。ARM64镜像SHA为`bd4225a4d178c7e0a54068e4e99d64851f1129117834add93b7a26632b7c43d4`，AMD64回归镜像SHA为`07bf9ba6768ae73765e362d2cd2182faff705cac082d20dd388ace7e59ab6c55`；两者的26个单测文件/150项测试通过。匿名请求401，Runner Host无权创建实验或派发（403，队列不变），Platform Bearer可创建TestRun实验并预留预算、准备任务仅`QUEUED/NOT_STARTED`。容器明确使用内存预算账本，Runner与模型网关关闭，出网DENY；不代表PostgreSQL耐久性、Ubuntu部署或实际研究执行。审计详见[V3.4兼容矩阵](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。

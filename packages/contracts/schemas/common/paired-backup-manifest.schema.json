@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/paired-backup-manifest-v1.schema.json",
+  "title": "PairedBackupManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "backupId", "createdAt", "retentionClass", "database", "artifactVolume", "restoreValidation", "files"],
+  "properties": {
+    "format": {"const": "stockquant.paired-backup.v1"},
+    "backupId": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "retentionClass": {"enum": ["DAILY", "MONTH_END"]},
+    "database": {"type": "string", "minLength": 1},
+    "artifactVolume": {"type": "string", "minLength": 1},
+    "restoreValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checkedAt", "publishedArtifactRefs", "method"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "checkedAt": {"type": "string", "format": "date-time"},
+        "publishedArtifactRefs": {"type": "integer", "minimum": 0},
+        "method": {"const": "PG_RESTORE_AND_ARTIFACT_SHA256"}
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-request-detail.schema.json",
+  "title": "V3.2PromotionRequestDetail",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "request", "status", "createdAt", "decision"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-request-detail-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "request": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json" },
+    "status": { "enum": ["AWAITING_INDEPENDENT_VALIDATION", "AWAITING_REVIEW", "VALIDATION_INCOMPLETE", "REJECTED", "CANDIDATE_APPROVED"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "decision": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["decision", "reportFingerprint", "versionFingerprint", "actorId", "registryStatus", "activation"],
+          "properties": {
+            "decision": { "enum": ["APPROVE", "REJECT"] },
+            "reportFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "versionFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "actorId": { "type": "string", "minLength": 1 },
+            "registryStatus": { "enum": ["CANDIDATE_APPROVED", "NOT_REGISTERED"] },
+            "activation": { "const": "DISABLED_UNTIL_MANDATE" }
+          }
+        }
+      ]
+    }
+  }
+}

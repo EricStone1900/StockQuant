@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
 
 const baseUrl = process.env.MARKET_DATA_URL ?? "http://127.0.0.1:3002";
 
@@ -42,7 +43,7 @@ async function request(path, options = {}) {
   const timeoutMs = Number(options.timeoutMs ?? process.env.DATA_CLI_TIMEOUT_MS ?? 10000);
   const { timeoutMs: _timeout, ...fetchOptions } = options;
   const token = process.env.STOCKQUANT_COLLECTION_CONTROL_TOKEN ?? (() => { try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_COLLECTION_CONTROL_TOKEN=(.+)$/m)?.[1] ?? ""; } catch { return ""; } })();
-  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(fetchOptions.headers ?? {}) } });
+  const response = await fetch(`${baseUrl}${path}`, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs), headers: platformMarketDataHeaders({ extra: { "content-type": "application/json", ...(token ? { "x-stockquant-control-token": token } : {}), ...(fetchOptions.headers ?? {}) } }) });
   const text = await response.text();
   let body;
   try { body = text ? JSON.parse(text) : {}; } catch { body = { raw: text }; }

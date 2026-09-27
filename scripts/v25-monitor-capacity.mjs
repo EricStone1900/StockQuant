@@ -1,8 +1,15 @@
+import { readFileSync } from "node:fs";
+
 const baseUrl = process.env.STOCKQUANT_MARKET_DATA_URL ?? "http://127.0.0.1:3002";
+const platformToken = process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API ?? (() => {
+  try { return readFileSync(".env.local", "utf8").match(/^STOCKQUANT_SERVICE_TOKEN_PLATFORM_API=(.+)$/m)?.[1] ?? ""; }
+  catch { return ""; }
+})();
+if (platformToken.length < 32) throw new Error("STOCKQUANT_SERVICE_TOKEN_PLATFORM_API is required for the authenticated Market Data watchlist and quote probes");
 const sizes = (process.env.V25_MONITOR_SIZES ?? "50,80,100").split(",").map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0 && value <= 100);
 if (sizes.length === 0) throw new Error("V25_MONITOR_SIZES must contain at least one size between 1 and 100");
 const request = async (path, init) => {
-  const response = await fetch(`${baseUrl}${path}`, { ...init, signal: AbortSignal.timeout(30_000) });
+  const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { ...(init?.headers ?? {}), authorization: `Bearer ${platformToken}` }, signal: AbortSignal.timeout(30_000) });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${response.status} ${JSON.stringify(body)}`);
   return body;
@@ -42,7 +49,10 @@ try {
     results.push({ size, configuredCount: updated.count, sampledCount: snapshot.count, liveCount, elapsedMs, statuses, max: updated.max, pass: updated.count === size && snapshot.count === size && liveCount === size && updated.max === 100 });
   }
 } finally {
-  await request("/v2/watchlist", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities: original.securities }) });
+  const restored = await request("/v2/watchlist", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities: original.securities }) });
+  if (restored.count !== original.count || JSON.stringify(restored.securities) !== JSON.stringify(original.securities)) throw new Error("monitor capacity probe failed to restore the exact original watchlist");
+  const afterRestore = await request("/v2/watchlist");
+  if (afterRestore.count !== original.count || JSON.stringify(afterRestore.securities) !== JSON.stringify(original.securities)) throw new Error("watchlist does not match its original value after capacity probe");
 }
 
 const result = { stageId: "V2.5", test: "mac-monitor-pool-capacity", host: process.platform, architecture: process.arch, sizes, results, restoredCount: original.count, source: "tencent-quote", dataMode: "LIVE_SOURCE", note: "This measures the online watchlist/quote path only; it is not historical full-market capacity evidence." };

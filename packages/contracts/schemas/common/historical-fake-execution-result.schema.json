@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/historical-fake-execution-result.schema.json",
+  "title": "HistoricalFakeExecutionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result", "replayed"],
+  "properties": {
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["orderId", "status", "brokerMode"],
+      "properties": {
+        "orderId": { "type": "string", "format": "uuid" },
+        "status": { "enum": ["FILLED", "PARTIALLY_FILLED", "REJECTED", "CANCEL_REQUESTED", "CANCELLED", "EXPIRED", "UNKNOWN"] },
+        "brokerMode": { "const": "FAKE" },
+        "rejectionReason": { "enum": ["ZERO_VOLUME", "INVALID_BAR", "LIMIT_NOT_MARKETABLE", "INVALID_RULE"] },
+        "fill": {
+          "type": "object", "additionalProperties": false,
+          "required": ["externalFillId", "quantity", "price", "fee", "effectiveAt"],
+          "properties": {
+            "externalFillId": { "type": "string", "format": "uuid" },
+            "quantity": { "type": "integer", "minimum": 1 },
+            "price": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+            "fee": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+            "effectiveAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "replayed": { "type": "boolean" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-user-promotion-submit-result.schema.json",
+  "title": "V3.2 owner-scoped PromotionRequest submit result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "testRunId", "ownerId", "humanAcceptance"],
+  "properties": {
+    "status": { "enum": ["WAITING", "SUBMITTED", "SUBMISSION_UNKNOWN"] },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "humanAcceptance": { "const": "NOT_CHANGED" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "reason": { "type": "string" }
+  }
+}

@@ -1,6 +1,8 @@
 export type ExperimentStatus = "PENDING_PREREQUISITES" | "CANCELLED";
 
 export type ExperimentRequest = {
+  /** Required before Runner dispatch; optional for legacy/model-only experiments. */
+  testRunId?: string;
   fixtureId: string;
   modelProfile: string;
   rounds: number;
@@ -24,6 +26,8 @@ export type Experiment = ExperimentRequest & {
 export function validateRequest(input: unknown, maxBudgetCents = MAX_EXPERIMENT_BUDGET_CENTS): ExperimentRequest {
   if (!input || typeof input !== "object") throw new Error("request body must be an object");
   const body = input as Record<string, unknown>;
+  if (Object.keys(body).some((key) => !["testRunId", "fixtureId", "modelProfile", "rounds", "budgetCurrency", "budgetCents", "environmentMode", "brokerMode", "idempotencyKey"].includes(key))) throw new Error("request contains unsupported properties");
+  if (body.testRunId !== undefined && (typeof body.testRunId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body.testRunId))) throw new Error("testRunId must be a UUID");
   const requiredString = (name: string) => {
     const value = body[name];
     if (typeof value !== "string" || value.length === 0) throw new Error(`${name} is required`);
@@ -39,7 +43,7 @@ export function validateRequest(input: unknown, maxBudgetCents = MAX_EXPERIMENT_
   if (!Number.isInteger(body.rounds) || Number(body.rounds) < 1 || Number(body.rounds) > 3) throw new Error("rounds must be an integer from 1 to 3");
   if (!Number.isInteger(body.budgetCents) || Number(body.budgetCents) < 1) throw new Error("budgetCents must be a positive integer");
   if (Number(body.budgetCents) > maxBudgetCents) throw new Error(`budgetCents must not exceed ${maxBudgetCents} USD cents`);
-  return { fixtureId, modelProfile, rounds: Number(body.rounds), budgetCurrency: "USD", budgetCents: Number(body.budgetCents), environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey };
+  return { ...(body.testRunId ? { testRunId: body.testRunId as string } : {}), fixtureId, modelProfile, rounds: Number(body.rounds), budgetCurrency: "USD", budgetCents: Number(body.budgetCents), environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey };
 }
 
 export function createExperiment(request: ExperimentRequest, now = new Date(), experimentId = crypto.randomUUID()): Experiment {

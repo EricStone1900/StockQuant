@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-request-result.schema.json",
+  "title": "V3.2PromotionRequestResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "promotionRequestId", "testRunId", "status", "createdAt", "idempotent"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-promotion-request-result-v1" },
+    "promotionRequestId": { "type": "string", "format": "uuid" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "AWAITING_INDEPENDENT_VALIDATION" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "idempotent": { "type": "boolean" }
+  }
+}

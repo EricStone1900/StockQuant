@@ -1,18 +1,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import type { V31RunnerExecution } from "../contracts/generated-types.js";
 import type { RunnerLaunchPlan } from "./v31-runner-launch.js";
 
-export type RunnerExecutionResult = {
-  status: "COMPLETED" | "FAILED" | "TIMED_OUT" | "OUTPUT_LIMIT" | "SPAWN_FAILED";
-  exitCode: number | null;
-  signal: NodeJS.Signals | null;
-  stdout: string;
-  stderr: string;
-  durationMs: number;
-};
+export type RunnerExecutionResult = V31RunnerExecution;
 
 export type RunnerExecutionOptions = {
   maxOutputBytes?: number;
   spawnProcess?: typeof spawn;
+  signal?: AbortSignal;
+  completionMarker?: string;
 };
 
 const EXECUTION_STATUSES = ["COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED"] as const;
@@ -29,7 +25,7 @@ export function parseRunnerExecution(input: unknown): RunnerExecutionResult {
   if (typeof body.stdout !== "string" || typeof body.stderr !== "string") throw new Error("runner execution stdout/stderr are required strings");
   if (Buffer.byteLength(body.stdout) + Buffer.byteLength(body.stderr) > MAX_RECORDED_OUTPUT_BYTES) throw new Error("runner execution output exceeds 8 MiB");
   if (!Number.isInteger(body.durationMs) || Number(body.durationMs) < 0 || Number(body.durationMs) > 86_400_000) throw new Error("runner execution durationMs is invalid");
-  return { status: body.status as RunnerExecutionResult["status"], exitCode: body.exitCode as number | null, signal: body.signal as NodeJS.Signals | null, stdout: body.stdout, stderr: body.stderr, durationMs: Number(body.durationMs) };
+  return { status: body.status as RunnerExecutionResult["status"], exitCode: body.exitCode as number | null, signal: body.signal as RunnerExecutionResult["signal"], stdout: body.stdout, stderr: body.stderr, durationMs: Number(body.durationMs) };
 }
 
 function terminate(child: ChildProcess): void {
@@ -48,7 +44,8 @@ export function executeRunnerPlan(plan: RunnerLaunchPlan, options: RunnerExecuti
   return new Promise((resolve) => {
     let child: ChildProcess;
     try {
-      child = spawnProcess(plan.command, plan.argv, { env: { ...plan.environment }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+      // Keep only a minimal host lookup environment; never inherit controller secrets.
+      child = spawnProcess(plan.command, plan.argv, { env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", ...plan.environment }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
     } catch (error) {
       resolve({ status: "SPAWN_FAILED", exitCode: null, signal: null, stdout: "", stderr: String(error), durationMs: Date.now() - startedAt });
       return;
@@ -57,6 +54,8 @@ export function executeRunnerPlan(plan: RunnerLaunchPlan, options: RunnerExecuti
     let stderr = "";
     let outputBytes = 0;
     let timedOut = false;
+    let externallyAborted = false;
+    let completionReached = false;
     let outputLimit = false;
     let settled = false;
     const finish = (result: RunnerExecutionResult) => { if (!settled) { settled = true; resolve(result); } };
@@ -68,19 +67,33 @@ export function executeRunnerPlan(plan: RunnerLaunchPlan, options: RunnerExecuti
         terminate(child);
         return;
       }
-      if (target === "stdout") stdout += value; else stderr += value;
+      if (target === "stdout") {
+        stdout += value;
+        if (options.completionMarker && stdout.includes(options.completionMarker)) {
+          completionReached = true;
+          terminate(child);
+        }
+      } else stderr += value;
     };
     child.stdout?.on("data", (chunk) => append("stdout", chunk));
     child.stderr?.on("data", (chunk) => append("stderr", chunk));
+    if (options.signal?.aborted) {
+      externallyAborted = true;
+      terminate(child);
+    }
     const timer = setTimeout(() => { timedOut = true; terminate(child); }, plan.timeoutSeconds * 1000);
+    const onAbort = () => { externallyAborted = true; terminate(child); };
+    options.signal?.addEventListener("abort", onAbort, { once: true });
     child.once("error", (error) => {
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
       finish({ status: "SPAWN_FAILED", exitCode: null, signal: null, stdout, stderr: `${stderr}${String(error)}`, durationMs: Date.now() - startedAt });
     });
     child.once("close", (exitCode, signal) => {
       clearTimeout(timer);
-      const status = outputLimit ? "OUTPUT_LIMIT" : timedOut ? "TIMED_OUT" : exitCode === 0 ? "COMPLETED" : "FAILED";
-      finish({ status, exitCode, signal, stdout, stderr, durationMs: Date.now() - startedAt });
+      options.signal?.removeEventListener("abort", onAbort);
+      const status = outputLimit ? "OUTPUT_LIMIT" : timedOut ? "TIMED_OUT" : externallyAborted ? "FAILED" : completionReached || exitCode === 0 ? "COMPLETED" : "FAILED";
+      finish({ status, exitCode, signal: signal as RunnerExecutionResult["signal"], stdout, stderr, durationMs: Date.now() - startedAt });
     });
   });
 }

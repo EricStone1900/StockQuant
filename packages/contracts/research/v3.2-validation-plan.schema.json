@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-validation-plan.schema.json",
+  "title": "V32PromotionValidationPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "experimentId", "candidateSource", "dataManifestSha256", "candidateOutputPath", "generatedCodeOutputPath", "metricsOutputPath"],
+  "properties": {
+    "schemaVersion": { "const": "v3.2-validation-plan-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "experimentId": { "type": "string", "format": "uuid" },
+    "candidateSource": { "enum": ["RD_AGENT", "FIXTURE"] },
+    "dataManifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "candidateOutputPath": { "type": "string", "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,127}/)*[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 512 },
+    "generatedCodeOutputPath": { "type": "string", "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,127}/)*[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 512 },
+    "metricsOutputPath": { "type": "string", "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]{0,127}/)*[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 512 }
+  }
+}

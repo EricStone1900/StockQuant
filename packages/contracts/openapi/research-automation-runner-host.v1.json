@@ -1,0 +1,50 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Research Automation Runner Host API", "version": "v1", "description": "Private host lifecycle API. Runner Host uses its own Bearer token; each mutating callback must prove the current lease and fencing token. This API does not expose Docker access to Platform or Web." },
+  "servers": [{ "url": "http://research-automation-service:3008" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/v1/runner/jobs/claim": {
+      "post": {
+        "operationId": "claimRunnerJob",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" }, "description": "Optional identity consistency check; Bearer token establishes caller identity." }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-claim-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "A leased job or an empty queue", "content": { "application/json": { "schema": { "oneOf": [{ "type": "object", "required": ["status"], "properties": { "status": { "const": "NO_WORK" } }, "additionalProperties": false }, { "allOf": [{ "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json" }, { "type": "object", "required": ["claimStatus"], "properties": { "claimStatus": { "const": "LEASED" } } }] }] } } } },
+          "401": { "description": "Runner Host Bearer identity is missing or invalid" },
+          "403": { "description": "Authenticated identity cannot claim Runner Jobs" },
+          "422": { "description": "Invalid worker or TestRun scope" },
+          "503": { "description": "Runner Host identity is not configured" }
+        }
+      }
+    },
+    "/v1/runner/jobs/{jobId}/input": {
+      "post": {
+        "operationId": "readLeasedRunnerInput",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-request.schema.json" } } } },
+        "responses": { "200": { "description": "Immutable input ArtifactRef and bounded content", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-response.schema.json" } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "409": { "description": "Lease lost, expired or input identity invalid" }, "422": { "description": "Invalid lease proof" }, "503": { "description": "Runner Host identity is not configured" } }
+      }
+    },
+    "/v1/runner/jobs/{jobId}/heartbeat": {
+      "post": {
+        "operationId": "renewRunnerJobLease",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-request.schema.json" } } } },
+        "responses": { "200": { "description": "Lease renewed under the same fencing token", "content": { "application/json": { "schema": { "allOf": [{ "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json" }, { "type": "object", "required": ["claimStatus"], "properties": { "claimStatus": { "const": "LEASED" } } }] } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "409": { "description": "Lease lost or expired" }, "422": { "description": "Invalid lease proof" }, "503": { "description": "Runner Host identity is not configured" } }
+      }
+    },
+    "/v1/runner/jobs/{jobId}/complete": {
+      "post": {
+        "operationId": "completeLeasedRunnerJob",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-complete-command.schema.json" } } } },
+        "responses": { "200": { "description": "Job completion persisted under the current lease", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json" } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "404": { "description": "Runner Job not found" }, "409": { "description": "Lease lost or expired" }, "422": { "description": "Invalid execution result or ArtifactRef" }, "503": { "description": "Runner Host identity is not configured" } }
+      }
+    }
+  }
+}

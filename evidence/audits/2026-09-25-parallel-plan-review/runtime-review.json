@@ -1,0 +1,280 @@
+{
+  "checkedAt": "2026-09-25T03:00:42.013Z",
+  "scope": "GET-only local runtime snapshot; no scenario creation or mutation",
+  "checks": [
+    {
+      "name": "platform",
+      "url": "http://127.0.0.1:3000/ready",
+      "httpStatus": 200,
+      "body": {
+        "status": "ready",
+        "service": "platform-api-service",
+        "brokerMode": "FAKE"
+      }
+    },
+    {
+      "name": "paperObservation",
+      "url": "http://127.0.0.1:3000/api/v1/acceptance/v2/v2.4/observation-summary",
+      "httpStatus": 200,
+      "body": {
+        "targetDays": 20,
+        "countedDays": 8,
+        "remainingDays": 12,
+        "status": "WAITING",
+        "dates": [
+          {
+            "date": "2026-09-24",
+            "counted": true,
+            "testRunId": "552529b0-f0f6-4448-a177-2e9c2aa9dee7",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-24",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-23",
+            "counted": true,
+            "testRunId": "753fdfc2-fec2-4591-bd9e-c43c1d74e116",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-23",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-22",
+            "counted": true,
+            "testRunId": "3ecfc6c6-ee5f-48b7-b7a8-3ac9ad26706b",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-22",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-21",
+            "counted": true,
+            "testRunId": "099a470d-1294-4721-b0aa-5ac1136142a6",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-21",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-19",
+            "counted": false,
+            "testRunId": null,
+            "quality": null,
+            "reconciliation": null
+          },
+          {
+            "date": "2026-09-18",
+            "counted": true,
+            "testRunId": "5f2c37f9-9f3e-4d09-b4c7-514339c113bf",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-18",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-17",
+            "counted": true,
+            "testRunId": "69309661-9cbf-436e-b84b-12d914e0c0b0",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-17",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-16",
+            "counted": true,
+            "testRunId": "fb4f6fc3-21c4-4bbe-9a45-fe1273b8a7ae",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-16",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "date": "2026-09-15",
+            "counted": true,
+            "testRunId": "b7baf9b2-4e0f-4d24-8f73-5eaed662a4d6",
+            "quality": null,
+            "reconciliation": {
+              "namespace": "v24-observation-2026-09-15",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "pending_outbox_count": 0,
+              "unresolved_order_count": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "paperScheduler",
+      "url": "http://127.0.0.1:3000/api/v1/acceptance/v2/v2.4/scheduler/status",
+      "httpStatus": 200,
+      "body": {
+        "status": "RUNNING",
+        "samplingIntervalMinutes": 30,
+        "executionWindow": "09:31-09:35",
+        "lastSampleAt": "2026-09-25T02:59:59.993Z",
+        "nextSampleAt": "2026-09-25T03:30:00.000Z",
+        "tickCount": 185,
+        "mode": "PAPER",
+        "brokerMode": "FAKE"
+      }
+    },
+    {
+      "name": "marketData",
+      "url": "http://127.0.0.1:3002/ready",
+      "httpStatus": 200,
+      "body": {
+        "status": "ready",
+        "service": "market-data-service",
+        "dataMode": "MIXED",
+        "liveQuoteMode": "LIVE_SOURCE",
+        "fixtureRoutesAvailable": true,
+        "collectionPersistence": "POSTGRES",
+        "collectionSchedulerWorker": "ENABLED",
+        "collectionExecutor": "ENABLED",
+        "collectionSecurityIds": [
+          "600000.SH",
+          "600004.SH",
+          "600006.SH",
+          "600007.SH",
+          "600008.SH",
+          "600009.SH",
+          "600010.SH",
+          "600011.SH",
+          "600012.SH",
+          "600015.SH",
+          "600016.SH",
+          "600017.SH",
+          "600018.SH",
+          "600019.SH",
+          "600020.SH",
+          "600021.SH",
+          "600022.SH",
+          "600023.SH",
+          "600025.SH",
+          "600026.SH"
+        ]
+      }
+    },
+    {
+      "name": "collectionSchedules",
+      "url": "http://127.0.0.1:3002/v2/collection-schedules",
+      "httpStatus": 200,
+      "body": {
+        "schedules": [
+          {
+            "subscriptionId": "dc08a-20260917-20-v1",
+            "enabled": true
+          }
+        ],
+        "keys": [
+          "schedules"
+        ]
+      }
+    },
+    {
+      "name": "research",
+      "url": "http://127.0.0.1:3008/ready",
+      "httpStatus": 200,
+      "body": {
+        "status": "ready",
+        "runner": "NOT_CONFIGURED",
+        "modelGateway": "NOT_CONFIGURED",
+        "outboundPolicy": "DENY",
+        "prerequisiteStatus": "PENDING_PREREQUISITES",
+        "budgetPersistence": "POSTGRES",
+        "modelGatewayPreflight": {
+          "status": "BLOCKED",
+          "modelCalls": "NOT_RUN",
+          "missing": [
+            "isolated runner",
+            "model gateway LIVE mode",
+            "credential DEEPSEEK_API_KEY",
+            "credential SILICONFLOW_API_KEY",
+            "outbound ALLOWLIST policy",
+            "outbound host api.deepseek.com",
+            "outbound host api.siliconflow.cn"
+          ],
+          "allowedHosts": []
+        },
+        "execution": {
+          "budgetCurrency": "USD",
+          "defaultRounds": 1,
+          "maxRounds": 3,
+          "defaultBudgetCents": 300,
+          "maxExperimentBudgetCents": 1000,
+          "stageBudgetCents": 3000,
+          "budgetWarningPercent": 80,
+          "workerConcurrency": 1
+        }
+      }
+    },
+    {
+      "name": "calendar",
+      "url": "http://127.0.0.1:3002/v2/calendar/cn-a-share/2026-09-25",
+      "httpStatus": 200,
+      "body": {
+        "date": "2026-09-25",
+        "status": "CLOSED",
+        "calendarVersion": "sse-cn-a-share-2026-1",
+        "source": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml",
+        "sessions": [
+          {
+            "start": "09:30",
+            "end": "11:30"
+          },
+          {
+            "start": "13:00",
+            "end": "15:00"
+          }
+        ]
+      }
+    }
+  ],
+  "docker": {
+    "command": "docker ps --format names/status/image",
+    "exitCode": 0,
+    "stdout": "stockquant-v12-web-1\tUp 40 minutes\tstockquant-v12-web\nstockquant-v12-platform-api-service-1\tUp 40 minutes (healthy)\tstockquant-v12-platform-api-service\nstockquant-v12-portfolio-risk-service-1\tUp 2 hours (healthy)\tstockquant-v12-portfolio-risk-service\nstockquant-v12-research-automation-service-1\tUp 2 hours (healthy)\tstockquant-v12-research-automation-service\nstockquant-v12-historical-replay-worker-1\tUp 2 hours (healthy)\tstockquant-v12-historical-replay-worker\nstockquant-v12-trade-execution-service-1\tUp 2 hours (healthy)\tstockquant-v12-trade-execution-service\nstockquant-v12-decision-governance-service-1\tUp 15 hours (healthy)\tstockquant-v12-decision-governance-service\nstockquant-v12-market-data-service-1\tUp 37 hours (healthy)\t91c0a1690305\nstockquant-v12-temporal-1\tUp 39 hours\ttemporalio/temporal:1.8.3\nstockquant-v12-nats-1\tUp 39 hours\tnats:2.10.29-alpine3.22\nstockquant-v12-quant-research-service-1\tUp 2 days (healthy)\tstockquant-v12-quant-research-service\nstockquant-v12-qlib-worker-1\tUp 5 days (healthy)\tstockquant-v12-qlib-worker\nstockquant-v12-postgres-1\tUp 5 days (healthy)\tpostgres:16.9-alpine\n",
+    "stderr": ""
+  }
+}

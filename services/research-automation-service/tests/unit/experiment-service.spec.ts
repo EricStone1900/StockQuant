@@ -22,9 +22,49 @@ describe("V3.1 preparation service", () => {
     await expect(service.get(created.experiment.experimentId)).resolves.toMatchObject({ status: "CANCELLED" });
   });
 
+  it("settles unused reserved budget at zero when a pending experiment is cancelled", async () => {
+    const settlements: Array<[string, number | "UNKNOWN"]> = [];
+    let reservationStatus = "RESERVED";
+    const service = new ExperimentService(new InMemoryExperimentRepository(), 1000, {
+      reserve: () => ({ status: reservationStatus }),
+      get: () => ({ status: reservationStatus }),
+      settle: (id, amount) => { settlements.push([id, amount]); reservationStatus = "SETTLED"; return { status: "SETTLED", spentCents: amount }; },
+    });
+    const created = await service.create({ ...request, idempotencyKey: "service-test-budget-cancel" });
+    await service.cancel(created.experiment.experimentId);
+    await service.cancel(created.experiment.experimentId);
+    expect(settlements).toEqual([[created.experiment.experimentId, 0]]);
+  });
+
+  it("retains UNKNOWN budget when cancelling because possible charges need reconciliation", async () => {
+    let settled = false;
+    const service = new ExperimentService(new InMemoryExperimentRepository(), 1000, {
+      reserve: () => ({ status: "RESERVED" }),
+      get: () => ({ status: "UNKNOWN" }),
+      settle: () => { settled = true; },
+    });
+    const created = await service.create({ ...request, idempotencyKey: "service-test-unknown-cancel" });
+    await service.cancel(created.experiment.experimentId);
+    expect(settled).toBe(false);
+  });
+
   it("rejects reusing an idempotency key with different inputs", async () => {
     const service = new ExperimentService(new InMemoryExperimentRepository());
     await service.create({ ...request, idempotencyKey: "service-test-conflict" });
     await expect(service.create({ ...request, budgetCents: 301, idempotencyKey: "service-test-conflict" })).rejects.toThrow("idempotency key was reused");
+  });
+
+  it("binds idempotent experiments to the exact TestRun", async () => {
+    const service = new ExperimentService(new InMemoryExperimentRepository());
+    const testRunId = "8e5b0ab2-1835-4ed7-9e11-08754cdd4bf1";
+    const input = { ...request, testRunId, idempotencyKey: "service-test-run-binding" };
+    const created = await service.create(input);
+    expect(created.experiment.testRunId).toBe(testRunId);
+    await expect(service.create({ ...input, testRunId: "1f37d165-2721-45c1-8df3-f8493f6a5e1d" })).rejects.toThrow("idempotency key was reused");
+  });
+
+  it("rejects malformed TestRun identifiers", async () => {
+    const service = new ExperimentService(new InMemoryExperimentRepository());
+    await expect(service.create({ ...request, testRunId: "run-1" })).rejects.toThrow("testRunId must be a UUID");
   });
 });

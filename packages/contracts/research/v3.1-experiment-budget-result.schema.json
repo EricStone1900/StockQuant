@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://stockquant.local/schemas/research/v3.1-experiment-budget-result.schema.json", "title": "V31ExperimentBudgetResult",
+  "type": "object", "additionalProperties": false, "required": ["experimentId", "requestedCents", "reservedCents", "spentCents", "status"],
+  "properties": { "experimentId": { "type": "string", "format": "uuid" }, "requestedCents": { "type": "integer", "minimum": 1 }, "reservedCents": { "type": "integer", "minimum": 0 }, "spentCents": { "type": "integer", "minimum": 0 }, "status": { "enum": ["RESERVED", "SETTLED", "UNKNOWN", "REJECTED"] } }
+}

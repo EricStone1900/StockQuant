@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/replay/historical-replay-multi-command.schema.json",
+  "title": "HistoricalReplayMultiCommand",
+  "type": "object", "additionalProperties": false,
+  "required": ["testRunId", "namespace", "ownerId", "scenarioId", "seed", "bars"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "scenarioId": { "enum": ["normal", "recovery"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "bars": { "type": "array", "minItems": 1, "items": { "$ref": "historical-replay-bar.schema.json" } }
+  }
+}

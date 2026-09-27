@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/historical-fake-execution-command.schema.json",
+  "title": "HistoricalFakeExecutionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "namespace", "accountId", "clientOrderId", "security", "requestedQuantity", "bar"],
+  "properties": {
+    "authorizationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "security": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "requestedQuantity": { "type": "integer", "minimum": 1 },
+    "bar": {
+      "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "open": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "volume": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "side": { "enum": ["BUY", "SELL"] },
+    "orderType": { "enum": ["MARKET", "LIMIT"] },
+    "timeInForce": { "const": "DAY" },
+    "limitPrice": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "participationRate": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+    "slippageBps": { "type": "number", "minimum": 0, "maximum": 10000 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "reservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reservationId", "ownerId", "testRunId", "clientOrderId"],
+      "properties": {
+        "reservationId": { "type": "string", "format": "uuid" },
+        "ownerId": { "type": "string", "minLength": 1 },
+        "testRunId": { "type": "string", "format": "uuid" },
+        "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Research Automation V3.2 submission coordination API", "version": "v1" },
+  "servers": [{ "url": "http://research-automation-service:3008" }],
+  "paths": {
+    "/v1/promotions/{promotionRequestId}/candidate-artifact": {
+      "get": {
+        "operationId": "readSubmittedCandidateArtifactForIndependentValidation",
+        "summary": "Return exact candidate bytes only to the dedicated validation Worker for a submitted PromotionRequest",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "promotionRequestId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "quant-validation-worker" }, "description": "Optional consistency check; the Bearer token is the authenticated identity." }
+        ],
+        "responses": {
+          "200": { "description": "Request-bound published candidate bytes and immutable reference", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-candidate-artifact-result.schema.json" } } } },
+          "401": { "description": "Dedicated validation Worker Bearer identity is required" },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "404": { "description": "PromotionRequest has not passed submission gate" },
+          "409": { "description": "Stored bytes do not match immutable artifact metadata" },
+          "413": { "description": "Candidate exceeds 8 MiB limit" },
+          "503": { "description": "Persistent submission and artifact stores are unavailable" }
+        }
+      }
+    },
+    "/v1/promotions/submit": {
+      "post": {
+        "operationId": "submitPromotionAfterV31Acceptance",
+        "summary": "Prepare and submit an immutable PromotionRequest only after the authoritative exact V3.1 run is accepted",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-submit-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "V3.1 gate is incomplete; no Quant request was made", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-submit-result.schema.json" } } } },
+          "201": { "description": "PromotionRequest was persisted by Quant after an accepted exact V3.1 gate", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-submit-result.schema.json" } } } },
+          "202": { "description": "Submission outcome is unknown and requires exact-key reconciliation", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-submit-result.schema.json" } } } },
+          "401": { "description": "Authenticated platform service identity is required" },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "422": { "description": "Invalid command" },
+          "503": { "description": "Required storage, identity, or V3.1 gate service is unavailable" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

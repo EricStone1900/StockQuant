@@ -1,6 +1,6 @@
 # V1.1 环境、账户初始化与 Web 验收中心
 
-状态：PARTIALLY_IMPLEMENTED（已有人工作业证据，2026-09-09；契约生成、Artifact 存储和正式账户详情仍未完成）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（既有范围于2026-09-09有人工作业证据；截至2026-09-27复核，Money/Security、账户初始化/快照、Clock/TestRun等公共Schema及TS/Python生成类型已存在；CN/US账户详情和幂等初始化有工程证据；统一TestRun stage模式在隔离库、Web/CLI同run均通过。2026-09-27新增A股日历响应Schema、三种状态Fixture、兼容规则、OpenAPI和Market Data/Platform生成类型；真实日期校验、覆盖外UNKNOWN、3项日历单测及4类HTTP响应烟测通过；完整OpenAPI/客户端发布覆盖、通用Artifact完整交付、活动API切换/回退及新增范围验收仍未完成；不据此整体标记通过）。版本入口：[README](./README.md)。共同约束：[三版规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,17 +10,19 @@
 
 ## 2. 开发任务
 
-- [ ] 冻结 Money/Security/Calendar/Account、模式枚举、Clock 和 TestRun 最小契约；生成 TS/Python 类型，建立依赖锁、迁移和分层命令。
-- [ ] 建立 Compose core 配置、真实 PostgreSQL 和 Artifact 存储；领域独立数据库/User。组合服务持久化 CN/US 模拟账户、现金和期初持仓，同键初始化幂等。
-- [ ] 实现平台 API 身份、能力/健康查询、验收场景目录、运行记录与证据元数据；TestRun 不拥有业务账本。未实现功能展示未实现。
-- [ ] 建立 Web 正式导航及 /acceptance 入口：按版本/阶段查看场景、初始化账户、查询结果和人工结论。任务受理和业务完成分开显示。
-- [ ] 构建 Qlib/RD-Agent 所需镜像的初始兼容矩阵；记录 Mac 内存、Docker 配额、架构、磁盘和工具版本，默认计算并发1。
+- [x] 冻结 Money/Security/Account initialization/account snapshot、Clock 和 TestRun 公共Schema并生成 TS/Python 类型；生成漂移及兼容检查已接入。证据：[P3.1生成入口](../../../evidence/audits/2026-09-24-p3-contract-generation.md)、[P3.7消费者与兼容矩阵](../../../evidence/audits/2026-09-25-p3-7-contract-consumer.md)。
+- [ ] 补齐所有跨服务OpenAPI/生成客户端及发布流程；建立并验证服务迁移和分层依赖命令。进展：A股Calendar公共契约已新增并生成Market Data/Platform客户端投影，契约检查通过；其余跨服务边界及发布流程仍未完整。
+- [x] Compose core 与真实 PostgreSQL 已用于账户持久化；组合服务 CN/US 模拟账户、现金/持仓及幂等初始化已有工程和运行证据。账户详情证据：[P3.4](../../../evidence/audits/2026-09-24-p3-4-account-detail.md)、[P3.5双市场账户](../../../evidence/audits/2026-09-25-p3-5-dual-market.md)。
+- [ ] 完成通用Artifact存储与全链路引用/交付；现有 TestRun 证据元数据及 V3.1 专用 Artifact 能力不等于本阶段通用 Artifact 交付完成。
+- [x] 平台 API owner 身份、健康/能力查询、验收运行与证据读取已有实现；V1.1 stage模式 normal/rejection/recovery 在隔离 PostgreSQL 和真实 Chromium Web 中完成同run CLI只读核对。证据：[V1.1统一存储代码与Web套件](../../../evidence/audits/2026-09-26-v11-stage-store-code-suite.md)。
+- [ ] 将V1.1统一TestRun模式按维护窗口部署到活动API并验证回退；活动Compose仍为`legacy`，隔离套件不证明生产切换。
+- [x] Qlib/RD-Agent镜像基线、Mac/Docker架构及资源边界有历史记录；amd64仿真与当前Qlib锁版运行探针有单独工程证据。原生Ubuntu兼容、资源压力及真实RD-Agent运行仍未验收。
 
 ## 3. 同步 Web 开发
 
 正式页：系统健康、模拟账户。验收页：阶段列表、场景参数、开始运行、结果和证据详情；支持加载、空、失败、无权限与刷新恢复。
 
-验收中心路径：`/acceptance/v1/v1.1`（目标路由）。场景参数提交到后端TestRun编排接口，后端调用业务API并汇集证据。浏览器不直接写领域数据，不自行判定成交。该阶段至少提供正常、拒绝/异常场景；适用时增加重试/恢复场景。
+验收中心路径：`/acceptance/v1/v1.1`（已存在；normal/rejection/recovery在隔离stage存储模式下完成Web同run CLI核对）。场景参数提交到后端TestRun编排接口，后端调用业务API并汇集证据。浏览器不直接写领域数据，不自行判定成交。该阶段至少提供正常、拒绝/异常场景；适用时增加重试/恢复场景。
 
 ## 4. 人工验收步骤
 
@@ -48,6 +50,8 @@
 ## 7. 阶段交付待办（完成后勾选）
 
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
+
+2026-09-27增量：Calendar响应Schema/Fixture/兼容矩阵/OpenAPI及两个服务生成类型通过`pnpm contracts:check`；Market Data build、Platform API typecheck、Market Data 60项单测通过；`pnpm --filter @stockquant/market-data-service calendar:http-smoke`退出0，隔离无数据库服务对交易日/休市日/覆盖外日期分别返回200与预期枚举，无效日期返回400。此局部契约交付不代表本节整体完成。
 
 - [ ] 契约、数据结构、场景定义和预期结果已冻结。
 - [ ] 第2节后端任务完成，真实依赖与替身明确。
@@ -148,6 +152,30 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 本阶段代码测试覆盖要求：真数据库初始化/重启/幂等集成测试、生成契约检查、浏览器初始化与证据持久化E2E。 在交付时把映射到的实际Domain/DB/契约/服务内测试命令补入本节，注明执行目录、测试文件或套件、退出码和报告；verify:stage必须展示实际调用的测试清单，不能空壳返回0。Python服务使用自身锁定环境，不串用其他服务虚拟环境。
 
+### 8.7 统一存储模式隔离复验（2026-09-26）
+
+此复验使用 `infra/compose/docker-compose.v11-integration.yml` 创建独立 PostgreSQL、Portfolio Risk 与 Platform API，API 明确设为 `STOCKQUANT_V11_RUN_STORAGE=stage`；不得把 recovery 步骤直接指向活动项目。完整构建、lint、全仓单测、契约及 normal/rejection/recovery 后端集成可通过以下自动清理入口重跑：
+
+```bash
+pnpm test:integration:v11-stage-storage
+```
+
+预期退出码为0，输出 `V1.1 code`、`storageMode=stage`、`recoveryRestartTargetVerified=true` 与 `exactContainersAndVolumesRemoved=true`。该命令构建一次性隔离栈，在运行套件前断言既有 recovery Compose 命令解析到同一个隔离 Portfolio 容器，结束时清除精确临时项目并检查容器、卷、网络均无遗留。2026-09-26 本地执行退出0；normal、rejection、recovery TestRun 分别为 `40f1d90b-8cf2-475e-b54c-ba548378d73e`、`e4bfb192-7d43-4b62-9bea-780fec36e1b3`、`baf944d2-312c-4843-8dd9-53d8290325f5`。
+
+Web 同 run 的 stage-mode 正常场景已单独用真实 Chromium 复验：独立 Compose 项目名 `sq-v11-stage-web`，API `http://127.0.0.1:32801`，Vite `http://127.0.0.1:5174`。命令如下；执行前须确认这两个回环端口空闲。Playwright 测试从页面读取 TestRun ID，并调用 `scripts/verify-stage.mjs --stage V1.1 --run <同一ID> --check-only`，断言 CLI 返回同一ID及 `COMPLETED`。2026-09-26 执行1/1通过。
+
+```bash
+V11_HOST_PORT=32801 docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml up -d
+STOCKQUANT_PLATFORM_API_URL=http://127.0.0.1:32801 pnpm --filter @stockquant/web dev --port 5174 --strictPort
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:5174 STOCKQUANT_PLATFORM_API_URL=http://127.0.0.1:32801 pnpm --filter @stockquant/web test:e2e --grep 'V1.1 normal scenario creates an isolated run'
+# 停止 Vite 终端后执行精确清理
+docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml down --volumes --remove-orphans
+```
+
+随后将 Web rejection 与 recovery 场景纳入同一隔离入口。最终 `pnpm test:integration:v11-stage-storage` 全流程退出0，Playwright 3/3；每个页面运行均以相同 TestRun ID 执行 CLI `--check-only`。recovery 在重启前验证项目名及目标 Portfolio 容器 ID，重启后轮询容器健康检查为 `healthy` 才继续原 TestRun，并核对持久账户、账本及 namespace。早期一次重启后立即查询导致该 Web TestRun 为 `FAILED`；此失败保留在审计中，修正后的健康闸门复验通过。以上证据不部署活动 API，不修改人工签署、观察计数或阶段验收结论。详见[统一存储代码套件及Web同run审计](../../../evidence/audits/2026-09-26-v11-stage-store-code-suite.md)。
+
+2026-09-27 当前工作树复验：同一 `pnpm test:integration:v11-stage-storage` 再次退出0，随机隔离项目 `sq-v11-stage-1ee379fe6834ab09b4f8` 的 stage-mode API 通过 normal/rejection/recovery Web/CLI同run检查，Chromium 3/3；recovery restart target 与隔离Portfolio container ID一致。隔离容器、卷、网络清理并检查无残留。此次不切换活动API；详情见[当前工作树复验审计](../../../evidence/audits/2026-09-27-v11-stage-storage-current-reverification.md)。
+
 ### 8.5 交叉核对、失败定位与恢复
 
 交叉核对：账户页现金/持仓、期初流水数量与数据库只读检查结果一致；初始化键和testRunId关联。
@@ -168,3 +196,7 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | 用户人工验收 | Web normal/rejection/recovery、刷新、重启恢复及 CLI 核对已完成 | 不由脚本代签 | 用户确认（本会话） / 2026-09-09 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+
+### 范围与签署状态澄清（2026-09-27）
+
+2026-09-09的用户签署只覆盖当时的本地账户初始化与验收中心；2026-09-25至26增加的双市场账户和统一TestRun stage存储切片具有自动/隔离Web证据，但没有新增用户签署，也未切换活动API（Compose仍为`legacy`）。第2节`[x]`仅标识已由对应工程证据覆盖的子项；第7节完整交付清单仍有未完成项，V1.1和V1整版状态不得据此扩大为通过。

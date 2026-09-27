@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "v3.2-deterministic-sma-candidate-v1",
+  "candidateId": "synthetic-sma-cross-v1",
+  "sourceMode": "FIXTURE",
+  "algorithm": "SMA_CROSS",
+  "parameters": {
+    "fastWindow": 5,
+    "slowWindow": 20
+  },
+  "signalTiming": "CLOSE_T_AVAILABLE_AT_T; EXECUTE_AT_NEXT_SESSION_OPEN",
+  "sourceCode": "def signal(closes, fast=5, slow=20): return sum(closes[-fast:])/fast > sum(closes[-slow:])/slow"
+}
