@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/news-preview-v1.schema.json",
+  "title": "MarketDataNewsPreview",
+  "type": "object",
+  "required": ["items", "deduplicated", "sourceStatus"],
+  "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["newsId", "sourceId", "title", "publishedAt", "revision", "symbols"], "properties": {"newsId": {"type": "string"}, "sourceId": {"type": "string"}, "title": {"type": "string"}, "publishedAt": {"type": "string", "format": "date-time"}, "revision": {"type": "integer"}, "symbols": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": true}}, "deduplicated": {"type": "boolean"}, "sourceStatus": {"type": "string"}},
+  "additionalProperties": true
+}

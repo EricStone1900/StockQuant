@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-test-run-budget-limit-result.schema.json",
+  "title": "V33TestRunBudgetLimitResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "budgetCents", "status"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-test-run-budget-limit-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "budgetCents": { "type": "integer", "minimum": 1 },
+    "status": { "const": "CONFIGURED" }
+  }
+}

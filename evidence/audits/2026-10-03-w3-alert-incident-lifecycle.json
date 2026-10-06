@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-03",
+  "scope": "W3 alert incident lifecycle end-to-end isolated engineering slice",
+  "checks": {
+    "marketDataUnit": {
+      "status": "PASS",
+      "files": 18,
+      "tests": 71
+    },
+    "marketDataTypecheck": "PASS",
+    "marketDataBuild": "PASS",
+    "marketDataIsolatedPostgres": {
+      "status": "PASS",
+      "tests": 24,
+      "image": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+      "cleanup": "verified"
+    },
+    "platformUnit": {
+      "status": "PASS",
+      "files": 49,
+      "tests": 175
+    },
+    "platformTypecheck": "PASS",
+    "platformBuild": "PASS",
+    "alertProxyAndClientUnit": {
+      "status": "PASS",
+      "tests": 4
+    },
+    "webBuild": "PASS",
+    "webChromiumE2E": {
+      "status": "PASS",
+      "tests": 1,
+      "apis": "mocked"
+    },
+    "contractGeneration": "PASS",
+    "contractsCheck": "PASS",
+    "baselineCheck": "PASS",
+    "baselineTests": {
+      "status": "PASS",
+      "tests": 26
+    },
+    "docsCheck": {
+      "status": "PASS",
+      "links": 3614,
+      "failures": 0
+    },
+    "diffCheck": "PASS",
+    "fullV24CodeSuite": {
+      "status": "PASS",
+      "exitCode": 0,
+      "initialSandboxExit": "FAIL/EPERM local Qlib worker mock bind; preserved",
+      "reRun": "controlled loopback run",
+      "pythonAdapterTests": 69,
+      "marketDataPostgresTests": 24,
+      "paperScenarios": [
+        "normal",
+        "rejection",
+        "recovery",
+        "external-reconciliation"
+      ],
+      "activeServicesTouched": false,
+      "report": "evidence/audits/2026-10-02-v24-paper-smoke-af1283b3a3b748fd8c5867652273bf92.json",
+      "apiTestRuns": [
+        "0c1f01cc-91c7-4d06-b70c-f71f0456fcf0",
+        "c98abc8c-be5b-4367-a4ae-f1086be99b6d",
+        "31e4a9c4-ae68-4e3f-aa6c-6c69ce45b943",
+        "935c099e-5ef1-4ac9-8660-f5ad7886454c"
+      ],
+      "webTestRuns": [
+        "cb741fec-7c1a-4606-a385-dacd5c29209d",
+        "75ce040a-4367-4918-99f7-add5eab15fa9",
+        "9d09abfe-0dc1-49b7-a10e-dcc054a76d30",
+        "9c1a826e-434a-40cd-9745-3711f62389c2"
+      ]
+    }
+  },
+  "externalMarketOrProviderOrNotificationCalls": 0,
+  "activeServicesTouched": false,
+  "tradeMode": "NO_TRADE",
+  "marketSourceAuthorization": "NONE",
+  "w3Complete": false,
+  "sourceHashes": {
+    "services/market-data-service/src/bootstrap/main.ts": "086cc86d656530b672807ca3966abbc81c7922ef7f117dace13b21bc180c6734",
+    "services/market-data-service/src/service-auth.ts": "9a2607ef1d4edd333e50fa1fe9d5143444edb37d346ea78a66809c970eeefa5e",
+    "services/market-data-service/src/ports/alert-outbox.ts": "a9970c662a1dfcdeed123046365df5997991e989813ac8b15b142850edbd3a64",
+    "services/market-data-service/src/adapters/postgres-alert-outbox-repository.ts": "ba70e884fccad7304bdb7030a36f8c8b101c5fc33f12cf2e3ba298d75d60cb91",
+    "services/market-data-service/tests/unit/service-auth.spec.ts": "aba1f217a0bb0828f0d660b250bca083885403115873f789836c1af4cb2c240d",
+    "services/market-data-service/tests/integration/collection-run-postgres.spec.ts": "4a8533b55cf5b2e37f1c145a4c7c968f7211250ff318640aaec41d26cdb6faed",
+    "packages/contracts/schemas/market-data/market-data-alert-incident.schema.json": "a0354aed8b53418a1e95121c8bc0ab4d3fd1ea9ba7d813f772bdb92669807eb8",
+    "packages/contracts/schemas/market-data/alert-incidents-v1.schema.json": "d772b244c27758812e41ad26db9d8c88adaee8bfbd2f1d8d4a67e3d9ef07fd0c",
+    "packages/contracts/schemas/market-data/alert-acknowledge-request-v1.schema.json": "07635ada7a092b5596df100267699c75777ded423e6121415ae729b139a005ce",
+    "packages/contracts/openapi/market-data-calendar.v1.json": "88150400e1582d2fda164d0433aab16361f5bbbc1c1dced8b4a59a6d6c29e7e7",
+    "packages/contracts/compatibility-matrix.json": "1794a60c9fc337be8c8a1c1e41ec4950b35773fee64b4ca5d3c5d564a5cb3225",
+    "packages/contracts/generated/types.ts": "5748a358f61f2a4dc9f79eb21336bc0eeadf5834c23ad2641da9aca1987a6ac6",
+    "packages/contracts/generated/types.py": "85a4486badec6bc6a7bd0e5bc890ea6187c233dd159c43677ec438c2d2c2ad5f",
+    "services/platform-api-service/src/contracts/generated-types.ts": "03aa256108e5b6ea4764df4e5d5498fece308cd94847d5e2f2692d1098f3643c",
+    "services/platform-api-service/src/contracts/generated-v21-market-data-client.ts": "85f43a7185021bd2b9473a1b4e251274573c5adb8d20d222a74745c9c38b50a4",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "7ff7b9fd46d8cfd8ce76d30dbb493e20246ef614b1d444eeceb0eb320c7677ea",
+    "services/platform-api-service/tests/unit/generated-v21-market-data-client.spec.ts": "d8f6f5df4d7f228239ce6cb153a90b54252ab1ddd211dfd5ad60ed5cffb166b6",
+    "services/platform-api-service/tests/unit/v24-alert-proxy.spec.ts": "9cc943f089c85fa5b04862bfcd754aee7fd25a439ec223aa2a3c09060c985408",
+    "apps/web/src/main.tsx": "9bf3df3050cea5eef8a1bc1997710049fce37713db9147bc6c5b831c9c9dfff6",
+    "apps/web/tests/e2e/v24-paper-overview.spec.ts": "118ad1aa71e6384d3041b88dd37d91843345dd13db8bc5d1762edb8be85cd4df",
+    "scripts/generate-v21-market-data-client.mjs": "42b3af99df42aa9a5535fc4cdaf2e2ada8ef829bbea925a5396036eaaa3e5c89",
+    "scripts/check-openapi-contract.mjs": "73d92a18dac8edf0df09d48e3a9adb8456cf0d45658cad764eae374c00d28f78"
+  },
+  "versionGates": {
+    "V1": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "unresolvedAcceptance": 5,
+      "evidence": "PASS",
+      "evidenceFailures": 0
+    },
+    "V2": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "unresolvedAcceptance": 5,
+      "evidence": "PASS",
+      "evidenceFailures": 0
+    },
+    "V3": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 4,
+      "unresolvedAcceptance": 4,
+      "evidence": "PASS",
+      "evidenceFailures": 0
+    }
+  }
+}

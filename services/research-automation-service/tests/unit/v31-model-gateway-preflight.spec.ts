@@ -4,9 +4,15 @@ import { evaluateModelGatewayPreflight } from "../../src/application/v31-model-g
 const input = {
   runnerMode: "ISOLATED" as const,
   modelGatewayMode: "LIVE" as const,
+  providerCallsAuthorized: true,
   outboundPolicy: "ALLOWLIST" as const,
   outboundAllowlist: ["api.deepseek.com", "api.siliconflow.cn"],
+  chatProvider: "deepseek",
+  chatModel: "deepseek/deepseek-flash",
   chatBaseUrl: "https://api.deepseek.com",
+  embeddingProvider: "siliconflow",
+  embeddingModel: "litellm_proxy/Qwen/Qwen3-Embedding-4B",
+  embeddingDimensions: 1024,
   embeddingBaseUrl: "https://api.siliconflow.cn/v1",
   chatCredentialRef: "DEEPSEEK_API_KEY",
   embeddingCredentialRef: "SILICONFLOW_API_KEY",
@@ -20,10 +26,17 @@ describe("V3.1 model gateway preflight", () => {
     expect(result.missing).toEqual(expect.arrayContaining(["isolated runner", "model gateway LIVE mode", "credential DEEPSEEK_API_KEY", "outbound ALLOWLIST policy"]));
   });
 
-  it("reports ready only when both credential refs and exact provider hosts are present", () => {
+  it("keeps live calls blocked until the provider, cost, and network enforcement paths exist", () => {
     const result = evaluateModelGatewayPreflight(input, { DEEPSEEK_API_KEY: "redacted", SILICONFLOW_API_KEY: "redacted" });
-    expect(result).toEqual({ status: "READY", modelCalls: "NOT_RUN", missing: [], allowedHosts: ["api.deepseek.com", "api.siliconflow.cn"] });
+    expect(result).toEqual({ status: "BLOCKED", modelCalls: "NOT_RUN", missing: ["complete chat and embedding Provider adapters wired to runtime", "actual Provider cost reconciliation", "enforced network/DNS egress allowlist"], allowedHosts: ["api.deepseek.com", "api.siliconflow.cn"] });
     expect(JSON.stringify(result)).not.toContain("redacted");
+  });
+
+  it("requires explicit Provider-call authorization even with otherwise complete configuration", () => {
+    const result = evaluateModelGatewayPreflight({ ...input, providerCallsAuthorized: false }, { DEEPSEEK_API_KEY: "redacted", SILICONFLOW_API_KEY: "redacted" });
+    expect(result.status).toBe("BLOCKED");
+    expect(result.modelCalls).toBe("NOT_RUN");
+    expect(result.missing).toContain("explicit Provider-call authorization");
   });
 
   it("does not accept a similarly named or unrelated host", () => {
@@ -51,5 +64,38 @@ describe("V3.1 model gateway preflight", () => {
     expect(wildcard.status).toBe("BLOCKED");
     expect(wildcard.missing).toContain("valid exact-host outbound allowlist");
     expect(wildcard.allowedHosts).toEqual(["api.siliconflow.cn"]);
+  });
+
+  it("rejects extra, duplicate or incomplete allowlist authorities", () => {
+    const credentials = { DEEPSEEK_API_KEY: "x", SILICONFLOW_API_KEY: "y" };
+    for (const outboundAllowlist of [
+      [...input.outboundAllowlist, "example.com"],
+      ["api.deepseek.com", "api.deepseek.com", "api.siliconflow.cn"],
+      ["api.deepseek.com"],
+    ]) {
+      const result = evaluateModelGatewayPreflight({ ...input, outboundAllowlist }, credentials);
+      expect(result.status).toBe("BLOCKED");
+      expect(result.missing).toContain("outbound allowlist must match only the approved provider hosts");
+    }
+  });
+
+  it("rejects unapproved provider, model, credential reference and endpoint overrides", () => {
+    const credentials = { DEEPSEEK_API_KEY: "x", SILICONFLOW_API_KEY: "y", OTHER_KEY: "z" };
+    const cases = [
+      { chatProvider: "other" },
+      { chatModel: "deepseek/other-model" },
+      { chatCredentialRef: "OTHER_KEY" },
+      { chatBaseUrl: "https://api.deepseek.com/v1" },
+      { embeddingProvider: "other" },
+      { embeddingModel: "other/model" },
+      { embeddingCredentialRef: "OTHER_KEY" },
+      { embeddingDimensions: 768 },
+      { embeddingBaseUrl: "https://api.siliconflow.cn/alternate" },
+    ];
+    for (const override of cases) {
+      const result = evaluateModelGatewayPreflight({ ...input, ...override }, credentials);
+      expect(result.status).toBe("BLOCKED");
+      expect(result.modelCalls).toBe("NOT_RUN");
+    }
   });
 });

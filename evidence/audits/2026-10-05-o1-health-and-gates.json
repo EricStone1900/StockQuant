@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "stockquant-o1-health-and-gates-audit-v1",
+  "capturedAt": "2026-10-05T12:21:05.804Z",
+  "head": "3fdf2c9c693e1bc013601926865634a49a625ff4",
+  "readOnlyRuntime": {
+    "providerCalls": 0,
+    "collectionTriggered": false,
+    "activeServicesChanged": false,
+    "healthReport": {
+      "schemaVersion": "dc08a-health-v5",
+      "status": "UNHEALTHY",
+      "configuredSubscriptionId": "dc08a-20260917-20-v1",
+      "enabledSubscriptions": 0,
+      "expectedEnabledSubscriptions": 1,
+      "calendarStatus": "CLOSED",
+      "sourceFreshnessState": "MARKET_CLOSED",
+      "schedulerStatus": "ENABLED",
+      "lastSuccessfulTickAt": "2026-10-05T12:20:46.634Z",
+      "nextExecutionAt": null,
+      "lastSubmitted": 0,
+      "openGaps": 0,
+      "pendingOutbox": 0,
+      "checks": {
+        "recentSuccessRecorded": true,
+        "nextTriggerRecorded": false,
+        "enabledSubscriptionCountValid": false,
+        "sourceReady": true,
+        "qualityReady": true
+      },
+      "exitCode": 1,
+      "outputPath": "/tmp/stockquant-health-2026-10-05.json"
+    },
+    "observationSummary": {
+      "status": "WAITING",
+      "observedDays": 8,
+      "completedDays": 7,
+      "recoveredDays": 1,
+      "remainingDays": 12,
+      "latestEligibleDate": "2026-09-30",
+      "malformedFiles": 0,
+      "invalidTimestampFiles": 0,
+      "ignoredSubscriptionCount": 185,
+      "exitCode": 2,
+      "outputPath": "/tmp/stockquant-observation-summary-2026-10-05.json"
+    }
+  },
+  "verification": {
+    "healthAndSubscriptionUnitTests": { "passed": 18, "failed": 0, "exitCode": 0 },
+    "operationsTests": { "passed": 211, "failed": 0, "exitCode": 0 },
+    "baselineCheck": { "exitCode": 0, "markdownLinks": 3811, "markdownFailures": 0, "governanceTestsPassed": 26, "governanceTestsFailed": 0 },
+    "gitDiffCheck": { "exitCode": 0 },
+    "versionGates": {
+      "V1": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 5, "evidenceReferences": 88, "manifests": 11, "manifestEntries": 28, "legacyTestRunExportsMissing": 9 },
+      "V2": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 5, "evidenceReferences": 280, "manifests": 48, "manifestEntries": 116, "legacyTestRunExportsMissing": 7 },
+      "V3": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 4, "evidenceReferences": 300, "manifests": 56, "manifestEntries": 122, "legacyTestRunExportsMissing": 0 }
+    },
+    "acceptanceMappingErrors": 0,
+    "invalidPassClaims": 0,
+    "evidenceAudits": "PASS"
+  },
+  "authorization": { "tradeMode": "NO_TRADE", "marketDataSourceAuthorization": "NONE" },
+  "interpretation": "This audit proves a point-in-time local read and code checks only. It does not prove the active service uses the current worktree image or count a new observation day."
+}

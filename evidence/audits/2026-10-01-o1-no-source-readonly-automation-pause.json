@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "stockquant-o1-no-source-readonly-audit-v1",
+  "capturedAt": "2026-10-01T02:00:10Z",
+  "authorizationBoundary": {
+    "trading": "NO_TRADE",
+    "dataSources": "UNAUTHORIZED"
+  },
+  "observation": {
+    "targetDays": 20,
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "status": "WAITING",
+    "lastCountedDate": "2026-09-30"
+  },
+  "healthCommand": {
+    "command": "pnpm dc08a:health-report",
+    "exitCode": 1,
+    "report": {
+      "schemaVersion": "dc08a-health-v4",
+      "capturedAt": "2026-10-01T01:52:49.332Z",
+      "status": "UNHEALTHY",
+      "activeSubscription": "dc08a-20260917-20-v1",
+      "calendar": {
+        "status": "CLOSED",
+        "calendarVersion": "sse-cn-a-share-2026-1",
+        "sourceFreshnessExpected": false,
+        "sourceFreshnessState": "MARKET_CLOSED"
+      },
+      "ready": {
+        "status": "ready",
+        "persistence": "POSTGRES",
+        "scheduler": "ENABLED",
+        "executor": "ENABLED"
+      },
+      "scheduler": {
+        "status": "ENABLED",
+        "lastSuccessfulTickAt": "2026-10-01T01:52:01.406Z",
+        "nextExecutionAt": null,
+        "lastSubmitted": 0,
+        "tickAgeSeconds": 47.926
+      },
+      "sources": [
+        {
+          "sourceId": "baostock",
+          "kind": "MINUTE_BAR",
+          "enabled": true,
+          "circuit": "CLOSED",
+          "failures": 0,
+          "lastSuccessAt": 1790208109.2940702,
+          "lastFailureAt": 1790171080.0519683,
+          "lastErrorCode": null
+        },
+        {
+          "sourceId": "sina",
+          "kind": "MINUTE_BAR",
+          "enabled": true,
+          "circuit": "CLOSED",
+          "failures": 0,
+          "lastSuccessAt": 1790751790.0561771,
+          "lastFailureAt": null,
+          "lastErrorCode": null
+        },
+        {
+          "sourceId": "eastmoney",
+          "kind": "MINUTE_BAR",
+          "enabled": false,
+          "circuit": "DISABLED",
+          "failures": 0,
+          "lastSuccessAt": null,
+          "lastFailureAt": null,
+          "lastErrorCode": null
+        },
+        {
+          "sourceId": "tdx",
+          "kind": "MINUTE_BAR",
+          "enabled": false,
+          "circuit": "DISABLED",
+          "failures": 0,
+          "lastSuccessAt": null,
+          "lastFailureAt": null,
+          "lastErrorCode": null
+        }
+      ],
+      "quality": {
+        "openGaps": 0,
+        "pendingOutbox": 0
+      },
+      "checks": {
+        "recentSuccessRecorded": true,
+        "nextTriggerRecorded": false,
+        "sourceReady": true,
+        "qualityReady": true
+      }
+    },
+    "interpretation": "UNHEALTHY because no next scheduled execution is recorded; readiness, recent tick, source status and quality are otherwise reported; no collection request was issued by this GET-only report.",
+    "reportCapturedAt": "2026-10-01T01:52:49.332Z"
+  },
+  "summaryCommand": {
+    "command": "pnpm dc08a:observation-summary",
+    "exitCode": 2,
+    "interpretation": "WAITING: 8 of 20 valid days; local archive reclassification only."
+  },
+  "subscriptionInventory": {
+    "command": "pnpm dc08a:active-subscription -- --field enabled-count",
+    "exitCode": 0,
+    "enabledCount": 0
+  },
+  "automationVerification": {
+    "command": "pnpm dc08a:verify-automation",
+    "exitCode": 0,
+    "status": "PASS",
+    "active": [
+      "a-20 (read-only health/summary heartbeat)"
+    ],
+    "paused": [
+      "dc-08a (enable guard)",
+      "dc-08a-2 (EOD collection)",
+      "stockquant-tdx (AM provider probe)",
+      "stockquant-tdx-2 (PM provider probe)",
+      "dc-08a-20 (one-shot promotion)",
+      "stockquant (legacy)"
+    ]
+  },
+  "expiryCheck": {
+    "command": "pnpm dc08a:expiry-check",
+    "exitCode": 0,
+    "status": "OK",
+    "expiresAt": "2026-10-30T00:45:00.000Z",
+    "daysRemaining": 29
+  },
+  "automationCodeChecks": {
+    "command": "node --test scripts/dc08a-active-subscription.test.mjs",
+    "exitCode": 0,
+    "passed": 3,
+    "failed": 0
+  },
+  "invariants": {
+    "activeSubscriptionCount": 0,
+    "newObservationDays": 0,
+    "collectionRunsStarted": 0,
+    "paperOrLiveOrders": 0,
+    "externalProviderCalls": 0,
+    "businessDatabaseWrites": 0
+  },
+  "sourceFiles": {
+    "health": "../dc08a/health-report.json",
+    "observationSummary": "../dc08a/observation-summary.json"
+  },
+  "processSnapshot": {
+    "capturedAt": "2026-10-01T02:00:10Z",
+    "command": "ps -axo pid,etime,command filtered for dc08a monitor/morning/eod and TDX probe processes",
+    "exitCode": 1,
+    "matchingProcesses": 0
+  }
+}

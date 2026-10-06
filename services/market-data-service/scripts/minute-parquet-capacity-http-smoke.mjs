@@ -239,6 +239,41 @@ try {
   assert.equal(first.rows[0].security_id, "600000.SH"); assert.equal(first.rows[0].bar_start.toISOString(), "2024-01-02T01:30:00.000Z");
   assert.equal(Number(first.rows[0].open), 10); assert.equal(Number(first.rows[0].high), 10.02); assert.equal(Number(first.rows[0].low), 9.98);
 
+  const pageSize = 1000; let cursor = 0; let pagedRows = 0; let pageCount = 0; let firstPagedBar; let lastPagedBar;
+  const observedKeys = new Set(); const pageStarted = performance.now();
+  for (;;) {
+    const page = await request(`/v2/minute/imports/${encodeURIComponent(published.body.version)}/bars?cursor=${cursor}&pageSize=${pageSize}`);
+    assert.equal(page.status, 200, `durable Bar page ${pageCount + 1} failed: ${JSON.stringify(page.body).slice(0, 1000)}`);
+    assert.equal(page.body.version, published.body.version); assert.ok(page.body.items.length > 0 && page.body.items.length <= pageSize);
+    for (const bar of page.body.items) {
+      assert.ok(Number.isFinite(bar.open) && Number.isFinite(bar.high) && Number.isFinite(bar.low) && Number.isFinite(bar.close) && Number.isFinite(bar.volume));
+      const key = `${bar.securityId}|${bar.barStart}`;
+      assert.equal(observedKeys.has(key), false, `duplicate paged Bar ${key}`); observedKeys.add(key);
+      firstPagedBar ??= bar; lastPagedBar = bar;
+    }
+    pagedRows += page.body.items.length; pageCount += 1;
+    if (page.body.nextCursor === null) break;
+    const nextCursor = Number(page.body.nextCursor);
+    assert.ok(Number.isSafeInteger(nextCursor) && nextCursor > cursor, "Bar page cursor must increase monotonically"); cursor = nextCursor;
+    assert.ok(pageCount < 101, "100,000 persisted Bars should complete within 100 pages at pageSize=1,000");
+  }
+  const queryPagesMs = Math.round(performance.now() - pageStarted);
+  assert.equal(pageCount, 100); assert.equal(pagedRows, ROWS); assert.equal(observedKeys.size, ROWS);
+  assert.equal(firstPagedBar.securityId, "600000.SH"); assert.equal(firstPagedBar.barStart, "2024-01-02T01:30:00.000Z");
+  assert.equal(lastPagedBar.securityId, "600499.SH"); assert.equal(lastPagedBar.barStart, "2024-01-08T06:15:00.000Z");
+  let filteredCursor = 0; let filteredRows = 0; let filteredPages = 0;
+  const filter = new URLSearchParams({ cursor: "0", pageSize: "25", securityId: "600000.SH", fromBarStart: "2024-01-02T01:30:00.000Z", toBarStart: "2024-01-03T01:30:00.000Z" });
+  for (;;) {
+    filter.set("cursor", String(filteredCursor));
+    const filtered = await request(`/v2/minute/imports/${encodeURIComponent(published.body.version)}/bars?${filter}`);
+    assert.equal(filtered.status, 200); assert.ok(filtered.body.items.every((bar) => bar.securityId === "600000.SH" && bar.barStart >= "2024-01-02T01:30:00.000Z" && bar.barStart < "2024-01-03T01:30:00.000Z"));
+    filteredRows += filtered.body.items.length; filteredPages += 1;
+    if (filtered.body.nextCursor === null) break;
+    filteredCursor = Number(filtered.body.nextCursor); assert.ok(Number.isSafeInteger(filteredCursor) && filteredCursor > 0);
+    assert.ok(filteredPages < 4);
+  }
+  assert.equal(filteredRows, 40); assert.equal(filteredPages, 2);
+
   const badBytes = Buffer.from("not a parquet file; deterministic corrupt-input recovery case");
   const badUploadId = randomUUID(); const badSourceHash = sha(badBytes);
   const badMetadata = { ...metadata, provenance: { ...metadata.provenance, sourceName: `synthetic-parquet-corrupt-${suffix}` } };
@@ -262,7 +297,7 @@ try {
   await stopService();
   console.log(JSON.stringify({
     status: "PASS", fixture: { format: "Parquet", compression, rows: ROWS, securities: 500, fiveMinuteBarsPerSecurity: 200, tradingDays: counts.rows[0].days, bytes: bytes.length, chunks: chunkCount, sha256: sourceSha256, provenance: "synthetic; UNCONFIRMED; researchUseAllowed=false" },
-    http: { uploadMs, previewMs, finalizeMs, previewRows: preview.body.totalRows, previewRetainedBars: preview.body.bars.length, publishedRows: published.body.accepted, idempotentRetry: retry.body.idempotent, crossInstanceCount: peerBase ? 2 : 1, crossInstancePreviewBusy, crossInstanceFinalizeBusy, corruptParquetRejectedTwice: badPreview.body.code === "PARQUET_PARSE_REJECTED" && badRetryPreview.body.code === "PARQUET_PARSE_REJECTED", corruptUploadCancelled: cancelled.body.status, corruptRowsPublished: badRows.rowCount },
+    http: { uploadMs, previewMs, finalizeMs, queryPagesMs, queryPageSize: pageSize, queryPageCount: pageCount, queriedRows: pagedRows, uniqueQueriedBars: observedKeys.size, filteredQueryRows: filteredRows, filteredQueryPages: filteredPages, previewRows: preview.body.totalRows, previewRetainedBars: preview.body.bars.length, publishedRows: published.body.accepted, idempotentRetry: retry.body.idempotent, crossInstanceCount: peerBase ? 2 : 1, crossInstancePreviewBusy, crossInstanceFinalizeBusy, corruptParquetRejectedTwice: badPreview.body.code === "PARQUET_PARSE_REJECTED" && badRetryPreview.body.code === "PARQUET_PARSE_REJECTED", corruptUploadCancelled: cancelled.body.status, corruptRowsPublished: badRows.rowCount },
     persistence: { database, version: published.body.version, rows: counts.rows[0].rows, distinctTradingDays: counts.rows[0].days, sourceHashMatch: true, databaseBytes },
     resourceUsage: { peakServiceRssKiB },
     environment: { platform: inContainer ? "Docker Linux/arm64" : process.platform, architecture: inContainer ? "arm64" : process.arch, containerLimits: inContainer ? { memory: "2 GiB", cpus: 2, pids: 128 } : undefined }, externalCalls: 0, modelCalls: 0, brokerCalls: 0,

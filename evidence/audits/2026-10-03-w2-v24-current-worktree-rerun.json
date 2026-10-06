@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-03",
+  "stage": "V2.4",
+  "status": "PASS",
+  "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+  "scope": "current-worktree contract/baseline/full-repo checks, isolated PostgreSQL/HTTP, FakeBroker Fixture four scenarios, Web same-run CLI, readiness container",
+  "unitTests": {
+    "web": 1,
+    "governance": 22,
+    "historicalReplay": 25,
+    "portfolioRisk": 5,
+    "tradeExecution": 67,
+    "quantResearch": 91,
+    "marketData": 71,
+    "researchAutomation": 203,
+    "platformApi": 169
+  },
+  "apiRuns": [
+    {
+      "scenarioId": "normal",
+      "testRunId": "579febde-4fb3-4611-8c42-49b536b2a160",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": 8,
+      "allAssertionsPass": true
+    },
+    {
+      "scenarioId": "rejection",
+      "testRunId": "b8116301-2461-4da9-bbf3-ad1d57038908",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": 3,
+      "allAssertionsPass": true
+    },
+    {
+      "scenarioId": "recovery",
+      "testRunId": "56afd67e-19a0-4430-bff2-b2ebec29b03b",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": 8,
+      "allAssertionsPass": true
+    },
+    {
+      "scenarioId": "external-reconciliation",
+      "testRunId": "55dfc305-c31a-4b7b-8d31-1be02c5a021d",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": 9,
+      "allAssertionsPass": true
+    }
+  ],
+  "webRuns": [
+    {
+      "testRunId": "2bd55052-55f0-44d8-9216-9abe2d485846",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "4027f632-eff6-4bac-b76e-783d269b34a6",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "bf8944de-3e5b-4c52-bc71-9781a720ce23",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "46d08bd9-4426-4928-b26a-ea2b8c3ec209",
+      "exitCode": 0
+    }
+  ],
+  "webApiCliSameRun": true,
+  "webChecked": true,
+  "lostRecoveryResponseConfirmed": true,
+  "readiness": {
+    "status": "PASS",
+    "imageId": "sha256:69dd069d4763e9a8945066c739eba6dd217ffc43d818d6cbe5cff633324e28c2",
+    "platform": "linux/arm64",
+    "network": "internal-only",
+    "liveTradingEnabled": false,
+    "orderSubmissionEnabled": false,
+    "fakeBrokerRows": {
+      "orders": 0,
+      "fills": 0,
+      "events": 0,
+      "outbox": 0
+    }
+  },
+  "activeServicesTouched": false,
+  "preexistingActiveContainerCount": 13,
+  "temporaryV24ContainersRemaining": 0,
+  "brokerMode": "FAKE",
+  "realBrokerCalls": 0,
+  "marketDataProviderCalls": 0,
+  "paperObservation": "NOT_RUN",
+  "businessAcceptance": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "sourceAuthorization": "NONE",
+  "logSha256": "3c6f9f594e4b9edac8f379d8dd8661fbf31e9cf137fcebfa197574e353bf5963",
+  "detailReport": "2026-10-02-v24-paper-smoke-cb44b288483b470f81f49b2a30c8c649.json"
+}

@@ -19,6 +19,9 @@ from pathlib import Path
 from queue import Empty
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_collection_source_authorization
+
 DEFAULT_SYMBOLS = "sh.600000,sh.600004,sh.600006"
 FIELDS = "date,time,code,open,high,low,close,volume,amount"
 
@@ -87,6 +90,13 @@ def _run_one(context: Any, code: str, start_date: str, end_date: str, timeout_se
 
 
 def run() -> dict[str, object]:
+    missing = missing_collection_source_authorization(["baostock"])
+    if missing:
+        return {
+            "source": "baostock", "mode": "READ_ONLY", "status": "BLOCKED",
+            "blockedBeforeNetwork": True, "missingAuthorization": missing,
+            "note": "No Provider session was opened because source-use authorization is incomplete.",
+        }
     rounds = max(1, int(os.environ.get("BAOSTOCK_STABILITY_ROUNDS", "3")))
     requested_symbols = [value.strip() for value in os.environ.get("BAOSTOCK_STABILITY_SYMBOLS", DEFAULT_SYMBOLS).split(",") if value.strip()]
     manifest_path = os.environ.get("BAOSTOCK_STABILITY_SOURCE_MANIFEST")
@@ -135,4 +145,4 @@ def run() -> dict[str, object]:
 if __name__ == "__main__":
     output = run()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if output.get("status") == "PASS" else 2 if output.get("status") in {"PARTIAL", "NOT_RUN"} else 1)
+    raise SystemExit(0 if output.get("status") == "PASS" else 2 if output.get("status") in {"PARTIAL", "NOT_RUN", "BLOCKED"} else 1)

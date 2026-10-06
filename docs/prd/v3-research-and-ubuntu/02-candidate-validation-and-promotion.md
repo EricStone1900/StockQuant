@@ -16,6 +16,10 @@ V3.1通过；V2回测/模型验证和V1策略Registry/治理已可用。
 - [ ] 候选晋升只授予模拟用途；激活后仍逐次风控、授权和模拟执行，不自动扩大股票池、交易预算或资金。
 - [ ] 添加固定可通过/必拒绝候选Fixture用于确定性测试，与真实RD-Agent候选分开标来源，不保证自动研究必然产出可晋升策略。
 
+V3.2当前工作树code/readiness套件复验（2026-10-03）：完整code suite退出0；Quant 91 TS+14 Python单测、Governance 22、Research Automation 203、Platform 169单测/6集成、Web 1测试/build/typecheck通过；合成独立复算70个决策。内部linux/amd64临时PostgreSQL重启后保留READINESS_ONLY TestRun `0823b385-811b-4b34-8e22-c39dac56e36b`，owner/匿名/跨owner结果200/401/403，状态仍WAITING/业务NOT_RUN；活动Registry/Paper/Provider/行情均未触碰。该回归只属准备态与合成Fixture工程证据，V3.1尚未验收、无真实候选、未批准/激活。详见[本轮W6审计](../../../evidence/audits/2026-10-03-w6-v32-after-w5-runner-matrix.md)、[机器报告](../../../evidence/audits/2026-10-03-w6-v32-after-w5-runner-matrix.json)、[完整日志](../../../evidence/audits/2026-10-03-w6-v32-after-w5-runner-matrix.log)。
+
+2026-09-30 准备态TestRun基础：新增owner-scoped `READINESS_ONLY`元数据创建及同ID读取API、契约Schema/OpenAPI、CLI创建/`--check-only`核对和正式页入口。normal/rejection/recovery只记录`WAITING`及`NOT_RUN`，不会运行候选、提交Registry或触发Paper。当前工作树完整V3.2 code suite通过，Platform专用PostgreSQL/HTTP集成3/3（持久化、实际Nest路由、身份和owner/阶段隔离）；测试中的精确已接受V3.1门禁只将前置标为`VERIFIED`，V3.2仍WAITING/NOT_RUN。准备态Web E2E 5/5为Mock API测试。该基础只改善缺前置时的记录与复查，不关闭上述任何业务需求；细节见[W6准备态TestRun审计](../../../evidence/audits/2026-09-30-w6-readiness-testrun.md)。
+
 ## 3. 同步 Web 开发
 
 正式页：候选对比、独立复算、批准/拒绝/激活/暂停、关联模拟报告。验收页：未批准调用、旧版本、越权Registry与复算不一致。
@@ -84,11 +88,11 @@ V3.2冻结输入目录：`fixtures/v3/v3.2-independent-validation-v1/`，Manifes
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 当前工作区未提交；2026-09-27实测。交付时记录实际代码快照Hash |
+| 实测代码Commit或工作区Hash/验证日期 | 当前工作区未提交；V3.2 code suite及专用Platform PostgreSQL集成检查于2026-09-30通过；需在最终交付时记录整体代码快照Hash |
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5、Docker CLI 28.0.4、Mac ARM64 |
 | Web基础URL/身份登录或会话建立方式 | 本地E2E用 `http://127.0.0.1:5173`；本次Playwright为Mock API，不建立业务会话 |
-| 本阶段Web路由 | `/acceptance/v3/v3.2`（只读/门禁页面已实现；正式TestRun流程NOT_RUN） |
-| 正式页面的真实入口/跳转链接 | 页面路由存在；无已验证的业务TestRun详情链接，不能按normal/rejection/recovery操作 |
+| 本阶段Web路由 | `/acceptance/v3/v3.2`（PromotionRequest审阅页及owner-scoped WAITING准备态TestRun已实现；正式业务编排NOT_RUN） |
+| 正式页面的真实入口/跳转链接 | 页面路由存在；准备态运行会显示TestRun UUID并可同页读取；业务TestRun执行/详情与正式Evidence Bundle未实现 |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `v3.2-independent-validation-1`；精确文件与SHA见本节上文及`manifest.json`；规则/成本见`validation-design.json` |
 | 配置文件及必需环境变量名/非秘密测试值 | Worker配置名见上文；值UNSET/不记录凭证。集成随机DB默认管理员端点固定为本机5433 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | 固定候选/评估容器禁网；集成脚本随机DB于正常退出清理；正式故障注入未实现，不得指向活动Paper/观察服务 |
@@ -96,7 +100,7 @@ V3.2冻结输入目录：`fixtures/v3/v3.2-independent-validation-v1/`，Manifes
 
 ### 8.2 已验证的开发检查入口
 
-本阶段当前只支持隔离代码/集成检查与Mock API页面回归。它们不启动共享业务Compose栈、不提交真实Quant候选、不写活动Registry/Mandate，也不创建正式V3.2 TestRun。
+本阶段支持隔离代码/集成检查、Mock API页面回归，以及owner-scoped持久化的`READINESS_ONLY` TestRun元数据。准备态运行只保存WAITING/NOT_RUN门禁并可回读同一ID；它不启动共享业务Compose栈、不提交候选、不写Registry/Mandate，也不执行正式V3.2业务TestRun。
 
 ```bash
 cd /Users/huangbosong/Documents/ChatGPT/StockQuant
@@ -104,13 +108,13 @@ pnpm verify:stage -- --stage V3.2 --suite code
 pnpm test:e2e -- --stage V3.2
 ```
 
-2026-09-27实测：代码套件退出0；E2E运行4项Chromium用例并退出0，全部API为Playwright拦截的合成响应。执行Docker/随机PostgreSQL HTTP烟测时使用`pnpm --filter @stockquant/quant-research-service test:integration`；需访问本机Docker daemon及本机PostgreSQL管理员入口5433，实际创建并在正常退出时删除随机`quant_promotion_smoke_<uuid>`数据库。不得用业务库代替该管理入口。若中断，先根据该次测试输出核实专用临时资源是否存在，再按随机名称清理；禁止删除共享数据库/卷。
+2026-09-30实测：`pnpm verify:stage -- --stage V3.2 --suite code`退出0，含独立合成候选/参考容器、随机Quant临时库和专用`platform_api_test` PostgreSQL（3个集成测试通过）；现额外包含`pnpm verify:w8:v32-readiness`。该runtime smoke构建当前Platform `linux/amd64`镜像，在随机`--internal`网络中连接摘要固定的PostgreSQL 16.9；数据库仅tmpfs、Platform根只读/no-new-privileges/drop ALL capabilities。断言：`/live`=200、缺少Portfolio/Execution/Replay时`/ready`=503；POST TestRun=202且WAITING/READINESS_ONLY/NOT_RUN；owner GET=200、匿名=401、跨owner=403；Platform重启后同ID仍可从PG读取。预期20秒内服务live/PG就绪，Docker构建命令超时240秒。烟测随机容器/网络/镜像在`finally`中无条件按唯一UUID名称清理；中断后可只读核查`docker ps -a --filter name=sq-v32`、`docker network ls --filter name=sq-v32`和`docker image ls --filter reference='stockquant-v32-readiness-smoke:*'`，仅移除能匹配本次随机标签的已退出烟测资源。最终完整代码套件内Smoke TestRun `3cfea7c5-1da0-4b7c-98c0-f8f3f642e401`；独立复跑证据见[W6准备态TestRun审计](../../../evidence/audits/2026-09-30-w6-readiness-testrun.md)。`pnpm test:e2e -- --stage V3.2`退出0，5项Chromium用例均通过Mock API。Research Automation promotion smoke使用随机隔离数据库并正常退出清理。所有这些都是工程/Fixture/Mock覆盖，正式V3.2业务断言仍NOT_RUN。不得用业务库替代专用测试数据库；若中断，只核实本次随机命名临时资源并按脚本清理，禁止删除共享数据库/卷。
 
-仅当三个业务场景输出 `WAITING` / 退出2且`testRunId=null`时，表示当前门禁正确阻止了不可执行流程，不是场景验收通过。当前`pnpm stack:up -- --stage V3.2`不受支持；不可用V3.1启动命令替代，因为它会重建共享Market Data服务。
+三个场景现创建持久化准备态TestRun，输出`WAITING`、有效`testRunId`和退出2；这表示缺失前置被明确记录，不是业务场景验收通过。当前`pnpm stack:up -- --stage V3.2`不受支持；不可用V3.1启动命令替代，因为它会重建共享Market Data服务。
 
 ### 8.3 当前Web支持边界
 
-正式页面路由为 `/acceptance/v3/v3.2`。它可读取已存在的PromotionRequest及不可变报告，并在精确版本已批准时请求只读Governance→Quant指纹绑定检查；它不会创建正式V3.2 TestRun、运行用户候选、写Mandate或激活候选。页面E2E是Mock API覆盖，不是后端用户验收。
+正式页面路由为 `/acceptance/v3/v3.2`。它可创建并回读owner-scoped `READINESS_ONLY` TestRun，读取已存在的PromotionRequest及不可变报告，并在精确版本已批准时请求只读Governance→Quant指纹绑定检查；它不会运行用户候选、写Mandate或激活候选。页面E2E是Mock API覆盖，不是后端用户验收。
 
 当前可重放页面命令及检查范围：
 
@@ -118,36 +122,42 @@ pnpm test:e2e -- --stage V3.2
 pnpm test:e2e -- --stage V3.2
 ```
 
-测试文件为 `apps/web/tests/e2e/v32-promotion-readonly.spec.ts`，覆盖只读证据显示、V3.1提交前置提示、精确版本决定控件和只读Mandate绑定请求，共4项Chromium用例。API被测试拦截器替代；关闭/刷新业务任务、业务TestRun留存、真实服务跨owner和Artifact证据需等正式编排实现后再验收。没有实际会话建立/用户凭证步骤，因此不可把本命令交给验收者当作业务通过证明。
+测试文件为 `apps/web/tests/e2e/v32-promotion-readonly.spec.ts`，覆盖准备态TestRun同ID创建/读取、只读证据显示、V3.1提交前置提示、精确版本决定控件和只读Mandate绑定请求，共5项Chromium用例。API被测试拦截器替代；真实服务跨owner、业务任务关闭/恢复和Artifact证据仍需正式编排后验证。不可把Mock页面检查当作业务通过证明。
 
 ### 8.4 当前代码与门禁命令
 
-以下命令的输出状态已在2026-09-27实测。退出0代表代码/Mock页面检查通过；场景返回2代表正式业务运行尚不可执行，不能记为业务PASS。
+以下命令中，normal/rejection/recovery创建并读取同一owner-scoped准备态TestRun，均返回WAITING/退出2；退出2表示业务断言未运行，不能记为业务PASS。code suite和E2E退出0只代表对应工程检查通过。
 
 ```bash
 pnpm verify:stage -- --stage V3.2 --scenario normal --seed 20260907
-# 预期：status=WAITING, testRunId=null, exit 2；无业务副作用
+# 预期：status=WAITING、有持久化 testRunId、businessValidation=NOT_RUN，exit 2
 pnpm verify:stage -- --stage V3.2 --scenario rejection --seed 20260907
-# 预期同上
+# 预期同上；独立的准备态 TestRun
 pnpm verify:stage -- --stage V3.2 --scenario recovery --seed 20260907
-# 预期同上
+# 预期同上；不触发候选重放或 Registry 写入
+# 使用Web返回的确切UUID，只读核对同一运行
+pnpm verify:stage -- --stage V3.2 --run <testRunId> --check-only
+# 预期：同一个WAITING运行，exit 2
 pnpm verify:stage -- --stage V3.2 --suite code
+# 其中含真实HTTP/PG smoke；也可单独运行：
+pnpm verify:w8:v32-readiness
 # 预期：exit 0；完整代码/隔离集成套件
 pnpm test:e2e -- --stage V3.2
 # 预期：exit 0；4项Mock API Chromium页面测试
 ```
 
-normal/rejection/recovery在当前代码均输出 `status=WAITING`、`testRunId=null`、`businessValidation=NOT_RUN`、退出2。其阻塞项为权威V3.1接受、非Fixture候选隔离执行及绑定Artifact复算、Governance/Paper消费精确指纹、正式V3.2 TestRun/证据导出。不会创建任何业务运行。
+normal/rejection/recovery在当前代码均写入owner-scoped `v3.2-readiness-v1`记录，随后读取该ID；状态为`WAITING`、`businessValidation=NOT_RUN`并退出2。可提供`STOCKQUANT_SESSION_COOKIE`和`STOCKQUANT_PLATFORM_API_URL`。check-only只读取同一V3.2准备态记录。阻塞项仍包括权威V3.1接受、非Fixture候选隔离执行及绑定Artifact复算、正式独立报告工作流、Governance/Paper消费精确指纹及业务导出。准备态元数据不是正式业务运行。
 
-V3.2的`--run ... --check-only`及正常/拒绝/恢复场景同run Web→CLI复核仍不支持，因为V3.2业务TestRun API尚未实现。已实现的`--promotion-request`只导出准备态快照，不能传入任意run ID、其他阶段TestRun或合成ID冒充V3.2验收。
+V3.2的`--run ... --check-only`与准备态Web→CLI同run只读核对现已实现。`--run <testRunId>`现可导出已有owner-scoped `READINESS_ONLY` TestRun，产物显式保留`WAITING`、`businessValidation=NOT_RUN`和`humanAcceptance=NOT_RUN`；`--promotion-request`仍单独导出PromotionRequest准备态快照。两种导出均需本地session cookie、核对精确对象绑定并拒绝覆盖已有目录。该准备态TestRun导出不等于正式V3.2业务运行Evidence Bundle，不能把准备态TestRun或合成ID冒充正式验收。正式候选业务运行、Web→CLI业务断言仍未实现。
 
 准备态快照命令：
 
 ```bash
 pnpm evidence:export -- --stage V3.2 --promotion-request <existing-promotion-request-uuid>
+pnpm evidence:export -- --stage V3.2 --run <existing-readiness-test-run-uuid>
 ```
 
-需通过`STOCKQUANT_EVIDENCE_SESSION_COOKIE`提供当前owner会话，并可用`STOCKQUANT_PLATFORM_API_URL`指定Platform API（默认`http://127.0.0.1:3000`）。请求走owner-scoped PromotionRequest详情API，并确认返回请求及源V3.1 TestRun UUID一致；无会话/非owner/绑定错误时不写文件。成功结果写入`evidence/local/V3.2/<promotionRequestId>/evidence.json`和`manifest.sha256`，manifest覆盖确切JSON字节；若目标目录已存在则拒绝覆盖。此输出显式标记`businessValidation=NOT_RUN`、`humanAcceptance=NOT_RUN`、Registry`NOT_PERFORMED`和activation`DISABLED_UNTIL_MANDATE`。实现和Mock HTTP/文件系统测试6/6通过，但尚未用实际owner PromotionRequest执行，故第8节仍DRAFT_NOT_EXECUTABLE；它不是正式业务Evidence Bundle。正式交付仍需V3.2业务TestRun、同run CLI核对及与Web业务事实绑定的完整证据包，并验证版本失效和Paper精确指纹消费。
+需通过`STOCKQUANT_EVIDENCE_SESSION_COOKIE`提供当前owner会话，并可用`STOCKQUANT_PLATFORM_API_URL`指定Platform API（默认`http://127.0.0.1:3000`）。`--promotion-request`请求owner-scoped PromotionRequest详情API并检查请求/源V3.1 TestRun绑定；`--run`请求owner-scoped V3.2 TestRun API并只接受精确匹配的`READINESS_ONLY`/`WAITING`记录。无会话、非owner或绑定/状态错误时不写文件。PromotionRequest写至`evidence/local/V3.2/<promotionRequestId>/`；TestRun写至`evidence/local/V3.2/<testRunId>/`；两者均含`evidence.json`和覆盖确切JSON字节的`manifest.sha256`，目标已存在则拒绝覆盖。准备态TestRun导出明确保留`businessValidation=NOT_RUN`和`humanAcceptance=NOT_RUN`。独立验证包括7项CLI单测、7项owner-scoped HTTP/文件系统smoke、`pnpm test:ops`154/154及V3.2完整代码套件PASS；没有使用实际用户session导出。故第8节仍DRAFT_NOT_EXECUTABLE；该功能不是正式业务Evidence Bundle。正式交付仍需V3.2业务TestRun、同run CLI业务断言及与Web业务事实绑定的完整证据包，并验证版本失效和Paper精确指纹消费。详见[W6 readiness TestRun导出审计](../../../evidence/audits/2026-09-30-w6-readiness-run-export.md)及[Hash](../../../evidence/audits/2026-09-30-w6-readiness-run-export.sha256)。
 
 ### 8.5 交叉核对、失败定位与恢复
 
@@ -221,3 +231,29 @@ Actual local reference-recomputation operation: from repository root run `pnpm -
 2026-09-27 candidate Artifact delivery: Research Automation now serves the submitted request's exact candidate bytes only to the dedicated `quant-validation-worker` Bearer identity, and only after the authoritative V3.1 gate and successful Quant submission are persisted. The Worker fetches and validates the ArtifactRef and byte hash and mounts the downloaded bytes read-only into its isolated Linux/ARM64 candidate and reference-evaluator containers. Random PostgreSQL/HTTP delivery smoke, Quant dual-container validation integration, full V3.2 code suite and contract baseline pass; details: [Worker Artifact delivery audit](../../../evidence/audits/2026-09-27-v32-worker-artifact-fetch.md). The current candidate contract deliberately remains allowlisted to the frozen synthetic SMA bytes, so this does not yet validate arbitrary RD-Agent/user candidates, Qlib, market data, or profitability. V3.1 actual user acceptance, formal V3.2 TestRun/export, business validation and human acceptance remain `NOT_RUN`; Registry and Mandate were not changed.
 
 2026-09-27 preparation evidence export: `pnpm evidence:export -- --stage V3.2 --promotion-request <PromotionRequest UUID>` now saves the owner-scoped persisted PromotionRequest/report/decision snapshot to `evidence/local/V3.2/<id>/`, with a SHA-256 manifest. It requires `STOCKQUANT_EVIDENCE_SESSION_COOKIE` and calls the existing session-checked V3.2 detail route; it checks the returned PromotionRequest and source TestRun binding, exact `registryMutation=NOT_PERFORMED` and `activation=DISABLED_UNTIL_MANDATE`, and refuses to overwrite an existing export. Existing TestRun exports also now require an explicit local session cookie instead of sending a hard-coded user identity header. Five pure CLI unit tests and a four-case owner-scoped HTTP/filesystem smoke are included in the V3.2 code suite. This is a preparation snapshot, not a formal V3.2 TestRun or its evidence export acceptance; the business/human result remains `NOT_RUN`. No actual owner promotion was exported during implementation. See [evidence export audit](../../../evidence/audits/2026-09-27-v32-evidence-export.md).
+
+2026-10-01 Quant Research domain organization increment: pure candidate-registration, request/report validation, promotion decision/fingerprint and deterministic V3.2 fixture recomputation rules were moved into `services/quant-research-service/src/domain/`; compatibility entrypoints preserve existing imports. Quant build, 52 TypeScript unit tests, 13 Python worker tests, and isolated candidate/PromotionRequest/V3.2 validation integration passed. This source-organization change neither performs a V3.2 business TestRun nor changes its NOT_RUN acceptance, approval, Registry or activation status. Quant application/ports/adapters/bootstrap extraction remains open. See [Quant Research architecture](../../../architecture/services/quant-research-service.md).
+
+2026-10-01 Quant candidate registration layering follow-up: candidate registration now passes through `CandidateRegistrationService` -> `CandidateRegistrationRepository` -> `PostgresCandidateRegistrationRepository`; `bootstrap/main.ts` routes the HTTP request and `src/main.ts` remains the entrypoint. Build/lint, 54 TS unit tests, isolated candidate/Promotion integration and service-auth HTTP smoke pass. The remaining PromotionRequest/report/decision flows still contain SQL in bootstrap; Qlib calls lack a typed application port. Quant's full five-layer migration remains open and is not counted as stage or W1 completion. See [Quant layer migration audit](../../../evidence/audits/2026-10-01-w1-quant-domain-extraction.md).
+
+2026-10-02 Quant Qlib application boundary follow-up: probe, Fixture fit, summary train and validate now pass through `QlibResearchService` and the typed `QlibWorkerPort`/generated-client adapter; the bootstrap composes the adapter and HTTP routes use the application service. Build/lint and 57 TS unit tests pass; isolated service-auth HTTP smoke passes, and the locked Qlib Fixture linux/amd64 container smoke reproduces model/prediction hashes and rejects overlapping temporal splits. This verifies the Qlib Fixture component path only. PromotionRequest/report/decision SQL and DDL remain in bootstrap, so Quant layering, V3.2 business acceptance and human acceptance remain incomplete. See [Quant layer migration audit](../../../evidence/audits/2026-10-01-w1-quant-domain-extraction.md).
+
+2026-10-02 Quant schema ownership follow-up: the five Quant-owned `CREATE TABLE IF NOT EXISTS` statements moved verbatim to adapter-side `initializeQuantResearchSchema`; bootstrap invokes the initializer. Quant build and 57 unit tests plus the isolated service-auth/PostgreSQL smoke pass. This preserves current schema behavior and is not a migration framework. PromotionRequest/report/decision queries remain in bootstrap; stage business status is unchanged. See [Quant layer migration audit](../../../evidence/audits/2026-10-01-w1-quant-domain-extraction.md).
+
+2026-10-02 Quant PromotionRequest application/persistence slice: POST submission and plain ID read now use `PromotionRequestService` -> `PromotionRequestRepository` -> `PostgresPromotionRequestRepository`. Quant has 60 passing TypeScript unit tests and the complete V3.2 code suite exits 0, including isolated PostgreSQL concurrency/idempotency and validation/decision integrations. This does not execute the formal stage business workflow: the suite retains `businessValidation=NOT_RUN`, `humanAcceptance=NOT_RUN`, no active Registry mutation, and no external market/provider call. Validation-report/decision/detail/Registry SQL remains to be extracted. See [PromotionRequest layering audit](../../../evidence/audits/2026-10-02-w1-quant-promotion-request-layer.md).
+
+2026-10-02 Quant validation-report application/persistence slice: validation-input read, immutable report submission/replay and report read now cross `ValidationReportService` and `ValidationReportRepository`; PostgreSQL row locking, request binding and transaction lifecycle moved to the adapter. Quant 62 TypeScript tests, 13 Python Worker tests and full V3.2 code suite pass. Decision/Registry/detail SQL remains; the suite explicitly keeps business and human acceptance `NOT_RUN`. See [validation-report layering audit](../../../evidence/audits/2026-10-02-w1-quant-validation-report-layer.md).
+
+2026-10-02 Quant read-side layering: exact Registry version and aggregated PromotionRequest lifecycle detail now use `PromotionReadService` and PostgreSQL repository adapter. The full V3.2 code suite passes with zero active Registry changes; only decision persistence still uses PostgreSQL directly in Quant bootstrap. Business validation and human acceptance remain `NOT_RUN`. See [Promotion read audit](../../../evidence/audits/2026-10-02-w1-quant-promotion-read-layer.md).
+
+2026-10-02 Quant five-layer boundary: decision write/approval now uses the application service and transaction port; PostgreSQL locks, decision persistence and exact disabled Registry row are atomic in the adapter. Quant bootstrap contains no PostgreSQL calls. The baseline scanner includes Quant, checks all five layers and rejects direct database calls in bootstrap; the negative regression test and scanner pass. Quant has 67 passing TS tests and 13 Python Worker tests; full V3.2 code suite exits 0. This closes Quant architectural layering only; formal V3.2 business validation and human acceptance remain `NOT_RUN`. See [Quant five-layer audit](../../../evidence/audits/2026-10-02-w1-quant-five-layer-boundary.md).
+
+2026-10-02 W6/W9 current regression: the prior note that decision persistence remained in bootstrap was superseded by the five-layer extraction above. Full `pnpm verify:stage -- --stage V3.2 --suite code` was rerun and passed after a date-sensitive V2.3 artifact expiry integration test was made runtime-relative. Its container readiness TestRun remains `WAITING/READINESS_ONLY`, business validation and human acceptance remain `NOT_RUN`, and active Registry, Paper, market data and model/provider calls remain untouched. See [current Quant layering and V3.2 regression audit](../../../evidence/audits/2026-10-02-w6-quant-layering-v32-regression.md).
+
+2026-10-03 Promotion preparation route regression: the platform-authenticated `/v1/promotions/prepare` route now validates its actual `{testRunId, experimentId}` UUID contract instead of incorrectly requiring a Runner Job schema. Research lint/build and 203/203 unit tests passed; the isolated V3.2 HTTP preparation/submission smoke passed, including extra-field and invalid-UUID rejection. This is integration engineering evidence only; formal V3.2 business validation and human acceptance remain `NOT_RUN`. See [W6 route-fix audit](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.md), [machine report](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.json), the source-hash list kept in the audit directory at that time, and [audit hashes](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.sha256).
+
+2026-10-03 Promotion preparation contract freeze: documented `POST /v1/promotions/prepare` in Research Automation OpenAPI with Platform Bearer identity, strict existing two-UUID command, typed `WAITING`/`READY_FOR_GATE_CHECK` response, and explicit 200/202/401/403/422/503 responses. Added a strict result JSON Schema, compatibility-matrix rule, executable schema assertions, and generated TS/Python contract types. `pnpm contracts:check` passed (153 schemas, 107 compatibility rules, 3 Research Promotion operations); Research Automation lint and 203/203 unit tests passed. This freezes the preparation endpoint contract only; it does not complete formal V3.2 business validation or human acceptance. See [W6 route-fix audit](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.md), [machine report](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.json), the source-hash list kept in the audit directory at that time, and [audit hashes](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.sha256).
+
+2026-10-03 Promotion preparation contract freeze后的完整回归：完整`pnpm verify:stage -- --stage V3.2 --suite code`退出0；contracts检查153 schemas/107规则，Research 203单测，Platform 166单测/5 PG集成，Promotion HTTP/PG smoke，Linux/amd64容器中的WAITING TestRun重启读取，Web typecheck/build/test均通过；另`pnpm test:e2e -- --stage V3.2` Chromium 5/5通过。TestRun `2faaad96-25f1-47ae-811b-051a9dc23df8`仍`WAITING/READINESS_ONLY/NOT_RUN`，活动服务未触碰，Paper调用0，活动Registry未变更。完整输出及限界见[W6契约回归审计](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.md)、[机器结果](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.json)、[套件日志](../../../evidence/audits/2026-10-03-w6-promotion-prepare-contract-suite.log)和[SHA-256](../../../evidence/audits/2026-10-03-w6-promotion-prepare-route-fix.sha256)。以上为工程/Fixture验证，不替代正式V3.2业务运行或人工验收。
+
+2026-10-03 W6/V3.2当前code suite复验：完整套件PASS；隔离TestRun `b5b03f66-6c6b-437e-982a-200d83f06f71`在Platform重启后仍为同一`WAITING`记录，READINESS_ONLY/NOT_RUN，owner/匿名/跨owner为200/401/403；活动Registry/Paper/Provider/行情调用0。合成准备态不能替代已验收V3.1、真实候选复算或精确人工批准；V3.2继续NOT_RUN。见[W6审计](../../../evidence/audits/2026-10-03-w6-v32-current-suite-refresh.md)、[机器结果](../../../evidence/audits/2026-10-03-w6-v32-current-suite-refresh.json)及[SHA-256](../../../evidence/audits/2026-10-03-w6-v32-current-suite-refresh.sha256)。

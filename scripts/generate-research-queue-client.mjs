@@ -37,8 +37,8 @@ function tsType(schema) {
 const serverUrl = document.servers?.[0]?.url;
 if (typeof serverUrl !== "string" || !serverUrl.includes("research-automation-service")) throw new Error("Expected Research Automation server URL");
 const operations = Object.entries(document.paths ?? {}).flatMap(([path, pathItem]) => Object.entries(pathItem).filter(([method]) => ["get", "post", "put", "patch", "delete"].includes(method)).map(([method, operation]) => ({ path, method, operation })))
-  .filter(({ operation }) => (operation.servers?.[0]?.url ?? serverUrl).includes("research-automation-service"));
-if (operations.length !== 13) throw new Error(`Expected V3.1 Experiment/artifact/model/budget/Runner operations and three V3.3 queue reads, found ${operations.length}`);
+  .filter(({ operation }) => !operation["x-client-ignore"] && (operation.servers?.[0]?.url ?? serverUrl).includes("research-automation-service"));
+if (operations.length !== 17) throw new Error(`Expected V3.1 Experiment/artifact/model/budget/Runner operations and six V3.3 queue/budget operations, found ${operations.length}`);
 
 const lines = [
   "// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/platform-v33-research-queue.v1.json",

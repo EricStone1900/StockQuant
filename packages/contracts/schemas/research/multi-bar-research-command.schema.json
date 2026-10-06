@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/multi-bar-research-command.schema.json",
+  "title": "MultiBarResearchCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bars"],
+  "properties": {
+    "runId": { "type": "string", "format": "uuid" },
+    "bars": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"], "properties": { "timestamp": { "type": "string", "format": "date-time" }, "open": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" }, "volume": { "type": "integer", "minimum": 0 } } } },
+    "executions": { "type": "array", "items": {} }
+  }
+}

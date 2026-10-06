@@ -11,7 +11,8 @@ export type QualityBar = {
 };
 
 export type QualityIssue = { code: "DUPLICATE_CONFLICT" | "OHLC_INVALID" | "NON_TRADING_SESSION" | "UNIT_INVALID" | "NON_FINITE" | "AMOUNT_UNAVAILABLE"; securityId: string; barStart: string };
-export type GapRecord = { gapId: string; securityId: string; barStart: string; barEnd: string; reason: "MISSING" | "DUPLICATE_CONFLICT"; priority: "P0" | "P1" | "P2" };
+import type { GapRecord } from "../domain/coverage.js";
+export type { GapRecord } from "../domain/coverage.js";
 export type CoverageReport = { status: "PASS" | "INCOMPLETE" | "WAITING_DEPENDENCY"; expectedBars: number; validBars: number; missingBars: number; duplicateBars: number; issues: QualityIssue[]; gaps: GapRecord[]; coveredTradingDates: number; requiredTradingDates: number };
 export type TradingCalendar = { session(date: string): { status: "TRADING" | "CLOSED" | "UNKNOWN"; sessions?: Array<{ start: string; end: string }> } };
 

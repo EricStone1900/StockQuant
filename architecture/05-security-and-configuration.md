@@ -39,6 +39,16 @@
 | 计算 | Worker 并发 1；CPU/内存/时限待实测冻结 | 环境证据 |
 | Provider | V1 无真实行情/模型/券商凭据 | 能力接口显示 UNSET/disabled |
 
+V3.1真实模型Provider外呼另由`STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED`显式授权，默认`false`；`MODEL_GATEWAY_MODE=LIVE`或凭证存在本身不构成调用授权。即使配置为`true`，运行时Provider接线、实际账单对账与可强制DNS/网络出口边界仍须分别通过证据门禁，preflight不能据配置自行解除这些阻断。
+
+Compose 新建 PostgreSQL 数据目录时必须使用 `scram-sha-256` 主机认证和独立管理员密码；每个应用登录角色通过单独的 `STOCKQUANT_DATABASE_PASSWORD_<ROLE>` 环境变量设密，服务 DSN 只注入自身角色密码。密码仅可放在忽略的 `.env.local`，建议用 `openssl rand -hex 32` 分别生成，避免 URL 保留字符。`.env.example` 中故意留空，未配置时新数据库初始化必须失败。`POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256` 用来确保 initdb 生成的 loopback 规则也是 SCRAM；只设置 `POSTGRES_HOST_AUTH_METHOD` 会在某些初始化配置中保留更早命中的 loopback `trust` 规则。
+
+PostgreSQL 初始化 SQL 只在空数据目录首次执行。既有卷不会因 Compose 环境变量变更而改写 `pg_hba.conf` 或现存角色密码；切换现有卷前必须先有配对备份、准确卷/镜像识别、写入方暂停、逐角色设密、验证 SCRAM 规则及客户端连通、失败回退方案和实际恢复证据。不得以重建或删除卷代替迁移。测试 Compose 的 loopback `trust` 仅限无共享卷的隔离集成网络，不得用于运行栈。当前本地数据卷迁移程序见[PostgreSQL SCRAM迁移Runbook](../docs/operations/postgres-scram-migration.md)，该Runbook仍未执行。
+
+V2.4 的活动行情读取还受 `STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED` 保护，缺省 `false`。即使设为 `true`，也必须同时提供 `STOCKQUANT_V24_QUOTE_SOURCE_AUTHORIZATION_REF` 与 `STOCKQUANT_V24_QUOTE_DATA_VERSION`；缺一项时请求仍失败关闭。引用值应指向项目所有者确认的具体来源/用途授权记录及冻结数据版本。关闭时 Paper 观察器不请求报价端点，记录 `NOT_AUTHORIZED`/`NOT_CONNECTED`，不生成可执行信号，也不计入有效观察日。这些环境值是部署门禁，不替代来源合同或用户对精确策略的批准。
+
+`STOCKQUANT_V24_AUTO_START` 缺省 `false`；来源、策略、账户及运行批准齐备前，持续Paper调度器保持停止。手动或自动启动调度器均不能绕过报价来源使用门禁。
+
 端口、镜像、数据库名和限制完成实测前保持[未决](../docs/decisions/open-decisions.md)，不能从本表推断已经部署。
 
 ## 5. TestRun 与清理
@@ -85,3 +95,16 @@ P7.2补充（2026-09-27）：Market Data Fixture/CSV/Parquet分钟导入、分�
 V2.2内部读取/计算身份补充（2026-09-27）：固定分钟Fixture预览、质量检查和覆盖计算要求平台Bearer；对应V2.2页面入口先验证本地Session，再以服务身份代理。匿名计算在解析请求前被拒。上述改动经认证HTTP smoke、Platform控制器单测及完整V2.2 code suite验证，活动Compose仍待维护窗口部署。详见[P7.2采集读取身份审计](../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
 
 身份策略确认及V1.2边界补齐（2026-09-27）：用户选择每服务独立Bearer Token。V1.2固定日线Fixture现在也要求平台Bearer；Platform API两个Fixture预览先校验本地Session，后台V1.2 TestRun访问Fixture时携带平台Bearer。隔离HTTP smoke及V1.2服务单测通过，活动Compose仍未部署；其他非采集只读路由继续按具体服务逐项核查。
+
+容器运行身份与只写路径复核（2026-09-30）：W8候选Compose镜像矩阵中，Market Data、Quant Research与Qlib Worker曾以root默认用户构建。本次将Node服务切换到镜像自带的`node` UID 1000、Qlib Worker切换为UID 10001；Market Data的`/var/lib/stockquant`明确由node用户持有。Compose对这三项启用只读根文件系统、drop ALL capabilities及`no-new-privileges`，Market Data与Qlib Worker仅为`/tmp`提供tmpfs。10个linux/amd64应用镜像均在Mac M1仿真环境通过隔离边界检查；Qlib 0.9.6/LGBM Fixture训练与预测在非root、无网络、只读根和临时盘条件下通过。现有Market Data named volume必须在维护/备份窗口确认迁移后的UID/GID可写；本次只验证了空白隔离卷初始化，未修改活动卷。此结果不等价于Ubuntu实机或发布环境验证。
+ 固定RD-Agent Runner镜像在2026-09-30另通过6个固定容器隔离场景（无网络/只读根/只读输入/独立输出/超时与清理），该Mac AMD64仿真结果不是Ubuntu或真实模型Provider验收。
+
+## 9. 外部市场来源用途门禁
+
+行情预览、新闻读取、来源Smoke和分钟采集分别要求显式的运行时用途门禁。每类配置必须同时提供`*_SOURCE_USE_AUTHORIZED=true`、授权/决定引用、数据版本及精确允许的source ID；缺任一项时，在任何Provider HTTP请求之前拒绝。服务Bearer只认证调用方，不能代替来源许可或用途批准。门禁变量本身亦不构成法律授权，必须引用经项目所有者确认的逐来源决定。当前确认状态为`NO_TRADE`且没有来源授权，故这些配置保持关闭；隔离HTTP证明各外部路径被拒且Provider请求数为零。分钟采集调度与执行器也要求MINUTE_COLLECTION用途已授权，未经授权的运行不能通过就绪门禁或由监督器自动修复启动。
+
+2026-10-01采集适配器增补：Market Data的Python分钟适配器CLI也会被直接调用，因此在构造任一网络Provider客户端之前复核分钟采集用途授权和全部来源ID。这样即使绕过TypeScript CollectionExecutor，未授权请求仍在最靠近网络边界处fail-closed。
+
+2026-10-01独立来源探针补充：所有可直连真实分钟来源的维护/能力探针（Sina、BaoStock、TDX）在启动SDK/网络请求前也必须经过同一授权判断。无授权探针以`BLOCKED`退出，不生成来源健康PASS，也不写诊断数据。
+
+历史数据用途独立记为`HISTORICAL_RESEARCH`，与`MINUTE_COLLECTION`分离；日线/PIT能力或导入仅获历史研究授权，分钟历史来源运行同时需要历史研究和采集两个用途的独立确认。可直连外部来源的历史导入器及能力探针在Provider会话打开和输出写入前检查以上配置。

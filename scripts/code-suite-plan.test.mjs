@@ -5,6 +5,17 @@ import { codeSuiteCommands } from "./code-suite-plan.mjs";
 test("the V2.3 code suite executes the real isolated Qlib fixture-fit component", () => {
   const command = codeSuiteCommands("V2.3").find(([, args]) => args.includes("qlib:fit-smoke"));
   assert.deepEqual(command, ["pnpm", ["--filter", "@stockquant/quant-research-service", "qlib:fit-smoke"]]);
+  assert.deepEqual(codeSuiteCommands("V2.3").at(-1), ["pnpm", ["--filter", "@stockquant/platform-api-service", "v23:qlib-fixture-testrun-smoke"]]);
+});
+
+test("the V1.2 code suite executes the real isolated Qlib CPU fit component", () => {
+  assert.deepEqual(codeSuiteCommands("V1.2").at(-2), ["pnpm", ["--filter", "@stockquant/quant-research-service", "qlib:fit-smoke"]]);
+  assert.deepEqual(codeSuiteCommands("V1.2").at(-1), ["pnpm", ["test:e2e", "--", "--stage", "V1.2"]]);
+});
+
+test("the V1.2 code suite verifies durable Artifact task HTTP state across a Market Data process restart", () => {
+  const commands = codeSuiteCommands("V1.2");
+  assert.ok(commands.some(([, args]) => args.includes("artifact-task:http-restart-smoke")));
 });
 
 test("the V2.3 code suite exercises Governance, Replay Worker, and Quant HTTP identity boundaries", () => {
@@ -16,32 +27,49 @@ test("the V2.3 code suite exercises Governance, Replay Worker, and Quant HTTP id
   assert.deepEqual(commands[authIndex], ["pnpm", ["test:service-auth:http"]]);
 });
 
-test("other V2 stage code suites do not build or execute the heavyweight Qlib model container", () => {
-  for (const stage of ["V2.1", "V2.2", "V2.4", "V2.5"]) {
+test("other stage code suites do not build or execute the heavyweight Qlib model container", () => {
+  for (const stage of ["V1.1", "V1.3", "V1.4", "V1.5", "V2.1", "V2.2", "V2.4", "V2.5"]) {
     assert.equal(codeSuiteCommands(stage).some(([, args]) => args.includes("qlib:fit-smoke")), false, stage);
+    assert.equal(codeSuiteCommands(stage).some(([, args]) => args.includes("v23:qlib-fixture-testrun-smoke")), false, stage);
   }
+});
+
+test("V2.2 code suite executes the real upload Web/API flow against only a disposable PostgreSQL container", () => {
+  const command = codeSuiteCommands("V2.2").at(-1);
+  assert.deepEqual(command, [process.execPath, [
+    "scripts/run-isolated-postgres-command.mjs", "--admin-env", "STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL", "--",
+    "pnpm", "--filter", "@stockquant/platform-api-service", "v22:upload-web-http-smoke",
+  ]]);
+  assert.equal(JSON.stringify(command).includes("127.0.0.1:5433"), false);
 });
 
 test("V2.3 retains all shared code and database checks before its scoped component smokes", () => {
   const commands = codeSuiteCommands("V2.3");
   assert.deepEqual(commands.slice(0, 12).map(([, args]) => args), [
     ["baseline:check"], ["build"], ["lint"], ["typecheck"], ["test"],
+    ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PORTFOLIO_RISK_TEST_DATABASE_URL:portfolio_risk:portfolio_risk_test", "--", "pnpm", "--filter", "@stockquant/portfolio-risk-service", "test:integration"],
     ["--filter", "@stockquant/trade-execution-service", "test:integration"],
-    ["--filter", "@stockquant/portfolio-risk-service", "test:integration"],
     ["test:contract"], ["test:python-adapter"], ["test:ops"],
     ["--filter", "@stockquant/market-data-service", "service-auth:http-smoke"],
-    ["test:integration:market-data"],
+    ["scripts/run-isolated-postgres-command.mjs", "--url-env", "MARKET_DATA_TEST_DATABASE_URL:market_data_test:market_data_test", "--", "pnpm", "test:integration:market-data"],
   ]);
-  assert.equal(commands.at(-1)[1].at(-1), "qlib:fit-smoke");
+  assert.equal(commands.at(-2)[1].at(-1), "qlib:fit-smoke");
+  assert.equal(commands.at(-1)[1].at(-1), "v23:qlib-fixture-testrun-smoke");
 });
 
-test("V2.4 runs WAITING, Paper readiness HTTP, and Linux container boundary smokes", () => {
+test("V2.4 runs isolated observation persistence, Paper execution/recovery, Web/CLI, and Linux container boundary smokes", () => {
   const commands = codeSuiteCommands("V2.4");
   assert.deepEqual(commands.slice(0, 12).map(([, args]) => args), codeSuiteCommands("V2.1").map(([, args]) => args));
   assert.deepEqual(commands.slice(-2), [
-    ["pnpm", ["--filter", "@stockquant/trade-execution-service", "test:v24-readiness"], { TRADE_EXECUTION_TEST_DATABASE_URL: "postgresql://trade_execution_test@127.0.0.1:5433/trade_execution_test" }],
+    [process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "TRADE_EXECUTION_TEST_DATABASE_URL:trade_execution_test:trade_execution_test", "--", "pnpm", "--filter", "@stockquant/trade-execution-service", "test:v24-readiness"]],
     ["pnpm", ["--filter", "@stockquant/trade-execution-service", "test:v24-readiness:container"]]
   ]);
-  assert.deepEqual(commands.at(-3), ["pnpm", ["--filter", "@stockquant/platform-api-service", "v24:waiting-http-smoke"]]);
+  assert.deepEqual(commands.at(-4), [process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "test:v24-observation-persistence"]]);
+  assert.deepEqual(commands.at(-3), [process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--admin-env", "V24_PAPER_SMOKE_ADMIN_DATABASE_URL", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "v24:paper-http-smoke"]]);
+  assert.equal(JSON.stringify(commands).includes("127.0.0.1:5433"), false, "code suite must never target the shared Compose PostgreSQL port");
   assert.equal(commands.some(([, args]) => args.includes("qlib:fit-smoke")), false);
+});
+
+test("V2.5 runs the existing 100k Parquet upload/read API capacity scenario in isolated Linux containers", () => {
+  assert.deepEqual(codeSuiteCommands("V2.5").at(-1), ["pnpm", ["--filter", "@stockquant/market-data-service", "minute-parquet:container-capacity-smoke"]]);
 });

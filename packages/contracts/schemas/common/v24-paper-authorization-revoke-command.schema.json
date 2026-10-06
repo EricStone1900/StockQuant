@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-authorization-revoke-command.schema.json",
+  "title": "V24PaperAuthorizationRevokeCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "namespace", "accountId", "reason"],
+  "properties": {
+    "authorizationId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 250 }
+  }
+}

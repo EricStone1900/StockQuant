@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runRunnerHostOnce } from "../../src/application/v31-runner-host-loop.js";
 import { RunnerLeaseLostError } from "../../src/application/v31-runner-host-api-client.js";
 import { sha256, type RunnerJob } from "../../src/application/v31-runtime-guards.js";
+import { hashResearchCheckpointState } from "../../src/domain/research-checkpoint.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const roots: string[] = [];
@@ -36,9 +37,9 @@ describe("V3.1 Runner host loop", () => {
     const ctx = await setup();
     const result = await runRunnerHostOnce(ctx.api, { workerId: "worker-1", managedRoot: ctx.managedRoot, imageRef: `runner@${digest}`, heartbeatIntervalMs: 1000, execute: async (plan) => {
       expect(plan.argv).toContain("--network");
-      const inputFile = join(ctx.managedRoot, "inputs/run-1/exp-1/fence-5/code/main.py");
+      const inputFile = join(ctx.managedRoot, "inputs/run-1/exp-1/round-1/fence-5/code/main.py");
       expect(await readFile(inputFile, "utf8")).toContain("print");
-      await writeFile(join(ctx.managedRoot, "outputs/run-1/exp-1/fence-5/metrics.json"), "{\"ok\":true}");
+      await writeFile(join(ctx.managedRoot, "outputs/run-1/exp-1/round-1/fence-5/metrics.json"), "{\"ok\":true}");
       return { status: "COMPLETED", exitCode: 0, signal: null, stdout: "", stderr: "", durationMs: 1 };
     } });
     expect(result.status).toBe("COMPLETED");
@@ -76,5 +77,31 @@ describe("V3.1 Runner host loop", () => {
     expect(result.status).toBe("COMPLETED");
     expect(ctx.api.publishArtifact).not.toHaveBeenCalled();
     expect(ctx.api.complete).toHaveBeenCalledWith(ctx.claim.jobId, ctx.lease, expect.objectContaining({ status: "FAILED", exitCode: 17 }), []);
+  });
+
+  it("restores the latest checkpoint and persists the next atomic checkpoint during a live lease", async () => {
+    const ctx = await setup();
+    const priorState = { cursor: 4 };
+    const prior = { schemaVersion: "v3.3-research-checkpoint-v1", testRunId: ctx.job.testRunId, experimentId: ctx.job.experimentId, roundIndex: 1, sequence: 1, state: priorState, stateSha256: hashResearchCheckpointState(priorState), createdAt: new Date().toISOString() };
+    const api = ctx.api as typeof ctx.api & {
+      readCheckpoint: ReturnType<typeof vi.fn>;
+      persistCheckpoint: ReturnType<typeof vi.fn>;
+    };
+    api.readCheckpoint = vi.fn().mockResolvedValue({ status: "FOUND", checkpoint: prior });
+    api.persistCheckpoint = vi.fn().mockResolvedValue({ status: "PERSISTED", checkpoint: {}, stateSha256: "", sequence: 2, existing: false, createdAt: new Date().toISOString() });
+
+    await runRunnerHostOnce(api, { workerId: "worker-1", managedRoot: ctx.managedRoot, imageRef: `runner@${digest}`, heartbeatIntervalMs: 1000, execute: async (plan) => {
+      const inputRoot = join(ctx.managedRoot, "inputs/run-1/exp-1/round-1/fence-5");
+      const restored = JSON.parse(await readFile(join(inputRoot, "checkpoint.json"), "utf8"));
+      expect(restored.state).toEqual(priorState);
+      const next = { schemaVersion: "v3.3-research-checkpoint-v1", testRunId: ctx.job.testRunId, roundIndex: 1, sequence: 2, state: { cursor: 8 } };
+      await writeFile(join(plan.outputRoot, "checkpoint.json.tmp"), JSON.stringify(next));
+      await import("node:fs/promises").then(({ rename }) => rename(join(plan.outputRoot, "checkpoint.json.tmp"), join(plan.outputRoot, "checkpoint.json")));
+      await writeFile(join(plan.outputRoot, "metrics.json"), "{\"ok\":true}");
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      return { status: "COMPLETED", exitCode: 0, signal: null, stdout: "", stderr: "", durationMs: 1100 };
+    } });
+    expect(api.readCheckpoint).toHaveBeenCalledOnce();
+    expect(api.persistCheckpoint).toHaveBeenCalledWith(ctx.claim.jobId, ctx.lease, expect.objectContaining({ sequence: 2, state: { cursor: 8 } }));
   });
 });

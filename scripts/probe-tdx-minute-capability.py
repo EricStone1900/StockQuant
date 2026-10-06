@@ -15,6 +15,9 @@ import sys
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_collection_source_authorization
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -91,11 +94,38 @@ def subprocess_timeout_seconds(security_count: int, request_timeout_seconds: flo
     return max(5.0, request_timeout_seconds * (count + 1) + interval_seconds * max(0, count - 1))
 
 
+def adapter_failure(payload: object) -> dict[str, object] | None:
+    """Keep the adapter's classified failure without leaking its full error text."""
+    if not isinstance(payload, dict):
+        return None
+    code = payload.get("code")
+    if not isinstance(code, str):
+        return None
+    return {
+        "code": code,
+        "retryable": bool(payload.get("retryable", False)),
+        "category": "EXECUTION_ENVIRONMENT" if code == "TCP_PERMISSION_DENIED" else "ADAPTER_OR_SOURCE",
+    }
+
+
 def run() -> dict[str, object]:
     args = parse_args()
     security_ids = [item.strip().upper() for item in args.security_ids.split(",") if item.strip()]
     if not security_ids:
         raise ValueError("--security-ids must contain at least one security")
+    missing = missing_collection_source_authorization(["tdx"])
+    if missing:
+        result: dict[str, object] = {
+            "probe": "tdx-minute-capability", "status": "BLOCKED", "source": "tdx",
+            "securityIds": security_ids, "window": {"startDate": args.start_date, "endDate": args.end_date},
+            "probedAt": datetime.now().astimezone().isoformat(), "blockedBeforeNetwork": True,
+            "missingAuthorization": missing,
+        }
+        if args.output:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return result
     request = {
         "sources": ["tdx"],
         "securityIds": security_ids,
@@ -105,6 +135,7 @@ def run() -> dict[str, object]:
         "maxAttempts": 1,
         "tdxIntervalSeconds": 1.0,
         "tdxBarCount": 800,
+        "includeProviderDiagnostics": True,
         "healthPath": "/tmp/stockquant-tdx-probe-health.json",
     }
     try:
@@ -117,8 +148,9 @@ def run() -> dict[str, object]:
             check=False,
         )
         payload = json.loads(completed.stdout)
+        source_use_blocked = completed.returncode != 0 and payload.get("code") == "SOURCE_NOT_AUTHORIZED"
         integrity = validate_bars(payload.get("bars"), security_ids, args.start_date, args.end_date, args.session) if completed.returncode == 0 and payload.get("status") == "COMPLETED" else None
-        status = "PASS" if completed.returncode == 0 and payload.get("status") == "COMPLETED" and integrity and integrity["status"] == "PASS" else "PARTIAL"
+        status = "BLOCKED" if source_use_blocked else "PASS" if completed.returncode == 0 and payload.get("status") == "COMPLETED" and integrity and integrity["status"] == "PASS" else "PARTIAL"
         result: dict[str, object] = {
             "probe": "tdx-minute-capability",
             "status": status,
@@ -130,6 +162,9 @@ def run() -> dict[str, object]:
             "adapterExitCode": completed.returncode,
             "sourceId": payload.get("sourceId"),
             "attempts": payload.get("attempts", []),
+            "failure": adapter_failure(payload),
+            "blockedBeforeNetwork": source_use_blocked,
+            "providerDiagnostics": payload.get("providerDiagnostics"),
             "rows": len(payload.get("bars", [])) if isinstance(payload.get("bars"), list) else 0,
             "integrity": integrity,
             "stderr": completed.stderr[-2000:],
@@ -172,7 +207,7 @@ def exit_code_for_status(status: object) -> int:
     """
     if status == "PASS":
         return 0
-    if status in {"PARTIAL", "NOT_RUN"}:
+    if status in {"PARTIAL", "NOT_RUN", "BLOCKED"}:
         return 2
     return 1
 

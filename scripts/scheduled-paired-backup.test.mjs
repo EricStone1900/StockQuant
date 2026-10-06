@@ -18,7 +18,6 @@ async function setup() {
   }
   const env = {
     PATH: process.env.PATH ?? "/usr/bin:/bin",
-    STOCKQUANT_BACKUP_DATABASE: "stockquant_research",
     STOCKQUANT_BACKUP_ARTIFACT_VOLUME: "stockquant_research_artifacts",
     STOCKQUANT_BACKUP_DIR: join(root, "backups"),
     STOCKQUANT_BACKUP_COMPOSE_FILE: join(root, "compose.yml"),
@@ -30,16 +29,16 @@ async function setup() {
   return { root, hooks, env };
 }
 
-test("scheduled backup quiesces the exact pair, invokes the one-shot producer, resumes, and releases its lock", async () => {
+test("scheduled backup quiesces the cluster and Artifact volume, invokes the one-shot producer, resumes, and releases its lock", async () => {
   const fixture = await setup();
   try {
     const calls = [];
     const result = await runScheduledPairedBackup({ env: fixture.env, runCommand: async (command, args, env) => calls.push({ command, args, env }) });
     assert.equal(result.status, "PASS");
     assert.deepEqual(calls.map(({ command }) => command), [fixture.hooks[0], process.execPath, fixture.hooks[1]]);
-    assert.deepEqual(calls[0].args, ["stockquant_research", "stockquant_research_artifacts"]);
+    assert.deepEqual(calls[0].args, ["cluster", "stockquant_research_artifacts"]);
     assert.equal(calls[0].env.STOCKQUANT_BACKUP_COMPOSE_FILE, fixture.env.STOCKQUANT_BACKUP_COMPOSE_FILE);
-    assert.equal(calls[1].args.at(-1), "--confirm-writes-quiesced=stockquant_research/stockquant_research_artifacts");
+    assert.equal(calls[1].args.at(-1), "--confirm-writes-quiesced=cluster/stockquant_research_artifacts");
     assert.equal(calls[1].env.STOCKQUANT_BACKUP_DIR, fixture.env.STOCKQUANT_BACKUP_DIR);
     assert.equal(calls[2].env.STOCKQUANT_BACKUP_QUIESCE_RESULT, "PASS");
     await assert.rejects(lstat(fixture.env.STOCKQUANT_BACKUP_LOCK_PATH), { code: "ENOENT" });

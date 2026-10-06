@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { access, readdir, readFile } from "node:fs/promises";
 import { dirname, join, normalize, resolve } from "node:path";
+import { verifyFixtureAuthorizationRef } from "./fixture-authorization-ref.mjs";
 
 const projectRoot = process.cwd();
 const fixturesRoot = join(projectRoot, "fixtures");
@@ -21,6 +22,10 @@ let checked = 0;
 
 for (const manifestPath of await collectManifests(fixturesRoot)) {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  if (["RECORDED", "REAL"].includes(manifest.dataMode)) {
+    const authorization = await verifyFixtureAuthorizationRef(projectRoot, manifest.source?.authorizationRef, manifest.source?.authorizationSha256);
+    if (!authorization.ok) failures.push(`${manifestPath}: ${authorization.reason}`);
+  }
   if (!Array.isArray(manifest.files)) {
     failures.push(`${manifestPath}: files must be an array`);
     continue;

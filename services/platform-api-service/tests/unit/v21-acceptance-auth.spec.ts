@@ -25,11 +25,14 @@ describe("V2.1 acceptance identity boundary", () => {
     await expect(controller.sources("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
     await expect(controller.news("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
     await expect(controller.sampling("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/v2/watchlist"), { headers: { authorization: "Bearer platform-secret" } });
+    await expect(controller.sourceSmoke("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
+    await expect(controller.quotes("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
+    await expect(controller.liveNews("sq_session=acceptance-owner-1", undefined)).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:3002/v2/watchlist", expect.objectContaining({ headers: { authorization: "Bearer platform-secret" } }));
     for (const [url, options] of fetchMock.mock.calls as unknown as Array<[string, RequestInit]>) {
       expect(options.headers).toEqual({ authorization: "Bearer platform-secret" });
-      expect(url).toMatch(/\/v2\/(?:sources|news\/preview|sampling|watchlist)$/u);
+      expect(url).toMatch(/\/v2\/(?:sources(?:\/smoke)?|news\/(?:preview|live)|sampling|watchlist|quote\/preview)$/u);
     }
   });
 });

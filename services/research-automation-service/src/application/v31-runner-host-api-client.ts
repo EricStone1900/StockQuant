@@ -1,4 +1,4 @@
-import type { V31RunnerClaimCommand, V31RunnerCompleteCommand, V31RunnerExecution, V31RunnerInputRequest, V31RunnerInputResponse, V31RunnerJobRecord, V31ResearchArtifactRef } from "../contracts/generated-types.js";
+import type { V31RunnerClaimCommand, V31RunnerCompleteCommand, V31RunnerExecution, V31RunnerInputRequest, V31RunnerInputResponse, V31RunnerJobRecord, V31ResearchArtifactRef, V33RunnerCheckpointCommand, V33RunnerCheckpointReadResult, V33RunnerCheckpointResult } from "../contracts/generated-types.js";
 import { GeneratedRunnerHostClient, RunnerHostHttpError } from "../contracts/generated-runner-host-client.js";
 import type { RunnerJobLease } from "./v31-runner-jobs.js";
 import { sha256 } from "./v31-runtime-guards.js";
@@ -13,10 +13,8 @@ export class RunnerLeaseLostError extends Error {
 /** Host-only client. Keep this credential in the trusted Runner Host, never in API or Web. */
 export class V31RunnerHostApiClient {
   private readonly generated: GeneratedRunnerHostClient;
-  private readonly baseUrl: string;
-  constructor(baseUrl: string, private readonly bearerToken: string, private readonly request: typeof fetch = fetch) {
+  constructor(baseUrl: string, bearerToken: string, private readonly request: typeof fetch = fetch) {
     this.generated = new GeneratedRunnerHostClient(baseUrl, bearerToken, request);
-    this.baseUrl = baseUrl.replace(/\/+$/u, "");
   }
 
   async claim(workerId: string, testRunId?: string): Promise<RunnerClaimResult> {
@@ -42,7 +40,17 @@ export class V31RunnerHostApiClient {
   async publishArtifact(jobId: string, lease: RunnerJobLease, ref: V31ResearchArtifactRef, content: Uint8Array): Promise<{ status: "PUBLISHED"; persisted: boolean; ref: V31ResearchArtifactRef }> {
     if (content.byteLength > 8 * 1024 * 1024) throw new Error("runner output artifact exceeds 8 MiB limit");
     if (sha256(content) !== ref.sha256) throw new Error("runner output artifact hash does not match its reference");
-    return this.postArtifact("/v1/artifacts/publish", { jobId, workerId: lease.workerId, fencingToken: lease.fencingToken, ref, contentBase64: Buffer.from(content).toString("base64") }, 30_000);
+    const command = { jobId, workerId: lease.workerId, fencingToken: lease.fencingToken, ref, contentBase64: Buffer.from(content).toString("base64") };
+    return this.mapLeaseError(this.generated.publishRunnerOutputArtifact(command));
+  }
+
+  async readCheckpoint(jobId: string, lease: RunnerJobLease): Promise<V33RunnerCheckpointReadResult> {
+    const command: V31RunnerInputRequest = { workerId: lease.workerId, fencingToken: lease.fencingToken };
+    return this.mapLeaseError(this.generated.readRunnerCheckpoint(jobId, command));
+  }
+
+  async persistCheckpoint(jobId: string, lease: RunnerJobLease, checkpoint: Omit<V33RunnerCheckpointCommand, "workerId" | "fencingToken">): Promise<V33RunnerCheckpointResult> {
+    return this.mapLeaseError(this.generated.persistRunnerCheckpoint(jobId, { ...checkpoint, workerId: lease.workerId, fencingToken: lease.fencingToken }));
   }
 
   private async mapLeaseError<T>(operation: Promise<T>): Promise<T> {
@@ -52,18 +60,5 @@ export class V31RunnerHostApiClient {
       if (error instanceof RunnerHostHttpError) throw new Error(`runner API request failed with HTTP ${error.status}`);
       throw error;
     }
-  }
-
-  private async postArtifact<T>(path: string, body: unknown, timeoutMs = 5000): Promise<T> {
-    const response = await this.request(`${this.baseUrl}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-stockquant-service-id": "runner-host", authorization: `Bearer ${this.bearerToken}` },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const result = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (response.status === 409) throw new RunnerLeaseLostError();
-    if (!response.ok) throw new Error(`runner API request failed with HTTP ${response.status}`);
-    return result as T;
   }
 }

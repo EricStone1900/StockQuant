@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/live-news-preview-v1.schema.json",
+  "title": "MarketDataLiveNewsPreview",
+  "type": "object",
+  "required": ["observedAt", "items", "sourceCount", "deduplicated", "status"],
+  "properties": {"observedAt": {"type": "string", "format": "date-time"}, "items": {"type": "array", "items": {"type": "object", "required": ["newsId", "sourceId", "title", "publishedAt", "observedAt", "ingestedAt", "availableAt", "revision", "symbols"], "properties": {"newsId": {"type": "string"}, "sourceId": {"type": "string"}, "title": {"type": "string"}, "publishedAt": {"type": ["string", "null"], "format": "date-time"}, "observedAt": {"type": "string", "format": "date-time"}, "ingestedAt": {"type": "string", "format": "date-time"}, "availableAt": {"type": "string", "format": "date-time"}, "revision": {"type": "integer"}, "symbols": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": true}}, "sourceCount": {"type": "integer"}, "deduplicated": {"type": "boolean"}, "status": {"enum": ["PASS", "PARTIAL"]}},
+  "additionalProperties": true
+}

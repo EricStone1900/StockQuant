@@ -28,6 +28,7 @@
 | [portfolio-risk-service](./services/portfolio-risk-service.md) | TypeScript / NestJS + PostgreSQL | V1.1账户初始化；V1.3资源/风控/账本；V1.4起回测/结算；各版复用。 |
 | [decision-governance-service](./services/decision-governance-service.md) | TypeScript / NestJS + PostgreSQL | V1.3人工/自动授权；V1.5失效/恢复；V3候选激活后仍复用本域规则。 |
 | [trade-execution-service](./services/trade-execution-service.md) | TypeScript / NestJS API + Gateway/报告Worker + PostgreSQL | V1.3模拟协议/状态机；V1.5恢复；V2.3历史Adapter；V2.4快照模拟；真实Broker延后。 |
+| [historical-replay-worker](./services/historical-replay-worker.md) | TypeScript / HTTP Worker + PostgreSQL + 生成跨服务客户端 | V2.3 Fixture分钟回放、检查点与暂停/恢复；仅协调Portfolio、治理、执行及Quant，不拥有订单或账本。 |
 | [workflow-orchestration-service](./services/workflow-orchestration-service.md) | TypeScript / Temporal Worker + 调度/事件Starter | V1.5完整调度恢复；早期阶段可用明确受控编排切片；V2持续Paper/回放粗粒度管理。 |
 | [platform-api-service](./services/platform-api-service.md) | TypeScript / NestJS BFF + 持久任务协调 | V1.1建立身份/健康/TestRun，全部14阶段增量扩展；不新增独立验收平台服务。 |
 | [news-intelligence-service](./services/news-intelligence-service.md) | Python / FastAPI + 来源采集Worker | V2.1采集/去重/实体关联/修订/展示必交；模型事件分析与自动动作不属于本轮默认范围。 |

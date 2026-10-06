@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "w8-current-worktree-amd64-image-build-v1",
+  "date": "2026-10-02",
+  "host": {
+    "os": "macOS",
+    "hostArchitecture": "arm64",
+    "dockerServerVersion": "28.0.4",
+    "daemonOs": "linux",
+    "daemonArchitecture": "aarch64",
+    "cpus": 10,
+    "memoryBytes": 8218034176,
+    "buildx": "v0.20.2",
+    "target": "linux/amd64 (emulation)"
+  },
+  "project": "stockquant-w8-20261002-current",
+  "commands": [
+    "COMPOSE_PROJECT_NAME=stockquant-w8-20261002-current DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -p stockquant-w8-20261002-current --env-file .env.example -f infra/compose/docker-compose.yml build",
+    "COMPOSE_PROJECT_NAME=stockquant-w8-20261002-current DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -p stockquant-w8-20261002-current --profile web --env-file .env.example -f infra/compose/docker-compose.yml build web",
+    "STOCKQUANT_W8_IMAGE_PREFIX=stockquant-w8-20261002-current- node scripts/w8-container-boundary-smoke.mjs"
+  ],
+  "buildExitCodes": [
+    0,
+    0
+  ],
+  "servicesStarted": false,
+  "activeServicesTouched": false,
+  "sourceRequests": 0,
+  "providerCalls": 0,
+  "paperOrders": 0,
+  "imageResults": [
+    {
+      "service": "platform-api-service",
+      "imageId": "sha256:1ce1161ea1594b6e61ee2e3d537ed8b61cc25adf00e12197da8dbc9c3894f0d4",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/platform-api-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "market-data-service",
+      "imageId": "sha256:a59133caa4f9f4184d97c74bbdd91fc706c3026eccb0724a3fc5f95c8dc68326",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "persistentVolumeWritable": true,
+        "rootFilesystemReadOnly": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "portfolio-risk-service",
+      "imageId": "sha256:6f485bcc60d83c37fcbc597801ef76595264f38f7e7c21571e469a8682e8bb23",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/portfolio-risk-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "trade-execution-service",
+      "imageId": "sha256:34865e72f45bb9c0d2050465db05bde36023f5ee214112ce8936c4752c828a9e",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/trade-execution-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "decision-governance-service",
+      "imageId": "sha256:daa6f5c3ea3b9f35bc5ce5ef98a6b0dd7bfaabc9d7f50a90866b56ebb39004f3",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/decision-governance-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "historical-replay-worker",
+      "imageId": "sha256:f9bf62f9631715b4c1f4f6a1109e7686b2747895be072299984959fc38c43082",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/historical-replay-worker/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "quant-research-service",
+      "imageId": "sha256:e77b047964628cc1c9cc614e1a44f839857b0ae1cbbc3c8c90fd3c31c4e53d33",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/quant-research-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "research-automation-service",
+      "imageId": "sha256:550a7435138aa60ec32f672e58b82e76ceb3b5cbdf313ec244435e1929fb6f75",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/research-automation-service/dist/bootstrap/main.js",
+        "readOnlyRoot": true,
+        "network": "none",
+        "dockerSocketAbsent": true,
+        "nonemptySecretEnvironmentAbsent": true
+      }
+    },
+    {
+      "service": "web",
+      "imageId": "sha256:b3226dd19a9f5c28242b396bf63e363f3d9d54093e93e1a6caa78325f64d73ec",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "apps/web/dist/index.html",
+        "readOnlyRoot": true,
+        "network": "none",
+        "dockerSocketAbsent": true,
+        "nonemptySecretEnvironmentAbsent": true
+      }
+    },
+    {
+      "service": "qlib-worker",
+      "imageId": "sha256:dae65bfab452305ee4b95bfea4f81d9ecb7847627acf1667375d25ae411bddfc",
+      "user": "10001:10001",
+      "result": {
+        "uid": 10001,
+        "qlib": "0.9.6",
+        "lightgbm": "4.7.0",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    }
+  ],
+  "imageCount": 10,
+  "boundaryStatus": "PASS",
+  "hostDiskAvailableBeforeBuild": "153 GiB",
+  "dockerInventoryAfterBuild": {
+    "images": 158,
+    "imageSize": "38.53 GB",
+    "containers": 13,
+    "runningContainers": 13,
+    "containerWritableLayer": "1.225 MB",
+    "volumes": 46,
+    "volumeSize": "7.438 GB",
+    "buildCacheSize": "21.31 GB"
+  },
+  "activeContainersAfter": [
+    "stockquant-v12-market-data-service-1",
+    "stockquant-v12-postgres-1",
+    "stockquant-v12-platform-api-service-1",
+    "stockquant-v12-research-automation-service-1",
+    "stockquant-v12-web-1",
+    "stockquant-v12-portfolio-risk-service-1",
+    "stockquant-v12-historical-replay-worker-1",
+    "stockquant-v12-trade-execution-service-1",
+    "stockquant-v12-decision-governance-service-1",
+    "stockquant-v12-temporal-1",
+    "stockquant-v12-nats-1",
+    "stockquant-v12-quant-research-service-1",
+    "stockquant-v12-qlib-worker-1"
+  ],
+  "temporaryW8ContainersRemaining": 0,
+  "temporaryW8VolumesRemaining": 0,
+  "limits": [
+    "Mac arm64 linux/amd64 emulation, not Ubuntu x86_64 acceptance.",
+    "No registry manifest or signed provenance created.",
+    "No build-time peak resource sampling.",
+    "Does not test active-volume migration, backup restore, RPO/RTO, secret rotation, observation, or human acceptance."
+  ]
+}

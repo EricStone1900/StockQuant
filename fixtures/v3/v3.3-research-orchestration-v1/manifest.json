@@ -1,0 +1,38 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v3.3-research-orchestration",
+  "fixtureVersion": "v3.3-research-orchestration-1",
+  "stageId": "V3.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "RESEARCH_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Deterministic orchestration scenario definitions for isolated V3.3 research workflow acceptance; contains no market data, model response or provider credentials",
+    "license": "Internal synthetic fixtures",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-06T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v3/v3.3-research-orchestration-v1/scenario-plan.json",
+      "sha256": "277ac70ea4a529a06cbdde9717c7f4bfb860d5155e7ec168546c55e41fa74107",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v3.3-research-orchestration-scenarios.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V3.3-NORMAL-001",
+      "description": "Two isolated deterministic research rounds settle exact costs and publish one immutable artifact per round."
+    },
+    {
+      "assertionId": "V3.3-REJECTION-001",
+      "description": "A TestRun budget-cap rejection creates no Experiment, Runner Job, ledger mutation or downstream call."
+    },
+    {
+      "assertionId": "V3.3-RECOVERY-001",
+      "description": "Recovery resumes the same round from its persisted checkpoint under a new fence and rejects stale publication."
+    }
+  ]
+}

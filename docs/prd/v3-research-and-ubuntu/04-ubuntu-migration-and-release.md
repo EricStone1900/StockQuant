@@ -2,7 +2,11 @@
 
 状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
-2026-09-27 本地目标架构预检：当前工作树的`pnpm verify:compat -- --platform linux/amd64`和`--platform linux/arm64`均已退出0，Docker Desktop容器Node v24.1.0报告x64/arm64；外部冲突`DOCKER_DEFAULT_PLATFORM`交叉回归通过。此前误把全局Compose架构与Qlib固定amd64相撞的验证器已拆分架构构建/探针，详见[兼容矩阵与验证器修复审计](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。该结果不是目标Ubuntu主机/发行版验证，不涵盖数据库迁移、卷恢复、完整栈或Paper实际观察；目标主机资源信息尚未登记，本阶段保持NOT_RUN。
+2026-09-27 本地目标架构预检：当前工作树的`pnpm verify:compat -- --platform linux/amd64`和`--platform linux/arm64`均已退出0，Docker Desktop容器Node v24.1.0报告x64/arm64；外部冲突`DOCKER_DEFAULT_PLATFORM`交叉回归通过。此前误把全局Compose架构与Qlib固定amd64相撞的验证器已拆分架构构建/探针，详见[兼容矩阵与验证器修复审计](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。该结果不是目标Ubuntu主机/发行版验证，不涵盖数据库迁移、卷恢复、完整栈或Paper实际观察；目标主机资源信息尚未登记，本阶段保持NOT_RUN。Mac隔离集群备份现已保存清单及四个备份文件的SHA-256复算证据，但仅为合成数据库/Artifact恢复，不能替代Ubuntu或活动48库验证；见[W8备份Hash审计](../../../evidence/audits/2026-10-03-w8-paired-backup-file-hashes.md)。
+
+2026-10-03 Ubuntu主机只读采集器已加入：目标主机可用`node scripts/w8-ubuntu-host-preflight.mjs`记录发行版、架构、CPU、内存、磁盘与仅本地Unix socket Docker运行时。当前Codex宿主为macOS/aarch64；受控只读Docker信息显示Docker Desktop Linux/aarch64而非Ubuntu x86_64，故结果BLOCKED。这不是目标主机证据。资源下限尚未由交付要求冻结，工具不会由采集数值推断release readiness。见[W8主机预检审计](../../../evidence/audits/2026-10-03-w8-ubuntu-host-preflight.md)。
+
+2026-10-06 Ubuntu目标主机预检复核：`pnpm verify:w8:ubuntu-host`只读执行退出2/BLOCKED。此执行上下文现可读Docker Desktop Linux/aarch64（10 CPU、8,218,034,176 bytes内存），修正10月5日“Docker runtime unavailable”的上下文相关结论；宿主仍为macOS/aarch64，目标Ubuntu x86_64不满足，资源阈值未定义、主机授权未确认。没有使用网络/凭据、部署或改动活动容器。见[最新预检审计](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0654z.md)、[机器报告](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0654z.json)和[SHA-256清单](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0654z.sha256)。
 
 ## 1. 前置与范围
 
@@ -84,6 +88,8 @@
 | 预期耗时、轮询超时、实际观察期/预算 | 待实现后填写，不用无限等待或假成功 |
 
 ### 8.2 初始化与启动（目标命令，待实现）
+
+目标主机登录后，先运行`node scripts/w8-ubuntu-host-preflight.mjs`并留存JSON；只接受目标机原生Ubuntu/x86_64与本机Docker Unix socket实测。`BLOCKED`或`INVENTORY_ONLY`都不能放行部署；还须另行审批资源阈值、主机身份、备份/维护与目标范围。
 
 当前已补充`verify:stage -- --stage V3.4 --scenario {normal|rejection|recovery}`本地准备检查入口：只读V1/V2/V3版本门禁并报告Ubuntu、V3.4工作流、Paper观察和人工验收阻塞，预期`WAITING`/exit 2，`testRunId=null`且无副作用。`--suite code`执行仓库基线、build/lint/typecheck/unit和CLI前置测试；它只代表本地代码预检，不代表本阶段验收。以下stack/Web部署步骤及业务TestRun仍待实现。详见[本地V3.4准备入口审计](../../../evidence/audits/2026-09-27-v34-local-preflight.md)。
 
@@ -179,3 +185,15 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 `pnpm v34:web-container-smoke`仍默认构建`linux/amd64`；新增`pnpm v34:web-container-smoke:arm64`构建`linux/arm64`。两个当前源码镜像均经internal-only Docker网络运行，只读根文件系统、非root用户及固定Mock Platform API；`/acceptance/v3/v3.3`、JS、CSS和`/api/v1/session`代理均返回200，零Vite配置警告。ARM64镜像SHA为`e0f2013ef842bafc29f2059094f465c442120893c3df438931596efd914c6125`；AMD64回归镜像SHA为`b68231964f8fe382e250611ec129cd9ba6ccd4aee9893492a67dacf402eef5bd`。本机Docker为Linux/aarch64，故ARM64是本机架构、AMD64为仿真。两者是Mac上的容器验证，不代表目标Ubuntu主机/发行版发布验收、真实Platform端到端或人工V3.4验收。完整限制和清理事实见[V3.4兼容矩阵审计](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。
 
 当前Research Automation源码另有`pnpm v34:research-container-smoke:arm64`和AMD64默认入口，在internal-only/read-only容器中检查身份、TestRun绑定实验预算预留及队列副作用。ARM64镜像SHA为`bd4225a4d178c7e0a54068e4e99d64851f1129117834add93b7a26632b7c43d4`，AMD64回归镜像SHA为`07bf9ba6768ae73765e362d2cd2182faff705cac082d20dd388ace7e59ab6c55`；两者的26个单测文件/150项测试通过。匿名请求401，Runner Host无权创建实验或派发（403，队列不变），Platform Bearer可创建TestRun实验并预留预算、准备任务仅`QUEUED/NOT_STARTED`。容器明确使用内存预算账本，Runner与模型网关关闭，出网DENY；不代表PostgreSQL耐久性、Ubuntu部署或实际研究执行。审计详见[V3.4兼容矩阵](../../../evidence/audits/2026-09-27-v34-compatibility-matrix.md)。
+
+2026-10-02 本地代码门禁复验：`pnpm verify:stage -- --stage V3.4 --suite code`默认沙箱首轮在Qlib worker随机loopback端口初始化时EPERM，受控本机相同命令重跑退出0；build、lint、typecheck、合同/基线及全仓单测、V3.4准备入口4/4通过。该结果范围仅为本地代码门禁，机器输出明确`ubuntuValidation=NOT_RUN`、`v34BusinessWorkflow=NOT_IMPLEMENTED`、`fullStageE2E=NOT_IMPLEMENTED`、Paper观察与人工验收NOT_RUN。没有部署、操作活动服务或触发外部调用。审计及首次失败说明：[V3.4代码门禁复验](../../../evidence/audits/2026-10-02-w8-v34-code-suite-rerun.md)，SHA-256见同名Manifest。
+
+2026-10-02 W8备份/恢复离线合同复核： paired backup、cluster backup、retention与scheduled wrapper合同测试分别5/5、5/5、3/3、8/8通过。覆盖备份manifest提交顺序、数据库/Artifact配对、隔离restore证据必需、库存漂移拒绝、安全清理、systemd wrapper quiesce/resume与SIGTERM恢复。均为本地合成/测试替身，无Docker生产捕获、无活动写入者或Artifact发布者暂停、无定时器安装/启用、无备份目录写入。故V3.4第2节数据库/Artifact迁移、实际Ubuntu单元验证、部署备份隔离恢复、RPO/RTO及5日Ubuntu观察仍未完成，状态NOT_RUN。审计：[W8离线备份合同套件](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.md)、[机器结果](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.json)及SHA-256 Manifest。
+
+2026-10-02 W8隔离配对备份恢复实测：`pnpm --dir services/research-automation-service backup:paired-smoke`退出0，在随机命名临时数据库和Artifact卷上生成配对备份，并隔离恢复3个数据库、1个角色和5个Fixture ArtifactRef，逐文件SHA-256核对通过。容器为`network_mode=none`、无端口；测试资源清理后只读确认活动容器仍运行、活动卷未挂载/写入。该结果推进本地备份生产与恢复烟测，但不覆盖活动数据库/Named Volume、Ubuntu systemd timer、生产静默维护、RPO/RTO或五日Ubuntu观察；本阶段继续NOT_RUN。见[W8隔离配对备份恢复审计](../../../evidence/audits/2026-10-02-w8-isolated-paired-backup-restore.md)、[机器结果](../../../evidence/audits/2026-10-02-w8-isolated-paired-backup-restore.json)及SHA-256 Manifest。
+
+2026-10-03 当前工作树W8镜像复建及边界/身份复验：以独立前缀`stockquant-w8-20261003-current-`从本工作树构建10个`linux/amd64`候选镜像，Compose build退出0且未启动服务；逐项镜像Config ID和21项源码Hash清单已归档。隔离容器边界smoke 10/10通过，包含Web/Research无Docker Socket与非空秘密环境、Qlib 0.9.6/LightGBM 4.7.0读取；临时PostgreSQL SCRAM检查9/9服务身份正确密码通过、空/错密码9/9拒绝。Bearer只读预检8身份独立、`.env.local`权限0600且未应用到服务。受控主机清单确认当前执行宿主macOS/aarch64、Docker Desktop linux/aarch64，不是Ubuntu x86_64；目标主机门禁BLOCKED。测试后13个既有`stockquant-v12-*`容器仍运行，W8临时容器/卷清零。此为Mac上的AMD64仿真，活动集群备份、实际token轮换、Ubuntu部署、迁移和5日观察未完成。详情见[W8审计](../../../evidence/audits/2026-10-03-w8-current-worktree-amd64-rerun.md)、[机器报告](../../../evidence/audits/2026-10-03-w8-current-worktree-amd64-rerun.json)、[验证日志](../../../evidence/audits/2026-10-03-w8-current-worktree-amd64-rerun.log)、[审计SHA](../../../evidence/audits/2026-10-03-w8-current-worktree-amd64-rerun.sha256)。源码清单是2026-10-03的点时快照，所含`package.json`哈希不代表当前工作树；原始清单保留在审计归档中。
+
+2026-10-03 当前工作树V3.4本地code suite复验：`pnpm verify:stage -- --stage V3.4 --suite code`退出0；baseline、build、lint、typecheck及全仓单测通过，专用V3.4准备测试4/4、Ubuntu主机门禁规则测试4/4通过。此项仅为本地代码预检；输出明确Ubuntu实机验证`NOT_RUN`、V3.4业务工作流`NOT_IMPLEMENTED`、完整阶段E2E`NOT_IMPLEMENTED`、Paper观察和人工验收`NOT_RUN`。没有部署或触碰既有服务。详见[本次V3.4代码门禁审计](../../../evidence/audits/2026-10-03-w8-v34-current-worktree-rerun.md)、[机器报告](../../../evidence/audits/2026-10-03-w8-v34-current-worktree-rerun.json)、[完整日志](../../../evidence/audits/2026-10-03-w8-v34-current-worktree-rerun.log)、[历史执行快照源码Manifest](../../../evidence/audits/2026-10-03-w8-v34-current-worktree-rerun.sources.sha256)及[审计SHA](../../../evidence/audits/2026-10-03-w8-v34-current-worktree-rerun.sha256)。
+
+2026-10-06 17:45 Asia/Shanghai 受控只读主机复核：普通沙箱内的Docker查询因socket `operation not permitted` 返回UNAVAILABLE；在受控本机只读执行同一`node scripts/w8-ubuntu-host-preflight.mjs`后，确认Docker Desktop Linux/aarch64、Docker 28.0.4、cgroup v2、overlay2、10 CPU及8,218,034,176 bytes容器内存。宿主仍为macOS/aarch64，故Ubuntu x86_64匹配检查FAIL，预检exit 2/BLOCKED；资源阈值未定义、目标主机授权未确认。该受控结果替代将沙箱UNAVAILABLE当成宿主机状态的错误解释，不替代目标Ubuntu证据；无网络/凭据访问、部署或服务变更。见[预检说明](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0945z.md)、[机器结果](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0945z.json)及[SHA-256](../../../evidence/audits/2026-10-06-w8-ubuntu-host-preflight-0945z.sha256)。

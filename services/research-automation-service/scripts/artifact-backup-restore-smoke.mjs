@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
 import { PgArtifactRefRepository } from "../dist/adapters/pg-artifact-ref-repository.js";
-import { FileArtifactStore } from "../dist/application/v31-artifact-store.js";
+import { FileArtifactStore } from "../dist/adapters/file-artifact-content-store.js";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const sourceUrl = process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test";

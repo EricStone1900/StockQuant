@@ -1,0 +1,854 @@
+{
+  "status": "PASS",
+  "source": "v24:paper-http-smoke",
+  "environment": "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution processes plus Chromium and containerized Web image/Vite preview",
+  "brokerMode": "FAKE",
+  "dataMode": "FIXTURE",
+  "identityAndLiveReject": {
+    "responses": {
+      "governanceWrongToken": 403,
+      "governanceSpoofedCaller": 403,
+      "tradeMissingToken": 403,
+      "tradeSpoofedCaller": 403,
+      "liveWrite": 422
+    },
+    "countsBefore": {
+      "authorizations": 0,
+      "accounts": 0,
+      "ledgerEntries": 0,
+      "reservations": 0,
+      "orders": 0,
+      "fills": 0,
+      "outbox": 0
+    },
+    "countsAfter": {
+      "authorizations": 0,
+      "accounts": 0,
+      "ledgerEntries": 0,
+      "reservations": 0,
+      "orders": 0,
+      "fills": 0,
+      "outbox": 0
+    },
+    "unchanged": true
+  },
+  "snapshotReject": {
+    "mutations": [
+      {
+        "name": "wrong-security",
+        "expectedStatus": 422,
+        "actualStatus": 422
+      },
+      {
+        "name": "wrong-market",
+        "expectedStatus": 422,
+        "actualStatus": 422
+      },
+      {
+        "name": "stale",
+        "expectedStatus": 409,
+        "actualStatus": 409
+      },
+      {
+        "name": "pre-acceptance",
+        "expectedStatus": 409,
+        "actualStatus": 409
+      },
+      {
+        "name": "future-ingested",
+        "expectedStatus": 422,
+        "actualStatus": 422
+      },
+      {
+        "name": "outside-window",
+        "expectedStatus": 409,
+        "actualStatus": 409
+      }
+    ],
+    "businessFactsAfter": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "noBusinessSideEffects": true
+  },
+  "scopeTamperReject": {
+    "rejectedMutations": [
+      {
+        "ownerChanged": true,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": true,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": true,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": true,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": true,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": true,
+        "feeChanged": false,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": true,
+        "clientOrderIdChanged": false
+      },
+      {
+        "ownerChanged": false,
+        "testRunChanged": false,
+        "accountChanged": false,
+        "mandateVersionChanged": false,
+        "strategyVersionChanged": false,
+        "feePolicyVersionChanged": false,
+        "feeChanged": false,
+        "clientOrderIdChanged": true
+      }
+    ],
+    "statuses": [
+      403,
+      403,
+      403,
+      403,
+      403,
+      403,
+      403,
+      403
+    ],
+    "businessFactsAfter": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "noBusinessSideEffects": true
+  },
+  "expiredAuthorizationReject": {
+    "authorizationRequestStatus": 200,
+    "executionStatus": 403,
+    "persistedAuthorization": {
+      "status": "ACTIVE",
+      "expired": true
+    },
+    "businessCountsBefore": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "businessCountsAfter": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "noBusinessSideEffects": true
+  },
+  "revokedAuthorizationEvidence": {
+    "revokedAuthorizationId": "4cf2f9f3-6bcb-4f11-9fa2-30cba6a8bf34",
+    "reason": "operator paused this isolated TestRun before execution",
+    "wrongServiceStatus": 403,
+    "wrongBearerStatus": 403,
+    "wrongScopeStatus": 404,
+    "revokeStatus": 200,
+    "idempotentReplayStatus": 200,
+    "conflictingReasonStatus": 409,
+    "executionAfterRevokeStatus": 403,
+    "persisted": {
+      "status": "REVOKED",
+      "revocation_reason": "operator paused this isolated TestRun before execution",
+      "revoked_at_present": true
+    },
+    "countsBefore": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "countsAfter": {
+      "ledgerEntries": 0,
+      "portfolioFills": 0,
+      "positions": 0,
+      "reservations": 0,
+      "brokerOrders": 0,
+      "brokerFills": 0,
+      "brokerOrderEvents": 0,
+      "outboxEvents": 0
+    },
+    "noBusinessSideEffects": true
+  },
+  "consumedAuthorizationRevokeEvidence": {
+    "testRunId": "218b1d84-d723-4c84-aa0a-36dddd159918",
+    "revokeStatusAfterConsumption": 409,
+    "cannotRevokeConsumedGrant": true
+  },
+  "authorizedFillAfterExpiryEvidence": {
+    "testRunId": "f4f253a8-bb56-465c-90ee-59f76e7cbe14",
+    "governanceConsumedWhileValid": true,
+    "successfulValidationResponseDeliveredAfterExpiry": true,
+    "expiredAuthorization": {
+      "status": "CONSUMED",
+      "expired": true
+    },
+    "fillStatusAfterExpiration": "FILLED",
+    "portfolioFillCountDelta": 1,
+    "outboxStatus": "DELIVERED",
+    "exactFactCounts": true
+  },
+  "v24OutboxRecoveryEvidence": {
+    "testRunId": "e92f1d12-6535-4ed3-9a8b-0050503a77b6",
+    "platformRunStatusBeforeRestart": "FAILED",
+    "responseDroppedAfterPortfolioCommit": true,
+    "pendingBeforeRestart": {
+      "orderStatus": "LEDGER_PENDING",
+      "outboxStatus": "PENDING",
+      "attempts": 2
+    },
+    "reservationBeforeRestart": {
+      "status": "HELD",
+      "captured_cash_amount": "1005.0000"
+    },
+    "portfolioProcessRestartedBeforeOutboxReplay": true,
+    "portfolioFactsAfterRestart": {
+      "ledgerEntryCount": 2,
+      "cash": "8995.0000"
+    },
+    "deliveredAfterTradeRestart": {
+      "order_id": "28b10aef-b4a7-4b0f-ac0c-dab34a5345b4",
+      "status": "FILLED",
+      "outbox_status": "DELIVERED",
+      "attempts": 3
+    },
+    "reservationAfterRestart": {
+      "status": "CAPTURED",
+      "captured_cash_amount": "1005.0000"
+    },
+    "factsAfterFirstCommit": {
+      "ledgerEntries": 12,
+      "portfolioFills": 5,
+      "positions": 5,
+      "reservations": 7,
+      "brokerOrders": 5,
+      "brokerFills": 5,
+      "brokerOrderEvents": 10,
+      "outboxEvents": 5
+    },
+    "factsAfterRetry": {
+      "ledgerEntries": 12,
+      "portfolioFills": 5,
+      "positions": 5,
+      "reservations": 7,
+      "brokerOrders": 5,
+      "brokerFills": 5,
+      "brokerOrderEvents": 10,
+      "outboxEvents": 5
+    },
+    "noDuplicatePortfolioFill": true
+  },
+  "pendingFillCancelEvidence": {
+    "orderId": "a5b775b4-034e-4662-aeee-63a1becf9b4e",
+    "orderBeforeCancel": "LEDGER_PENDING",
+    "cancelStatus": 404,
+    "after": {
+      "status": "LEDGER_PENDING",
+      "events": 2,
+      "fills": 1,
+      "outbox": 1
+    },
+    "unchanged": true
+  },
+  "resourceConcurrencyEvidence": {
+    "competingReservationStatuses": [
+      201,
+      409
+    ],
+    "oneReservationWon": true,
+    "unknownStatusBlockedAdditional5000": true,
+    "authoritativeReleaseAllowedReallocation": true,
+    "finalCash": "10000.0000",
+    "finalReservationStatuses": [
+      "RELEASED",
+      "RELEASED"
+    ],
+    "ledgerEntries": 1
+  },
+  "lookupUnavailableRecovery": {
+    "failedTestRunId": "07825abd-597a-461b-9ea7-17bb18e04d0e",
+    "initialTestRunStatus": "FAILED",
+    "recoveredTestRunStatus": "COMPLETED",
+    "executionRequestsForRun": 1,
+    "tradeRestartedWhileUnknown": true,
+    "unknownResume": {
+      "accepted": true,
+      "testRunId": "07825abd-597a-461b-9ea7-17bb18e04d0e",
+      "status": "UNKNOWN",
+      "executionResent": false,
+      "resourceReservation": "UNCHANGED_UNTIL_AUTHORITATIVE_QUERY"
+    },
+    "recoveryHistory": [
+      {
+        "status": "FAILED",
+        "recoveryStatus": "UNKNOWN"
+      },
+      {
+        "status": "FAILED",
+        "recoveryStatus": "UNKNOWN"
+      }
+    ],
+    "checkOnlyExitCode": 0,
+    "injectedEvents": [
+      {
+        "method": "POST",
+        "url": "/internal/v1/v24/paper-orders/execute-snapshot",
+        "status": 201,
+        "outcome": "RESPONSE_DROPPED"
+      },
+      {
+        "method": "GET",
+        "url": "/internal/v1/orders/by-client-id?namespace=v24-paper-v2-07825abd-597a-461b-9ea7-17bb18e04d0e&clientOrderId=v24-fixture-v2-07825abd-597a-461b-9ea7-17bb18e04d0e",
+        "status": 503,
+        "outcome": "LOOKUP_UNAVAILABLE"
+      },
+      {
+        "method": "GET",
+        "url": "/internal/v1/orders/by-client-id?namespace=v24-paper-v2-07825abd-597a-461b-9ea7-17bb18e04d0e&clientOrderId=v24-fixture-v2-07825abd-597a-461b-9ea7-17bb18e04d0e",
+        "status": 503,
+        "outcome": "LOOKUP_UNAVAILABLE"
+      }
+    ],
+    "restoredOriginalOrder": {
+      "order_id": "462a8d0d-e2f7-4bfc-84a1-cfe1c3f93a36",
+      "status": "FILLED",
+      "rejection_reason": null,
+      "clientOrderId": "v24-fixture-v2-07825abd-597a-461b-9ea7-17bb18e04d0e"
+    },
+    "before": {
+      "ledgerEntries": 12,
+      "portfolioFills": 5,
+      "positions": 5,
+      "reservations": 7,
+      "brokerOrders": 5,
+      "brokerFills": 5,
+      "brokerOrderEvents": 10,
+      "outboxEvents": 5
+    },
+    "after": {
+      "ledgerEntries": 14,
+      "portfolioFills": 6,
+      "positions": 6,
+      "reservations": 8,
+      "brokerOrders": 6,
+      "brokerFills": 6,
+      "brokerOrderEvents": 12,
+      "outboxEvents": 6
+    },
+    "noBlindResubmission": true
+  },
+  "terminalCancelEvidence": {
+    "orderId": "2f94dfd2-ecad-40bd-aa3f-748fa971cf4e",
+    "cancelStatus": 404,
+    "orderStatusAfterCancel": "FILLED",
+    "before": {
+      "ledgerEntries": 12,
+      "portfolioFills": 5,
+      "positions": 5,
+      "reservations": 7,
+      "brokerOrders": 5,
+      "brokerFills": 5,
+      "brokerOrderEvents": 10,
+      "outboxEvents": 5
+    },
+    "after": {
+      "ledgerEntries": 12,
+      "portfolioFills": 5,
+      "positions": 5,
+      "reservations": 7,
+      "brokerOrders": 5,
+      "brokerFills": 5,
+      "brokerOrderEvents": 10,
+      "outboxEvents": 5
+    },
+    "noSideEffects": true
+  },
+  "concurrentRunEvidence": {
+    "testRunIds": [
+      "e13507e3-f499-4f74-96a4-2d2099f14147",
+      "9666d866-6919-4178-be74-ea30098b411b"
+    ],
+    "statuses": [
+      "COMPLETED",
+      "COMPLETED"
+    ],
+    "accountIds": [
+      "f2b16dee-4719-4553-89b4-011b61269a5e",
+      "2e2891ff-e688-44b0-800b-1377a77b6190"
+    ],
+    "accountCash": [
+      "8995.0000",
+      "8995.0000"
+    ],
+    "reconciliationCounts": [
+      {
+        "orders": 1,
+        "fills": 1
+      },
+      {
+        "orders": 1,
+        "fills": 1
+      }
+    ],
+    "before": {
+      "ledgerEntries": 14,
+      "portfolioFills": 6,
+      "positions": 6,
+      "reservations": 8,
+      "brokerOrders": 6,
+      "brokerFills": 6,
+      "brokerOrderEvents": 12,
+      "outboxEvents": 6
+    },
+    "after": {
+      "ledgerEntries": 18,
+      "portfolioFills": 8,
+      "positions": 8,
+      "reservations": 10,
+      "brokerOrders": 8,
+      "brokerFills": 8,
+      "brokerOrderEvents": 16,
+      "outboxEvents": 8
+    },
+    "isolated": true
+  },
+  "tradeExecutionSnapshotIdempotency": {
+    "concurrentCalls": 2,
+    "createdOrders": 1,
+    "replayedCalls": 2,
+    "changedPayload": "409 conflict before side effects",
+    "reconnectReplay": true,
+    "persistedFacts": {
+      "orders": 1,
+      "fills": 1,
+      "events": 2,
+      "outbox": 1
+    }
+  },
+  "tradeRestartEvidence": {
+    "persistedOrderSurvivedTradeProcessRestart": true,
+    "originalCommandReplayAfterRestart": true,
+    "resultingOrderId": "a5b775b4-034e-4662-aeee-63a1becf9b4e"
+  },
+  "outboxRestartEvidence": {
+    "status": "PASS",
+    "scenario": "Portfolio commits Fill, response is lost, execution service restarts and retries durable Outbox",
+    "testRunId": "9d5d84c8-7f26-4b1f-bd49-efde80f63836",
+    "namespace": "p57-outbox-http/7dc5208f-e3e5-4fa5-b780-9a002e11d3f5",
+    "orderId": "094a1e03-64a3-4b70-a4db-997fd9970198",
+    "accountId": "e600ed17-4baa-40a2-b2b6-9e48d26bb27c",
+    "reservationId": "3e262e0c-06a5-46db-b3e6-be4756a2fee5",
+    "firstPortfolioResponseLost": true,
+    "pendingBeforeRestart": {
+      "status": "LEDGER_PENDING",
+      "outbox_status": "PENDING",
+      "attempts": 1
+    },
+    "concurrentOutboxClaims": 1,
+    "expiredLeaseTakeover": true,
+    "staleAckFenced": true,
+    "staleFailureFenced": true,
+    "recoveredOrder": "PARTIALLY_FILLED",
+    "outbox": "DELIVERED",
+    "attempts": 3,
+    "portfolioFillCount": 3,
+    "feeCorrection": {
+      "delivered": true,
+      "revision": 1,
+      "idempotentRetry": true,
+      "unauthorizedReplayRejected": true,
+      "originalFeePreserved": "1.0010",
+      "correctedFee": "2.0010"
+    },
+    "fillDuringCancel": {
+      "cancelSequenceBufferedFirst": true,
+      "cancelStateWhileGapOpen": "CANCEL_REQUESTED",
+      "gapSurvivedTradeRestart": true,
+      "reservationHeldWhileGapOpen": true,
+      "fillSequenceDrainedThrough": 2,
+      "cancelReplayIdempotent": true,
+      "simulatedCumulativeQuantity": 75,
+      "incrementalQuantity": 25,
+      "idempotentReplay": true,
+      "unauthorizedReplayRejected": true,
+      "finalOrder": "CANCELLED",
+      "portfolioFills": {
+        "fill_count": 2,
+        "total_quantity": "75"
+      },
+      "cashAfterBothFills": "8230.9685",
+      "reservation": {
+        "status": "RELEASED",
+        "captured_cash_amount": "766.0305"
+      }
+    },
+    "externalOrderReconciliation": {
+      "created": 201,
+      "idempotentReplay": 200,
+      "changedFactConflict": 409,
+      "replayWriterDenied": 403,
+      "externalOnlyOrderCount": 1,
+      "discrepancyKind": "EXTERNAL_ORDER_MISSING_LOCALLY"
+    },
+    "reservationCapture": {
+      "status": "UNKNOWN",
+      "captured_cash_amount": "1003.0010"
+    },
+    "ledgerEntryCount": 3,
+    "cash": "8996.9990",
+    "brokerMode": "FAKE"
+  },
+  "apiScenarios": [
+    {
+      "scenarioId": "normal",
+      "testRunId": "218b1d84-d723-4c84-aa0a-36dddd159918",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "scenarioId": "rejection",
+      "testRunId": "bcc98954-636e-4f3a-9e67-b6339a04b520",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V2.4-REJECTION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-REJECTION-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-REJECTION-003",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "scenarioId": "recovery",
+      "testRunId": "c87668bc-dc5f-4b45-8f98-7b5f1ef11c9b",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "scenarioId": "external-reconciliation",
+      "testRunId": "d705c7a9-38b9-4ecb-aed6-515cb4c92a23",
+      "cliExitCode": 0,
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PF05-001",
+          "status": "PASS"
+        }
+      ]
+    }
+  ],
+  "browserPlatformControlRunId": "5ef98cf3-f28e-4143-82dc-313ec5c4e908",
+  "browserScenarios": [
+    {
+      "testRunId": "3a1d630f-44c4-4294-8103-28ba85397c80",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "aaa7d3e7-3e3e-4e9f-aaa1-52fc5decee8f",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "2dca1a25-8132-49d9-a4c5-f183e88db0e8",
+      "exitCode": 0
+    },
+    {
+      "testRunId": "cd4772c8-3b93-439c-b78d-64b69f325b69",
+      "exitCode": 0
+    }
+  ],
+  "lostRecoveryResponseConfirmed": true,
+  "droppedExecutionResponseCount": 3,
+  "successfulApiAndWebRecoveryDrops": 2,
+  "webRecoveryDroppedResponseConfirmed": true,
+  "proxyFaultEvents": [
+    {
+      "method": "POST",
+      "url": "/internal/v1/v24/paper-orders/execute-snapshot",
+      "startedAt": 1790952672970,
+      "outcome": "RESPONSE_DROPPED",
+      "status": 201,
+      "elapsedMs": 44
+    },
+    {
+      "method": "POST",
+      "url": "/internal/v1/v24/paper-orders/execute-snapshot",
+      "startedAt": 1790952685430,
+      "outcome": "RESPONSE_DROPPED",
+      "status": 201,
+      "elapsedMs": 44
+    },
+    {
+      "method": "GET",
+      "url": "/internal/v1/orders/by-client-id?namespace=v24-paper-v2-07825abd-597a-461b-9ea7-17bb18e04d0e&clientOrderId=v24-fixture-v2-07825abd-597a-461b-9ea7-17bb18e04d0e",
+      "startedAt": 1790952685475,
+      "outcome": "LOOKUP_UNAVAILABLE",
+      "status": 503,
+      "elapsedMs": 0
+    },
+    {
+      "method": "GET",
+      "url": "/internal/v1/orders/by-client-id?namespace=v24-paper-v2-07825abd-597a-461b-9ea7-17bb18e04d0e&clientOrderId=v24-fixture-v2-07825abd-597a-461b-9ea7-17bb18e04d0e",
+      "startedAt": 1790952685480,
+      "outcome": "LOOKUP_UNAVAILABLE",
+      "status": 503,
+      "elapsedMs": 0
+    },
+    {
+      "method": "POST",
+      "url": "/internal/v1/v24/paper-orders/execute-snapshot",
+      "startedAt": 1790952689467,
+      "outcome": "RESPONSE_DROPPED",
+      "status": 201,
+      "elapsedMs": 38
+    },
+    {
+      "method": "GET",
+      "url": "/internal/v1/orders/by-client-id?namespace=v24-paper-v2-2dca1a25-8132-49d9-a4c5-f183e88db0e8&clientOrderId=v24-fixture-v2-2dca1a25-8132-49d9-a4c5-f183e88db0e8",
+      "startedAt": 1790952689508,
+      "outcome": "LOOKUP_UNAVAILABLE",
+      "status": 503,
+      "elapsedMs": 0
+    }
+  ],
+  "webCliReadOnlyFactCounts": {
+    "beforeWebCliChecks": {
+      "ledgerEntries": 26,
+      "portfolioFills": 11,
+      "positions": 11,
+      "reservations": 13,
+      "brokerOrders": 11,
+      "brokerFills": 11,
+      "brokerOrderEvents": 22,
+      "outboxEvents": 11
+    },
+    "afterWebCliChecks": {
+      "ledgerEntries": 26,
+      "portfolioFills": 11,
+      "positions": 11,
+      "reservations": 13,
+      "brokerOrders": 11,
+      "brokerFills": 11,
+      "brokerOrderEvents": 22,
+      "outboxEvents": 11
+    },
+    "unchanged": true
+  },
+  "temporaryDatabaseExportedBeforeCleanup": true,
+  "databaseSnapshotFiles": [
+    {
+      "path": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-v24-isolated-db-snapshots-9cddb1ae08e14a6bb0863fb4af566825/sq_v24_paper_platform_9cddb1ae08e14a6bb0863fb4af566825.json",
+      "sha256": "966a3099ad4fbf83eb48a63c7ca7092f210f381274917351d5bcc64d44d8410f",
+      "tableCount": 13,
+      "rowCount": 17
+    },
+    {
+      "path": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-v24-isolated-db-snapshots-9cddb1ae08e14a6bb0863fb4af566825/sq_v24_paper_portfolio_9cddb1ae08e14a6bb0863fb4af566825.json",
+      "sha256": "c2c921c2aa00ee6d4f3fba4f1fd9653debf9f69cab7ca2afefe4af0198a43891",
+      "tableCount": 6,
+      "rowCount": 76
+    },
+    {
+      "path": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-v24-isolated-db-snapshots-9cddb1ae08e14a6bb0863fb4af566825/sq_v24_paper_trade_9cddb1ae08e14a6bb0863fb4af566825.json",
+      "sha256": "d3656e4a27a681a31514ac66b2e3127b0f2a874783c3d8b7c1ef5564cd4d206b",
+      "tableCount": 10,
+      "rowCount": 58
+    },
+    {
+      "path": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-v24-isolated-db-snapshots-9cddb1ae08e14a6bb0863fb4af566825/sq_v24_paper_governance_9cddb1ae08e14a6bb0863fb4af566825.json",
+      "sha256": "7d497823a9547d72aaeea240aceecef76f3b260e088ff8efc018c510534ddc6d",
+      "tableCount": 1,
+      "rowCount": 13
+    }
+  ],
+  "activeServicesTouched": false,
+  "temporaryWebImageTag": "stockquant-v24-w1-web:9cddb1ae08e14a6bb0863fb4af566825",
+  "temporaryWebImageId": "sha256:8c0f605ce85902859e13301048dd4a359070bfd1167f4d180ac8ddc84333d7dc",
+  "temporaryWebContainerName": "sq-v24-w1-web-9cddb1ae08e14a6bb0863fb4af566825",
+  "temporaryWebImageRemovedAfterRun": true,
+  "temporaryWebContainerRemovedAfterRun": true
+}

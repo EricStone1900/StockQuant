@@ -1,25 +1,31 @@
 {
-  "schemaVersion": "dc08a-health-v3",
-  "capturedAt": "2026-09-25T09:46:55.903Z",
-  "status": "HEALTHY",
-  "activeSubscription": "dc08a-20260917-20-v1",
+  "schemaVersion": "dc08a-health-v6",
+  "capturedAt": "2026-10-06T11:48:24.753Z",
+  "status": "UNHEALTHY",
+  "configuredSubscriptionId": "dc08a-20260917-20-v1",
+  "subscriptions": {
+    "enabledCount": 0,
+    "expectedEnabledCount": 1
+  },
   "calendar": {
     "status": "CLOSED",
     "calendarVersion": "sse-cn-a-share-2026-1",
-    "sourceFreshnessExpected": false
+    "sourceFreshnessExpected": false,
+    "sourceFreshnessState": "MARKET_CLOSED"
   },
   "ready": {
     "status": "ready",
     "persistence": "POSTGRES",
     "scheduler": "ENABLED",
-    "executor": "ENABLED"
+    "executor": "ENABLED",
+    "sourceAuthorization": "UNKNOWN"
   },
   "scheduler": {
     "status": "ENABLED",
-    "lastSuccessfulTickAt": "2026-09-25T09:46:10.178Z",
-    "nextExecutionAt": "2026-09-28T01:37:00.000Z",
+    "lastSuccessfulTickAt": "2026-10-06T11:47:56.156Z",
+    "nextExecutionAt": null,
     "lastSubmitted": 0,
-    "tickAgeSeconds": 45.725
+    "tickAgeSeconds": 28.597
   },
   "sources": [
     {
@@ -38,12 +44,22 @@
       "enabled": true,
       "circuit": "CLOSED",
       "failures": 0,
-      "lastSuccessAt": 1790233449.1034732,
+      "lastSuccessAt": 1790751790.0561771,
       "lastFailureAt": null,
       "lastErrorCode": null
     },
     {
       "sourceId": "eastmoney",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "tdx",
       "kind": "MINUTE_BAR",
       "enabled": false,
       "circuit": "DISABLED",
@@ -59,7 +75,9 @@
   },
   "checks": {
     "recentSuccessRecorded": true,
-    "nextTriggerRecorded": true,
+    "nextTriggerRecorded": false,
+    "enabledSubscriptionCountValid": false,
+    "sourceAuthorizationAuthorized": false,
     "sourceReady": true,
     "qualityReady": true
   }

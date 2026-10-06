@@ -132,12 +132,12 @@
         "summary": "Read the exact approved candidate version for downstream simulated Mandate binding; never activates it",
         "security": [{ "ServiceBearer": [] }],
         "parameters": [
-          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "enum": ["platform-api-service", "decision-governance-service"] } },
           { "name": "versionFingerprint", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
         ],
         "responses": {
           "200": { "description": "Immutable approved Registry version; remains disabled pending Mandate", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-registry-version.schema.json" } } } },
-          "403": { "description": "Only the Platform API service may read downstream Registry versions" },
+          "403": { "description": "Only the Platform API or Decision Governance service may read downstream Registry versions" },
           "404": { "description": "Approved version fingerprint not found" }
         }
       }

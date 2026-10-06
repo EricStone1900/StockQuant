@@ -1,0 +1,1 @@
+W0 当前工作树点时快照（2026-10-03）：已记录HEAD、现存tracked与nonignored-untracked逐文件SHA-256、不可读取/缺失路径及tracked删除路径。详见[机器报告](../../evidence/audits/2026-10-03-w0-after-w4-source-gates.json)和[逐文件Manifest](../../evidence/audits/2026-10-03-w0-after-w4-source-gates.files.sha256)。本快照不表示业务阶段、观察、Ubuntu或人工验收完成。

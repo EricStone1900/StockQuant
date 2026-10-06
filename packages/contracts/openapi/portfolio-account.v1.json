@@ -13,6 +13,24 @@
         "responses": { "200": { "description": "Fill replayed idempotently", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "const": true } } } } } }, "201": { "description": "New fill posted with optional atomic reservation capture", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "const": false } } } } } }, "400": { "description": "Invalid fill" }, "403": { "description": "Caller or reservation scope rejected" }, "404": { "description": "Account not found" }, "409": { "description": "Reservation or fill conflict" } }
       }
     },
+    "/internal/v1/accounts/{accountId}/fills/{externalFillId}/fee-corrections": {
+      "post": {
+        "operationId": "correctAccountFillFee",
+        "summary": "Append a versioned fee correction and matching cash ledger adjustment without mutating the original fill facts",
+        "parameters": [
+          { "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "externalFillId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/fill-fee-correction-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "New correction or idempotent replay; replayed indicates which", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshot", "replayed"], "properties": { "snapshot": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" }, "replayed": { "type": "boolean" } } } } } },
+          "400": { "description": "Invalid correction values or evidence" },
+          "403": { "description": "Caller or account scope rejected" },
+          "404": { "description": "Account or original fill not found" },
+          "409": { "description": "Stale revision, previous fee mismatch, or conflicting duplicate correction" }
+        }
+      }
+    },
     "/internal/v1/accounts/initialize": {
       "post": {
         "operationId": "initializeAccount",

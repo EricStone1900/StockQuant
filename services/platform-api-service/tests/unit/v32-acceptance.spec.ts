@@ -5,7 +5,7 @@ import { V32AcceptanceController } from "../../src/bootstrap/app.module.js";
 const id = "123e4567-e89b-42d3-a456-426614174010";
 const sourceRunId = "123e4567-e89b-42d3-a456-426614174011";
 function controller() {
-  return new V32AcceptanceController({ quantResearchHeaders: () => ({ "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${"p".repeat(40)}` }), portfolioHeaders: (extra = {}) => ({ ...extra, "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${"p".repeat(40)}` }), stageRuns: { find: vi.fn(async () => ({ testRunId: sourceRunId, stageId: "V3.1", scenarioId: "normal" })), getV31PromotionGate: vi.fn(async () => ({ stageStatus: "PASS", humanAcceptance: "ACCEPTED" })) } } as never);
+  return new V32AcceptanceController({ governanceUrl: "http://governance.test", portfolioToken: "p".repeat(40), quantResearchHeaders: () => ({ "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${"p".repeat(40)}` }), portfolioHeaders: (extra = {}) => ({ ...extra, "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${"p".repeat(40)}` }), stageRuns: { find: vi.fn(async () => ({ testRunId: sourceRunId, stageId: "V3.1", scenarioId: "normal" })), getV31PromotionGate: vi.fn(async () => ({ stageStatus: "PASS", humanAcceptance: "ACCEPTED" })) } } as never);
 }
 
 describe("V3.2 read-only evidence proxy", () => {

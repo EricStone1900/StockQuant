@@ -25,7 +25,8 @@ function sourceRows(kind) {
       const slot = ordinal % 48;
       const minuteOfDay = slot < 24 ? 570 + slot * 5 : 780 + (slot - 24) * 5;
       const hhmm = `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}${String(minuteOfDay % 60).padStart(2, "0")}`;
-      values.push(`${String(600000 + security).padStart(6, "0")}.SH,${dates[Math.floor(ordinal / 48)]}${hhmm}00000,10,9,10,10.1,100,1000`);
+      const prices = kind === "valid" ? "10,10.2,9.9,10.1" : "10,9,10,10.1";
+      values.push(`${String(600000 + security).padStart(6, "0")}.SH,${dates[Math.floor(ordinal / 48)]}${hhmm}00000,${prices},100,1000`);
     }
   }
   return Buffer.from(`securityId,timestamp,open,high,low,close,volume,amount\n${values.join("\n")}\n`);
@@ -33,7 +34,7 @@ function sourceRows(kind) {
 
 if (process.argv[2] === "--case") {
   const kind = process.argv[3];
-  assert.ok(["duplicate", "invalid"].includes(kind));
+  assert.ok(["duplicate", "invalid", "valid"].includes(kind));
   const suffix = randomUUID().replaceAll("-", "");
   const database = `sq_md_error_${suffix}`;
   const testUrl = new URL(ADMIN); testUrl.pathname = `/${database}`; testUrl.username = "market_data_test";
@@ -76,25 +77,37 @@ if (process.argv[2] === "--case") {
       assert.equal(busy.length, 1); assert.equal(busy[0].body.code, "MINUTE_IMPORT_BUSY"); assert.equal(busy[0].retryAfter, "1");
       return accepted[0];
     }); const preview = previewSample.value;
-    assert.equal(preview.status, 200); assert.equal(preview.body.totalRows, ROWS); assert.equal(preview.body.acceptedRows, 0); assert.equal(preview.body.errors.length, ROWS); assert.equal(preview.body.bars.length, 0); assert.equal(preview.body.barsTruncated, false);
-    const expectedError = kind === "duplicate" ? "DUPLICATE_CONFLICT" : "OHLC_INVALID";
-    assert.ok(preview.body.errors.every(error => error.code === expectedError));
+    assert.equal(preview.status, 200); assert.equal(preview.body.totalRows, ROWS);
+    if (kind === "valid") {
+      assert.equal(preview.body.acceptedRows, ROWS); assert.equal(preview.body.errors.length, 0); assert.equal(preview.body.bars.length, 100); assert.equal(preview.body.barsTruncated, true);
+    } else {
+      assert.equal(preview.body.acceptedRows, 0); assert.equal(preview.body.errors.length, ROWS); assert.equal(preview.body.bars.length, 0); assert.equal(preview.body.barsTruncated, false);
+      const expectedError = kind === "duplicate" ? "DUPLICATE_CONFLICT" : "OHLC_INVALID";
+      assert.ok(preview.body.errors.every(error => error.code === expectedError));
+    }
     const finalizeSample = await samplePeak(async () => {
       const outcomes = await Promise.all([request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", body: {} }), request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", body: {} })]);
-      const rejected = outcomes.filter(result => result.status === 422); const busy = outcomes.filter(result => result.status === 429);
-      assert.equal(rejected.length, 1); assert.equal(busy.length, 1); assert.equal(busy[0].body.code, "MINUTE_IMPORT_BUSY");
-      return rejected[0];
+      const expectedHttpStatus = kind === "valid" ? 201 : 422;
+      const completed = outcomes.filter(result => result.status === expectedHttpStatus); const busy = outcomes.filter(result => result.status === 429);
+      assert.equal(completed.length, 1); assert.equal(busy.length, 1); assert.equal(busy[0].body.code, "MINUTE_IMPORT_BUSY");
+      return completed[0];
     }); const finalize = finalizeSample.value;
-    assert.equal(finalize.status, 422); assert.equal(finalize.body.status, "REJECTED"); assert.equal(finalize.body.accepted, 0); assert.equal(finalize.body.errors.length, ROWS); assert.equal(finalize.body.sha256, sourceHash);
-    const completedRetry = await request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", body: {} }); assert.equal(completedRetry.status, 200); assert.equal(completedRetry.body.status, "REJECTED"); assert.equal(completedRetry.body.idempotent, true, "a retry after 429 returns the durable rejected result");
-    const upload = await db.query("SELECT status,completed_result FROM market_data_minute_uploads WHERE upload_id=$1", [uploadId]); assert.equal(upload.rowCount, 1); assert.equal(upload.rows[0].status, "COMPLETED"); assert.equal(upload.rows[0].completed_result.status, "REJECTED");
-    const imported = await db.query("SELECT status,accepted,jsonb_array_length(errors) AS errors FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName'=$1", [provenance.sourceName]); assert.equal(imported.rowCount, 1); assert.equal(imported.rows[0].status, "REJECTED"); assert.equal(imported.rows[0].accepted, 0); assert.equal(imported.rows[0].errors, ROWS);
-    const bars = await db.query("SELECT count(*)::integer AS count FROM market_data_minute_import_bars_by_day"); assert.equal(bars.rows[0].count, 0);
+    const expectedStatus = kind === "valid" ? "PUBLISHED" : "REJECTED";
+    assert.equal(finalize.status, kind === "valid" ? 201 : 422); assert.equal(finalize.body.status, expectedStatus); assert.equal(finalize.body.accepted, kind === "valid" ? ROWS : 0); assert.equal(finalize.body.errors.length, kind === "valid" ? 0 : ROWS); assert.equal(finalize.body.sha256, sourceHash);
+    const completedRetry = await request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", body: {} }); assert.equal(completedRetry.status, 200); assert.equal(completedRetry.body.status, expectedStatus); assert.equal(completedRetry.body.idempotent, true, "a retry returns the durable import result");
+    const upload = await db.query("SELECT status,completed_result FROM market_data_minute_uploads WHERE upload_id=$1", [uploadId]); assert.equal(upload.rowCount, 1); assert.equal(upload.rows[0].status, "COMPLETED"); assert.equal(upload.rows[0].completed_result.status, expectedStatus);
+    const imported = await db.query("SELECT version,status,accepted,jsonb_array_length(errors) AS errors FROM market_data_minute_imports WHERE import_manifest->'provenance'->>'sourceName'=$1", [provenance.sourceName]); assert.equal(imported.rowCount, 1); assert.equal(imported.rows[0].status, expectedStatus); assert.equal(imported.rows[0].accepted, kind === "valid" ? ROWS : 0); assert.equal(imported.rows[0].errors, kind === "valid" ? 0 : ROWS);
+    const bars = await db.query("SELECT count(*)::integer AS count,count(DISTINCT security_id)::integer AS securities,count(DISTINCT (bar_start AT TIME ZONE 'Asia/Shanghai')::date)::integer AS days,count(DISTINCT (security_id,bar_start))::integer AS unique_keys FROM market_data_minute_import_bars_by_day WHERE version=$1", [imported.rows[0].version]);
+    if (kind === "valid") {
+      assert.deepEqual(bars.rows[0], { count: ROWS, securities: 500, days: 5, unique_keys: ROWS });
+      const perSecurity = await db.query("SELECT min(row_count)::integer AS minimum,max(row_count)::integer AS maximum FROM (SELECT count(*) AS row_count FROM market_data_minute_import_bars_by_day WHERE version=$1 GROUP BY security_id) counts", [imported.rows[0].version]);
+      assert.deepEqual(perSecurity.rows[0], { minimum: 200, maximum: 200 });
+    } else assert.equal(bars.rows[0].count, 0);
     await stop();
     assert.ok(peakRssKiB <= 768 * 1024, `HTTP parser worker must stay below 768 MiB RSS, observed ${Math.round(peakRssKiB / 1024)} MiB`);
     const containerMemoryPeakKiB = process.platform === "linux" ? Number(readFileSync("/sys/fs/cgroup/memory.peak", "utf8").trim()) / 1024 : null;
     if (containerMemoryPeakKiB !== null) assert.ok(containerMemoryPeakKiB <= 2 * 1024 * 1024, `container memory peak must stay below 2 GiB, observed ${Math.round(containerMemoryPeakKiB / 1024)} MiB`);
-    console.log(JSON.stringify({ kind, status: "PASS", rows: ROWS, errors: ROWS, uploadBytes: bytes.length, chunks: chunkCount, peakServiceRssKiB: peakRssKiB, containerMemoryPeakKiB, previewPeakRssKiB: previewSample.peakRssKiB, finalizePeakRssKiB: finalizeSample.peakRssKiB, rejectedRecordPersisted: true, publishedBars: bars.rows[0].count, sourceSha256: sourceHash, externalCalls: 0, brokerCalls: 0, isolatedDatabase: database }));
+    console.log(JSON.stringify({ kind, status: "PASS", rows: ROWS, errors: kind === "valid" ? 0 : ROWS, uploadBytes: bytes.length, chunks: chunkCount, peakServiceRssKiB: peakRssKiB, containerMemoryPeakKiB, previewPeakRssKiB: previewSample.peakRssKiB, finalizePeakRssKiB: finalizeSample.peakRssKiB, persistedStatus: expectedStatus, publishedBars: bars.rows[0].count, sourceSha256: sourceHash, externalCalls: 0, brokerCalls: 0, isolatedDatabase: database }));
   } finally {
     await stop(); await db.end().catch(() => undefined);
     if (created) { await admin.query(`DROP DATABASE "${database}" WITH (FORCE)`); const remaining = await admin.query("SELECT 1 FROM pg_database WHERE datname=$1", [database]); assert.equal(remaining.rowCount, 0); }
@@ -105,7 +118,7 @@ if (process.argv[2] === "--case") {
   assert.equal(adminUrl.pathname, "/postgres");
   assert.ok((adminUrl.hostname === "127.0.0.1" && adminUrl.port === "5433") || (adminUrl.hostname === "postgres" && adminUrl.port === "5432"), "test admin URL must target the local test PostgreSQL endpoint");
   const reports = [];
-  for (const kind of ["duplicate", "invalid"]) {
+  for (const kind of ["duplicate", "invalid", "valid"]) {
     const child = spawnSync(process.execPath, [script, "--case", kind], { encoding: "utf8", timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
     assert.equal(child.status, 0, child.stderr || child.stdout || `${kind} HTTP capacity case failed`);
     reports.push(JSON.parse(child.stdout.trim()));

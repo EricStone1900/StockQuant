@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/source-inventory-v1.schema.json",
+  "title": "MarketDataSourceInventory",
+  "type": "object",
+  "required": ["sources", "checkedAt"],
+  "properties": {
+    "sources": {"type": "array", "items": {"type": "object", "required": ["sourceId", "kind", "status", "circuit"], "properties": {"sourceId": {"type": "string"}, "kind": {"enum": ["QUOTE", "NEWS"]}, "url": {"type": "string"}, "status": {"type": "string"}, "license": {"type": "string"}, "circuit": {"type": "string"}}, "additionalProperties": true}},
+    "checkedAt": {"type": "string", "format": "date-time"},
+    "note": {"type": "string"}
+  },
+  "additionalProperties": true
+}

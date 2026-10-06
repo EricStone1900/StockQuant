@@ -51,6 +51,12 @@ try {
   const authenticatedLegacyFixture = await fetch(`${base}/v1/fixtures/normal/preview`, { headers: { authorization: `Bearer ${token}` } });
   const unauthenticatedArtifactPublish = await fetch(`${base}/v1/artifacts/normal/publish`, { method: "POST" });
   const authenticatedArtifactPublish = await fetch(`${base}/v1/artifacts/normal/publish`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  const unauthenticatedArtifactTaskCreate = await fetch(`${base}/v1/artifacts/tasks`, { method: "POST" });
+  const authenticatedArtifactTaskCreate = await fetch(`${base}/v1/artifacts/tasks`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  const unauthenticatedArtifactTaskRead = await fetch(`${base}/v1/artifacts/tasks/missing-task`);
+  const authenticatedArtifactTaskRead = await fetch(`${base}/v1/artifacts/tasks/missing-task`, { headers: { authorization: `Bearer ${token}` } });
+  const unauthenticatedArtifactTaskCancel = await fetch(`${base}/v1/artifacts/tasks/missing-task/cancel`, { method: "POST" });
+  const authenticatedArtifactTaskCancel = await fetch(`${base}/v1/artifacts/tasks/missing-task/cancel`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
   const unauthenticatedMinuteQuality = await fetch(`${base}/v2/minute/quality`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
   const authenticatedMinuteQuality = await fetch(`${base}/v2/minute/quality`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({}) });
   const unauthenticatedMinuteCoverage = await fetch(`${base}/v2/minute/coverage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
@@ -72,6 +78,9 @@ try {
   const unauthenticatedWatchlistWrite = await fetch(`${base}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ securities: ["000001.SZ"] }) });
   const changedWatchlist = await fetch(`${base}/v2/watchlist`, { method: "PUT", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ securities: ["000001.SZ"] }) });
   const unauthenticatedQuote = await fetch(`${base}/v2/quote/preview`);
+  const unauthorizedQuote = await fetch(`${base}/v2/quote/preview`, { headers: { authorization: `Bearer ${token}` } });
+  const unauthorizedNews = await fetch(`${base}/v2/news/live`, { headers: { authorization: `Bearer ${token}` } });
+  const unauthorizedSourceSmoke = await fetch(`${base}/v2/sources/smoke`, { headers: { authorization: `Bearer ${token}` } });
   const unauthenticatedBreaker = await fetch(`${base}/v2/sources/tencent-quote/fail`, { method: "POST" });
   const authenticatedBreaker = await fetch(`${base}/v2/sources/tencent-quote/fail`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
   const breakerReset = await fetch(`${base}/v2/sources/tencent-quote/recover`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
@@ -92,6 +101,12 @@ try {
   assert.equal(authenticatedLegacyFixture.status, 200);
   assert.equal(unauthenticatedArtifactPublish.status, 401);
   assert.equal(authenticatedArtifactPublish.status, 200);
+  assert.equal(unauthenticatedArtifactTaskCreate.status, 401);
+  assert.equal(authenticatedArtifactTaskCreate.status, 503, "artifact task creation fails closed without PostgreSQL persistence");
+  assert.equal(unauthenticatedArtifactTaskRead.status, 401);
+  assert.equal(authenticatedArtifactTaskRead.status, 503, "artifact task reads fail closed without PostgreSQL persistence");
+  assert.equal(unauthenticatedArtifactTaskCancel.status, 401);
+  assert.equal(authenticatedArtifactTaskCancel.status, 503, "artifact task cancellation fails closed without PostgreSQL persistence");
   assert.equal(unauthenticatedMinuteQuality.status, 401);
   assert.equal(authenticatedMinuteQuality.status, 422, "authorized quality requests reach the input validator");
   assert.equal(unauthenticatedMinuteCoverage.status, 401);
@@ -112,6 +127,10 @@ try {
   assert.equal(unauthenticatedWatchlistWrite.status, 401);
   assert.equal(changedWatchlist.status, 200);
   assert.equal(unauthenticatedQuote.status, 401, "external quote collection must not run before service authentication");
+  assert.equal(unauthorizedQuote.status, 403, "authenticated quote access still requires source-use authorization");
+  assert.equal(unauthorizedNews.status, 403, "authenticated news access still requires source-use authorization");
+  assert.equal(unauthorizedSourceSmoke.status, 403, "provider probes require source-use authorization");
+  assert.equal((await unauthorizedSourceSmoke.json()).externalRequests, 0, "unauthorized smoke must perform no provider requests");
   assert.equal(unauthenticatedBreaker.status, 401);
   assert.equal(authenticatedBreaker.status, 200);
   assert.equal(breakerReset.status, 200);
@@ -179,7 +198,7 @@ try {
     assert.equal(serviceBearerOnly.status, 401, `${method} ${route} requires project credentials; a Platform service identity is not a project token`);
     projectClaimResults.push({ method, path: route, forgedProjectClaims: forged.status, platformBearerOnly: serviceBearerOnly.status });
   }
-  process.stdout.write(`${JSON.stringify({ missingBearer: missing.status, forgedBearer: forged.status, wrongService: wrongIdentity.status, bearerOnlyPlatformIdentity: bearerOnly.status, validPlatformIdentity: acceptedIdentity.status, unauthenticatedImportRead: unauthedImportRead.status, bearerOnlyImportRead: bearerOnlyImportRead.status, unauthenticatedFixtureWrite: unauthedFixtureWrite.status, bearerOnlyFixtureWrite: bearerOnlyFixtureWrite.status, unauthenticatedMinutePreview: unauthenticatedMinutePreview.status, authenticatedMinutePreview: authenticatedMinutePreview.status, unauthenticatedLegacyFixture: unauthenticatedLegacyFixture.status, authenticatedLegacyFixture: authenticatedLegacyFixture.status, unauthenticatedArtifactPublish: unauthenticatedArtifactPublish.status, authenticatedArtifactPublish: authenticatedArtifactPublish.status, unauthenticatedMinuteQuality: unauthenticatedMinuteQuality.status, authenticatedMinuteQuality: authenticatedMinuteQuality.status, unauthenticatedMinuteCoverage: unauthenticatedMinuteCoverage.status, authenticatedMinuteCoverage: authenticatedMinuteCoverage.status, unauthenticatedGapWrite: unauthenticatedGapWrite.status, controlledGapWrite: controlledGapWrite.status, unauthenticatedSources: unauthenticatedSources.status, bearerSources: bearerSources.status, unauthenticatedSampling: unauthenticatedSampling.status, bearerSampling: bearerSampling.status, unauthenticatedSamplingChange: unauthenticatedSamplingChange.status, authenticatedSamplingChange: authenticatedSamplingChange.status, restoredSampling: restoredSampling.status, unauthenticatedNewsPreview: unauthenticatedNewsPreview.status, bearerNewsPreview: bearerNewsPreview.status, unauthenticatedWatchlist: unauthenticatedWatchlist.status, bearerWatchlist: bearerWatchlist.status, unauthenticatedWatchlistWrite: unauthenticatedWatchlistWrite.status, bearerWatchlistWrite: changedWatchlist.status, unauthenticatedQuote: unauthenticatedQuote.status, unauthenticatedBreaker: unauthenticatedBreaker.status, bearerBreaker: authenticatedBreaker.status, breakerReset: breakerReset.status, watchlistRestored: restoredWatchlist.status, protectedCollectionReads: collectionReadResults, protectedRouteMatrix: routeMatrixResults, projectClaimMatrix: projectClaimResults, unrelatedCalendar: unrelated.status })}\n`);
+  process.stdout.write(`${JSON.stringify({ missingBearer: missing.status, forgedBearer: forged.status, wrongService: wrongIdentity.status, bearerOnlyPlatformIdentity: bearerOnly.status, validPlatformIdentity: acceptedIdentity.status, unauthenticatedImportRead: unauthedImportRead.status, bearerOnlyImportRead: bearerOnlyImportRead.status, unauthenticatedFixtureWrite: unauthedFixtureWrite.status, bearerOnlyFixtureWrite: bearerOnlyFixtureWrite.status, unauthenticatedMinutePreview: unauthenticatedMinutePreview.status, authenticatedMinutePreview: authenticatedMinutePreview.status, unauthenticatedLegacyFixture: unauthenticatedLegacyFixture.status, authenticatedLegacyFixture: authenticatedLegacyFixture.status, unauthenticatedArtifactPublish: unauthenticatedArtifactPublish.status, authenticatedArtifactPublish: authenticatedArtifactPublish.status, unauthenticatedMinuteQuality: unauthenticatedMinuteQuality.status, authenticatedMinuteQuality: authenticatedMinuteQuality.status, unauthenticatedMinuteCoverage: unauthenticatedMinuteCoverage.status, authenticatedMinuteCoverage: authenticatedMinuteCoverage.status, unauthenticatedGapWrite: unauthenticatedGapWrite.status, controlledGapWrite: controlledGapWrite.status, unauthenticatedSources: unauthenticatedSources.status, bearerSources: bearerSources.status, unauthenticatedSampling: unauthenticatedSampling.status, bearerSampling: bearerSampling.status, unauthenticatedSamplingChange: unauthenticatedSamplingChange.status, authenticatedSamplingChange: authenticatedSamplingChange.status, restoredSampling: restoredSampling.status, unauthenticatedNewsPreview: unauthenticatedNewsPreview.status, bearerNewsPreview: bearerNewsPreview.status, unauthorizedQuote: unauthorizedQuote.status, unauthorizedNews: unauthorizedNews.status, unauthorizedSourceSmoke: unauthorizedSourceSmoke.status, unauthorizedSourceRequests: 0, unauthenticatedWatchlist: unauthenticatedWatchlist.status, bearerWatchlist: bearerWatchlist.status, unauthenticatedWatchlistWrite: unauthenticatedWatchlistWrite.status, bearerWatchlistWrite: changedWatchlist.status, unauthenticatedQuote: unauthenticatedQuote.status, unauthenticatedBreaker: unauthenticatedBreaker.status, bearerBreaker: authenticatedBreaker.status, breakerReset: breakerReset.status, watchlistRestored: restoredWatchlist.status, protectedCollectionReads: collectionReadResults, protectedRouteMatrix: routeMatrixResults, projectClaimMatrix: projectClaimResults, unrelatedCalendar: unrelated.status })}\n`);
 } finally {
   clearTimeout(timeout);
   if (child.exitCode === null) {

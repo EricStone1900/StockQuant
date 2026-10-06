@@ -1,0 +1,73 @@
+{
+  "auditId": "W7-V33-PAPER-CONTINUITY-PREFLIGHT-2026-10-03",
+  "capturedAt": "2026-10-03",
+  "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+  "exitCode": 0,
+  "suiteStatus": "PASS",
+  "preflightBehavior": "Read-only scheduler and O2 snapshot persisted on WAITING readiness TestRun; freshness capture uses the injected Paper scheduler Clock; continuity remains NOT_VERIFIED under every preflight outcome.",
+  "checks": {
+    "researchAutomationUnit": {
+      "passed": 216,
+      "failed": 0
+    },
+    "researchAutomationPostgresIntegration": {
+      "passed": 29,
+      "failed": 0
+    },
+    "platformUnit": {
+      "passed": 173,
+      "failed": 0
+    },
+    "platformPostgresIntegration": {
+      "passed": 6,
+      "failed": 0
+    },
+    "webE2E": {
+      "passed": 3,
+      "failed": 0
+    },
+    "runnerHostRecovery": "PASS; deterministic fixture runner, 2 rounds, SIGKILL/lease takeover, persisted checkpoints and stale-fence rejection",
+    "budgetCapacity": "PASS; isolated hot-cache PostgreSQL microbenchmark, 66,100 synthetic experiments; not production capacity evidence",
+    "contractsAndBaseline": "PASS; 26 baseline tests; contract generation/drift and local links clear"
+  },
+  "sideEffects": {
+    "marketProviderCalls": 0,
+    "modelProviderCalls": 0,
+    "paperCalls": 0,
+    "brokerCalls": 0,
+    "readinessRunDispatch": "NOT_PERFORMED"
+  },
+  "planStatus": {
+    "businessWorkflow": "NOT_IMPLEMENTED",
+    "paperContinuity": "NOT_CHECKED",
+    "businessValidation": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN",
+    "stageAcceptance": "NOT_RUN"
+  },
+  "authorization": {
+    "tradeMode": "NO_TRADE",
+    "marketSourceAuthorization": "NONE"
+  },
+  "limitations": [
+    "Fixture recovery does not prove real RD-Agent behavior, Ubuntu deployment, production capacity, or concurrent Paper continuity.",
+    "No authorized market-source collection or Paper workflow was run."
+  ],
+  "rawLog": "evidence/audits/2026-10-03-w7-v33-paper-preflight-full-suite.log",
+  "rawLogSha256": "feac269f84fe6375086d40c479538075aa772b8b28563c292d1fec4a1f147dea",
+  "sourceSha256": {
+    "services/platform-api-service/src/application/v33-paper-continuity.ts": "9dba458c82d119644f5c073e2170046f3f1b069f8c668c8b68966f7cb7d00e97",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "d15a27a2e2ab34098ccd7406fc564c970cfb9e3605e2fc6020ce2a836bdf0003",
+    "services/platform-api-service/tests/unit/v33-paper-continuity.spec.ts": "253a54ed4795ea4f2dc6dcff19179bcba7ba02156499ea37735db015fc916ea2",
+    "services/platform-api-service/tests/unit/v33-runner-queue.spec.ts": "6c7607dde2dae712e7c7591cdaa86ab86a82cc45a14fa2a7e9ef49dc420da384",
+    "packages/contracts/research/v3.3-readiness-run.schema.json": "ae56c3fece913fbe4d68eab9037ebf75e9bdff7bc6c00f75693ee1ae2e69e14c",
+    "services/platform-api-service/src/contracts/generated-types.ts": "82edf52b4e536d5e2605d730a296b217c41f71091f8f7b713df577547f62b752",
+    "apps/web/tests/e2e/v33-research-queue.spec.ts": "16ce41d684cc39842553181afc35ab7b58fcd63034e341328f838618c5ac5503"
+  },
+  "webPreflightEvidenceE2E": {
+    "status": "PASS",
+    "passed": 3,
+    "failed": 0,
+    "log": "evidence/audits/2026-10-03-w7-v33-paper-preflight-web-e2e.log",
+    "logSha256": "622e015fafebd7e2273f4c1884eb16cc4960c1565d1f13d1dc3b4467894ec748"
+  }
+}

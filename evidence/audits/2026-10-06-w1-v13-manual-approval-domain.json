@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "stockquant-w1-v13-current-code-boundary-v1",
+  "date": "2026-10-06",
+  "status": "PASS",
+  "scope": "WAITING_API_CONTRACT_AND_PURE_MANUAL_PROPOSAL_DECISION_DOMAIN",
+  "checks": {
+    "governanceUnitTests": { "status": "PASS", "files": 7, "tests": 31, "log": "2026-10-06-w1-v13-manual-approval-domain-unit.log" },
+    "governanceTypecheck": { "status": "PASS", "log": "2026-10-06-w1-v13-manual-approval-domain-typecheck.log" },
+    "markdownLinks": { "status": "PASS", "links": 4647, "failures": 0, "log": "2026-10-06-w1-v13-manual-approval-domain-docs-check.log" },
+    "v13ContractSlice": { "status": "PASS", "audit": "2026-10-06-w1-v13-contract-boundary.json", "manifestStatus": "HISTORICAL_POINT_IN_TIME" },
+    "diffCheck": { "status": "PASS", "log": "2026-10-06-w1-v13-manual-approval-domain-diff-check.log" }
+  },
+  "implemented": [
+    "pending proposal state check",
+    "expected version and content hash check",
+    "injected run-clock expiry check",
+    "PAPER/FAKE mode check",
+    "explicit actor and reason",
+    "HOLD empty-leg and REBALANCE leg invariants",
+    "manual approval or rejection decision result"
+  ],
+  "notImplemented": [
+    "proposal persistence and repository",
+    "user identity/session authorization binding",
+    "HTTP API",
+    "risk re-evaluation",
+    "Mandate and short-lived execution authorization",
+    "budget/resource reservation",
+    "Trade Execution, Portfolio, FakeBroker integration",
+    "Web workflow and V1.3 acceptance"
+  ],
+  "businessOperations": { "paper": 0, "broker": 0, "provider": 0, "collection": 0 },
+  "stageAcceptance": "NOT_ACCEPTED",
+  "userSignOff": "NOT_RUN"
+}

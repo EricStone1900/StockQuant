@@ -3,6 +3,23 @@
   "info": { "title": "StockQuant Research Automation V3.2 submission coordination API", "version": "v1" },
   "servers": [{ "url": "http://research-automation-service:3008" }],
   "paths": {
+    "/v1/promotions/prepare": {
+      "post": {
+        "operationId": "preparePromotionRequestEvidence",
+        "summary": "Assemble a persisted PromotionRequest from completed experiment evidence without submitting to Quant or changing Registry state",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-submit-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "PromotionRequest evidence is ready for the authoritative V3.1 gate check", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-prepare-result.schema.json" } } } },
+          "202": { "description": "PromotionRequest evidence is incomplete and remains waiting", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-prepare-result.schema.json" } } } },
+          "401": { "description": "Authenticated platform service identity is required" },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "422": { "description": "Only valid testRunId and experimentId UUIDs are accepted" },
+          "503": { "description": "PostgreSQL-backed experiment and artifact evidence stores are unavailable" }
+        }
+      }
+    },
     "/v1/promotions/{promotionRequestId}/candidate-artifact": {
       "get": {
         "operationId": "readSubmittedCandidateArtifactForIndependentValidation",

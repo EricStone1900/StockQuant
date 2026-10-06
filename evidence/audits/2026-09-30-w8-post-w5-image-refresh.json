@@ -1,0 +1,244 @@
+{
+  "schemaVersion": "stockquant.w8-current-amd64-refresh.v1",
+  "capturedAt": "2026-09-30T14:14:36.680Z",
+  "buildProject": "stockquant-w8-20260930-post-w5-refresh",
+  "buildCommands": [
+    "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --progress plain -p stockquant-w8-20260930-post-w5-refresh -f infra/compose/docker-compose.yml --env-file .env.example build",
+    "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --progress plain --profile web -p stockquant-w8-20260930-post-w5-refresh -f infra/compose/docker-compose.yml --env-file .env.example build web"
+  ],
+  "hostArchitecture": "arm64",
+  "targetArchitecture": "linux/amd64",
+  "emulation": true,
+  "containerStarted": false,
+  "activeResourcesTouched": false,
+  "images": [
+    {
+      "service": "platform-api-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-platform-api-service:latest",
+      "imageId": "sha256:15fcf25c09c604e529c471f3c180de2a505d8b06cb690e9e23e7edb8beacfcf7",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 577018284,
+      "exposedPorts": [
+        "3000/tcp"
+      ]
+    },
+    {
+      "service": "market-data-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-market-data-service:latest",
+      "imageId": "sha256:beb8c5b3b785557412ac3250adb01fc7abb323c200752ffa8501fec60f5867a0",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 1016041663,
+      "exposedPorts": []
+    },
+    {
+      "service": "portfolio-risk-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-portfolio-risk-service:latest",
+      "imageId": "sha256:bbc1718f6eed8369062a18ffe916b5935ed8d26481e375baff91d9d730d657c4",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 506121374,
+      "exposedPorts": [
+        "3001/tcp"
+      ]
+    },
+    {
+      "service": "trade-execution-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-trade-execution-service:latest",
+      "imageId": "sha256:46d78b58540f4f88eccc6802c0d5a0e5ff02804df01ecd24fd9ef177efc96510",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253803827,
+      "exposedPorts": [
+        "3005/tcp"
+      ]
+    },
+    {
+      "service": "decision-governance-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-decision-governance-service:latest",
+      "imageId": "sha256:adc8df619d698b35954f06a2656d85ea7ee5fbffb2a0ad93a572a2366c39bb73",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253765391,
+      "exposedPorts": []
+    },
+    {
+      "service": "historical-replay-worker",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-historical-replay-worker:latest",
+      "imageId": "sha256:e7c3ae9ea11ffdf39c6faa151d7a52295903200359d91b5e1c9ebe037dfa2694",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253773919,
+      "exposedPorts": [
+        "3006/tcp"
+      ]
+    },
+    {
+      "service": "quant-research-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-quant-research-service:latest",
+      "imageId": "sha256:02760f28d23ffaf8aa5610f0a1d4da52aeaab00835aeaad0151dea6a4d3a5d72",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 535904176,
+      "exposedPorts": []
+    },
+    {
+      "service": "research-automation-service",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-research-automation-service:latest",
+      "imageId": "sha256:ee910c7b73b39387a8a8b424b8620dd2ef9537fb504e844580e67aef0e464241",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 188765388,
+      "exposedPorts": []
+    },
+    {
+      "service": "web",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-web:latest",
+      "imageId": "sha256:5035e70f5de7532cae1bfacabd88c5c98e02b5de4c6210421949004c1b4fb939",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 506350760,
+      "exposedPorts": [
+        "8080/tcp"
+      ]
+    },
+    {
+      "service": "qlib-worker",
+      "tag": "stockquant-w8-20260930-post-w5-refresh-qlib-worker:latest",
+      "imageId": "sha256:bc39699eb56de3ae2ae771e5ddfe3378dbcf9ceae930684cb30126ef9d3f54ff",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "10001:10001",
+      "sizeBytes": 1393222451,
+      "exposedPorts": []
+    }
+  ],
+  "boundarySmoke": {
+    "status": "PASS",
+    "target": "linux/amd64 (Mac M1 emulation)",
+    "checks": 10,
+    "results": [
+      {
+        "service": "platform-api-service",
+        "imageId": "sha256:15fcf25c09c604e529c471f3c180de2a505d8b06cb690e9e23e7edb8beacfcf7",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/platform-api-service/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "market-data-service",
+        "imageId": "sha256:beb8c5b3b785557412ac3250adb01fc7abb323c200752ffa8501fec60f5867a0",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "persistentVolumeWritable": true,
+          "rootFilesystemReadOnly": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "portfolio-risk-service",
+        "imageId": "sha256:bbc1718f6eed8369062a18ffe916b5935ed8d26481e375baff91d9d730d657c4",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/portfolio-risk-service/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "trade-execution-service",
+        "imageId": "sha256:46d78b58540f4f88eccc6802c0d5a0e5ff02804df01ecd24fd9ef177efc96510",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/trade-execution-service/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "decision-governance-service",
+        "imageId": "sha256:adc8df619d698b35954f06a2656d85ea7ee5fbffb2a0ad93a572a2366c39bb73",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/decision-governance-service/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "historical-replay-worker",
+        "imageId": "sha256:e7c3ae9ea11ffdf39c6faa151d7a52295903200359d91b5e1c9ebe037dfa2694",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/historical-replay-worker/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "quant-research-service",
+        "imageId": "sha256:02760f28d23ffaf8aa5610f0a1d4da52aeaab00835aeaad0151dea6a4d3a5d72",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/quant-research-service/dist/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "research-automation-service",
+        "imageId": "sha256:ee910c7b73b39387a8a8b424b8620dd2ef9537fb504e844580e67aef0e464241",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "services/research-automation-service/dist/bootstrap/main.js",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "web",
+        "imageId": "sha256:5035e70f5de7532cae1bfacabd88c5c98e02b5de4c6210421949004c1b4fb939",
+        "user": "node",
+        "result": {
+          "uid": 1000,
+          "bundle": "apps/web/dist/index.html",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      },
+      {
+        "service": "qlib-worker",
+        "imageId": "sha256:bc39699eb56de3ae2ae771e5ddfe3378dbcf9ceae930684cb30126ef9d3f54ff",
+        "user": "10001:10001",
+        "result": {
+          "uid": 10001,
+          "qlib": "0.9.6",
+          "lightgbm": "4.7.0",
+          "readOnlyRoot": true,
+          "network": "none"
+        }
+      }
+    ]
+  }
+}

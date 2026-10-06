@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-02",
+  "timezone": "Asia/Shanghai",
+  "baseline": {
+    "command": "pnpm baseline:check",
+    "status": "PASS",
+    "markdownLinks": 2701,
+    "jsonFiles": 222,
+    "schemas": 152,
+    "fixtures": 39,
+    "versionGateTests": "26 passed"
+  },
+  "codeSuite": {
+    "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+    "status": "PASS",
+    "apiTestRuns": [
+      "33ae1f2a-f5bc-4aa2-bb4a-f0b31796190f",
+      "fa61338b-8f0a-40b4-8d57-6384fdd5afc8",
+      "919e8d8d-1fb1-487c-8110-7c4729e97790",
+      "884265b6-d2bd-4d79-96e7-cb153df30ecb"
+    ],
+    "webTestRuns": [
+      "579dd6b7-ba6b-44ad-8cd4-003e72362e3e",
+      "9d3935c6-9795-49fa-b6eb-c0a6a092f62b",
+      "a77aa7e4-6787-4d6f-b4d5-c29516889726",
+      "d37ee753-fe8c-46bc-9ca3-41bcfcb6907f"
+    ],
+    "activeServicesTouched": false,
+    "paperReport": "evidence/audits/2026-10-02-v24-paper-smoke-67ce2137fd464458a5335a075d00dc6d.json"
+  },
+  "evidenceGates": {
+    "V1": {
+      "status": "FAIL",
+      "markdownFilesChecked": 9,
+      "evidenceReferences": 78,
+      "manifestsChecked": 9,
+      "manifestEntriesChecked": 88,
+      "failures": [
+        "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-w1-v14-quant-configurable-web-07b36a2ebce39465ea5a.sha256:45: SHA-256 mismatch for packages/contracts/generated/types.ts",
+        "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-w1-v14-quant-configurable-web-07b36a2ebce39465ea5a.sha256:47: SHA-256 mismatch for services/quant-research-service/src/contracts/generated-types.ts",
+        "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-02-w1-v14-quant-configurable-web-07b36a2ebce39465ea5a.sha256:58: SHA-256 mismatch for services/platform-api-service/src/contracts/generated-types.ts"
+      ]
+    },
+    "V2": {
+      "status": "PASS",
+      "markdownFilesChecked": 12,
+      "evidenceReferences": 193,
+      "manifestsChecked": 29,
+      "manifestEntriesChecked": 50
+    },
+    "V3": {
+      "status": "PASS"
+    }
+  },
+  "businessGates": [
+    {
+      "version": "V1",
+      "status": "FAIL",
+      "unresolvedStages": 5,
+      "unresolvedAcceptanceRows": 5,
+      "evidenceAudit": "FAIL",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    },
+    {
+      "version": "V2",
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "unresolvedAcceptanceRows": 5,
+      "evidenceAudit": "PASS",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    },
+    {
+      "version": "V3",
+      "status": "INCOMPLETE",
+      "unresolvedStages": 4,
+      "unresolvedAcceptanceRows": 4,
+      "evidenceAudit": "PASS",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    }
+  ],
+  "interpretation": "No version is complete. V1 evidence fails on three hashes in a historical V1.4 SHA manifest for shared generated contract files changed by later contracts; the historical manifest was preserved. V2 and V3 evidence gates pass, but required stages/observations/signatures remain incomplete. NO_TRADE remains active and no source authorization exists."
+}

@@ -1,4 +1,9 @@
 const checks = [];
+export function describeFetchError(error) {
+  const cause = error instanceof Error ? error.cause : undefined;
+  const causeCode = cause && typeof cause === "object" && "code" in cause ? String(cause.code) : null;
+  return { message: error instanceof Error ? error.message : "unknown", causeCode };
+}
 export function liveQuoteFreshness(body, now = new Date(), maxAgeSeconds = 30 * 60, options = {}) {
   if (body?.sourceId !== "tencent-quote" || !Array.isArray(body.securities) || body.securities.length === 0) return { ok: false, reason: "missing live quote securities" };
   const ages = body.securities.map((item) => {
@@ -19,7 +24,7 @@ async function check(name, url, predicate) {
     const ok = response.ok && predicate(body);
     checks.push({ name, status: ok ? "PASS" : "FAIL", httpStatus: response.status, body });
   } catch (error) {
-    checks.push({ name, status: "FAIL", error: error instanceof Error ? error.message : "unknown" });
+    checks.push({ name, status: "FAIL", error: describeFetchError(error) });
   }
 }
 

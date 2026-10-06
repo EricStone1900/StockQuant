@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/trade-execution/fake-broker-simulated-fill-report.schema.json",
+  "title": "FakeBrokerSimulatedFillReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["externalFillId", "sequence", "cumulativeQuantity", "price", "fee", "effectiveAt", "evidenceRef"],
+  "properties": {
+    "externalFillId": { "type": "string", "format": "uuid" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "cumulativeQuantity": { "type": "integer", "minimum": 1 },
+    "price": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "fee": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+    "effectiveAt": { "type": "string", "format": "date-time" },
+    "evidenceRef": { "type": "string", "minLength": 1, "maxLength": 512 }
+  }
+}

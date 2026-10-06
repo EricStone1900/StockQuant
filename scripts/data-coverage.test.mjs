@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildExpectedKeys, buildGapPayload, coverageExitCode, persistGaps, summarizeCoverage } from "./data-coverage.mjs";
+import { buildExpectedKeys, buildGapPayload, collectionCompletionGraceSeconds, coverageExitCode, persistGaps, summarizeCoverage } from "./data-coverage.mjs";
 
 const days = [{ date: "2026-09-14", status: "TRADING", sessions: [{ start: "09:30", end: "09:40" }, { start: "13:00", end: "13:10" }] }];
 
@@ -18,6 +18,21 @@ test("coverage grace excludes the just-closed publish-delay window", () => {
   const asOf = new Date("2026-09-14T01:36:00.000Z");
   const effective = new Date(asOf.getTime() - 120_000);
   assert.equal(buildExpectedKeys(["600000.SH"], days, effective).length, 0);
+});
+
+test("coverage uses a completion deadline that includes scheduling and execution", () => {
+  assert.equal(collectionCompletionGraceSeconds({}), 300);
+  assert.equal(collectionCompletionGraceSeconds({ DC08A_COVERAGE_GRACE_SECONDS: "420" }), 420);
+});
+
+test("early valid rows are not unexpected while their window is still waiting", () => {
+  const validKeys = buildExpectedKeys(["600000.SH"], days);
+  const requiredKeys = validKeys.slice(0, 2);
+  const futureKey = validKeys[3];
+  const [, barStart] = futureKey.split("|");
+  const result = summarizeCoverage({ expectedKeys: requiredKeys, validKeys, rows: [{ securityId: "600000.SH", barStart }], statuses: [], openGaps: 0, pendingOutbox: 0, calendarDays: days });
+  assert.equal(result.unexpectedBars, 0);
+  assert.equal(result.missingBars, 2);
 });
 
 test("coverage rejects missing, duplicate and unexpected bars", () => {

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-paper-stage-run-result.schema.json",
+  "title": "V13PaperStageRunResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V1.3" },
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "scenarioVersion": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "minLength": 1 },
+    "status": { "const": "WAITING" },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["assertionId", "status", "expected", "actual"],
+        "properties": { "assertionId": { "type": "string", "minLength": 1 }, "status": { "const": "WAITING" }, "expected": {}, "actual": { "const": "NOT_RUN" } }
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceScope", "businessExecution", "requiredBusinessServices", "businessServicesCalled", "scenarioExpectation", "environmentMode", "brokerMode", "liveTradingEnabled", "seed", "orderFacts", "fillFacts", "portfolioLedgerFacts"],
+      "properties": {
+        "evidenceScope": { "const": "PLATFORM_WAITING_DECLARATION" },
+        "businessExecution": { "const": "NOT_RUN" },
+        "requiredBusinessServices": { "const": ["decision-governance-service", "trade-execution-service", "portfolio-risk-service", "FakeBroker"] },
+        "businessServicesCalled": { "type": "array", "maxItems": 0 },
+        "scenarioExpectation": { "type": "string", "minLength": 1 },
+        "environmentMode": { "const": "PAPER" },
+        "brokerMode": { "const": "FAKE" },
+        "liveTradingEnabled": { "const": false },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "orderFacts": { "const": "NOT_CREATED" },
+        "fillFacts": { "const": "NOT_CREATED" },
+        "portfolioLedgerFacts": { "const": "NOT_CREATED" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "null" }
+  }
+}

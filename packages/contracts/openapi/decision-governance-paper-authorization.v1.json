@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StockQuant Decision Governance V2.4 Paper Fixture Authorization API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://decision-governance-service:3007"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/internal/v1/paper-authorizations": {
+      "post": {
+        "operationId": "authorizeV24PaperFixtureRun",
+        "summary": "Issue a short-lived authorization for the exact frozen V2.4 Fixture Paper command and run identity",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Bearer establishes caller identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v24-paper-authorization-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing identical or newly persisted run-scoped authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-authorization-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "409": {
+            "description": "Namespace already has a different exact grant"
+          },
+          "413": {
+            "description": "Request exceeds the bounded body size"
+          },
+          "422": {
+            "description": "Grant is outside the frozen isolated Fixture policy"
+          },
+          "503": {
+            "description": "Authorization store unavailable"
+          }
+        }
+      }
+    },
+    "/internal/v1/paper-authorizations/validate": {
+      "post": {
+        "operationId": "validateV24PaperFixtureRun",
+        "summary": "Consume or idempotently revalidate an exact already-consumed Fixture Paper command",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "trade-execution-service"
+            },
+            "description": "Optional consistency check; Bearer establishes caller identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v24-paper-authorization-validation.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization matches exact run, account and command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "valid",
+                    "replayed"
+                  ],
+                  "properties": {
+                    "valid": {
+                      "const": true
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "No active grant matches this exact command"
+          },
+          "422": {
+            "description": "Invalid validation request"
+          },
+          "503": {
+            "description": "Authorization store unavailable"
+          }
+        }
+      }
+    },
+    "/internal/v1/paper-authorizations/revoke": {
+      "post": {
+        "operationId": "revokeV24PaperFixtureAuthorization",
+        "summary": "Revoke an unconsumed V2.4 Fixture Paper authorization with an auditable reason",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional consistency check; Bearer establishes caller identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v24-paper-authorization-revoke-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization revoked or the exact same revocation replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-authorization-revoke-result.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Authorization does not match the supplied exact namespace and account"
+          },
+          "409": {
+            "description": "Authorization is consumed or the revocation conflicts with a previous reason"
+          },
+          "422": {
+            "description": "Invalid revocation command"
+          },
+          "503": {
+            "description": "Authorization store unavailable"
+          }
+        }
+      }
+    }
+  }
+}

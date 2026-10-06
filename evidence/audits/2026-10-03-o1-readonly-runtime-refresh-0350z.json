@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "stockquant-o1-readonly-runtime-audit-v1",
+  "capturedAt": "2026-10-03T03:50:15.377Z",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/ready",
+      "result": "ready"
+    },
+    {
+      "method": "GET",
+      "path": "/v2/collection-scheduler/status",
+      "result": {
+        "status": "ENABLED",
+        "lastSuccessfulTickAt": "2026-10-03T03:49:21.508Z",
+        "nextExecutionAt": null,
+        "lastSubmitted": 0,
+        "tickAgeSeconds": 53.869
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v2/minute/sources",
+      "result": {
+        "sources": [
+          {
+            "sourceId": "baostock",
+            "enabled": true,
+            "circuit": "CLOSED",
+            "lastSuccessAt": 1790208109.2940702
+          },
+          {
+            "sourceId": "sina",
+            "enabled": true,
+            "circuit": "CLOSED",
+            "lastSuccessAt": 1790751790.0561771
+          },
+          {
+            "sourceId": "eastmoney",
+            "enabled": false,
+            "circuit": "DISABLED",
+            "lastSuccessAt": null
+          },
+          {
+            "sourceId": "tdx",
+            "enabled": false,
+            "circuit": "DISABLED",
+            "lastSuccessAt": null
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v2/collection/health?subscriptionId=dc08a-20260917-20-v1",
+      "result": {
+        "openGaps": 0,
+        "pendingOutbox": 0
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v2/calendar/cn-a-share/2026-10-03",
+      "result": {
+        "status": "CLOSED",
+        "calendarVersion": "sse-cn-a-share-2026-1",
+        "sourceFreshnessExpected": false,
+        "sourceFreshnessState": "MARKET_CLOSED"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v2/collection-schedules",
+      "httpStatus": 200,
+      "result": {
+        "total": 0,
+        "enabled": 0
+      }
+    }
+  ],
+  "healthStatus": "UNHEALTHY",
+  "observation": {
+    "status": "WAITING",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "latest": "2026-09-30"
+  },
+  "authorization": {
+    "trading": "NO_TRADE",
+    "dataSource": "NOT_AUTHORIZED",
+    "providerRequests": 0,
+    "paperCalls": 0,
+    "brokerCalls": 0
+  },
+  "interpretation": "Configured source enabled flags are configuration only and do not grant authorization. No collection plan was enabled; this audit used GET only and did not count a new observation day."
+}

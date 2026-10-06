@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "stockquant-o1-readonly-runtime-v1",
+  "capturedAt": "2026-10-02T22:41:16.578Z",
+  "timezone": "Asia/Shanghai",
+  "healthSummary": "UNHEALTHY",
+  "healthReason": "nextExecutionAt is null while there are no enabled schedules; this is not a readiness or database failure",
+  "httpReads": {
+    "ready": 200,
+    "scheduler": 200,
+    "enabledSchedules": 200,
+    "sourcesConfiguration": 200,
+    "subscriptionQuality": 200,
+    "calendar": 200
+  },
+  "ready": {
+    "status": "ready",
+    "service": "market-data-service",
+    "persistence": "POSTGRES",
+    "schedulerWorker": "ENABLED",
+    "executor": "ENABLED",
+    "collectionSecurityCount": 20
+  },
+  "scheduler": {
+    "status": "ENABLED",
+    "lastSuccessfulTickAt": "2026-10-02T22:40:19.006Z",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "mode": "PERSISTENT_SOURCE_EXECUTION"
+  },
+  "enabledScheduleCount": 0,
+  "calendar": {
+    "date": "2026-10-03",
+    "status": "CLOSED",
+    "version": "sse-cn-a-share-2026-1"
+  },
+  "quality": {
+    "openGaps": 0,
+    "pendingOutbox": 0
+  },
+  "configuredSources": [
+    "sina",
+    "baostock"
+  ],
+  "sourceAuthorization": "NONE; configuration is not authorization; no source call issued",
+  "observation": {
+    "targetDays": 20,
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "status": "WAITING"
+  },
+  "containers": [
+    "stockquant-v12-decision-governance-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-historical-replay-worker-1 Up 47 hours (healthy)",
+    "stockquant-v12-market-data-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-nats-1 Up 9 days",
+    "stockquant-v12-platform-api-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-portfolio-risk-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-postgres-1 Up 47 hours (healthy)",
+    "stockquant-v12-qlib-worker-1 Up 13 days (healthy)",
+    "stockquant-v12-quant-research-service-1 Up 10 days (healthy)",
+    "stockquant-v12-research-automation-service-1 Up 7 days (healthy)",
+    "stockquant-v12-temporal-1 Up 9 days",
+    "stockquant-v12-trade-execution-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-web-1 Up 7 days"
+  ],
+  "activeServicesTouched": false,
+  "marketDataRequests": 0,
+  "collectionTriggers": 0,
+  "writes": 0,
+  "restarts": 0
+}

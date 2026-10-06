@@ -8,7 +8,7 @@
   "properties": {
     "testRunId": { "type": "string", "format": "uuid" },
     "stageId": { "const": "V2.4" },
-    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "scenarioId": { "enum": ["normal", "rejection", "recovery", "external-reconciliation"] },
     "scenarioVersion": { "type": "string", "minLength": 1 },
     "ownerId": { "type": "string", "minLength": 1 },
     "namespace": { "type": "string", "minLength": 1 },
@@ -35,7 +35,7 @@
       "properties": {
         "testRunId": { "type": "string", "format": "uuid" },
         "stageId": { "const": "V2.4" },
-        "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+        "scenarioId": { "enum": ["normal", "rejection", "recovery", "external-reconciliation"] },
         "scenarioVersion": { "type": "string", "minLength": 1 },
         "seed": { "type": "integer" },
         "status": { "const": "WAITING" },

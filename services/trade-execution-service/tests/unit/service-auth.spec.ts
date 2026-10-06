@@ -22,6 +22,14 @@ describe("trade execution service identity and route scopes", () => {
     expect(request("GET", "/internal/v1/reconciliation/summary", "platform-api-service", tokens["platform-api-service"])).toBe(true);
     expect(request("POST", "/internal/v1/orders/o1/cancel", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
     expect(request("POST", "/internal/v1/orders/o1/cancel", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("POST", "/internal/v1/orders/o1/cancel-result", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+    expect(request("POST", "/internal/v1/orders/o1/cancel-result", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("POST", "/internal/v1/orders/o1/fills/f1/fee-corrections", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+    expect(request("POST", "/internal/v1/orders/o1/fills/f1/fee-corrections", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("POST", "/internal/v1/orders/o1/simulated-fill-reports", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+    expect(request("POST", "/internal/v1/orders/o1/simulated-fill-reports", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("POST", "/internal/v1/fake-broker/external-orders", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("POST", "/internal/v1/fake-broker/external-orders", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
     expect(request("GET", "/internal/v1/reconciliation/summary", "platform-api-service", undefined)).toBe(false);
   });
   it("allows the platform API to read readiness but rejects replay and write verbs", () => {

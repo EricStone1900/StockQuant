@@ -1,0 +1,11 @@
+# W6/W7 V3.2 and V3.3 preparation code suites — 2026-10-01
+
+## V3.2 / W6 preparation
+
+`pnpm verify:stage -- --stage V3.2 --suite code` exited 0. Baseline/docs/contracts/Fixtures passed (1,381 Markdown links, 173 JSON documents, 114 schemas and 36 Fixtures). Evidence-export tests 7/7 and HTTP smoke 7/7 passed; schema/Fixture preparation and readiness CLI tests passed. Synthetic independent recomputation covered 70 decisions and PIT, out-of-sample, cost, rules and capacity checks; candidate and evaluator ran in isolated `linux/arm64` containers with network disabled, read-only inputs/root filesystem, UID 65532, 256 MiB and one CPU. Quant and Governance checks used a random isolated test database; Research Automation passed 169/169 unit tests and Platform passed 99/99 unit tests plus 3/3 persistence integration tests. W8 V3.2 readiness smoke passed on an internal-only network with disposable tmpfs PostgreSQL, owner access checks and restart read; `activeServicesTouched=false`, no Paper calls, no Registry mutation. Web typecheck/build/test passed.
+
+## V3.3 / W7 preparation
+
+`pnpm verify:stage -- --stage V3.3 --suite code` exited 0. Baseline/docs/contracts/Fixtures passed. Research Automation passed lint, 169/169 unit tests and 20/20 isolated PostgreSQL integration tests; experiment binding rejected anonymous/Runner/cross-TestRun/legacy-unbound/non-reserved-budget paths and accepted one in-memory isolated queued dispatch without starting execution. Queue/budget HTTP smoke passed 17 assertions (`modelCalls=0`, `orderCalls=0`). Platform typecheck, 99/99 unit tests and 3/3 persistence integration tests passed. Web typecheck passed and the V3.3 Playwright suite passed 3/3: owner-scoped existing-queue reads/pagination, local UUID/owner rejection, and same-run WAITING readiness inspection without dispatch.
+
+Both suites are preparation/code evidence only. V3.2 output explicitly records `businessValidation=NOT_RUN`, `activeRegistryMutation=NOT_PERFORMED`, and `humanAcceptance=NOT_RUN`. V3.3 records `businessWorkflow=NOT_IMPLEMENTED`, `stageBudgetControl=NOT_IMPLEMENTED`, `paperContinuity=NOT_CHECKED`, and business/human acceptance `NOT_RUN`. No real RD-Agent, Provider, market source, Paper order, candidate approval, or active service was used or changed. `NO_TRADE` and no-source-authorization remain in force.

@@ -29,7 +29,10 @@ export class PgExperimentRepository implements ExperimentRepository {
       reason TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL, cancelled_at TIMESTAMPTZ NULL
     );
     ALTER TABLE research_experiments ADD COLUMN IF NOT EXISTS budget_currency TEXT NOT NULL DEFAULT 'USD' CHECK (budget_currency = 'USD');
-    ALTER TABLE research_experiments ADD COLUMN IF NOT EXISTS test_run_id UUID NULL`);
+    ALTER TABLE research_experiments ADD COLUMN IF NOT EXISTS test_run_id UUID NULL;
+    CREATE INDEX IF NOT EXISTS research_experiments_test_run_created_idx
+      ON research_experiments(test_run_id, created_at, experiment_id)
+      WHERE test_run_id IS NOT NULL`);
   }
   async save(experiment: Experiment): Promise<Experiment> {
     const result = await this.pool.query<Row>(`INSERT INTO research_experiments(experiment_id,fixture_id,model_profile,rounds,budget_currency,budget_cents,environment_mode,broker_mode,idempotency_key,status,reason,created_at,cancelled_at,test_run_id)

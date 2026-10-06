@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "w3-activation-guard-audit-v1",
+  "capturedAt": "2026-10-05",
+  "finding": "activation preflight did not require STOCKQUANT_COLLECTION_DATA_VERSION although Market Data runtime authorization requires it",
+  "change": "require a non-empty source data version before readiness or schedule inspection and before Compose activation",
+  "focusedTests": {
+    "command": "node --test scripts/dc08a-activate.test.mjs",
+    "passed": 10,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "activeRuntimeTouched": false,
+  "providerCalls": 0,
+  "databaseWrites": 0,
+  "serviceRestarts": 0,
+  "sourceAuthorizationStatus": "NONE",
+  "scope": "code and focused tests only; does not verify an authorized provider, deployment, observation, or W3 acceptance",
+  "runtimeAuthorizationTests": {
+    "command": "pnpm --filter @stockquant/market-data-service exec vitest run tests/unit/external-source-authorization.spec.ts",
+    "passed": 4,
+    "failed": 0,
+    "exitCode": 0
+  }
+}

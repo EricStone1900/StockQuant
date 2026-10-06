@@ -1,0 +1,13 @@
+# W1 / V1.3 truthful WAITING boundary
+
+Date: 2026-10-06. This change removes the false-positive behavior where the Platform-only `V13TradingEngine` created synthetic cash/order/Fill values and marked its local comparisons PASS.
+
+The engine now persists scenario expectation metadata, platform-only WAITING metadata, `businessExecution=NOT_RUN`, `businessServicesCalled=[]`, and `status=WAITING`; it creates no account, order, Fill, or Portfolio ledger facts. (`evidenceScope=PLATFORM_SYNTHETIC_ONLY` in the original run is a legacy label for the Platform-only report surface, not synthetic business facts.) The V1.3 Web page states the missing service boundary. CLI same-run checks correctly return exit 2 for the incomplete run. The V1.3 §8 runbook now states this current behavior and stays `DRAFT_NOT_EXECUTABLE`; implementation checkboxes remain unchecked.
+
+Isolated verification: random project `sq-v13-web-fe0a1d7cc7b16b20d60e`; Playwright normal/rejection/recovery 3/3 passed as boundary checks. TestRun IDs: `8213ea08-8a6b-4d8a-b62a-0abf9f49383b`, `e56754a1-df35-4442-97cd-52f6ecc0381b`, `39c0f613-135e-4427-b99f-86141d00a967`. For all three, Web assertions saw `WAITING`, no business service calls and no order/fill facts; CLI queried the same UUID and exited 2 as expected. Isolated resources were removed. Provider calls 0, collection writes 0, Paper calls 0, Broker calls 0.
+
+Platform API unit suite passed: 50 files, 203 tests. The full `pnpm verify:stage -- --stage V1.3 --suite code` passed after all audit links existed; this covered governance/contracts/fixtures/layer baseline, workspace build/typecheck and service unit suites, including Platform 203/203. Web typecheck, harness syntax, and whitespace checks passed. An initial invocation stopped during `docs:check` because this report and its SHA link had been added to the stage doc before the target files were created; the diagnostic is preserved. Final suite output: [code-suite log](./2026-10-06-w1-v13-waiting-boundary-code-suite.log).
+
+This is a fail-closed accuracy correction, not V1.3 business completion. Governance, Trade Execution, Portfolio ledger and FakeBroker remain unconnected to the V1.3 route. No user sign-off was changed.
+
+Evidence: [machine result](./2026-10-06-w1-v13-waiting-boundary.json), [isolated E2E log](./2026-10-06-w1-v13-waiting-boundary.log), [full code-suite log](./2026-10-06-w1-v13-waiting-boundary-code-suite.log), [initial suite diagnostic](./2026-10-06-w1-v13-waiting-boundary-code-suite-initial-doc-links-fail.log), [historical execution snapshot SHA manifest](./2026-10-06-w1-v13-waiting-boundary.sha256). This manifest captures the source state at that earlier execution; current V1.3 contract/source hashes are in the linked contract-boundary audit..

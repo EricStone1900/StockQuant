@@ -1,6 +1,6 @@
 # V2.1 免费行情、新闻聚合与在线股票池
 
-状态：PASS（用户人工验收及复验通过，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（2026-09-09历史用户验收范围保留；当前免费源许可/实时能力验证、两个可用新闻源、≤100证券在线池与时间字段追溯未完成；能力矩阵文档已建立，未验证项保留UNVERIFIED；用户当前确认为NO_TRADE且无线源授权）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,7 +10,7 @@ V1通过；数据/时间/质量契约可用。
 
 ## 2. 开发任务
 
-- [ ] 建立免费来源能力报告：许可、认证、批量能力、限流、延迟、历史覆盖、时间字段、状态字段和实测错误；未验证来源标UNVERIFIED，不承诺免费数据完整性。
+- [x] 建立免费来源能力报告：许可、认证、批量能力、限流、延迟、历史覆盖、时间字段、状态字段和实测错误；未验证来源标UNVERIFIED，不承诺免费数据完整性。矩阵汇总历史探针、本地代码限制与官方公开资料；所有当前未有授权/当前实测支持的来源均明确标记UNVERIFIED，详见[来源能力矩阵](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.md)及[机器结果](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.json)。该文档交付不等于任何Provider通过或授权。
 - [ ] 实现至少一个实际可用行情来源与两个可用新闻来源的Adapter；新闻可为允许使用的公告/RSS，按来源独立熔断、去重、实体关联及修订。若来源不足，相关验收保持NOT_RUN。
 - [ ] 在线池去重≤100只，优先持仓与在途证券、再候选和关注；硬必需证券超过上限时阻塞并提示调整，不静默丢弃。支持批量则批量，否则受控分批，禁止先全市场抓取后假称≤100请求。
 - [ ] 默认交易时段30分钟采样，可配置20分钟；采样、监控评估、日频策略和执行窗口各自配置。收盘后补齐已完成日线，盘中快照不可冒充最终日线/分钟Bar。
@@ -42,6 +42,10 @@ V1通过；数据/时间/质量契约可用。
 自动验证：Adapter契约与真实来源烟测、分批限流/缓存/去重、50/80/100容量和101拒绝、时间戳/陈旧/新闻注入浏览器测试。
 
 需求/测试追踪：DAT-07/08/10、NEW-01～03/05/06、MON-01/02/04；T07/15～17/38；DV-05、VT05。
+
+契约客户端实现增量（2026-10-01）：Platform的V2.1来源元数据、采样配置/更新、在线观察池/更新、固定新闻预览、source smoke、live quote、live news及Circuit fail/recover现通过`market-data-calendar.v1`中的ServiceBearer OpenAPI及生成客户端访问。外部请求类路由与状态写入仅用mock验证代理边界，没有实际调用Provider或活动服务，不证明来源许可、行情/新闻实效或阶段验收；证据见[实施审计](../../../evidence/audits/2026-10-01-w1-v21-market-read-client.md)。
+
+2026-10-02外部HTTP适配器边界增量：V2.1 Tencent行情预览、新闻读取与来源Smoke传输移入Market Data `PublicSourceHttpAdapter`，bootstrap的逐用途授权判断先于adapter调用。70项Market Data单测通过，新增3项对注入HTTP/Clock的隔离验证；未请求任何外部来源。此增量不验证来源许可/可用性，不勾选第2节真实行情来源或新闻来源条目，NO_TRADE及无线源授权继续有效。
 
 退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
 
@@ -170,3 +174,17 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+
+2026-10-01运行门禁补充：来源Smoke、实时行情/新闻和分钟采集必须有逐用途来源授权引用、数据版本及精确source ID白名单；未具备时不得发出Provider请求。当前`NO_TRADE`、暂无来源授权，故外部路径保持`NOT_AUTHORIZED`，此项实现不计为来源能力或数据观察通过。OD-008关闭和来源授权证据仍为V2.1后续前置条件。
+
+门禁完整性补充（2026-10-01）：分钟采集的Node执行器和独立Python网络适配器均在外部请求前校验授权。适配器直调也无法绕过门禁；拒绝是不可重试的配置状态，不会触发故障切换或外部探测。
+
+来源探针门禁补充（2026-10-01）：手工运维能力/稳定性探针同样受逐来源用途门禁保护；无授权时返回`BLOCKED`，不发送探测请求或写入诊断证据。来源许可待确认期间，本阶段这些真实来源能力项保持NOT_RUN。
+
+历史行情用途补充（2026-10-01）：日线、分钟历史导入和PIT能力探针使用独立`HISTORICAL_RESEARCH`门禁；分钟数据落地还需独立分钟采集授权。无授权时不打开BaoStock session、不读源manifest驱动Provider调用、不写部分数据或Manifest，结论为BLOCKED/NOT_RUN。
+
+外发HTTP adapter边界补充（2026-10-02）：V2.1 Tencent quote、来源Smoke和新闻页面请求移到`PublicSourceHttpAdapter`，逐用途授权检查仍先于网络调用。Market Data 70项单测、PostgreSQL 23项集成和完整V2.1 code suite均通过；全程没有外部来源请求。审计见[W3 Market Data adapter](../../../evidence/audits/2026-10-02-w3-market-data-provider-adapter.md)及[SHA-256](../../../evidence/audits/2026-10-02-w3-market-data-provider-adapter.sha256)。来源许可/数据版本及真实行情新闻实测保持NOT_RUN。
+
+2026-10-03候选行情源许可桌面复核：财富趋势官网把国内行情授权指向交易所授权渠道；其“个人行情数据”仅明确个人版PC端盘后客户端日线包，没有给`easy-tdx`在线TCP协议/分钟采集、服务端使用或长期留存授权。BaoStock现行官方数据条款未能取得；PyPI客户端包BSD只覆盖软件包许可，不代表行情许可。没有任何新外部请求；当前`NO_TRADE`/source authorization `NONE`，BaoStock/TDX许可与能力仍`UNVERIFIED`。仅在取得书面数据授权并固化引用后才允许对应用途门禁开启。详见[W4来源权利复核](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.md)、[机器摘要](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.json)和[SHA-256](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.sha256)。
+
+2026-10-03来源能力矩阵收敛：将Tencent、Sina、BaoStock、TDX/easy-tdx、Eastmoney News、CLS News逐一列出许可/授权、认证、批量、源限额与本地限额、历史样本/时延、时间及状态字段、失败证据；每行区分旧样本和源码行为，未验证项保留UNVERIFIED。未请求外部数据、不改变NO_TRADE/authorization NONE。矩阵见[审计说明](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.md)与[SHA-256](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.sha256)。

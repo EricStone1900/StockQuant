@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "stockquant.w0-worktree-snapshot.v1",
+  "date": "2026-10-02",
+  "scope": "Tracked and nonignored-untracked repository content after the V1.4 historical-fee Fixture/API/Web/CLI/PostgreSQL slice, conditional historical commission-floor contract, full isolated E2E, complete V1.4 code gate, V1/V2/V3 evidence-gate refresh and this W0 plan entry; excludes this report and its manifest.",
+  "head": "3fdf2c9c693e1bc013601926865634a49a625ff4",
+  "trackedFiles": 2881,
+  "missingTrackedFiles": 10,
+  "nonignoredUntrackedFiles": 3329,
+  "hashedFiles": 6200,
+  "gitStatusEntries": 1972,
+  "workingTreeClean": false,
+  "manifest": "evidence/audits/2026-10-02-w0-current-worktree-after-v14-historical-fees.sha256",
+  "manifestSha256": "0dcf0fea9f1f73f00a3e23a02b97f7853b3e60b2db4b33e108cd7681b2ca1561",
+  "gates": {
+    "baseline": "PASS (included in complete V1.4 code suite)",
+    "v14CodeSuite": "PASS (pnpm verify:stage -- --stage V1.4 --suite code; exit 0)",
+    "v14IsolatedApiWebCli": {
+      "status": "PASS",
+      "report": "evidence/audits/2026-10-02-w1-v14-quant-configurable-web-38596c330e6b62e701d2.json",
+      "codeVersion": "sha256:a51bb48f4c0f34821a93864b9ecd9e44036a0b9eea1f88e11da20e3a7b4a4e4f",
+      "quantRunManifestPairs": "11/11",
+      "browserTests": "4 passed",
+      "webRunsCliChecked": 6,
+      "platformTestRuns": 11,
+      "tempResourcesRemoved": true
+    },
+    "evidenceGates": {
+      "V1": "PASS (75 refs, 9 manifests, 88 hashes)",
+      "V2": "PASS (183 refs, 27 manifests, 34 hashes)",
+      "V3": "PASS (178 refs, 38 manifests, 45 hashes)"
+    },
+    "businessGates": {
+      "V1": "INCOMPLETE",
+      "V2": "INCOMPLETE",
+      "V3": "INCOMPLETE"
+    }
+  },
+  "boundaries": [
+    "The historical fee schedule is supported only for executions from 2022-04-29 through 2023-08-27; the fixture prices are synthetic and do not prove all historical market rules.",
+    "V1.4 remains PARTIALLY_IMPLEMENTED; full exchange rules, corporate actions, Qlib/Paper parity, human acceptance and Ubuntu remain open.",
+    "NO_TRADE and no market-source authorization; no market data, Provider, Paper or Broker calls.",
+    "V1/V2/V3 business version gates remain INCOMPLETE; historical TestRun exports, authorization, observation and user signatures remain unresolved."
+  ]
+}

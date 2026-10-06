@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v14-daily-backtest-result.schema.json",
+  "title": "V1.4 Daily Backtest Fixture Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "stageId", "scenarioId", "seed", "status", "assertions", "evidence"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V1.4" },
+    "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees"] },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "status": { "type": "string", "enum": ["COMPLETED", "FAILED"] },
+    "assertions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["assertionId", "status", "expected", "actual"], "properties": {
+      "assertionId": { "type": "string", "minLength": 1 }, "status": { "type": "string", "enum": ["PASS", "FAIL"] }, "expected": {}, "actual": {}
+    } } },
+    "evidence": { "type": "object" }
+  }
+}

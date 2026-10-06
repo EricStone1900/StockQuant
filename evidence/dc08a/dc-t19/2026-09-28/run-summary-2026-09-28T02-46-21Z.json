@@ -1,0 +1,31 @@
+{
+  "runAt": "2026-09-28T02:46:21Z",
+  "subscription": {
+    "id": "dc08a-20260917-20-v1",
+    "enabled": true,
+    "securityCount": 20,
+    "securityIds": ["600000.SH", "600004.SH", "600006.SH", "600007.SH", "600008.SH", "600009.SH", "600010.SH", "600011.SH", "600012.SH", "600015.SH", "600016.SH", "600017.SH", "600018.SH", "600019.SH", "600020.SH", "600021.SH", "600022.SH", "600023.SH", "600025.SH", "600026.SH"]
+  },
+  "calendar": {"date": "2026-09-28", "status": "TRADING", "sessions": ["09:30-11:30", "13:00-15:00"]},
+  "commands": {
+    "monitor": {"exitCode": 0, "status": "PASS", "expectedBars": 280, "actualBars": 280, "missingBars": 0, "duplicateBars": 0, "unexpectedBars": 0, "openGaps": 0, "outboxPendingBeforeDelivery": 3, "outboxDelivered": 3, "completedWindows": 14},
+    "eod": {"exitCode": 2, "status": "PASS", "dailyStatus": "INCOMPLETE", "expectedFullDayBars": 960, "actualBars": 280, "missingBars": 0, "duplicateBars": 0, "openGaps": 0, "outboxPending": 0, "reason": "Trading day remains in progress; exit code 2 is expected until full-day coverage completes."},
+    "healthReport": {"exitCode": 0, "status": "HEALTHY"},
+    "observationSummary": {"exitCode": 2, "status": "WAITING", "completedDays": 4, "observedDays": 5, "remainingDays": 15, "note": "Observation period incomplete; not a task failure."},
+    "expiryCheck": {"exitCode": 0, "status": "OK", "daysRemaining": 32, "expiry": "2026-10-30T00:45:00.000Z"}
+  },
+  "scheduler": {"status": "ENABLED", "executor": "ENABLED", "lastSuccessfulTickAt": "2026-09-28T02:45:37.986Z", "nextExecutionAt": "2026-09-28T02:52:00.000Z", "tickAgeSeconds": 49.525},
+  "coverage": {"latestWindow": {"start": "2026-09-28T02:35:00+00:00", "end": "2026-09-28T02:40:00+00:00", "source": "sina", "status": "COMPLETED", "rows": 20, "createdAt": "2026-09-28T02:42:37.982828+00:00", "publishedAt": "2026-09-28T02:43:48.303832+00:00"}, "watermarkEnd": "2026-09-28 02:40:00+00", "artifacts": 14, "rows": 280},
+  "sources": {
+    "baostockInitial": {"enabled": true, "circuit": "CLOSED", "failures": 0, "lastErrorCode": null},
+    "sina": {"enabled": true, "circuit": "CLOSED", "failures": 0, "lastErrorCode": null, "selectedFormalSource": true},
+    "eastmoney": {"enabled": false, "circuit": "DISABLED"},
+    "takeover": "NOT_OBSERVED",
+    "halfOpenProbe600Seconds": "NOT_OBSERVED",
+    "cutbackOrContinuedDegradation": "NOT_OBSERVED",
+    "sourceRecovery": {"status": "CHECKED", "alert": false, "attempts": []},
+    "recoveryProbe": {"status": "COMPLETED", "attempts": []}
+  },
+  "rawFieldEvidence": {"securityId": "600000.SH", "source": "sina", "adjustment": "raw", "barStart": "2026-09-28T09:30:00+08:00", "barEnd": "2026-09-28T09:35:00+08:00", "open": 9.03, "high": 9.13, "low": 9, "close": 9.12, "volume": 12230600, "amount": 110939146.1984, "ingestedAt": "2026-09-28T01:38:47.311Z", "errorCode": null},
+  "guardrails": {"dataDeleted": false, "subscriptionChanged": false, "liveEnabled": false, "manualBackfill": false, "realBrokerConnected": false, "serviceRestarted": false}
+}

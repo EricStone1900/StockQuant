@@ -1,0 +1,204 @@
+{
+  "capturedAt": "2026-09-30",
+  "command": "node scripts/verify-version.mjs --version V1|V2|V3",
+  "results": [
+    {
+      "version": "V1",
+      "exitCode": 2,
+      "result": {
+        "version": "V1",
+        "status": "INCOMPLETE",
+        "stages": [
+          {
+            "stageId": "V1.1",
+            "status": "PARTIALLY_IMPLEMENTED（2026-09-09既有范围自动与人工验收保留；截至2026-09-27公共Schema/TS-Python生成、账户详情/双市场幂等初始化、隔离stage存储Web/CLI同run均有工程证据；本轮补齐A股Calendar响应Schema/Fixture/兼容规则/OpenAPI及Market Data/Platform生成类型和真实日期校验；完整OpenAPI/客户端覆盖、通用Artifact交付、活动API切换/回退及新增范围用户验收仍未完成；详见阶段复核与P3记录）"
+          },
+          {
+            "stageId": "V1.2",
+            "status": "PASS（自动+人工确认；amd64 仿真）"
+          },
+          {
+            "stageId": "V1.3",
+            "status": "PASS（自动+人工确认；2026-09-09）"
+          },
+          {
+            "stageId": "V1.4",
+            "status": "PASS（自动+人工确认；2026-09-09）"
+          },
+          {
+            "stageId": "V1.5",
+            "status": "PASS（自动+人工确认；2026-09-09）"
+          }
+        ],
+        "unresolvedStages": [
+          {
+            "stageId": "V1.1",
+            "status": "PARTIALLY_IMPLEMENTED（2026-09-09既有范围自动与人工验收保留；截至2026-09-27公共Schema/TS-Python生成、账户详情/双市场幂等初始化、隔离stage存储Web/CLI同run均有工程证据；本轮补齐A股Calendar响应Schema/Fixture/兼容规则/OpenAPI及Market Data/Platform生成类型和真实日期校验；完整OpenAPI/客户端覆盖、通用Artifact交付、活动API切换/回退及新增范围用户验收仍未完成；详见阶段复核与P3记录）"
+          }
+        ],
+        "unresolvedAcceptance": [],
+        "missingAcceptance": [],
+        "unexpectedAcceptance": [],
+        "versionSummaryIncomplete": true,
+        "uncheckedVersionGate": true
+      }
+    },
+    {
+      "version": "V2",
+      "exitCode": 2,
+      "result": {
+        "version": "V2",
+        "status": "INCOMPLETE",
+        "stages": [
+          {
+            "stageId": "V2.1",
+            "status": "PASS"
+          },
+          {
+            "stageId": "V2.2",
+            "status": "PASS"
+          },
+          {
+            "stageId": "V2.3",
+            "status": "PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；生产研究路由、冻结市场数据、独立模型验证与新研究Web/CLI验收仍待完成；不含LIVE或容量观察门禁）"
+          },
+          {
+            "stageId": "V2.4",
+            "status": "PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成）"
+          },
+          {
+            "stageId": "V2.5",
+            "status": "PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成）"
+          }
+        ],
+        "unresolvedStages": [
+          {
+            "stageId": "V2.3",
+            "status": "PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；生产研究路由、冻结市场数据、独立模型验证与新研究Web/CLI验收仍待完成；不含LIVE或容量观察门禁）"
+          },
+          {
+            "stageId": "V2.4",
+            "status": "PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成）"
+          },
+          {
+            "stageId": "V2.5",
+            "status": "PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成）"
+          }
+        ],
+        "unresolvedAcceptance": [
+          {
+            "stageId": "V2.3",
+            "backend": "PARTIALLY_IMPLEMENTED（历史回放/模拟撮合自动验证保留；锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟现已纳入code suite并通过；生产研究路由及独立验证未完成）",
+            "web": "历史用户确认保留（2026-09-19；仅覆盖当时的normal/rejection/recovery、同Run、Web E2E声明范围；新增研究子能力验收待执行）"
+          },
+          {
+            "stageId": "V2.4",
+            "backend": "PARTIALLY_IMPLEMENTED；Fixture v2.0隔离API与2026-09-30容器化Chromium normal/rejection/recovery均完成；Web三TestRun同run CLI check-only/刷新重开/JSON下载通过；API与Chromium recovery真实接受响应各丢失一次并按原订单查询恢复；账本、持仓、预留、FakeBroker订单/Fill/Outbox计数在CLI前后不变",
+            "web": "历史签署保留；本次工程证据不构成当前范围人工签署"
+          },
+          {
+            "stageId": "V2.5",
+            "backend": "PARTIALLY_IMPLEMENTED（20×60 Fixture 与 BaoStock 真实分钟切片、57,600 行/20/20 SHA-256/逐日窗口/真实归档回放通过；Mac 监控池 50/80/100 质量、5/100/500/5219 多年日线、归档和隔离恢复 5,219/5,219 SHA-256 通过；BaoStock 财务公告日字段已核验但行业 PIT/修订链不足；BaoStock 有界稳定性与恢复探针通过，真实交易时段长期稳定性仍待观察；Ubuntu 实机人工子项已确认通过）",
+            "web": "PASS（用户人工验收确认，2026-09-20；页面、normal/rejection/recovery 场景和导出证据已复核）"
+          }
+        ],
+        "missingAcceptance": [],
+        "unexpectedAcceptance": [],
+        "versionSummaryIncomplete": true,
+        "uncheckedVersionGate": true
+      }
+    },
+    {
+      "version": "V3",
+      "exitCode": 2,
+      "result": {
+        "version": "V3",
+        "status": "INCOMPLETE",
+        "stages": [
+          {
+            "stageId": "V3.1",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.2",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.3",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.4",
+            "status": "NOT_RUN"
+          }
+        ],
+        "unresolvedStages": [
+          {
+            "stageId": "V3.1",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.2",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.3",
+            "status": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.4",
+            "status": "NOT_RUN"
+          }
+        ],
+        "unresolvedAcceptance": [
+          {
+            "stageId": "V3.1",
+            "backend": "NOT_RUN（V3.1 code suite通过；固定Fixture Chromium→平台→研究→冻结Runner同run关页恢复及exit-17、超时、128 MiB OOM、网络拒绝、活动Job取消和取消/Artifact并发排序隔离HTTP/PG smoke通过；外部模型调用均为0）",
+            "web": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.2",
+            "backend": "NOT_RUN（当前工作树完整 code suite PASS；随机隔离PG/HTTP中固定合成候选源码于受限ARM64容器执行，70/70信号经第二隔离容器独立重算并用于OOS交易；新增owner-scoped `READINESS_ONLY`准备态TestRun创建/同ID读取、专用PG/真实Nest HTTP集成3/3及CLI/Web准备态检查；normal/rejection/recovery只记录WAITING，正式业务断言仍NOT_RUN）",
+            "web": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.3",
+            "backend": "NOT_RUN（V3.3 owner-scoped队列/分页账本读取、持久化WAITING准备态TestRun API/页面有契约、单测、专用PG、Bearer HTTP、Platform/Web类型检查、同run CLI核对及Playwright证据；阶段normal/rejection/recovery只创建WAITING/NOT_RUN记录，不派发Job）",
+            "web": "NOT_RUN"
+          },
+          {
+            "stageId": "V3.4",
+            "backend": "NOT_RUN",
+            "web": "NOT_RUN"
+          }
+        ],
+        "missingAcceptance": [],
+        "unexpectedAcceptance": [],
+        "versionSummaryIncomplete": true,
+        "uncheckedVersionGate": true
+      }
+    }
+  ],
+  "summary": {
+    "status": "INCOMPLETE",
+    "unresolved": {
+      "V1": [
+        "V1.1"
+      ],
+      "V2": [
+        "V2.3",
+        "V2.4",
+        "V2.5"
+      ],
+      "V3": [
+        "V3.1",
+        "V3.2",
+        "V3.3",
+        "V3.4"
+      ]
+    },
+    "missingAcceptance": 0,
+    "unexpectedAcceptance": 0
+  },
+  "scope": "Markdown gate mapping check only; not business evidence verification, deployment, observation or user acceptance."
+}

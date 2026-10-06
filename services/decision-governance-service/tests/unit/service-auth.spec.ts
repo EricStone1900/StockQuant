@@ -30,4 +30,11 @@ describe("governance service Bearer scopes", () => {
     expect(allowed("POST", path, "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
     expect(() => loadGovernanceTokens({ STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "r".repeat(40), STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "t".repeat(40), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "r".repeat(40) })).toThrow("must be distinct");
   });
+  it("allows only the authenticated Platform API to revoke Paper Fixture grants", () => {
+    const path = "/internal/v1/paper-authorizations/revoke";
+    expect(authorizeGovernanceRequest({ method: "POST", pathname: path, serviceId: "platform-api-service", authorization: `Bearer ${"p".repeat(40)}`, tokens: platformTokens })).toBe(true);
+    expect(authorizeGovernanceRequest({ method: "POST", pathname: path, serviceId: "trade-execution-service", authorization: `Bearer ${"t".repeat(40)}`, tokens: platformTokens })).toBe(false);
+    expect(authorizeGovernanceRequest({ method: "POST", pathname: path, serviceId: "platform-api-service", authorization: `Bearer ${"p".repeat(40)}`, tokens })).toBe(false);
+    expect(authorizeGovernanceRequest({ method: "GET", pathname: path, serviceId: "platform-api-service", authorization: `Bearer ${"p".repeat(40)}`, tokens: platformTokens })).toBe(false);
+  });
 });

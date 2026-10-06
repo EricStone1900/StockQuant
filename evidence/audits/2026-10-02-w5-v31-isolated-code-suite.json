@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-02",
+  "stage": "V3.1",
+  "workstream": "W5",
+  "command": "pnpm verify:stage -- --stage V3.1 --suite code",
+  "status": "PASS",
+  "exitCode": 0,
+  "database": {
+    "type": "disposable-postgresql-container",
+    "image": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+    "ephemeralLoopbackPort": true,
+    "randomCredentials": true,
+    "readOnlyRootTmpfsData": true,
+    "cleanupInFinally": true,
+    "activeBusinessDatabaseUsed": false
+  },
+  "checks": {
+    "researchLintBuild": "PASS",
+    "researchUnit": {"files": 34, "tests": 191, "status": "PASS"},
+    "researchPostgresIntegration": {"tests": 27, "status": "PASS"},
+    "queuePaginationSyntheticRows": {"rows": 66100, "status": "PASS"},
+    "fixtureModelGatewayHttp": "PASS",
+    "productionSettlementRejects": "PASS",
+    "rdagentLiteLLMBackendFixture": {"chat": "PASS", "embedding": "PASS", "settledRuns": 2, "externalProviderCalls": 0},
+    "platformTypecheck": "PASS",
+    "platformUnit": {"files": 45, "tests": 156, "status": "PASS"},
+    "artifactOwnerScopeEvidenceExportHttp": "PASS",
+    "webTypecheck": "PASS"
+  },
+  "images": {
+    "research": "sha256:05a45830f2c15a7643f60ec2f0aa3c4a7250ffd761dabb0d07dbc30d0057ef53",
+    "runner": "sha256:eb9030b8107c79c3554dabc68322814b81c04564bb0a1e5a9841bd603a67ccf1"
+  },
+  "syntheticTestRunId": "42e24ed8-c20e-42f6-b85a-64b173835b8c",
+  "activeServicesTouched": false,
+  "marketDataRequested": false,
+  "paperActions": false,
+  "humanAcceptance": "NOT_RUN",
+  "v31StageAcceptance": "NOT_RUN",
+  "ubuntuValidation": "NOT_RUN",
+  "limitations": [
+    "No complete RD-Agent controller or experiment was run.",
+    "No real Provider call or invoice reconciliation was performed.",
+    "Provider authorization remains disabled.",
+    "This run does not validate production egress enforcement, Ubuntu, O1/O2 observation gates, or business acceptance."
+  ]
+}

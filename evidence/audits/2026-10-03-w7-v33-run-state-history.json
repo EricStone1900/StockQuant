@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "stockquant-stage-audit-v1",
+  "capturedAt": "2026-10-02T22:10:53.857814+00:00",
+  "workPackage": "W7 V3.3 durable workflow state history prerequisite",
+  "stage": "V3.3",
+  "status": "PARTIAL_ENGINEERING_PASS",
+  "formalSuiteCommand": "pnpm verify:stage -- --stage V3.3 --suite code",
+  "formalSuiteExitCode": 0,
+  "platformUnitTests": 168,
+  "platformIntegrationFiles": 4,
+  "platformIntegrationTests": 6,
+  "newStateTransitionCases": [
+    "WAITING->RUNNING",
+    "RUNNING->QUEUED checkpoint requeue",
+    "QUEUED->RUNNING resumed execution",
+    "RUNNING->COMPLETED",
+    "exact request retry after lost response",
+    "owner-scope rejection",
+    "terminal resurrection rejection",
+    "prior state/evidence preserved in history"
+  ],
+  "statePersistence": "PostgreSQL transaction with FOR UPDATE; append prior status/assertions/evidence before update; only valid V3.3 status transitions; terminal status is immutable",
+  "webE2E": "3/3 passed; existing readiness scenario remains WAITING only",
+  "externalProviderCalls": 0,
+  "marketRequests": 0,
+  "paperContinuity": "NOT_CHECKED",
+  "businessWorkflow": "NOT_IMPLEMENTED",
+  "businessValidation": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "dataMode": "FIXTURE for existing suite smoke; no new research dispatch",
+  "initialTestFailure": "First isolated integration run caught illegal QUEUED->COMPLETED test expectation and cleanup omitted the exact history rows; both were corrected; failed output preserved in task record, no shared rows/volumes deleted.",
+  "finalDisposablePostgresIntegration": "PASS; 4 integration files/6 tests; disposable container/network removed and verified",
+  "activeRuntimeAfterSuite": "13 pre-existing stockquant-v12 containers still listed; no sq-test-postgres container remained",
+  "sourceManifest": "evidence/audits/2026-10-03-w7-v33-run-state-history.sources.sha256",
+  "sourceManifestSha256": "ab34ff940cc98aaf90536ff6cc35ddedf7e200d833ed6d125271cb02391517f0",
+  "fullSuiteLogSha256": "244f876b2a99efc1cca9bad03c643978ec673fa7e3df4b5ee8d619253b067fd1",
+  "limitations": [
+    "This is state persistence groundwork only; it does not dispatch V3.3 research jobs or implement round orchestration.",
+    "No model provider, market source, Paper, Broker, or Ubuntu execution."
+  ]
+}

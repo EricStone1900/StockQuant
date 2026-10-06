@@ -18,6 +18,9 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_historical_research_source_authorization
+
 
 FIELDS = "date,code,open,high,low,close,volume,amount"
 
@@ -47,6 +50,9 @@ def run() -> dict[str, object]:
     args = parse_args()
     if args.sample_size < 1 or args.sample_size > 5639:
         raise ValueError("--sample-size must be between 1 and 5639; use an explicit bounded tier")
+    missing = missing_historical_research_source_authorization(["baostock"])
+    if missing:
+        return {"status": "BLOCKED", "source": "baostock", "blockedBeforeNetwork": True, "beforeOutputWrite": True, "missingAuthorization": missing}
     try:
         import baostock as bs  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -130,4 +136,4 @@ if __name__ == "__main__":
     except Exception as exc:  # pragma: no cover - CLI boundary
         result = {"status": "FAIL", "error": str(exc)}
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if result.get("status") in {"COMPLETED", "NOT_RUN"} else 1)
+    raise SystemExit(0 if result.get("status") in {"COMPLETED", "NOT_RUN"} else 2 if result.get("status") == "BLOCKED" else 1)

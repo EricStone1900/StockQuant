@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/replay-execution-authorization-validation.schema.json",
+  "title": "ReplayExecutionAuthorizationValidation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "accountId", "command"],
+  "properties": {
+    "authorizationId": { "type": "string", "minLength": 1 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "accountId", "clientOrderId", "security", "requestedQuantity", "bar"],
+      "properties": {
+        "namespace": { "type": "string" },
+        "accountId": { "type": "string", "format": "uuid" },
+        "clientOrderId": { "type": "string" },
+        "security": { "type": "string" },
+        "requestedQuantity": { "type": "integer", "minimum": 1 },
+        "bar": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["timestamp", "open", "volume"],
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "open": { "type": "string" },
+            "volume": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

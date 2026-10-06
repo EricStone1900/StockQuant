@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_historical_research_source_authorization
 
 
 def rows(query: object) -> list[list[str]]:
@@ -14,6 +19,9 @@ def rows(query: object) -> list[list[str]]:
 
 
 def run() -> dict[str, object]:
+    missing = missing_historical_research_source_authorization(["baostock"])
+    if missing:
+        return {"status": "BLOCKED", "source": "baostock", "blockedBeforeNetwork": True, "missingAuthorization": missing}
     try:
         import baostock as bs  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -61,4 +69,4 @@ def run() -> dict[str, object]:
 if __name__ == "__main__":
     output = run()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if output.get("status") in {"PARTIAL", "NOT_RUN"} else 1)
+    raise SystemExit(0 if output.get("status") == "PARTIAL" else 2 if output.get("status") in {"NOT_RUN", "BLOCKED"} else 1)

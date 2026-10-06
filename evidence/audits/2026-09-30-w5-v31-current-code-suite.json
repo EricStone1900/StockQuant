@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-30",
+  "command": "STOCKQUANT_RESEARCH_IMAGE_REF=stockquant-w8-20260930-post-w5-refresh-research-automation-service:latest STOCKQUANT_RESEARCH_IMAGE_ID=sha256:ee910c7b73b39387a8a8b424b8620dd2ef9537fb504e844580e67aef0e464241 pnpm verify:stage -- --stage V3.1 --suite code",
+  "exitCode": 0,
+  "image": {
+    "service": "Research Automation",
+    "id": "sha256:ee910c7b73b39387a8a8b424b8620dd2ef9537fb504e844580e67aef0e464241",
+    "source": "W8 isolated current-worktree build inventory"
+  },
+  "checks": {
+    "contracts": "PASS",
+    "researchAutomationUnit": "169/169 PASS",
+    "researchAutomationPostgresIntegration": "20/20 PASS",
+    "fixtureGatewayHttpSmoke": "PASS; preflight BLOCKED; externalCalls=0",
+    "litellmInternalFixtureSmoke": "PASS; chat+embedding; two persisted SETTLED rows; 120 cents reserved, 46 cents spent",
+    "platformUnit": "94/94 PASS",
+    "artifactOwnerScopeHttpSmoke": "PASS; activeServicesTouched=false",
+    "webTypecheck": "PASS"
+  },
+  "sideEffects": {
+    "realProviderCalls": 0,
+    "activeServicesTouched": false,
+    "modelSource": "FIXTURE",
+    "budgetEvidence": "isolated disposable PostgreSQL; no real billing reconciliation"
+  },
+  "stageStatus": "V3.1 remains NOT_RUN; production RD-Agent/provider/outbound policy and human acceptance not verified"
+}

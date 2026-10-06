@@ -64,14 +64,14 @@ async function waitReady() {
   throw new Error("Research Automation did not become ready: " + serviceOutput);
 }
 
-async function createExperiment({ boundRunId, key }) {
+async function createExperiment({ boundRunId, key, rounds = 1 }) {
   const result = await request("/v1/experiments", {
     method: "POST",
     body: {
       ...(boundRunId ? { testRunId: boundRunId } : {}),
       fixtureId: "v3.3-binding-smoke-fixture",
       modelProfile: "UNSET",
-      rounds: 1,
+      rounds,
       budgetCurrency: "USD",
       budgetCents: 25,
       environmentMode: "RESEARCH",
@@ -84,12 +84,13 @@ async function createExperiment({ boundRunId, key }) {
   return result.body.experimentId;
 }
 
-function jobFor(runId, experimentId) {
+function jobFor(runId, experimentId, roundIndex) {
   const sha = "a".repeat(64);
   return {
     schemaVersion: "v3.1-runner-job-v1",
     testRunId: runId,
     experimentId,
+    ...(roundIndex === undefined ? {} : { roundIndex }),
     imageDigest: "sha256:" + "b".repeat(64),
     inputArtifact: "research/" + runId + "/" + experimentId + "/inputs/" + sha,
     outputNamespace: "research/" + runId + "/" + experimentId + "/outputs",
@@ -102,6 +103,7 @@ try {
   await waitReady();
   const unboundExperimentId = await createExperiment({ key: "v33-unbound-" + randomUUID() });
   const boundExperimentId = await createExperiment({ boundRunId: testRunId, key: "v33-bound-" + randomUUID() });
+  const multiRoundExperimentId = await createExperiment({ boundRunId: testRunId, key: "v33-multi-round-" + randomUUID(), rounds: 3 });
   const cancelledExperimentId = await createExperiment({ boundRunId: testRunId, key: "v33-cancelled-" + randomUUID() });
   const cancelled = await request("/v1/experiments/" + cancelledExperimentId + "/cancel", { method: "POST" });
   assert.equal(cancelled.status, 200);
@@ -114,12 +116,16 @@ try {
   const crossRun = await request("/v1/runner/jobs", { method: "POST", body: jobFor(otherTestRunId, boundExperimentId) });
   const legacy = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, unboundExperimentId) });
   const nonReserved = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, cancelledExperimentId) });
+  const missingRound = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, multiRoundExperimentId) });
+  const invalidRound = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, multiRoundExperimentId, 4) });
   assert.equal(anonymous.status, 401);
   assert.equal(runnerHost.status, 403);
   assert.equal(missing.status, 404);
   assert.equal(crossRun.status, 409);
   assert.equal(legacy.status, 409);
   assert.equal(nonReserved.status, 409);
+  assert.equal(missingRound.status, 422);
+  assert.equal(invalidRound.status, 422);
 
   const queuePath = "/v1/runner/jobs?testRunId=" + testRunId + "&offset=0&limit=10";
   const emptyQueue = await request(queuePath);
@@ -134,14 +140,28 @@ try {
   assert.equal(queue.body.jobs.length, 1);
   assert.equal(queue.body.jobs[0].job.experimentId, boundExperimentId);
   assert.equal(queue.body.jobs[0].job.testRunId, testRunId);
+  const acceptedRoundOne = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, multiRoundExperimentId, 1) });
+  assert.equal(acceptedRoundOne.status, 202, JSON.stringify(acceptedRoundOne.body));
+  assert.equal(acceptedRoundOne.body.job.roundIndex, 1);
+  const acceptedRoundTwo = await request("/v1/runner/jobs", { method: "POST", body: jobFor(testRunId, multiRoundExperimentId, 2) });
+  assert.equal(acceptedRoundTwo.status, 202, JSON.stringify(acceptedRoundTwo.body));
+  assert.equal(acceptedRoundTwo.body.job.roundIndex, 2);
+  assert.notEqual(acceptedRoundOne.body.jobId, acceptedRoundTwo.body.jobId);
+  assert.equal(acceptedRoundOne.body.jobId, `${testRunId}:${multiRoundExperimentId}:round-1`);
+  assert.equal(acceptedRoundTwo.body.jobId, `${testRunId}:${multiRoundExperimentId}:round-2`);
+  const finalQueue = await request(queuePath);
+  assert.equal(finalQueue.body.jobs.length, 3);
+  assert.deepEqual(finalQueue.body.jobs.filter((job) => job.job.experimentId === multiRoundExperimentId).map((job) => job.job.roundIndex).sort(), [1, 2]);
 
   console.log(JSON.stringify({
     status: "PASS",
     testRunId,
     acceptedExperimentId: boundExperimentId,
-    rejected: { anonymous: anonymous.status, runnerHost: runnerHost.status, missingExperiment: missing.status, crossTestRun: crossRun.status, legacyUnbound: legacy.status, nonReservedBudget: nonReserved.status },
+    rejected: { anonymous: anonymous.status, runnerHost: runnerHost.status, missingExperiment: missing.status, crossTestRun: crossRun.status, legacyUnbound: legacy.status, nonReservedBudget: nonReserved.status, multiRoundWithoutRound: missingRound.status, unallocatedRound: invalidRound.status },
     queueBeforeValidDispatch: emptyQueue.body.jobs.length,
-    queueAfterValidDispatch: queue.body.jobs.length,
+    queueAfterValidDispatch: finalQueue.body.jobs.length,
+    acceptedRoundIndices: [acceptedRoundOne.body.job.roundIndex, acceptedRoundTwo.body.job.roundIndex],
+    roundJobIds: [acceptedRoundOne.body.jobId, acceptedRoundTwo.body.jobId],
     acceptedStatus: accepted.body.status,
     execution: accepted.body.execution,
     externalCalls: 0,

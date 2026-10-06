@@ -1,0 +1,900 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StockQuant Market Data Minute Import API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://market-data-service:3002"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/v2/minute/preview": {
+      "get": {
+        "operationId": "previewMarketDataMinuteFixture",
+        "summary": "Read the frozen V2.2 minute fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deterministic fixture bars and quality summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/minute-fixture-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service identity is required"
+          }
+        }
+      }
+    },
+    "/v2/minute/import": {
+      "post": {
+        "operationId": "importMarketDataMinuteFixture",
+        "summary": "Publish the normal or bad frozen V2.2 minute Fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/minute-fixture-import-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent duplicate Fixture import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "New Fixture import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service identity is required"
+          },
+          "422": {
+            "description": "Rejected Fixture or bad input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Import persistence is unavailable"
+          }
+        }
+      }
+    },
+    "/v2/minute/csv/import": {
+      "post": {
+        "operationId": "importMarketDataMinuteCsv",
+        "summary": "Validate and atomically publish an explicitly mapped minute CSV into the Market Data domain",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-import-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "A new import was atomically published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "An identical import already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API service identity is required"
+          },
+          "409": {
+            "description": "Import identity conflicts with existing immutable content"
+          },
+          "422": {
+            "description": "Input is invalid; the response contains a rejected import record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Minute import persistence is unavailable"
+          }
+        }
+      }
+    },
+    "/v2/minute/{format}/uploads": {
+      "post": {
+        "operationId": "createMarketDataMinuteUpload",
+        "summary": "Create an owner-scoped CSV or Parquet minute upload",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-owner-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "parquet"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-create-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload created or existing upload returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "403": {
+            "description": "Owner scope rejected"
+          },
+          "409": {
+            "description": "Upload identity conflicts"
+          },
+          "422": {
+            "description": "Upload request rejected"
+          }
+        }
+      }
+    },
+    "/v2/minute/{format}/uploads/{uploadId}/chunks/{index}": {
+      "put": {
+        "operationId": "putMarketDataMinuteUploadChunk",
+        "summary": "Store an idempotent owner-scoped upload chunk",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-owner-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "parquet"
+              ]
+            }
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-upload-chunk-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chunk accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "403": {
+            "description": "Owner scope rejected"
+          },
+          "404": {
+            "description": "Upload not found"
+          },
+          "409": {
+            "description": "Chunk conflicts with existing content"
+          },
+          "422": {
+            "description": "Chunk rejected"
+          }
+        }
+      }
+    },
+    "/v2/minute/{format}/uploads/{uploadId}": {
+      "get": {
+        "operationId": "getMarketDataMinuteUpload",
+        "summary": "Read owner-scoped upload progress",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-owner-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "parquet"
+              ]
+            }
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-csv-upload-progress-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "403": {
+            "description": "Owner scope rejected"
+          },
+          "404": {
+            "description": "Upload not found"
+          }
+        }
+      }
+    },
+    "/v2/minute/{format}/uploads/{uploadId}/{action}": {
+      "post": {
+        "operationId": "actOnMarketDataMinuteUpload",
+        "summary": "Preview, finalize or cancel an owner-scoped upload",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-owner-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "parquet"
+              ]
+            }
+          },
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "preview",
+                "finalize",
+                "cancel"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "403": {
+            "description": "Owner scope rejected"
+          },
+          "404": {
+            "description": "Upload not found"
+          },
+          "409": {
+            "description": "Upload state conflicts"
+          },
+          "422": {
+            "description": "Action rejected"
+          }
+        }
+      }
+    },
+    "/v2/minute/csv/preview": {
+      "post": {
+        "operationId": "previewMarketDataMinuteCsv",
+        "summary": "Validate CSV semantics and mapping without publishing bars",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/minute-csv-import-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "CSV preview and validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "422": {
+            "description": "CSV rejected"
+          }
+        }
+      }
+    },
+    "/v2/minute/imports/{version}": {
+      "get": {
+        "operationId": "getMarketDataMinuteImport",
+        "summary": "Read an immutable minute import record",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable minute import record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/minute-import-record-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "404": {
+            "description": "Import not found"
+          }
+        }
+      }
+    },
+    "/v2/minute/imports/{version}/bars": {
+      "get": {
+        "operationId": "pageMarketDataMinuteImportBars",
+        "summary": "Read a bounded page of bars from an immutable minute import",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            }
+          },
+          {
+            "name": "securityId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded page and next cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service identity required"
+          },
+          "404": {
+            "description": "Import not found"
+          },
+          "422": {
+            "description": "Page request rejected"
+          }
+        }
+      }
+    },
+    "/v1/artifacts/tasks": {
+      "post": {
+        "operationId": "createArtifactTask",
+        "summary": "Queue durable publication of the frozen V1.2 immutable Fixture artifact",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Task is durably queued before the asynchronous worker is scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/market-data/artifact-task.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service identity is required"
+          },
+          "404": {
+            "description": "Artifact task does not exist"
+          },
+          "503": {
+            "description": "Artifact task persistence is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/artifacts/tasks/{taskId}": {
+      "get": {
+        "operationId": "readArtifactTask",
+        "summary": "Read a durable artifact task status",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted task status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/market-data/artifact-task.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service identity is required"
+          },
+          "404": {
+            "description": "Artifact task does not exist"
+          },
+          "503": {
+            "description": "Artifact task persistence is unavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "taskId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ]
+    },
+    "/v1/artifacts/tasks/{taskId}/cancel": {
+      "post": {
+        "operationId": "cancelArtifactTask",
+        "summary": "Cancel a running artifact task idempotently",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted cancellation status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/market-data/artifact-task.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service identity is required"
+          },
+          "404": {
+            "description": "Artifact task does not exist"
+          },
+          "503": {
+            "description": "Artifact task persistence is unavailable"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "taskId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ]
+    },
+    "/v1/artifacts/tasks/{taskId}/artifact": {
+      "get": {
+        "operationId": "readPublishedArtifactTaskContent",
+        "summary": "Read the immutable Fixture bytes published atomically by a completed task",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "type": "string", "const": "platform-api-service" } }],
+        "responses": {
+          "200": { "description": "Published immutable artifact content and SHA-256", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/market-data/artifact-task-content.schema.json" } } } },
+          "401": { "description": "Platform service identity is required" },
+          "404": { "description": "Artifact is not published or task does not exist" },
+          "503": { "description": "Artifact task persistence is unavailable" }
+        }
+      },
+      "parameters": [{ "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }]
+    }
+  }
+}

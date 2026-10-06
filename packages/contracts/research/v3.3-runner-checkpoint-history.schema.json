@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-history.schema.json",
+  "title": "V33RunnerCheckpointHistory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "experimentId", "roundIndex", "checkpoints"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-runner-checkpoint-history-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "experimentId": { "type": "string", "format": "uuid" },
+    "roundIndex": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "checkpoints": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "testRunId", "experimentId", "roundIndex", "sequence", "state", "stateSha256", "createdAt"], "properties": { "schemaVersion": { "const": "v3.3-research-checkpoint-v1" }, "testRunId": { "type": "string", "format": "uuid" }, "experimentId": { "type": "string", "format": "uuid" }, "roundIndex": { "type": "integer", "minimum": 1, "maximum": 3 }, "sequence": { "type": "integer", "minimum": 1 }, "state": { "type": "object" }, "stateSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "createdAt": { "type": "string", "format": "date-time" } } } }
+  }
+}

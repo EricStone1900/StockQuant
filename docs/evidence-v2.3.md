@@ -12,3 +12,5 @@
 - 用户人工验收：用户于 2026-09-09 明确确认“V2.3 人工验收通过”；本次复验结果一致，结论 PASS。
 
 已知限制：当前为小样本、确定性 FakeBroker；尚未覆盖全量历史文件、逐笔队列、执行/组合领域服务、生产 Worker 和跨域账本检查点。
+
+2026-10-03 W4共享Artifact Store代码身份补强：V2.3 Qlib TestRun的精确代码指纹现在覆盖共享Artifact Store实现及回归测试；独立复算163项输入与持久TestRun中的`codeVersion`完全一致。完整V2.3 code suite退出0，TestRun `0e71363c-4b35-4098-a5ea-432982a3df92`，共享Artifact SHA-256 `24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8`，owner读200/异主403，同Run CLI只读与证据导出通过；Qlib/LightGBM真实引擎仍只在合成FIXTURE上，独立验证NOT_RUN。详情见[W4代码身份审计](../evidence/audits/2026-10-03-w4-v23-artifact-codeversion-binding.md)、[机器结果](../evidence/audits/2026-10-03-w4-v23-artifact-codeversion-binding.json)、[日志](../evidence/audits/2026-10-03-w4-v23-artifact-codeversion-binding.log)、[163输入清单](../evidence/audits/2026-10-03-w4-v23-artifact-codeversion-binding.sources.sha256)及[SHA-256](../evidence/audits/2026-10-03-w4-v23-artifact-codeversion-binding.sha256)。

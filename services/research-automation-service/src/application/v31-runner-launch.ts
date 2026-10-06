@@ -41,12 +41,13 @@ export function buildRunnerLaunchPlan(job: RunnerJob, config: RunnerLaunchConfig
     if (!isAbsolute(candidate) || candidate.includes(",") || candidate.includes("\0") || candidate.split(/[\\/]+/).includes("..")) throw new Error("runner managed and bind paths must be absolute, mount-safe, and cannot traverse parent directories");
   }
   const lexicalRoot = resolve(config.managedRoot);
+  const roundDirectory = `round-${job.roundIndex ?? 1}`;
   const attemptDirectory = `fence-${config.fencingToken}`;
-  if (resolve(config.inputRoot) !== join(lexicalRoot, "inputs", job.testRunId, job.experimentId, attemptDirectory) || resolve(config.outputRoot) !== join(lexicalRoot, "outputs", job.testRunId, job.experimentId, attemptDirectory)) throw new Error("runner bind paths must use this job's exact fenced managed directory layout");
+  if (resolve(config.inputRoot) !== join(lexicalRoot, "inputs", job.testRunId, job.experimentId, roundDirectory, attemptDirectory) || resolve(config.outputRoot) !== join(lexicalRoot, "outputs", job.testRunId, job.experimentId, roundDirectory, attemptDirectory)) throw new Error("runner bind paths must use this job's exact round-scoped fenced managed directory layout");
   const managedRoot = realpathSync(config.managedRoot);
   if (!statSync(managedRoot).isDirectory()) throw new Error("runner managed root must be a directory");
-  const expectedInput = join(managedRoot, "inputs", job.testRunId, job.experimentId, attemptDirectory);
-  const expectedOutput = join(managedRoot, "outputs", job.testRunId, job.experimentId, attemptDirectory);
+  const expectedInput = join(managedRoot, "inputs", job.testRunId, job.experimentId, roundDirectory, attemptDirectory);
+  const expectedOutput = join(managedRoot, "outputs", job.testRunId, job.experimentId, roundDirectory, attemptDirectory);
   const actualInput = realpathSync(config.inputRoot);
   const actualOutput = realpathSync(config.outputRoot);
   if (actualInput !== expectedInput || actualOutput !== expectedOutput) throw new Error("runner bind paths must resolve to this job's fenced managed input and output directories");

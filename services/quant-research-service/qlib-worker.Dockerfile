@@ -10,5 +10,9 @@ COPY qlib-worker-requirements.lock .
 RUN pip install --no-cache-dir --index-url="${STOCKQUANT_PYTHON_INDEX_URL}" --require-hashes --no-build-isolation --no-deps -r qlib-worker-requirements.lock \
     && pip check
 COPY qlib-worker.py .
+RUN groupadd --system --gid 10001 stockquant \
+    && useradd --system --uid 10001 --gid stockquant --no-create-home --home-dir /nonexistent stockquant
+ENV HOME=/tmp
+USER 10001:10001
 ENV QLIB_SOURCE_COMMIT=5a84aaf1dc402232646ad2836dea33ff15886552
 CMD ["python", "qlib-worker.py"]

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-command.schema.json",
+  "title": "V33RunnerCheckpointCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workerId", "fencingToken", "schemaVersion", "testRunId", "roundIndex", "sequence", "state"],
+  "properties": {
+    "workerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "fencingToken": { "type": "integer", "minimum": 1 },
+    "schemaVersion": { "const": "v3.3-research-checkpoint-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "roundIndex": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "state": { "type": "object" }
+  }
+}

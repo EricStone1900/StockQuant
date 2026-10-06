@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-authorization-revoke-result.schema.json",
+  "title": "V24PaperAuthorizationRevokeResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "status", "replayed", "revokedAt"],
+  "properties": {
+    "authorizationId": { "type": "string", "format": "uuid" },
+    "status": { "const": "REVOKED" },
+    "replayed": { "type": "boolean" },
+    "revokedAt": { "type": "string", "format": "date-time" }
+  }
+}

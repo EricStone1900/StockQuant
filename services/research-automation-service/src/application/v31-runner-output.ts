@@ -46,6 +46,7 @@ export async function collectRunnerOutputArtifacts(input: {
     const entries = await readdir(directory, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
+      if (segments.length === 0 && entry.name === "checkpoint.json") continue;
       if (!SAFE_SEGMENT.test(entry.name)) throw new Error("runner output contains an unsafe path segment");
       const nextSegments = [...segments, entry.name];
       const target = resolve(directory, entry.name);

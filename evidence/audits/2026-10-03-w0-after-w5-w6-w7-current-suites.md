@@ -1,0 +1,1 @@
+W0 W5/V3.1、W6/V3.2与W7/V3.3当前代码套件后工作树快照（2026-10-03）：固定HEAD、逐文件SHA-256、缺失路径及tracked删除项。见[机器报告](../../evidence/audits/2026-10-03-w0-after-w5-w6-w7-current-suites.json)、[Manifest](../../evidence/audits/2026-10-03-w0-after-w5-w6-w7-current-suites.files.sha256)。快照不代表业务/人工验收完成。

@@ -1,0 +1,5 @@
+# W4 V2.3 identity after V3.3 save-path guard
+
+`pnpm verify:stage -- --stage V2.3 --suite code` exited 0. TestRun `af9bcd6d-2e47-4f78-8851-40098accf24c` binds codeVersion `sha256:759a552c7c8b7ab555afa9d113ab135036e4c8ac18f2d6ccb49e43d56d47a2a2` across 165 workspace inputs; canonical path+content hashes independently recompute to the same digest. Locked Qlib 0.9.6 / LightGBM 4.7.0 fit/predict produced 24 finite predictions with temporal validation PASS. Artifact owner/foreign-owner reads were 200/403; same-run CLI check-only exited 0 without mutation; two evidence items exported. All disposable DBs/networks, Qlib container/image and temporary shared content were removed.
+
+Synthetic FIXTURE only; no market/PIT input, independent validation, Provider, Paper, broker, Ubuntu or human acceptance. See [machine report](./2026-10-03-w4-v23-after-v33-save-path-guard.json), [complete suite log](./2026-10-03-w4-v23-after-v33-save-path-guard.log), [165-input SHA list](./2026-10-03-w4-v23-after-v33-save-path-guard.sources.sha256), and [audit manifest](./2026-10-03-w4-v23-after-v33-save-path-guard.sha256).

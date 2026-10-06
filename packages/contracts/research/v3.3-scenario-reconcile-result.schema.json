@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-scenario-reconcile-result.schema.json",
+  "title": "V33ScenarioReconcileResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "status", "workflowStep", "completedRounds", "rounds", "experimentSettlement", "settlement", "businessValidation", "humanAcceptance"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-scenario-reconcile-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "RUNNING" },
+    "workflowStep": { "const": "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED" },
+    "completedRounds": { "const": 2 },
+    "rounds": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "object", "additionalProperties": true } },
+    "experimentSettlement": { "const": "VERIFIED_FIXTURE_LEDGER" },
+    "settlement": { "type": "object", "additionalProperties": false, "required": ["experimentId", "requestedCents", "settledCents", "modelCallCount", "rounds"], "properties": {
+      "experimentId": { "type": "string", "format": "uuid" },
+      "requestedCents": { "const": 80 },
+      "settledCents": { "const": 46 },
+      "modelCallCount": { "const": 2 },
+      "rounds": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "object", "additionalProperties": false, "required": ["roundIndex", "allocatedCents", "settledCents"], "properties": { "roundIndex": { "type": "integer", "enum": [1, 2] }, "allocatedCents": { "const": 40 }, "settledCents": { "const": 23 } } } }
+    } },
+    "businessValidation": { "const": "NOT_RUN" },
+    "humanAcceptance": { "const": "NOT_RUN" }
+  }
+}

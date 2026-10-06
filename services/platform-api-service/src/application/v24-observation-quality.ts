@@ -1,4 +1,5 @@
-import type { ObservationRecord } from "../adapters/postgres-v24-observation-repository.js";
+import type { ObservationRecord } from "../ports/observation-repository.js";
+import { v24SamplingSlots } from "./v24-scheduler.js";
 
 export const V24_EXPECTED_SAMPLING_SLOTS = [
   "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -9,6 +10,7 @@ export const V24_MAX_QUOTE_AGE_SECONDS = 1800;
 
 export type ObservationQualityEvent = { eventKind: string | null; record: ObservationRecord };
 export type ObservationDayQuality = {
+  samplingIntervalMinutes: 20 | 30 | null;
   samplingEvents: number;
   uniqueSamplingWindows: number;
   missingSamplingWindows: string[];
@@ -93,8 +95,19 @@ function validateSecuritySnapshot(record: ObservationRecord, errors: string[]): 
 }
 
 export function calculateObservationDayQuality(observationDate: string, events: ObservationQualityEvent[]): ObservationDayQuality {
+  const samplingRecords = events.filter(({ eventKind }) => eventKind === "SAMPLING_SLOT").map(({ record }) => record);
+  const recordedIntervals = samplingRecords.map((record) => record?.evidence?.samplingIntervalMinutes);
+  const uniqueIntervals = new Set(recordedIntervals.filter((value): value is number => value === 20 || value === 30));
+  // Older immutable records predate the explicit policy field. They qualify only
+  // under the original 30-minute policy when every sample carries that marker.
+  const legacy30 = recordedIntervals.every((value) => value === undefined) && samplingRecords.length > 0 && samplingRecords.every((record) => record.samplingEvery30Minutes === true);
+  const interval = uniqueIntervals.size === 1
+    ? [...uniqueIntervals][0] as 20 | 30
+    : legacy30 ? 30 : null;
+  const expectedSlots = interval === null ? [] : v24SamplingSlots(interval).map((slot) => slot.slice(0, 5));
   const quality: ObservationDayQuality = {
-    samplingEvents: 0, uniqueSamplingWindows: 0, missingSamplingWindows: [...V24_EXPECTED_SAMPLING_SLOTS], duplicateSamplingEvents: 0,
+    samplingIntervalMinutes: interval,
+    samplingEvents: 0, uniqueSamplingWindows: 0, missingSamplingWindows: interval === null ? [...V24_EXPECTED_SAMPLING_SLOTS] : [...expectedSlots], duplicateSamplingEvents: 0,
     executionEvents: 0, uniqueExecutionWindows: 0, invalidSamplingEvents: 0, invalidExecutionEvents: 0,
     expectedSecuritySamples: 0, validSecuritySamples: 0, invalidSecuritySamples: 0, errors: [],
   };
@@ -114,7 +127,7 @@ export function calculateObservationDayQuality(observationDate: string, events: 
     const validDate = schedule?.date === observationDate;
     if (eventKind === "SAMPLING_SLOT") {
       quality.samplingEvents += 1;
-      const expectedSlot = schedule?.time && (V24_EXPECTED_SAMPLING_SLOTS as readonly string[]).includes(schedule.time) ? schedule.time : null;
+      const expectedSlot = schedule?.time && expectedSlots.includes(schedule.time) ? schedule.time : null;
       if (!validDate || !expectedSlot) {
         quality.invalidSamplingEvents += 1;
         errors.add("SAMPLING_WINDOW_UNEXPECTED_OR_MISSING");
@@ -129,7 +142,7 @@ export function calculateObservationDayQuality(observationDate: string, events: 
       seenSampling.add(expectedSlot);
       quality.missingSamplingWindows = quality.missingSamplingWindows.filter((slot) => slot !== expectedSlot);
       const delay = evidence.scheduledDelaySeconds;
-      if (record.samplingEvery30Minutes !== true || typeof delay !== "number" || !Number.isFinite(delay) || Math.abs(delay) > 60) {
+      if (typeof delay !== "number" || !Number.isFinite(delay) || Math.abs(delay) > 60) {
         errors.add(`SAMPLING_WINDOW_DELAYED:${expectedSlot}`);
       }
     } else {
@@ -157,7 +170,7 @@ export function calculateObservationDayQuality(observationDate: string, events: 
     const recordErrors: unknown = record.errors;
     if (Array.isArray(recordErrors)) for (const error of recordErrors) if (typeof error === "string") errors.add(error);
     if (!Array.isArray(recordErrors) || recordErrors.length > 0) { errors.add("OBSERVATION_ERRORS_UNVERIFIABLE"); invalidEvent = true; }
-    if (eventKind === "SAMPLING_SLOT" && (record.samplingEvery30Minutes !== true || typeof evidence.scheduledDelaySeconds !== "number" || !Number.isFinite(evidence.scheduledDelaySeconds) || Math.abs(evidence.scheduledDelaySeconds) > 60)) invalidEvent = true;
+    if (eventKind === "SAMPLING_SLOT" && (interval === null || typeof evidence.samplingIntervalMinutes !== "number" && !legacy30 || typeof evidence.scheduledDelaySeconds !== "number" || !Number.isFinite(evidence.scheduledDelaySeconds) || Math.abs(evidence.scheduledDelaySeconds) > 60)) invalidEvent = true;
     if (invalidEvent && eventKind === "SAMPLING_SLOT") quality.invalidSamplingEvents += 1;
     else if (invalidEvent) quality.invalidExecutionEvents += 1;
   }

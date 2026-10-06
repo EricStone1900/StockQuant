@@ -16,6 +16,8 @@ describe("portfolio service bearer identities", () => {
 
   it("scopes each identity to its routes and prevents identity-header escalation", () => {
     expect(authorizePortfolioRequest({ callerId: "platform-api-service", authorization: `Bearer ${platformToken}`, method: "POST", path: "/internal/v1/accounts/id/fills", credentials })).toBe("FORBIDDEN");
+    expect(authorizePortfolioRequest({ callerId: "trade-execution-service", authorization: `Bearer ${credentials["trade-execution-service"]}`, method: "POST", path: "/internal/v1/accounts/id/fills/fill-1/fee-corrections", credentials })).toBe("AUTHORIZED");
+    expect(authorizePortfolioRequest({ callerId: "platform-api-service", authorization: `Bearer ${platformToken}`, method: "POST", path: "/internal/v1/accounts/id/fills/fill-1/fee-corrections", credentials })).toBe("FORBIDDEN");
     expect(authorizePortfolioRequest({ callerId: "trade-execution-service", authorization: `Bearer ${credentials["trade-execution-service"]}`, method: "POST", path: "/internal/v1/accounts/id/resource-reservations", credentials })).toBe("FORBIDDEN");
     expect(authorizePortfolioRequest({ callerId: "platform-api-service", authorization: `Bearer ${credentials["trade-execution-service"]}`, method: "POST", path: "/internal/v1/accounts/initialize", credentials })).toBe("UNAUTHENTICATED");
     expect(authorizePortfolioRequest({ callerId: "historical-replay-worker", authorization: `Bearer ${credentials["historical-replay-worker"]}`, method: "GET", path: "/internal/v1/accounts/id/snapshot", credentials })).toBe("AUTHORIZED");

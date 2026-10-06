@@ -4,66 +4,213 @@
     {
       "schema": "schemas/common/historical-fake-execution-command.schema.json",
       "consumer": "historical-replay-worker -> trade-execution-service",
-      "requiredProperties": ["authorizationId", "namespace", "accountId", "clientOrderId", "security", "requestedQuantity", "bar"],
+      "requiredProperties": [
+        "authorizationId",
+        "namespace",
+        "accountId",
+        "clientOrderId",
+        "security",
+        "requestedQuantity",
+        "bar"
+      ],
       "stableEnums": {
-        "side": ["BUY", "SELL"],
-        "orderType": ["MARKET", "LIMIT"],
-        "timeInForce": ["DAY"]
+        "side": [
+          "BUY",
+          "SELL"
+        ],
+        "orderType": [
+          "MARKET",
+          "LIMIT"
+        ],
+        "timeInForce": [
+          "DAY"
+        ]
       }
+    },
+    {
+      "schema": "schemas/trade-execution/fake-broker-cancellation-result.schema.json",
+      "consumer": "platform-api-service -> trade-execution-service (V2.4 isolated FakeBroker cancellation-result injection)",
+      "requiredProperties": [
+        "outcome",
+        "reason"
+      ],
+      "stableEnums": {
+        "outcome": [
+          "ACCEPTED",
+          "REJECTED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/trade-execution/fake-broker-simulated-fill-report.schema.json",
+      "consumer": "platform-api-service -> trade-execution-service (V2.4 isolated FakeBroker report injection)",
+      "requiredProperties": [
+        "externalFillId",
+        "sequence",
+        "cumulativeQuantity",
+        "price",
+        "fee",
+        "effectiveAt",
+        "evidenceRef"
+      ],
+      "stableProperties": [
+        "externalFillId",
+        "sequence",
+        "cumulativeQuantity"
+      ]
     },
     {
       "schema": "schemas/common/historical-fake-execution-result.schema.json",
       "consumer": "trade-execution-service -> historical-replay-worker",
-      "requiredProperties": ["result", "replayed"],
-      "stableProperties": ["result", "replayed"]
+      "requiredProperties": [
+        "result",
+        "replayed"
+      ],
+      "stableProperties": [
+        "result",
+        "replayed"
+      ]
     },
     {
       "schema": "research/v3.1-runner-claim-command.schema.json",
       "consumer": "runner-host -> research-automation-service",
-      "requiredProperties": ["workerId"],
-      "stableProperties": ["workerId", "testRunId"]
+      "requiredProperties": [
+        "workerId"
+      ],
+      "stableProperties": [
+        "workerId",
+        "testRunId"
+      ]
     },
     {
       "schema": "research/v3.1-runner-input-request.schema.json",
       "consumer": "runner-host -> research-automation-service",
-      "requiredProperties": ["workerId", "fencingToken"],
-      "stableProperties": ["workerId", "fencingToken"]
+      "requiredProperties": [
+        "workerId",
+        "fencingToken"
+      ],
+      "stableProperties": [
+        "workerId",
+        "fencingToken"
+      ]
     },
     {
       "schema": "research/v3.1-runner-complete-command.schema.json",
       "consumer": "runner-host -> research-automation-service",
-      "requiredProperties": ["workerId", "fencingToken", "execution"],
-      "stableProperties": ["workerId", "fencingToken", "execution", "artifacts"]
+      "requiredProperties": [
+        "workerId",
+        "fencingToken",
+        "execution"
+      ],
+      "stableProperties": [
+        "workerId",
+        "fencingToken",
+        "execution",
+        "artifacts"
+      ]
     },
     {
       "schema": "research/v3.1-runner-job-record.schema.json",
       "consumer": "research-automation-service -> runner-host",
-      "requiredProperties": ["jobId", "job", "status", "lease"],
-      "stableEnums": { "status": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"] }
+      "requiredProperties": [
+        "jobId",
+        "job",
+        "status",
+        "lease"
+      ],
+      "stableEnums": {
+        "status": [
+          "QUEUED",
+          "RUNNING",
+          "COMPLETED",
+          "FAILED",
+          "TIMED_OUT",
+          "OUTPUT_LIMIT",
+          "SPAWN_FAILED",
+          "CANCELLED"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-runner-execution.schema.json",
       "consumer": "runner-host -> research-automation-service",
-      "requiredProperties": ["status", "exitCode", "signal", "stdout", "stderr", "durationMs"],
-      "stableEnums": { "status": ["COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED"] }
+      "requiredProperties": [
+        "status",
+        "exitCode",
+        "signal",
+        "stdout",
+        "stderr",
+        "durationMs"
+      ],
+      "stableEnums": {
+        "status": [
+          "COMPLETED",
+          "FAILED",
+          "TIMED_OUT",
+          "OUTPUT_LIMIT",
+          "SPAWN_FAILED"
+        ]
+      }
     },
     {
       "schema": "replay/historical-replay-command.schema.json",
       "consumer": "platform-api-service -> historical-replay-worker",
-      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "seed", "bar"],
-      "stableEnums": { "scenarioId": ["normal", "recovery"] }
+      "requiredProperties": [
+        "testRunId",
+        "namespace",
+        "ownerId",
+        "scenarioId",
+        "seed",
+        "bar"
+      ],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "recovery"
+        ]
+      }
     },
     {
       "schema": "replay/historical-replay-multi-command.schema.json",
       "consumer": "platform-api-service -> historical-replay-worker",
-      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "seed", "bars"],
-      "stableEnums": { "scenarioId": ["normal", "recovery"] }
+      "requiredProperties": [
+        "testRunId",
+        "namespace",
+        "ownerId",
+        "scenarioId",
+        "seed",
+        "bars"
+      ],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "recovery"
+        ]
+      }
     },
     {
       "schema": "replay/historical-replay-run.schema.json",
       "consumer": "historical-replay-worker -> platform-api-service",
-      "requiredProperties": ["testRunId", "namespace", "ownerId", "scenarioId", "status", "checkpoint", "result", "createdAt", "completedAt"],
-      "stableEnums": { "status": ["RUNNING", "PAUSED", "COMPLETED", "FAILED", "CANCELLED"] }
+      "requiredProperties": [
+        "testRunId",
+        "namespace",
+        "ownerId",
+        "scenarioId",
+        "status",
+        "checkpoint",
+        "result",
+        "createdAt",
+        "completedAt"
+      ],
+      "stableEnums": {
+        "status": [
+          "RUNNING",
+          "PAUSED",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED"
+        ]
+      }
     },
     {
       "schema": "schemas/common/money.schema.json",
@@ -116,6 +263,30 @@
           "COMPLETED",
           "FAILED",
           "CANCELLED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/common/artifact-ref.schema.json",
+      "consumer": "shared TestRun evidence and cross-service Artifact consumers",
+      "requiredProperties": [
+        "schemaVersion",
+        "artifactId",
+        "testRunId",
+        "ownerId",
+        "kind",
+        "namespace",
+        "sha256",
+        "status",
+        "sourceRef"
+      ],
+      "stableEnums": {
+        "status": [
+          "PENDING",
+          "PUBLISHED",
+          "FAILED",
+          "RETAINED",
+          "EXPIRED"
         ]
       }
     },
@@ -183,20 +354,64 @@
     {
       "schema": "schemas/common/v24-paper-stage-run-request.schema.json",
       "consumer": "apps/web -> platform-api-service",
-      "requiredProperties": ["scenarioId", "seed"],
-      "stableEnums": { "scenarioId": ["normal", "rejection", "recovery"] }
+      "requiredProperties": [
+        "scenarioId",
+        "seed"
+      ],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery",
+          "external-reconciliation"
+        ]
+      }
     },
     {
       "schema": "schemas/common/v24-paper-stage-run-accepted.schema.json",
       "consumer": "platform-api-service -> apps/web",
-      "requiredProperties": ["accepted", "testRunId", "status"],
-      "stableEnums": { "status": ["WAITING"] }
+      "requiredProperties": [
+        "accepted",
+        "testRunId",
+        "status"
+      ],
+      "stableEnums": {
+        "status": [
+          "WAITING"
+        ]
+      }
     },
     {
       "schema": "schemas/common/v24-paper-stage-run-result.schema.json",
       "consumer": "platform-api-service -> apps/web",
-      "requiredProperties": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"],
-      "stableEnums": { "stageId": ["V2.4"], "status": ["WAITING"] }
+      "requiredProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "scenarioVersion",
+        "ownerId",
+        "namespace",
+        "status",
+        "seed",
+        "assertions",
+        "evidence",
+        "createdAt",
+        "completedAt"
+      ],
+      "stableEnums": {
+        "stageId": [
+          "V2.4"
+        ],
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery",
+          "external-reconciliation"
+        ],
+        "status": [
+          "WAITING"
+        ]
+      }
     },
     {
       "schema": "schemas/common/v24-observation-run-revision.schema.json",
@@ -296,11 +511,30 @@
     {
       "schema": "schemas/common/v24-paper-readiness.schema.json",
       "consumer": "trade-execution-service -> platform-api-service",
-      "requiredProperties": ["schemaVersion", "market", "environmentMode", "brokerMode", "liveTradingEnabled", "status", "policyReadiness", "mandateReadiness", "riskEvaluation", "resourceReservation", "orderSubmissionEnabled"],
+      "requiredProperties": [
+        "schemaVersion",
+        "market",
+        "environmentMode",
+        "brokerMode",
+        "liveTradingEnabled",
+        "status",
+        "policyReadiness",
+        "mandateReadiness",
+        "riskEvaluation",
+        "resourceReservation",
+        "orderSubmissionEnabled"
+      ],
       "stableEnums": {
-        "status": ["BLOCKED", "REJECTED"],
-        "environmentMode": ["PAPER"],
-        "brokerMode": ["FAKE"]
+        "status": [
+          "BLOCKED",
+          "REJECTED"
+        ],
+        "environmentMode": [
+          "PAPER"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
       }
     },
     {
@@ -449,6 +683,28 @@
         "fee",
         "currency",
         "effectiveAt"
+      ]
+    },
+    {
+      "schema": "schemas/common/fill-fee-correction-command.schema.json",
+      "consumer": "trade-execution-service -> portfolio-risk-service",
+      "requiredProperties": [
+        "revision",
+        "previousFee",
+        "correctedFee",
+        "effectiveAt",
+        "evidenceRef"
+      ]
+    },
+    {
+      "schema": "schemas/common/fill-fee-correction-command.schema.json",
+      "consumer": "platform-api-service -> trade-execution-service (isolated FakeBroker report injection)",
+      "requiredProperties": [
+        "revision",
+        "previousFee",
+        "correctedFee",
+        "effectiveAt",
+        "evidenceRef"
       ]
     },
     {
@@ -685,14 +941,15 @@
         "backupId",
         "createdAt",
         "retentionClass",
-        "database",
+        "databaseInventory",
         "artifactVolume",
         "restoreValidation",
         "files"
       ],
       "stableEnums": {
         "format": [
-          "stockquant.paired-backup.v1"
+          "stockquant.paired-backup.v1",
+          "stockquant.paired-backup.cluster.v2"
         ],
         "retentionClass": [
           "DAILY",
@@ -848,6 +1105,21 @@
           "NOT_PERFORMED"
         ]
       }
+    },
+    {
+      "schema": "schemas/research/qlib-summary-train-request.schema.json",
+      "consumer": "quant-research-service -> Qlib Worker deterministic Fixture summary training route",
+      "requiredProperties": [
+        "bars"
+      ]
+    },
+    {
+      "schema": "schemas/research/qlib-summary-validate-request.schema.json",
+      "consumer": "quant-research-service -> Qlib Worker deterministic Fixture summary hash recomputation route",
+      "requiredProperties": [
+        "bars",
+        "artifactHash"
+      ]
     },
     {
       "schema": "research/v3.2-promotion-request-detail.schema.json",
@@ -1056,6 +1328,21 @@
       }
     },
     {
+      "schema": "research/v3.2-promotion-prepare-result.schema.json",
+      "consumer": "platform-api-service -> research-automation-service promotion preparation result",
+      "requiredProperties": [
+        "status",
+        "blockers",
+        "promotionRequest"
+      ],
+      "stableEnums": {
+        "status": [
+          "WAITING",
+          "READY_FOR_GATE_CHECK"
+        ]
+      }
+    },
+    {
       "schema": "research/v3.2-promotion-submit-command.schema.json",
       "consumer": "platform-api-service -> research-automation-service guarded PromotionRequest submission",
       "requiredProperties": [
@@ -1069,7 +1356,9 @@
       "requiredProperties": [
         "status"
       ],
-      "stableProperties": ["testRunId"],
+      "stableProperties": [
+        "testRunId"
+      ],
       "stableEnums": {
         "status": [
           "WAITING",
@@ -1162,57 +1451,284 @@
       }
     },
     {
+      "schema": "research/v3.3-test-run-budget-summary.schema.json",
+      "consumer": "research-automation-service -> owner-scoped deduplicated V3.3 TestRun budget summary",
+      "requiredProperties": [
+        "schemaVersion",
+        "testRunId",
+        "offset",
+        "limit",
+        "hasMore",
+        "rows",
+        "totals",
+        "accountingScope",
+        "stageBudgetControl"
+      ],
+      "stableEnums": {
+        "schemaVersion": [
+          "v3.3-test-run-budget-summary-v1"
+        ],
+        "stageBudgetControl": [
+          "NOT_IMPLEMENTED",
+          "TEST_RUN_CAP_ENFORCED_ROUND_CAP_NOT_IMPLEMENTED",
+          "TEST_RUN_AND_ROUND_CAP_ENFORCED"
+        ]
+      }
+    },
+    {
       "schema": "research/v3.1-experiment.schema.json",
       "consumer": "platform-api-service -> research-automation-service V3.1 Experiment creation",
-      "requiredProperties": ["fixtureId", "modelProfile", "rounds", "budgetCurrency", "budgetCents", "environmentMode", "brokerMode", "idempotencyKey"],
-      "stableProperties": ["testRunId"],
-      "stableEnums": { "budgetCurrency": ["USD"], "environmentMode": ["RESEARCH"], "brokerMode": ["FAKE"] }
+      "requiredProperties": [
+        "fixtureId",
+        "modelProfile",
+        "rounds",
+        "budgetCurrency",
+        "budgetCents",
+        "environmentMode",
+        "brokerMode",
+        "idempotencyKey"
+      ],
+      "stableProperties": [
+        "testRunId"
+      ],
+      "stableEnums": {
+        "budgetCurrency": [
+          "USD"
+        ],
+        "environmentMode": [
+          "RESEARCH"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-experiment-result.schema.json",
       "consumer": "research-automation-service -> platform-api-service V3.1 Experiment creation result",
-      "requiredProperties": ["experimentId", "fixtureId", "modelProfile", "rounds", "budgetCurrency", "budgetCents", "environmentMode", "brokerMode", "idempotencyKey", "status", "reason", "createdAt", "cancelledAt", "budget"],
-      "stableEnums": { "status": ["PENDING_PREREQUISITES", "CANCELLED"], "budgetCurrency": ["USD"], "environmentMode": ["RESEARCH"], "brokerMode": ["FAKE"] }
+      "requiredProperties": [
+        "experimentId",
+        "fixtureId",
+        "modelProfile",
+        "rounds",
+        "budgetCurrency",
+        "budgetCents",
+        "environmentMode",
+        "brokerMode",
+        "idempotencyKey",
+        "status",
+        "reason",
+        "createdAt",
+        "cancelledAt",
+        "budget"
+      ],
+      "stableEnums": {
+        "status": [
+          "PENDING_PREREQUISITES",
+          "CANCELLED"
+        ],
+        "budgetCurrency": [
+          "USD"
+        ],
+        "environmentMode": [
+          "RESEARCH"
+        ],
+        "brokerMode": [
+          "FAKE"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-experiment-cancellation-result.schema.json",
       "consumer": "research-automation-service -> platform-api-service V3.1 Experiment cancellation",
-      "requiredProperties": ["experimentId", "fixtureId", "status", "cancelledAt"], "stableEnums": { "status": ["CANCELLED"] }
+      "requiredProperties": [
+        "experimentId",
+        "fixtureId",
+        "status",
+        "cancelledAt"
+      ],
+      "stableEnums": {
+        "status": [
+          "CANCELLED"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-artifact-publish-command.schema.json",
       "consumer": "platform-api-service -> research-automation-service V3.1 Artifact publish",
-      "requiredProperties": ["ref", "contentBase64"], "stableProperties": ["jobId", "workerId", "fencingToken"]
+      "requiredProperties": [
+        "ref",
+        "contentBase64"
+      ],
+      "stableProperties": [
+        "jobId",
+        "workerId",
+        "fencingToken"
+      ]
     },
     {
       "schema": "research/v3.1-artifact-publish-result.schema.json",
       "consumer": "research-automation-service -> platform-api-service V3.1 Artifact publish result",
-      "requiredProperties": ["status", "persisted", "ref"], "stableEnums": { "status": ["PUBLISHED"] }
+      "requiredProperties": [
+        "status",
+        "persisted",
+        "ref"
+      ],
+      "stableEnums": {
+        "status": [
+          "PUBLISHED"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-artifact-read-command.schema.json",
       "consumer": "platform-api-service -> research-automation-service V3.1 Artifact read",
-      "requiredProperties": ["namespace", "artifactId"]
+      "requiredProperties": [
+        "namespace",
+        "artifactId"
+      ]
+    },
+    {
+      "schema": "research/v3.1-model-gateway-openai-chat-command.schema.json",
+      "consumer": "Pinned LiteLLM test client -> research-automation-service test-only OpenAI-compatible chat fixture request",
+      "requiredProperties": [
+        "model",
+        "messages"
+      ],
+      "stableEnums": {
+        "model": [
+          "stockquant-fixture"
+        ],
+        "stream": [
+          false
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-model-gateway-openai-chat-result.schema.json",
+      "consumer": "Pinned LiteLLM test client <- research-automation-service test-only OpenAI-compatible chat fixture response",
+      "requiredProperties": [
+        "id",
+        "object",
+        "created",
+        "model",
+        "choices",
+        "usage"
+      ],
+      "stableEnums": {
+        "object": [
+          "chat.completion"
+        ],
+        "model": [
+          "stockquant-fixture"
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-model-gateway-openai-embedding-command.schema.json",
+      "consumer": "Pinned LiteLLM test client -> research-automation-service test-only OpenAI-compatible embedding fixture request",
+      "requiredProperties": [
+        "model",
+        "input"
+      ],
+      "stableEnums": {
+        "model": [
+          "stockquant-fixture"
+        ],
+        "encoding_format": [
+          "float",
+          "base64",
+          null
+        ],
+        "dimensions": [
+          3
+        ]
+      }
+    },
+    {
+      "schema": "research/v3.1-model-gateway-openai-embedding-result.schema.json",
+      "consumer": "Pinned LiteLLM test client <- research-automation-service test-only OpenAI-compatible embedding fixture response",
+      "requiredProperties": [
+        "object",
+        "model",
+        "data",
+        "usage"
+      ],
+      "stableEnums": {
+        "object": [
+          "list"
+        ],
+        "model": [
+          "stockquant-fixture"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-model-gateway-fixture-command.schema.json",
       "consumer": "platform-api-service -> research-automation-service test-only V3.1 Fixture model call",
-      "requiredProperties": ["experimentId", "modelRunId", "requestedCents", "scenario"], "stableEnums": { "scenario": ["COMPLETED", "TIMEOUT", "OVER_BUDGET"] }
+      "requiredProperties": [
+        "experimentId",
+        "modelRunId",
+        "requestedCents",
+        "scenario"
+      ],
+      "stableEnums": {
+        "scenario": [
+          "COMPLETED",
+          "TIMEOUT",
+          "OVER_BUDGET"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-model-gateway-fixture-result.schema.json",
       "consumer": "research-automation-service -> platform-api-service test-only V3.1 Fixture model result",
-      "requiredProperties": ["providerMode", "modelCalls", "status", "modelRunId"], "stableEnums": { "providerMode": ["FIXTURE"], "modelCalls": ["NO_EXTERNAL_CALL"], "status": ["BLOCKED", "ALREADY_EXISTS", "UNKNOWN", "COMPLETED"] }
+      "requiredProperties": [
+        "providerMode",
+        "modelCalls",
+        "status",
+        "modelRunId"
+      ],
+      "stableEnums": {
+        "providerMode": [
+          "FIXTURE"
+        ],
+        "modelCalls": [
+          "NO_EXTERNAL_CALL"
+        ],
+        "status": [
+          "BLOCKED",
+          "ALREADY_EXISTS",
+          "UNKNOWN",
+          "COMPLETED"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-experiment-budget-result.schema.json",
       "consumer": "research-automation-service -> platform-api-service V3.1 Experiment budget read and settlement",
-      "requiredProperties": ["experimentId", "requestedCents", "reservedCents", "spentCents", "status"], "stableEnums": { "status": ["RESERVED", "SETTLED", "UNKNOWN", "REJECTED"] }
+      "requiredProperties": [
+        "experimentId",
+        "requestedCents",
+        "reservedCents",
+        "spentCents",
+        "status"
+      ],
+      "stableEnums": {
+        "status": [
+          "RESERVED",
+          "SETTLED",
+          "UNKNOWN",
+          "REJECTED"
+        ]
+      }
     },
     {
       "schema": "research/v3.1-experiment-budget-settle-command.schema.json",
       "consumer": "platform-api-service -> research-automation-service V3.1 Experiment budget settlement",
-      "requiredProperties": ["spentCents"]
+      "requiredProperties": [
+        "spentCents"
+      ]
     },
     {
       "schema": "research/v3.1-runner-job.schema.json",
@@ -1228,7 +1744,9 @@
         "networkPolicy"
       ],
       "stableEnums": {
-        "schemaVersion": ["v3.1-runner-job-v1"]
+        "schemaVersion": [
+          "v3.1-runner-job-v1"
+        ]
       }
     },
     {
@@ -1249,8 +1767,20 @@
         "prerequisiteStatus"
       ],
       "stableEnums": {
-        "status": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMED_OUT", "OUTPUT_LIMIT", "SPAWN_FAILED", "CANCELLED"],
-        "prerequisiteStatus": ["PENDING_PREREQUISITES", "CONFIGURED"]
+        "status": [
+          "QUEUED",
+          "RUNNING",
+          "COMPLETED",
+          "FAILED",
+          "TIMED_OUT",
+          "OUTPUT_LIMIT",
+          "SPAWN_FAILED",
+          "CANCELLED"
+        ],
+        "prerequisiteStatus": [
+          "PENDING_PREREQUISITES",
+          "CONFIGURED"
+        ]
       }
     },
     {
@@ -1311,6 +1841,190 @@
           "v3.3-runner-cursor-queue-v1"
         ]
       }
+    },
+    {
+      "schema": "schemas/common/v24-paper-execution-grant.schema.json",
+      "consumer": "platform-api-service -> decision-governance-service and trade-execution-service",
+      "requiredProperties": [
+        "scenarioId",
+        "scenarioVersion",
+        "testRunId",
+        "ownerId",
+        "namespace",
+        "accountId",
+        "clockNow",
+        "dataMode",
+        "environmentMode",
+        "brokerMode",
+        "liveTradingEnabled",
+        "market",
+        "currency",
+        "policy",
+        "mandate",
+        "signal",
+        "order",
+        "snapshot",
+        "fee"
+      ],
+      "stableProperties": [
+        "testRunId",
+        "ownerId",
+        "namespace",
+        "accountId",
+        "scenarioVersion",
+        "mandate",
+        "policy"
+      ]
+    },
+    {
+      "schema": "schemas/common/v24-paper-execution-command.schema.json",
+      "consumer": "platform-api-service -> trade-execution-service",
+      "requiredProperties": [
+        "authorizationId",
+        "grant"
+      ],
+      "stableProperties": [
+        "authorizationId",
+        "grant"
+      ]
+    },
+    {
+      "schema": "schemas/common/v24-paper-execution-result.schema.json",
+      "consumer": "trade-execution-service -> platform-api-service",
+      "requiredProperties": [
+        "schemaVersion",
+        "replayed",
+        "authorization",
+        "riskEvaluation",
+        "resourceReservation",
+        "eligibility",
+        "order",
+        "fill",
+        "outbox",
+        "reconciliation"
+      ],
+      "stableProperties": [
+        "schemaVersion",
+        "authorization",
+        "riskEvaluation",
+        "resourceReservation",
+        "eligibility",
+        "order",
+        "fill",
+        "outbox",
+        "reconciliation"
+      ]
+    },
+    {
+      "schema": "schemas/common/v24-paper-authorization-command.schema.json",
+      "consumer": "platform-api-service -> decision-governance-service",
+      "requiredProperties": [
+        "grant"
+      ],
+      "stableProperties": [
+        "grant"
+      ]
+    },
+    {
+      "schema": "schemas/common/v24-paper-authorization-validation.schema.json",
+      "consumer": "trade-execution-service -> decision-governance-service",
+      "requiredProperties": [
+        "authorizationId",
+        "accountId",
+        "command"
+      ],
+      "stableProperties": [
+        "authorizationId",
+        "accountId",
+        "command"
+      ]
+    },
+    {
+      "schema": "research/v14-daily-backtest-request.schema.json",
+      "consumer": "platform-api-service -> quant-research-service",
+      "requiredProperties": [
+        "scenarioId",
+        "seed",
+        "policy"
+      ],
+      "stableEnums": {
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery"
+        ]
+      },
+      "stableProperties": [
+        "scenarioId",
+        "seed",
+        "policy"
+      ]
+    },
+    {
+      "schema": "schemas/trade-execution/fake-broker-external-order.schema.json",
+      "consumer": "platform-api-service -> trade-execution-service (isolated FakeBroker external-order observation)",
+      "requiredProperties": [
+        "namespace",
+        "externalOrderId",
+        "security",
+        "requestedQuantity",
+        "status",
+        "evidenceRef",
+        "observedAt"
+      ],
+      "stableEnums": {
+        "status": [
+          "NEW",
+          "PARTIALLY_FILLED",
+          "FILLED",
+          "CANCELLED",
+          "REJECTED",
+          "UNKNOWN"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/market-data-alert-incident.schema.json",
+      "consumer": "Platform API -> Web V2.4 alert projection",
+      "requiredProperties": [
+        "incidentId",
+        "alertKey",
+        "code",
+        "severity",
+        "payload",
+        "state",
+        "firstSeenAt",
+        "lastSeenAt",
+        "acknowledgedBy",
+        "acknowledgedAt",
+        "resolvedAt"
+      ],
+      "stableEnums": {
+        "severity": [
+          "INFO",
+          "WARNING",
+          "CRITICAL"
+        ],
+        "state": [
+          "OPEN",
+          "ACKNOWLEDGED",
+          "RESOLVED"
+        ]
+      }
+    },
+    {
+      "schema": "schemas/market-data/alert-incidents-v1.schema.json",
+      "consumer": "Platform API -> Web V2.4 active alert list",
+      "requiredProperties": [
+        "incidents"
+      ]
+    },
+    {
+      "schema": "schemas/market-data/alert-acknowledge-request-v1.schema.json",
+      "consumer": "Platform API -> Market Data alert acknowledgement",
+      "requiredProperties": [
+        "actorId"
+      ]
     }
   ]
 }

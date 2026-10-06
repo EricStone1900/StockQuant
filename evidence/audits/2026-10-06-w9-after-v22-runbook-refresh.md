@@ -1,0 +1,5 @@
+# W9 V2 gate after the V2.2 runbook refresh (2026-10-06)
+
+The formal V2 verifier was rerun after recording the targeted V2.2 upload smoke and updating Section 8. `node scripts/verify-version.mjs --version V2` exited 2 with `INCOMPLETE`. All five stages remain unresolved; the V2 evidence-reference audit and stage-document audit pass, with 324 references, 53 active manifests, 137 active hash entries, 3 historical snapshots skipped, and no missing evidence or hash failures. Acceptance rows have no missing, duplicate, or unexpected entries.
+
+Six historical structured TestRun exports for V2.1/V2.2 remain missing. The targeted V2.2 smoke uses disposable databases and does not recreate or replace those historical runs. Source/license authorization, real observation, unfinished stage requirements, Ubuntu validation, and current human sign-off also remain outstanding. See the machine output in the adjacent JSON file and the targeted smoke record in [the V2.2 stage guide](../../docs/prd/v2-data-and-replay/02-minute-data-import.md).

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PostgresAdvisorySingleFlightGate, SingleFlightGate } from "../../src/application/single-flight-gate.js";
+import { SingleFlightGate } from "../../src/application/single-flight-gate.js";
+import { PostgresAdvisorySingleFlightGate } from "../../src/adapters/postgres-single-flight-gate.js";
 
 describe("SingleFlightGate", () => {
   it("admits one expensive task, fails fast while held and admits the next after release", () => {

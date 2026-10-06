@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "stockquant-w3-simulation-policy-audit-v1",
+  "capturedAt": "2026-10-02",
+  "status": "PASS",
+  "policy": {
+    "policyId": "v24-snapshot-paper-policy",
+    "policyVersion": "1.0.0",
+    "sha256": "acf4a5d653e97fba2640fa2382c5bc433067a7747a726c51f202c0799d791a79",
+    "status": "PREPARATION_ONLY",
+    "environmentMode": "PAPER",
+    "brokerMode": "FAKE",
+    "liveTradingEnabled": false
+  },
+  "assertions": {
+    "policyPersistedBeforeReadiness": "PASS",
+    "readinessUsesPersistedPolicy": "PASS",
+    "sameVersionMutationRejectedByRepository": "PASS",
+    "databaseUpdateRejectedByTrigger": "PASS",
+    "databaseDeleteRejectedByTrigger": "PASS",
+    "databaseTruncateRejectedByTrigger": "PASS",
+    "jsonbKeyOrderDoesNotChangeDigest": "PASS",
+    "liveOrRealModeRejectedBeforeDatabaseAccess": "PASS",
+    "readinessLeavesPolicyAndFakeBrokerLedgerUnchanged": "PASS",
+    "containerReadinessLinuxArm64": "PASS"
+  },
+  "validation": {
+    "unitTests": "2/2",
+    "tradeExecutionTypecheck": "PASS",
+    "tradeExecutionBuild": "PASS",
+    "isolatedPostgresReadinessHttpSmoke": "PASS",
+    "isolatedLinuxArm64ContainerSmoke": "PASS",
+    "fullStageCommand": "pnpm verify:stage -- --stage V2.4 --suite code",
+    "fullStageExitCode": 0,
+    "fullStageReport": "2026-10-02-v24-paper-smoke-f478a606497845e3875dd8529bb19104.json",
+    "activeServicesTouched": false,
+    "externalMarketDataRequests": 0,
+    "realBrokerOperations": 0
+  },
+  "scope": {
+    "implemented": "Immutable database persistence and read-only readiness consumption of the versioned simulation-only preparation policy.",
+    "notImplemented": [
+      "Continuous live-source snapshot to signal, governance, risk, reservation, FakeBroker, ledger and end-of-day reconciliation chain",
+      "Automatic pause and alert lifecycle for stale or unknown market data and expired accounts",
+      "Real-source authorization, active deployment, 20-trading-day observation and current human acceptance"
+    ]
+  }
+}

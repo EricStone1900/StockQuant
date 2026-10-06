@@ -1,6 +1,6 @@
 # 建议治理与执行授权服务
 
-服务：`decision-governance-service`。日期：2026-09-07。状态：设计草案；实现/运行/验收均NOT_RUN。技术基线：TypeScript / NestJS + PostgreSQL。
+服务：`decision-governance-service`。日期：2026-09-07。状态：目标设计文档；2026-10-01授权应用/存储分层工程切片及隔离代码、服务身份HTTP验证通过，完整运行/业务验收仍NOT_RUN。技术基线：TypeScript / NestJS + PostgreSQL。
 
 共同约束见[整体架构](../01-system-architecture.md)、[契约与数据](../02-contracts-and-data.md)、[部署](../03-deployment-and-operations.md)。本文是服务S0设计输入；逻辑表与扩展端口需在对应阶段冻结Schema/迁移，不表示已有实现。
 
@@ -78,3 +78,9 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 实现复核补充（2026-09-25）：按每服务独立Bearer身份，`historical-replay-worker`仅可申请BACKTEST/FAKE执行授权，`trade-execution-service`仅可消费并验证授权；两个scope绑定不同token，缺失/弱/重复token时进程启动失败。身份/路由策略单测通过；实际服务HTTP与专用数据库烟测、活动部署仍未执行。
 
 V3.2 exact candidate binding (2026-09-27): Platform API may call `POST /internal/v1/candidate-mandates/readiness` with its own Bearer identity after it verifies the owner's session and accepted exact V3.1 TestRun. Governance performs a direct read of Quant's exact Registry fingerprint with its separate `decision-governance-service` token; Quant scopes that identity to the exact Registry GET only. The command binds PAPER/FAKE, owner, account, TestRun, fingerprint, and candidate Artifact ID/namespace/SHA. Only exact approved fingerprint and Artifact equality returns `EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW`; unknown/mismatched candidate is rejected and unavailable Registry returns WAITING. This route is read-only: no mandate is persisted, no execution authorization is issued, and no strategy is activated. Random-PG/HTTP integration exercises real Governance→Quant HTTP with synthetic approval only; active Paper and human acceptance remain NOT_RUN. Contract/OpenAPI: `decision-governance-candidate-mandate.v1.json`.
+
+
+V2.4授权生命周期补充（2026-09-30）：Fixture Paper授权新增精确scope撤销命令`POST /internal/v1/paper-authorizations/revoke`，只允许平台API Bearer，对ACTIVE且未消费授权按authorizationId/namespace/accountId撤销，要求reason并持久化撤销时间/原因。同理由重放幂等，消费后不能撤销；Trade验证拒绝REVOKED状态。schema/OpenAPI、HTTP/身份故障测试通过。该接口服务隔离Fixture/Paper Run控制，不解除活动策略与数据门禁。
+
+
+2026-10-01实现边界复核：`src/domain/`保留纯授权策略，`src/application/`协调Repository/Registry端口，`src/adapters/`提供PostgreSQL与生成Quant Registry client适配器，`src/bootstrap/`负责HTTP与依赖组合；旧`src/main.ts`入口保留。layer scan现纳入全仓baseline。当前证据见[W1 Decision Governance分层审计](../../evidence/audits/2026-10-01-w1-decision-governance-layer-boundary.md)及[SHA-256](../../evidence/audits/2026-10-01-w1-decision-governance-layer-boundary.sha256)。该工程检查不表示W1整体、Decision Governance交易授权流程或活动部署验收完成。

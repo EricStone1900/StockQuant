@@ -36,6 +36,8 @@ sequenceDiagram
 
 同刻按冻结的事件类型优先级/证券稳定ID/序号排序；日历/公司行动/结算、Bar可见、已有订单撮合、新信号先后顺序在S0明确。新订单不回填到提交前Bar。HOLD/拒绝也有步骤完成确认，不等待不存在的Fill。
 
+契约实现补充（2026-10-01）：Replay Worker通过`replay-governance-quant.v1`生成客户端申请回放订单的短期授权、提交Fixture多Bar研究摘要，并通过`trade-execution-historical.v1`生成客户端执行FakeBroker订单及按原orderId读取UNKNOWN状态。Trade Execution消费端通过`replay-governance-quant.v1`以自身独立Bearer验证精确授权。授权仅允许BACKTEST/FAKE，绑定账户、namespace和精确命令；研究响应明确标记FIXTURE。UNKNOWN恢复只查询原订单，不盲目重发。
+
 每stepId有预期工作与报告确认集合，所有副作用收敛才推进；不能sleep猜测完成。真实超时暂停/报错，不通过推进虚拟Clock掩盖未完成工作。
 
 ## 4. 模型限制

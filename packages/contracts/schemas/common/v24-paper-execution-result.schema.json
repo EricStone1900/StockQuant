@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-execution-result.schema.json",
+  "title": "V24PaperExecutionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "replayed", "authorization", "riskEvaluation", "resourceReservation", "eligibility", "order", "fill", "outbox", "reconciliation"],
+  "properties": {
+    "schemaVersion": { "const": "v24-paper-execution-result-v2" },
+    "replayed": { "type": "boolean" },
+    "authorization": { "type": "object", "required": ["status", "testRunId", "ownerId", "mandateId", "mandateVersion", "strategyVersion"], "properties": { "status": { "const": "AUTHORIZED" }, "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string" }, "mandateId": { "type": "string" }, "mandateVersion": { "type": "string" }, "strategyVersion": { "type": "string" } } },
+    "riskEvaluation": { "type": "object", "required": ["status", "quoteAgeSeconds", "deviationBps"], "properties": { "status": { "const": "PASS_RISK_CHECK" }, "quoteAgeSeconds": { "type": "integer", "minimum": 0 }, "deviationBps": { "type": "number", "minimum": 0 } } },
+    "resourceReservation": { "$ref": "resource-reservation.schema.json" },
+    "eligibility": { "type": "object", "required": ["status", "snapshotId", "executionModel", "policyVersion", "dataMode", "liquidityParticipation"], "properties": { "status": { "const": "ELIGIBLE" }, "snapshotId": { "type": "string" }, "executionModel": { "const": "SNAPSHOT" }, "policyVersion": { "type": "string" }, "dataMode": { "const": "FIXTURE" }, "liquidityParticipation": { "const": "NOT_VERIFIED" } } },
+    "order": { "type": "object", "required": ["order_id", "status", "clientOrderId"], "properties": { "order_id": { "type": "string", "format": "uuid" }, "status": { "type": "string" }, "clientOrderId": { "type": "string" } } },
+    "fill": { "oneOf": [{ "type": "object", "required": ["externalFillId", "quantity", "price", "fee", "effectiveAt"], "properties": { "externalFillId": { "type": "string", "format": "uuid" }, "quantity": { "type": "integer", "minimum": 1 }, "price": { "type": "string" }, "fee": { "type": "string" }, "effectiveAt": { "type": "string", "format": "date-time" } } }, { "type": "null" }] },
+    "outbox": { "type": "object", "required": ["event_id", "event_type", "status", "attempts"], "properties": { "event_id": { "type": "string", "format": "uuid" }, "event_type": { "type": "string" }, "status": { "enum": ["PENDING", "DELIVERING", "DELIVERED", "COMPENSATION_REQUIRED"] }, "attempts": { "type": "integer", "minimum": 0 }, "delivered_at": { "type": ["string", "null"], "format": "date-time" } } },
+    "reconciliation": { "type": "object", "required": ["namespace", "brokerMode", "order_count", "unresolved_order_count", "fill_count", "pending_outbox_count"], "properties": { "namespace": { "type": "string" }, "brokerMode": { "const": "FAKE" }, "order_count": { "type": "integer" }, "unresolved_order_count": { "type": "integer" }, "fill_count": { "type": "integer" }, "pending_outbox_count": { "type": "integer" } } }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-authorization-result.schema.json",
+  "title": "V24PaperAuthorizationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "status", "expiresAt", "scope"],
+  "properties": {
+    "authorizationId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["ACTIVE", "CONSUMED"] },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "scope": { "type": "object", "additionalProperties": false, "required": ["testRunId", "ownerId", "accountId", "namespace", "strategyVersion", "policyVersion", "mandateVersion"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string" }, "accountId": { "type": "string", "format": "uuid" }, "namespace": { "type": "string" }, "strategyVersion": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "policyVersion": { "type": "string" }, "mandateVersion": { "type": "string" } } }
+  }
+}

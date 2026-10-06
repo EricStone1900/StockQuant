@@ -11,16 +11,27 @@
     "stageId": { "const": "V3.3" },
     "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
     "scenarioVersion": { "const": "v3.3-readiness-v1" },
-    "status": { "const": "WAITING" },
+    "status": { "enum": ["WAITING", "QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"] },
     "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
-    "assertions": { "type": "array", "items": { "type": "object", "additionalProperties": true, "required": ["id", "status"], "properties": { "id": { "type": "string" }, "status": { "const": "NOT_RUN" }, "reason": { "type": "string" } } } },
+    "assertions": { "type": "array", "items": { "type": "object", "additionalProperties": true, "required": ["id", "status"], "properties": { "id": { "type": "string" }, "status": { "enum": ["NOT_RUN", "PENDING", "PASS", "FAIL"] }, "reason": { "type": "string" } } } },
     "evidence": { "type": "object", "additionalProperties": true, "required": ["readiness", "blockers", "runnerDispatch", "runnerJobsCreated", "externalModelCalls", "paperContinuity"], "properties": {
-      "readiness": { "const": "WAITING" },
+      "readiness": { "enum": ["WAITING", "CANCELLED"] },
       "blockers": { "type": "array", "items": { "type": "object", "additionalProperties": true, "required": ["id", "status", "reason"], "properties": { "id": { "type": "string" }, "status": { "enum": ["VERIFIED", "NOT_VERIFIED", "NOT_PROVIDED", "NOT_IMPLEMENTED"] }, "reason": { "type": "string" } } } },
       "runnerDispatch": { "const": "NOT_PERFORMED" },
       "runnerJobsCreated": { "const": 0 },
       "externalModelCalls": { "const": 0 },
-      "paperContinuity": { "const": "NOT_CHECKED" }
+      "paperContinuity": { "const": "NOT_CHECKED" },
+      "paperContinuityPreflight": { "type": "object", "additionalProperties": false, "required": ["schemaVersion", "capturedAt", "status", "preflightStatus", "scheduler", "observation", "blockers", "acceptanceRequirement"], "properties": {
+        "schemaVersion": { "const": "v3.3-paper-continuity-preflight-v1" }, "capturedAt": { "type": "string", "format": "date-time" }, "status": { "const": "NOT_VERIFIED" },
+        "preflightStatus": { "enum": ["READY_FOR_CONCURRENT_TEST", "BLOCKED"] },
+        "scheduler": { "type": "object", "additionalProperties": false, "required": ["status", "mode", "brokerMode", "samplingIntervalMinutes", "lastSampleAt", "nextSampleAt", "tickCount", "fresh", "nextSampleScheduled"], "properties": {
+          "status": { "type": "string" }, "mode": { "type": "string" }, "brokerMode": { "type": "string" }, "samplingIntervalMinutes": { "type": "number" }, "lastSampleAt": { "type": ["string", "null"] }, "nextSampleAt": { "type": ["string", "null"] }, "tickCount": { "type": "integer", "minimum": 0 }, "fresh": { "type": "boolean" }, "nextSampleScheduled": { "type": "boolean" }
+        } },
+        "observation": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["status", "targetDays", "countedDays", "recordedCountedDays", "unverifiedCountedDays", "remainingDays", "latestDate"], "properties": {
+          "status": { "enum": ["PASS", "WAITING"] }, "targetDays": { "type": "integer", "minimum": 0 }, "countedDays": { "type": "integer", "minimum": 0 }, "recordedCountedDays": { "type": "integer", "minimum": 0 }, "unverifiedCountedDays": { "type": "integer", "minimum": 0 }, "remainingDays": { "type": "integer", "minimum": 0 }, "latestDate": { "type": ["string", "null"], "format": "date" }
+        } }] },
+        "blockers": { "type": "array", "items": { "enum": ["PAPER_SCHEDULER_NOT_FRESH_AND_SCHEDULED", "O2_OBSERVATION_NOT_QUALIFIED_20_OF_20"] } }, "acceptanceRequirement": { "type": "string", "minLength": 1 }
+      } }
     } },
     "createdAt": { "type": "string", "format": "date-time" },
     "completedAt": { "type": ["string", "null"], "format": "date-time" }

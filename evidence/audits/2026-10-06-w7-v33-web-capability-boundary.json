@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "stockquant-v33-web-capability-boundary-audit-v1",
+  "date": "2026-10-06",
+  "change": {
+    "oldPageStatus": "PARTIAL_TWO_ROUND_FIXTURE_DISPATCH",
+    "newPageStatus": "TWO_ROUND_EXECUTION_SETTLEMENT_AND_NORMAL_RECOVERY_REJECTION_ASSERTIONS_VERIFIED",
+    "paperContinuity": "NOT_CHECKED",
+    "humanAcceptance": "NOT_RUN"
+  },
+  "validation": {
+    "webTypecheck": { "command": "pnpm --filter @stockquant/web typecheck", "exitCode": 0 },
+    "webE2e": { "command": "pnpm test:e2e -- --stage V3.3", "exitCode": 0, "testsPassed": 5, "testsFailed": 0, "apiRoutes": "MOCKED" },
+    "fullStageCodeSuite": {
+      "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+      "exitCode": 0,
+      "baseline": "PASS",
+      "researchAutomation": { "unitPassed": 218, "postgresIntegrationPassed": 32 },
+      "platform": { "unitPassed": 200, "postgresIntegrationPassed": 8 },
+      "runnerHostCheckpointRecovery": "PASS",
+      "platformResearchDualPostgresRunnerSmoke": "PASS",
+      "webE2ePassed": 5
+    }
+  },
+  "businessTestRuns": [
+    {
+      "scenarioId": "normal",
+      "testRunId": "98054476-9b1c-4896-82f9-23de4e548505",
+      "evidencePath": "evidence/local/V3.3/98054476-9b1c-4896-82f9-23de4e548505/evidence.json",
+      "manifestSha256": "37bb842c9b6bbcf51020ab4d3385f9b76806fbd81479e6da60edd1763f9d4c53",
+      "businessAssertion": "PASS"
+    },
+    {
+      "scenarioId": "recovery",
+      "testRunId": "df7779d0-3cc3-4bd6-b4af-a17b57d0b37d",
+      "evidencePath": "evidence/local/V3.3/df7779d0-3cc3-4bd6-b4af-a17b57d0b37d/evidence.json",
+      "manifestSha256": "6a43fc107de570181bfa42f3bb47f0be0815b859b1e9ffec26bd07a1632225e3",
+      "businessAssertion": "PASS",
+      "faultSequence": ["ROUND_1_CHECKPOINT_COMMITTED", "RUNNER_HOST_SIGKILL", "LEASE_EXPIRED", "LEASE_TAKEOVER_FENCE_2", "RESUME_FROM_CHECKPOINT_SEQUENCE_1"],
+      "staleFencePublishHttpStatus": 409
+    },
+    {
+      "scenarioId": "rejection",
+      "testRunId": "d44eb74f-0bb5-46d1-a7c9-1a851c4ef236",
+      "evidencePath": "evidence/local/V3.3/d44eb74f-0bb5-46d1-a7c9-1a851c4ef236/evidence.json",
+      "manifestSha256": "6f75fc9577b001af56080cf47dff7bc982cac7175994b05f55b0a244e6282e58",
+      "businessAssertion": "PASS",
+      "expectedHttpStatus": 422,
+      "noSideEffects": true
+    }
+  ],
+  "settlement": { "requestedCents": 80, "reservedCents": 80, "settledCents": 46, "externalProviderCalls": 0 },
+  "scopeLimits": {
+    "activeServicesConnected": false,
+    "marketDataCalls": 0,
+    "paperContinuity": "NOT_CHECKED",
+    "ubuntuAcceptance": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN",
+    "v33Stage": "NOT_RUN"
+  },
+  "currentSourceHashes": {
+    "apps/web/src/main.tsx": "89b70027da6b8bbed3e262123c5ef9e41ecd7dbf153187caf658b631fe7084fd",
+    "apps/web/tests/e2e/v33-research-queue.spec.ts": "a50e2fab194ee25670c83a30bfa026656c4047bed57123a0aa24698f2f93bf63"
+  }
+}

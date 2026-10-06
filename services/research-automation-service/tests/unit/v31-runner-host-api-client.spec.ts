@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunnerLeaseLostError, V31RunnerHostApiClient } from "../../src/application/v31-runner-host-api-client.js";
 import { sha256, type ArtifactRef } from "../../src/application/v31-runtime-guards.js";
 
 const token = "runner-host-token-with-at-least-thirty-two-characters";
 const response = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: async () => body }) as Response;
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("V3.1 Runner Host API client", () => {
   it("claims only its scoped lease routes with the dedicated bearer identity", async () => {
@@ -37,6 +39,7 @@ describe("V3.1 Runner Host API client", () => {
   });
 
   it("publishes content-addressed Runner outputs with its host identity and refuses corrupt or oversized bytes", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
     const content = Buffer.from("runner output");
     const ref: ArtifactRef = { schemaVersion: "v3.1-artifact-ref-v1", artifactId: "output-1", kind: "OUTPUT", namespace: "research/run-1/exp-1/outputs", sha256: sha256(content), status: "PENDING", sourceRef: "runner:run-1:exp-1:fence-1" };
     const request = vi.fn<typeof fetch>().mockResolvedValue(response(201, { status: "PUBLISHED", persisted: true, ref: { ...ref, status: "PUBLISHED" } }));
@@ -46,6 +49,7 @@ describe("V3.1 Runner Host API client", () => {
     const [url, init] = request.mock.calls[0];
     expect(url).toBe("http://research:3008/v1/artifacts/publish");
     expect(init?.headers).toMatchObject({ "x-stockquant-service-id": "runner-host", authorization: `Bearer ${token}` });
+    expect(timeout).toHaveBeenCalledWith(30_000);
     expect(JSON.parse(String(init?.body))).toEqual({ jobId: "run-1:exp-1", workerId: "runner-a", fencingToken: 1, ref, contentBase64: content.toString("base64") });
     await expect(client.publishArtifact("run-1:exp-1", lease, ref, Buffer.from("tampered"))).rejects.toThrow("hash does not match");
     await expect(client.publishArtifact("run-1:exp-1", lease, ref, Buffer.alloc(8 * 1024 * 1024 + 1))).rejects.toThrow("exceeds 8 MiB");

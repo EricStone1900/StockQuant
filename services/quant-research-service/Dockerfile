@@ -1,4 +1,4 @@
-FROM node:24.1.0-alpine
+FROM node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
 WORKDIR /workspace
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
@@ -10,6 +10,10 @@ COPY services/quant-research-service/package.json services/quant-research-servic
 COPY tsconfig.base.json ./
 RUN pnpm install --frozen-lockfile
 COPY services/quant-research-service services/quant-research-service
+COPY fixtures/v1/v1.4/backtest_daily.csv fixtures/v1/v1.4/backtest_daily.csv
+COPY fixtures/v1/v1.4/backtest_historical_fees.csv fixtures/v1/v1.4/backtest_historical_fees.csv
+COPY fixtures/v1/v1.4/market_restrictions_synthetic.csv fixtures/v1/v1.4/market_restrictions_synthetic.csv
 RUN pnpm --filter @stockquant/quant-research-service build
 ENV QLIB_SOURCE_COMMIT=UNSET
+USER node
 CMD ["node","services/quant-research-service/dist/main.js"]

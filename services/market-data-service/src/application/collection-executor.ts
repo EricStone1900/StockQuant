@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { validateBars, type QualityBar } from "./minute-quality.js";
-import type { CollectionRun, CollectionRunRepository } from "./collection-run-repository.js";
+import type { CollectionRun } from "../domain/collection-run.js";
+import type { CollectionRunPort } from "../ports/collection-run.js";
 
 export type CollectedMinuteBar = QualityBar & {
   availableAt: string | null;
@@ -10,7 +11,7 @@ export type CollectedMinuteBar = QualityBar & {
 };
 export type CollectionAdapterResult = { sourceId: string; bars: CollectedMinuteBar[]; attempts: unknown[] };
 export type CollectionAdapter = { collect(input: { securityIds: string[]; startDate: string; endDate: string }): Promise<CollectionAdapterResult> };
-type ExecutionRepository = Pick<CollectionRunRepository, "runnableRunIds" | "claim" | "checkpoint" | "publishRows" | "releaseToRetry"> & Partial<Pick<CollectionRunRepository, "fail">>;
+type ExecutionRepository = CollectionRunPort;
 
 export class PythonMinuteCollectionAdapter implements CollectionAdapter {
   constructor(

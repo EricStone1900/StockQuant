@@ -1,0 +1,97 @@
+{
+  "capturedAt": "2026-10-01T12:00:59.768Z",
+  "activeServicesTouched": false,
+  "externalSourceRequests": 0,
+  "enabledSchedules": 0,
+  "health": {
+    "schemaVersion": "dc08a-health-v4",
+    "capturedAt": "2026-10-01T12:00:59.768Z",
+    "status": "UNHEALTHY",
+    "activeSubscription": "dc08a-20260917-20-v1",
+    "calendar": {
+      "status": "CLOSED",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sourceFreshnessExpected": false,
+      "sourceFreshnessState": "MARKET_CLOSED"
+    },
+    "ready": {
+      "status": "ready",
+      "persistence": "POSTGRES",
+      "scheduler": "ENABLED",
+      "executor": "ENABLED"
+    },
+    "scheduler": {
+      "status": "ENABLED",
+      "lastSuccessfulTickAt": "2026-10-01T12:00:05.467Z",
+      "nextExecutionAt": null,
+      "lastSubmitted": 0,
+      "tickAgeSeconds": 54.301
+    },
+    "sources": [
+      {
+        "sourceId": "baostock",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790208109.2940702,
+        "lastFailureAt": 1790171080.0519683,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "sina",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790751790.0561771,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "eastmoney",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "tdx",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      }
+    ],
+    "quality": {
+      "openGaps": 0,
+      "pendingOutbox": 0
+    },
+    "checks": {
+      "recentSuccessRecorded": true,
+      "nextTriggerRecorded": false,
+      "sourceReady": true,
+      "qualityReady": true
+    }
+  },
+  "observation": {
+    "status": "WAITING",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "latest": "2026-09-30",
+    "invalidEvidence": {
+      "malformedFiles": [],
+      "invalidTimestampFiles": [],
+      "ignoredSubscriptionCount": 185
+    }
+  },
+  "conclusion": "No new observation day counted. Active legacy image reports scheduler/executor ENABLED but has zero enabled schedules and no next execution; source-gate candidate remains undeployed. No collection, deployment, restart, or mutation performed."
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "stockquant-no-source-pause-v1",
+  "capturedAt": "2026-09-30T11:55:28.799Z",
+  "authorizationDecision": {
+    "paperMode": "NO_TRADE",
+    "sourceAuthorization": "NONE",
+    "sourceCollectionAllowed": false
+  },
+  "subscription": {
+    "subscriptionId": "dc08a-20260917-20-v1",
+    "subscriptionVersion": 1,
+    "previousEnabled": true,
+    "previousVersion": 425,
+    "previousWatermarkEnd": "2026-09-30T07:00:00.000Z",
+    "enabled": false,
+    "version": 426,
+    "watermarkEnd": "2026-09-30T07:00:00.000Z"
+  },
+  "operation": {
+    "method": "authenticated POST /v2/collection-schedules/{subscriptionId}/disable",
+    "result": "HTTP 200",
+    "credentialHandling": "existing container secret used in process memory; no value logged",
+    "followUpVerification": "authenticated GET confirms disabled schedule and enabled schedule list is empty",
+    "serviceRestarted": false,
+    "scheduleMetadataUpdated": true,
+    "businessDataWritten": false,
+    "sourceDataCollected": false,
+    "paperCalls": 0
+  },
+  "scheduler": {
+    "workerStatus": "ENABLED",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "effect": "worker remains available but has no enabled schedule to execute"
+  },
+  "observation": {
+    "observedDays": 8,
+    "targetDays": 20,
+    "remainingDays": 12,
+    "status": "WAITING",
+    "newObservationStarted": false
+  },
+  "postChangeHealthSnapshot": "2026-09-30-o1-health-after-no-source-pause.json",
+  "healthInterpretation": "UNHEALTHY is expected while nextExecutionAt is null; source/scheduler worker processes remain configured, but the only schedule is disabled.",
+  "recoveryCondition": "Obtain explicit source authorization, verify the exact source scope/terms, then explicitly re-enable this exact schedule and confirm its next trigger before counting new observation days."
+}

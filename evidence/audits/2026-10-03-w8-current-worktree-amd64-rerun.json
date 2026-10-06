@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "stockquant-w8-current-images-v1",
+  "capturedAt": "2026-10-02T23:20:15Z",
+  "status": "LOCAL_AMD64_PREPARATION_PASS",
+  "buildCommand": "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --project-name stockquant-w8-20261003-current --file infra/compose/docker-compose.yml --env-file .env.example --profile web build",
+  "buildExitCode": 0,
+  "project": "stockquant-w8-20261003-current",
+  "servicesStarted": false,
+  "registryContactDuringBuild": true,
+  "registryPurpose": "Fetched pinned build-base images/dependencies for the isolated local build; no image was pushed.",
+  "targetPlatform": "linux/amd64 emulated by Mac M1 Docker Desktop linux/aarch64",
+  "worktreeCodeVersion": "sha256:59c51d1214592c21bc7319d94fe17776d67c23ca02bcf8c338a30dec0a4dfec2",
+  "sourceManifest": "evidence/audits/2026-10-03-w8-current-worktree-amd64-rerun.sources.sha256",
+  "sourceManifestSha256": "fd7bd26bc6333c12e0263f069d18ad8290d18371c5c8bc59824b331ec86e921e",
+  "images": [
+    {
+      "service": "platform-api-service",
+      "tag": "stockquant-w8-20261003-current-platform-api-service:latest",
+      "configId": "sha256:169b02e91d5cbfc85aeeea31749f72e35fbe61963cb612462ac254c07ff72235",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "market-data-service",
+      "tag": "stockquant-w8-20261003-current-market-data-service:latest",
+      "configId": "sha256:9f97f662691c3c2497c2ec16fda60549174112e7a2369b51a8e9edcb84f553d7",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "portfolio-risk-service",
+      "tag": "stockquant-w8-20261003-current-portfolio-risk-service:latest",
+      "configId": "sha256:8df7095a0748da32a37a8ec628efed5cd0f1578a5529dd6b569a567c6da4bb03",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "trade-execution-service",
+      "tag": "stockquant-w8-20261003-current-trade-execution-service:latest",
+      "configId": "sha256:9e8545832f4e38ee4592afe106725223c59872c0fe6e950d47ec8ab658fc0f3d",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "decision-governance-service",
+      "tag": "stockquant-w8-20261003-current-decision-governance-service:latest",
+      "configId": "sha256:dacb2925f6b13c6a805bb072459f6fc87f666f603ff17c368140186dedd02264",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "historical-replay-worker",
+      "tag": "stockquant-w8-20261003-current-historical-replay-worker:latest",
+      "configId": "sha256:f28bc22a7ba83e64a53d0565df4760dd5bdf3d67727e5e0d93dd41316f2a7ccd",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "quant-research-service",
+      "tag": "stockquant-w8-20261003-current-quant-research-service:latest",
+      "configId": "sha256:42d76170651c268f16f6859e270fdb8d424f5041ad848379a5cf97389fd7df7f",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "research-automation-service",
+      "tag": "stockquant-w8-20261003-current-research-automation-service:latest",
+      "configId": "sha256:1583cc21b3d6ec12639fb935b340bfa64de6ea3aa825169d57aac8a05cb8ed91",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "web",
+      "tag": "stockquant-w8-20261003-current-web:latest",
+      "configId": "sha256:023a923a94e25652991f42bcb0981b5f568334fa15b825996000d80489f55129",
+      "platform": "linux/amd64",
+      "user": "node"
+    },
+    {
+      "service": "qlib-worker",
+      "tag": "stockquant-w8-20261003-current-qlib-worker:latest",
+      "configId": "sha256:b44359b97b44732857ba59e300e1a1f39cc03ab97a30465233b3979f6b35f16b",
+      "platform": "linux/amd64",
+      "user": "10001:10001"
+    }
+  ],
+  "securitySmoke": {
+    "command": "STOCKQUANT_W8_IMAGE_PREFIX=stockquant-w8-20261003-current- node scripts/w8-container-boundary-smoke.mjs",
+    "exitCode": 0,
+    "status": "PASS",
+    "checks": 10,
+    "assertions": [
+      "non-root",
+      "read-only root filesystem",
+      "network none",
+      "capability drop ALL",
+      "no-new-privileges",
+      "pids limit 64",
+      "Web and Research Automation Docker socket absent",
+      "Web and Research Automation nonempty secret environment absent",
+      "Market Data designated persistent volume writable",
+      "Qlib 0.9.6 and LightGBM 4.7.0 load"
+    ]
+  },
+  "postgresAuthSmoke": {
+    "command": "pnpm verify:w8:postgres-auth",
+    "exitCode": 0,
+    "status": "PASS",
+    "image": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+    "network": "none",
+    "roles": 9,
+    "validPasswordsAccepted": 9,
+    "passwordlessRejected": 9,
+    "wrongPasswordsRejected": 9,
+    "passwordEncryption": "scram-sha-256"
+  },
+  "serviceBearerPreflight": {
+    "status": "PASS",
+    "fileMode": "0600",
+    "independentIdentities": 8,
+    "duplicates": 0,
+    "secretsPrinted": false,
+    "appliedToActiveServices": false
+  },
+  "hostInventory": {
+    "status": "BLOCKED",
+    "system": "darwin",
+    "machine": "aarch64",
+    "cpu": 10,
+    "memoryBytes": 34359738368,
+    "diskAvailableBytes": 158807236608,
+    "docker": "Docker Desktop 28.0.4 linux/aarch64, 10 CPU, 8218034176 bytes",
+    "targetHostAuthorized": false
+  },
+  "activeServicesAfterTests": [
+    "stockquant-v12-market-data-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-postgres-1 Up 47 hours (healthy)",
+    "stockquant-v12-platform-api-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-research-automation-service-1 Up 7 days (healthy)",
+    "stockquant-v12-web-1 Up 7 days",
+    "stockquant-v12-portfolio-risk-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-historical-replay-worker-1 Up 47 hours (healthy)",
+    "stockquant-v12-trade-execution-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-decision-governance-service-1 Up 47 hours (healthy)",
+    "stockquant-v12-temporal-1 Up 9 days",
+    "stockquant-v12-nats-1 Up 9 days",
+    "stockquant-v12-quant-research-service-1 Up 10 days (healthy)",
+    "stockquant-v12-qlib-worker-1 Up 13 days (healthy)"
+  ],
+  "activeServicesCount": 13,
+  "w8TempContainersRemaining": false,
+  "w8TempVolumesRemaining": false,
+  "externalMarketProviderPaperBrokerCalls": 0,
+  "limitations": [
+    "This is AMD64 emulation, not actual Ubuntu x86_64 evidence.",
+    "Image config IDs are local IDs, not registry digests or release provenance.",
+    "No active service, credential, database volume, or production backup was changed.",
+    "Active-cluster backup/restore, credential rotation, migration, RPO/RTO, Ubuntu deployment, and five-market-day observation remain incomplete."
+  ]
+}

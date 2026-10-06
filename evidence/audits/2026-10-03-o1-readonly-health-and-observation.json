@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "stockquant-o1-readonly-audit-v1",
+  "auditDate": "2026-10-03",
+  "capturedAt": "2026-10-02T16:52:06.193Z",
+  "timezone": "Asia/Shanghai",
+  "method": "read-only GET health probe plus local archived-observation summary",
+  "requests": [
+    "GET /ready",
+    "GET /v2/collection-scheduler/status",
+    "GET /v2/minute/sources",
+    "GET /v2/collection/health?subscriptionId=dc08a-20260917-20-v1",
+    "GET /v2/calendar/cn-a-share/2026-10-03"
+  ],
+  "marketDataRequests": 0,
+  "writesOrActivation": false,
+  "sourceAuthorization": "NONE",
+  "tradeMode": "NO_TRADE",
+  "activeServiceHealth": {
+    "status": "UNHEALTHY",
+    "calendar": {
+      "status": "CLOSED",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sourceFreshnessExpected": false,
+      "sourceFreshnessState": "MARKET_CLOSED"
+    },
+    "ready": {
+      "status": "ready",
+      "persistence": "POSTGRES",
+      "scheduler": "ENABLED",
+      "executor": "ENABLED"
+    },
+    "scheduler": {
+      "status": "ENABLED",
+      "lastSuccessfulTickAt": "2026-10-02T16:51:16.410Z",
+      "nextExecutionAt": null,
+      "lastSubmitted": 0,
+      "tickAgeSeconds": 49.783
+    },
+    "sources": [
+      { "sourceId": "baostock", "kind": "MINUTE_BAR", "enabled": true, "circuit": "CLOSED", "failures": 0, "lastSuccessAt": 1790208109.2940702, "lastFailureAt": 1790171080.0519683, "lastErrorCode": null },
+      { "sourceId": "sina", "kind": "MINUTE_BAR", "enabled": true, "circuit": "CLOSED", "failures": 0, "lastSuccessAt": 1790751790.0561771, "lastFailureAt": null, "lastErrorCode": null },
+      { "sourceId": "eastmoney", "kind": "MINUTE_BAR", "enabled": false, "circuit": "DISABLED", "failures": 0, "lastSuccessAt": null, "lastFailureAt": null, "lastErrorCode": null },
+      { "sourceId": "tdx", "kind": "MINUTE_BAR", "enabled": false, "circuit": "DISABLED", "failures": 0, "lastSuccessAt": null, "lastFailureAt": null, "lastErrorCode": null }
+    ],
+    "quality": { "openGaps": 0, "pendingOutbox": 0 },
+    "checks": { "recentSuccessRecorded": true, "nextTriggerRecorded": false, "sourceReady": true, "qualityReady": true }
+  },
+  "archivedObservation": {
+    "subscriptionId": "dc08a-20260917-20-v1",
+    "targetDays": 20,
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "status": "WAITING",
+    "invalidEvidence": { "malformedFiles": [], "invalidTimestampFiles": [], "ignoredSubscriptionCount": 185 },
+    "latestValidObservationDate": "2026-09-30"
+  },
+  "interpretation": "Configuration-enabled source inventory and a recent scheduler tick do not establish source authorization or a future scheduled run. The health GET added no observation day and does not satisfy O1/O2."
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v12-fixture-preview-v1.schema.json",
+  "title": "V12FixturePreview",
+  "type": "object",
+  "required": ["fixtureVersion", "dataMode", "quality", "bars"],
+  "properties": {
+    "fixtureVersion": { "const": "v1.2-market-data-1" },
+    "dataMode": { "const": "FIXTURE" },
+    "barCount": { "type": "integer", "minimum": 0 },
+    "securityCount": { "type": "integer", "minimum": 0 },
+    "quality": {
+      "type": "object",
+      "required": ["status", "errors"],
+      "properties": {
+        "status": { "enum": ["READY", "REJECTED"] },
+        "errors": { "type": "array", "items": { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" }, "ticker": { "type": "string" }, "date": { "type": "string", "format": "date" } }, "additionalProperties": true } }
+      },
+      "additionalProperties": true
+    },
+    "bars": { "type": "array", "items": { "type": "object", "required": ["securityId", "ticker", "date", "open", "high", "low", "close", "volume", "adjustment"], "properties": { "securityId": { "type": "string" }, "ticker": { "type": "string" }, "date": { "type": "string", "format": "date" }, "open": { "type": "number" }, "high": { "type": "number" }, "low": { "type": "number" }, "close": { "type": "number" }, "volume": { "type": "number" }, "adjustment": { "const": "raw" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": true
+}

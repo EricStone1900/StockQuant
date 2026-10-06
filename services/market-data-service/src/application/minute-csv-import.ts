@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { validateBars, type QualityBar } from "./minute-quality.js";
-import type { MinuteImportBar } from "./minute-import-repository.js";
+import type { MinuteImportBar } from "../domain/minute-import.js";
 
 export type MinuteCsvField = "securityId" | "timestamp" | "open" | "high" | "low" | "close" | "volume" | "amount";
 export type MinuteCsvMapping = Partial<Record<MinuteCsvField, string>>;

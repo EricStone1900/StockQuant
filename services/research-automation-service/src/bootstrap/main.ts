@@ -12,30 +12,40 @@ import { ExperimentIdempotencyConflict, ExperimentService } from "../application
 import { sha256, validateArtifactRef, validateRunnerJob } from "../application/v31-runtime-guards.js";
 import { evaluateModelGatewayPreflight } from "../application/v31-model-gateway-preflight.js";
 import { ModelGatewayCoordinator } from "../application/v31-model-gateway.js";
-import { FileArtifactStore } from "../application/v31-artifact-store.js";
-import { InMemoryRunnerJobStore, RunnerJobCoordinator } from "../application/v31-runner-jobs.js";
+import { FileArtifactStore } from "../adapters/file-artifact-content-store.js";
+import { InMemoryRunnerJobStore, RunnerJobCoordinator, RunnerJobIdempotencyConflict, SystemRunnerClock } from "../application/v31-runner-jobs.js";
 import { parseRunnerExecution } from "../application/v31-runner-executor.js";
 import { loadResearchAutomationConfig } from "./config.js";
 import { authorizeResearchServiceRequest, identifyResearchService } from "../application/v31-service-auth.js";
 import { readLeasedRunnerInput } from "../application/v31-runner-input.js";
 import { validateLeasedRunnerOutputPublication } from "../application/v31-runner-output.js";
+import { rollbackUnreferencedArtifact } from "../application/v31-artifact-publication-cleanup.js";
 import { V32PromotionRequestPreparer } from "../application/v32-promotion-preparation.js";
 import { V32PromotionSubmissionService, createQuantPromotionSubmitter } from "../application/v32-promotion-submission.js";
 import { createV31PromotionGateReader, V31GateUnavailableError } from "../application/v31-promotion-gate-client.js";
 import { PgV32PromotionSubmissionJournal } from "../adapters/pg-v32-promotion-submission-journal.js";
 import { validateExperimentDispatchBinding } from "../application/v33-experiment-dispatch-binding.js";
+import { fixtureBudgetSettlementEnabled } from "../application/v31-fixture-budget-settlement.js";
+import { PgResearchCheckpointRepository } from "../adapters/pg-research-checkpoint-repository.js";
+import { ResearchCheckpointConflict } from "../domain/research-checkpoint.js";
+import { ResearchCheckpointService } from "../application/research-checkpoint-service.js";
+import { RunnerInputPreflightError, verifyRunnerInputBeforeDispatch } from "../application/v33-runner-input-preflight.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3008);
 const config = loadResearchAutomationConfig();
 const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
 const repository = databasePool ? new PgExperimentRepository(databasePool) : new InMemoryExperimentRepository();
-const budgetLedger = databasePool ? new PgBudgetLedger(databasePool, config.stageBudgetCents, config.maxExperimentBudgetCents, config.budgetWarningPercent) : new BudgetLedger(config.stageBudgetCents, config.maxExperimentBudgetCents, config.budgetWarningPercent);
+const budgetLedger = databasePool ? new PgBudgetLedger(databasePool, config.stageBudgetCents, config.maxExperimentBudgetCents, config.budgetWarningPercent, "V3.1", undefined, config.maxTestRunBudgetCents) : new BudgetLedger(config.stageBudgetCents, config.maxExperimentBudgetCents, config.budgetWarningPercent, undefined, config.maxTestRunBudgetCents);
 if (repository instanceof PgExperimentRepository) await repository.initialize();
 if (budgetLedger instanceof PgBudgetLedger) await budgetLedger.initialize();
-const service = new ExperimentService(repository, config.maxExperimentBudgetCents, budgetLedger);
+const systemClock = new SystemRunnerClock();
+const service = new ExperimentService(repository, systemClock, config.maxExperimentBudgetCents, budgetLedger);
 const runnerJobStore = databasePool ? new PgRunnerJobStore(databasePool) : new InMemoryRunnerJobStore();
 if (runnerJobStore instanceof PgRunnerJobStore) await runnerJobStore.initialize();
-const runnerJobs = new RunnerJobCoordinator(runnerJobStore);
+const runnerJobs = new RunnerJobCoordinator(runnerJobStore, systemClock);
+const checkpointRepository = databasePool ? new PgResearchCheckpointRepository(databasePool) : null;
+if (checkpointRepository) await checkpointRepository.initialize();
+const checkpointService = checkpointRepository ? new ResearchCheckpointService(repository, checkpointRepository, systemClock) : null;
 const artifactStore = new FileArtifactStore(process.env.STOCKQUANT_RESEARCH_ARTIFACT_ROOT ?? "/tmp/stockquant-research-artifacts");
 const artifactRefs = databasePool ? new PgArtifactRefRepository(databasePool) : null;
 if (artifactRefs) await artifactRefs.initialize();
@@ -53,13 +63,18 @@ const modelGatewayPreflight = () => evaluateModelGatewayPreflight(config, {
   [config.embeddingCredentialRef]: process.env[config.embeddingCredentialRef],
 });
 const fixedFixtureGeneratedCode = `import json\nimport qlib\nfrom pathlib import Path\n\nmetrics = {"bars": 6, "fixtureId": "v3.1-research-small-sample-1", "qlibVersion": qlib.__version__, "return": 0.12}\nPath("/run/output/metrics.json").write_text(json.dumps(metrics, sort_keys=True))\nprint("fixed-fixture-research-complete")\n`;
-const modelGatewayFixtureEnabled = process.env.NODE_ENV === "test" && process.env.STOCKQUANT_MODEL_GATEWAY_TEST_FIXTURE === "true";
-const modelGatewayFixture = modelGatewayFixtureEnabled ? new ModelGatewayCoordinator(budgetLedger, {
+const fixedFixtureRecoveryGeneratedCode = (testRunId: string) => `import json\nimport time\nimport qlib\nfrom pathlib import Path\n\ncheckpoint_path = Path("/run/input/checkpoint.json")\nprevious = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None\nsequence = int(previous["sequence"]) + 1 if previous else 1\ncursor = int(previous["state"]["cursor"]) if previous else 0\ncheckpoint = {"schemaVersion":"v3.3-research-checkpoint-v1","testRunId":${JSON.stringify(testRunId)},"roundIndex":1,"sequence":sequence,"state":{"cursor":cursor + 1}}\ntemporary = Path("/run/output/checkpoint.json.tmp")\ntemporary.write_text(json.dumps(checkpoint, sort_keys=True))\ntemporary.replace("/run/output/checkpoint.json")\ntime.sleep(45 if sequence == 1 else 12)\nmetrics = {"bars":6,"fixtureId":"v3.1-research-small-sample-1","qlibVersion":qlib.__version__,"return":0.12,"recovery":{"resumedFromSequence":sequence - 1,"checkpointSequence":sequence,"cursor":cursor + 1}}\nPath("/run/output/metrics.json").write_text(json.dumps(metrics, sort_keys=True))\nprint("fixed-fixture-checkpoint-recovery-complete")\n`;
+const fixtureUsageEvidence = { provider: "FIXTURE", model: "v3.1-model-response-fixed-v1", requestId: "fixture-request-1", inputTokens: 12, outputTokens: 8, tariffVersion: null, costBasis: "FIXTURE" as const, invoiceReconciliation: "NOT_PERFORMED" as const };
+const fixtureEmbeddingUsageEvidence = { provider: "FIXTURE", model: "stockquant-fixture-embedding-v1", requestId: "fixture-embedding-request-1", inputTokens: 4, outputTokens: 0, tariffVersion: null, costBasis: "FIXTURE" as const, invoiceReconciliation: "NOT_PERFORMED" as const };
+const modelGatewayFixtureEnabled = fixtureBudgetSettlementEnabled(process.env);
+  const modelGatewayFixture = modelGatewayFixtureEnabled ? new ModelGatewayCoordinator(budgetLedger, {
   async complete(payload) {
-    const input = payload as { scenario: "COMPLETED" | "TIMEOUT" | "OVER_BUDGET"; requestedCents: number };
+    const input = payload as { scenario: "COMPLETED" | "TIMEOUT" | "OVER_BUDGET"; requestedCents: number; operation?: string; inputTokens?: number; runnerScenario?: "NORMAL" | "CHECKPOINT_RECOVERY"; testRunId?: string };
+    const generatedCode = input.runnerScenario === "CHECKPOINT_RECOVERY" && input.testRunId ? fixedFixtureRecoveryGeneratedCode(input.testRunId) : fixedFixtureGeneratedCode;
     if (input.scenario === "TIMEOUT") throw new Error("fixed fixture simulates an uncertain provider timeout");
-    if (input.scenario === "OVER_BUDGET") return { response: { fixtureId: "v3.1-model-response-fixed-v1", content: "deterministic fixture response", generatedCode: fixedFixtureGeneratedCode }, actualCostCents: input.requestedCents + 1 };
-    return { response: { fixtureId: "v3.1-model-response-fixed-v1", content: "deterministic fixture response", generatedCode: fixedFixtureGeneratedCode }, actualCostCents: 23 };
+    if (input.scenario === "OVER_BUDGET") return { response: { fixtureId: "v3.1-model-response-fixed-v1", content: "deterministic fixture response", generatedCode }, costCents: input.requestedCents + 1, evidence: fixtureUsageEvidence };
+    if (input.operation === "EMBEDDING") return { response: { fixtureId: "stockquant-fixture-embedding-v1" }, costCents: 23, evidence: { ...fixtureEmbeddingUsageEvidence, inputTokens: input.inputTokens ?? 4 } };
+    return { response: { fixtureId: "v3.1-model-response-fixed-v1", content: "deterministic fixture response", generatedCode }, costCents: 23, evidence: fixtureUsageEvidence };
   },
 }, () => ({ ready: true })) : null;
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
@@ -76,7 +91,7 @@ const server = createServer(async (req, res) => {
     model: { provider: config.chatProvider, name: config.chatModel, baseUrl: config.chatBaseUrl, credentialRef: config.chatCredentialRef },
     embedding: { provider: config.embeddingProvider, name: config.embeddingModel, dimensions: config.embeddingDimensions, baseUrl: config.embeddingBaseUrl, credentialRef: config.embeddingCredentialRef },
     outboundPolicy: config.outboundPolicy,
-    execution: { budgetCurrency: config.budgetCurrency, defaultRounds: config.defaultRounds, maxRounds: config.maxRounds, defaultBudgetCents: config.defaultBudgetCents, maxExperimentBudgetCents: config.maxExperimentBudgetCents, stageBudgetCents: config.stageBudgetCents, budgetWarningPercent: config.budgetWarningPercent, workerConcurrency: config.workerConcurrency },
+    execution: { budgetCurrency: config.budgetCurrency, defaultRounds: config.defaultRounds, maxRounds: config.maxRounds, defaultBudgetCents: config.defaultBudgetCents, maxExperimentBudgetCents: config.maxExperimentBudgetCents, maxTestRunBudgetCents: config.maxTestRunBudgetCents, stageBudgetCents: config.stageBudgetCents, budgetWarningPercent: config.budgetWarningPercent, workerConcurrency: config.workerConcurrency },
     prerequisiteStatus: config.prerequisiteStatus,
     budgetPersistence: databasePool ? "POSTGRES" : "MEMORY",
     modelGatewayPreflight: modelGatewayPreflight(),
@@ -100,6 +115,26 @@ const server = createServer(async (req, res) => {
     raw += chunk;
   }
   try {
+    if (req.method === "POST" && req.url === "/v1/runner/budgets/test-run/limit") {
+      if (!(budgetLedger instanceof PgBudgetLedger)) return json(res, 503, { error: "per-TestRun budget limits require persistent PostgreSQL storage" });
+      const body = JSON.parse(raw) as { schemaVersion?: unknown; testRunId?: unknown; budgetCents?: unknown };
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if (!body || typeof body !== "object" || Array.isArray(body)
+        || Object.keys(body).some((key) => !["schemaVersion", "testRunId", "budgetCents"].includes(key))
+        || body.schemaVersion !== "v3.3-test-run-budget-limit-command-v1"
+        || typeof body.testRunId !== "string" || !uuid.test(body.testRunId)
+        || !Number.isSafeInteger(body.budgetCents) || Number(body.budgetCents) < 1) {
+        return json(res, 422, { error: "only schemaVersion, a valid testRunId UUID, and a positive integer budgetCents are accepted" });
+      }
+      try {
+        const budgetCents = await budgetLedger.configureTestRunBudget(body.testRunId, Number(body.budgetCents));
+        return json(res, 200, { schemaVersion: "v3.3-test-run-budget-limit-v1", testRunId: body.testRunId, budgetCents, status: "CONFIGURED" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "TestRun budget limit could not be configured";
+        const status = message.includes("invalid") ? 422 : 409;
+        return json(res, status, { error: message });
+      }
+    }
     if (req.method === "POST" && req.url === "/v1/experiments") {
       const result = await service.create(JSON.parse(raw));
       const budget = await budgetLedger.get(result.experiment.experimentId);
@@ -108,7 +143,11 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/v1/promotions/prepare") {
       if (!promotionPreparer) return json(res, 503, { status: "WAITING", error: "PromotionRequest preparation requires PostgreSQL-backed research records and ArtifactRefs" });
       const body = JSON.parse(raw) as { testRunId?: unknown; experimentId?: unknown };
-      if (typeof body.testRunId !== "string" || typeof body.experimentId !== "string") return json(res, 422, { error: "testRunId and experimentId are required" });
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["testRunId", "experimentId"].includes(key))
+        || typeof body.testRunId !== "string" || !uuid.test(body.testRunId) || typeof body.experimentId !== "string" || !uuid.test(body.experimentId)) {
+        return json(res, 422, { error: "only valid testRunId and experimentId UUIDs are accepted" });
+      }
       const result = await promotionPreparer.prepare(body.testRunId, body.experimentId);
       return json(res, result.status === "WAITING" ? 202 : 200, result);
     }
@@ -136,16 +175,20 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { status: "VALID", execution: "NOT_STARTED", runner: config.runnerMode });
     }
     if (req.method === "POST" && req.url === "/v1/runner/jobs") {
-      const body = JSON.parse(raw) as { testRunId?: unknown; experimentId?: unknown };
+      const job = JSON.parse(raw) as import("../application/v31-runtime-guards.js").RunnerJob;
+      validateRunnerJob(job);
+      const body = job;
       const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
       if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.testRunId !== "string" || !uuid.test(body.testRunId) || typeof body.experimentId !== "string" || !uuid.test(body.experimentId)) return json(res, 422, { error: "Runner dispatch requires UUID testRunId and experimentId values" });
       const experiment = await service.get(body.experimentId);
       const reservation = experiment ? await budgetLedger.get?.(experiment.experimentId) as { status?: string } | null : null;
-      const binding = validateExperimentDispatchBinding(body.testRunId, experiment, reservation?.status ?? null);
+      const binding = validateExperimentDispatchBinding(body.testRunId, experiment, reservation?.status ?? null, job.roundIndex);
       if (binding.status === "EXPERIMENT_NOT_FOUND") return json(res, 404, { error: "experiment not found" });
       if (binding.status === "TEST_RUN_MISMATCH") return json(res, 409, { error: "Runner testRunId does not match the experiment's durable TestRun binding" });
+      if (binding.status === "ROUND_REQUIRED") return json(res, 422, { error: "Runner dispatch requires an explicit roundIndex for a multi-round experiment" });
+      if (binding.status === "ROUND_MISMATCH") return json(res, 409, { error: "Runner roundIndex does not match an allocated Experiment budget tranche" });
       if (binding.status === "BUDGET_NOT_RESERVED") return json(res, 409, { error: "Runner dispatch requires a RESERVED experiment budget" });
-      const job = JSON.parse(raw);
+      if (artifactRefs) await verifyRunnerInputBeforeDispatch(job, artifactRefs, artifactStore);
       const record = await runnerJobs.submit(job);
       return json(res, 202, { ...record, execution: "NOT_STARTED", prerequisiteStatus: config.prerequisiteStatus });
     }
@@ -179,6 +222,22 @@ const server = createServer(async (req, res) => {
         || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) return json(res, 422, { error: "testRunId UUID and bounded offset/limit are required" });
       const jobs = await runnerJobs.listForTestRun(testRunId, offset, limit + 1);
       return json(res, 200, { schemaVersion: "v3.3-runner-queue-v1", testRunId, offset, limit, jobs: jobs.slice(0, limit), hasMore: jobs.length > limit });
+    }
+    if (req.method === "GET" && req.url?.startsWith("/v1/runner/budgets/test-run?")) {
+      if (!(budgetLedger instanceof PgBudgetLedger)) return json(res, 503, { error: "complete TestRun budget summary requires PostgreSQL persistence" });
+      const url = new URL(req.url, "http://research-automation.local");
+      const testRunId = url.searchParams.get("testRunId") ?? "";
+      const offset = url.searchParams.has("offset") ? Number(url.searchParams.get("offset")) : 0;
+      const limit = url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : 50;
+      const afterCursor = url.searchParams.get("afterCursor");
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if ([...url.searchParams.keys()].some((key) => !["testRunId", "offset", "limit", "afterCursor"].includes(key)) || [...url.searchParams.keys()].some((key) => url.searchParams.getAll(key).length !== 1)
+        || !uuid.test(testRunId) || !Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || (afterCursor !== null && offset !== 0) || (afterCursor !== null && afterCursor.length > 512)) return json(res, 422, { error: "testRunId UUID and bounded pagination are required" });
+      const summary = await budgetLedger.snapshotForTestRun(testRunId, offset, limit, afterCursor);
+      return json(res, 200, { schemaVersion: "v3.3-test-run-budget-summary-v1", testRunId, ...summary,
+        accountingScope: "unique experiments bound to this TestRun; model-call attempts are counted once; no provider invoice reconciliation",
+        stageBudgetControl: "TEST_RUN_AND_ROUND_CAP_ENFORCED",
+      });
     }
     if (req.method === "GET" && req.url?.startsWith("/v1/runner/budgets?")) {
       const url = new URL(req.url, "http://research-automation.local");
@@ -217,8 +276,57 @@ const server = createServer(async (req, res) => {
       const body = JSON.parse(raw) as { workerId?: unknown; testRunId?: unknown };
       if (typeof body.workerId !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(body.workerId)) return json(res, 422, { error: "valid workerId is required" });
       if (body.testRunId !== undefined && (typeof body.testRunId !== "string" || body.testRunId.length < 1 || body.testRunId.length > 128)) return json(res, 422, { error: "testRunId must be a non-empty string up to 128 characters" });
-      const record = await runnerJobs.claim(body.workerId, new Date(), 30_000, body.testRunId as string | undefined);
+      const record = await runnerJobs.claim(body.workerId, undefined, 30_000, body.testRunId as string | undefined);
       return json(res, 200, record ? { ...record, claimStatus: "LEASED" } : { status: "NO_WORK" });
+    }
+    if (req.method === "GET" && req.url?.startsWith("/v1/runner/checkpoints?")) {
+      const url = new URL(req.url, "http://research-automation.local");
+      const testRunId = url.searchParams.get("testRunId") ?? "";
+      const experimentId = url.searchParams.get("experimentId") ?? "";
+      const roundIndex = Number(url.searchParams.get("roundIndex"));
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if ([...url.searchParams.keys()].some((key) => !["testRunId", "experimentId", "roundIndex"].includes(key))
+        || url.searchParams.getAll("testRunId").length !== 1 || url.searchParams.getAll("experimentId").length !== 1 || url.searchParams.getAll("roundIndex").length !== 1
+        || !uuid.test(testRunId) || !uuid.test(experimentId) || !Number.isSafeInteger(roundIndex) || roundIndex < 1 || roundIndex > 3) return json(res, 422, { error: "TestRun UUID, Experiment UUID, and roundIndex 1..3 are required" });
+      if (!checkpointService) return json(res, 503, { error: "persistent checkpoint store is not configured" });
+      try {
+        const checkpoints = await checkpointService.list(testRunId, experimentId, roundIndex);
+        return json(res, 200, { schemaVersion: "v3.3-runner-checkpoint-history-v1", testRunId, experimentId, roundIndex, checkpoints });
+      } catch (error) {
+        if (error instanceof ResearchCheckpointConflict) return json(res, error.statusCode, { error: error.message });
+        throw error;
+      }
+    }
+    const checkpointAction = req.url?.match(/^\/v1\/runner\/jobs\/([^/]+)\/checkpoint(?:\/(read))?$/);
+    if (checkpointAction && req.method === "POST") {
+      const jobId = decodeURIComponent(checkpointAction[1]);
+      const body = JSON.parse(raw) as { workerId?: unknown; fencingToken?: unknown; schemaVersion?: unknown; testRunId?: unknown; roundIndex?: unknown; sequence?: unknown; state?: unknown };
+      if (typeof body.workerId !== "string" || !/^[A-Za-z0-9._-]{1,128}$/u.test(body.workerId)
+        || !Number.isSafeInteger(body.fencingToken) || Number(body.fencingToken) < 1) {
+        return json(res, 422, { error: "workerId and positive integer fencingToken are required" });
+      }
+      if (!checkpointService) return json(res, 503, { error: "persistent checkpoint store is not configured" });
+      const current = await runnerJobs.get(jobId);
+      const lease = current?.lease;
+      const activeLease = current?.status === "RUNNING" && lease?.workerId === body.workerId
+        && lease.fencingToken === body.fencingToken && Date.parse(lease.expiresAt) > systemClock.now().getTime();
+      if (!current || !activeLease) return json(res, 409, { error: "lease lost, expired, or cancelled" });
+      if (checkpointAction[2] === "read") {
+        const latest = await checkpointService.latest(current.job.testRunId, current.job.experimentId, current.job.roundIndex ?? 1);
+        return json(res, 200, { status: latest ? "FOUND" : "EMPTY", checkpoint: latest });
+      }
+      if (body.testRunId !== current.job.testRunId || body.roundIndex !== (current.job.roundIndex ?? 1)) {
+        return json(res, 409, { error: "checkpoint TestRun or round does not match the leased Runner Job" });
+      }
+      const input = {
+        schemaVersion: body.schemaVersion,
+        testRunId: body.testRunId,
+        roundIndex: body.roundIndex,
+        sequence: body.sequence,
+        state: body.state,
+      };
+      const result = await checkpointService.append(current.job.experimentId, input);
+      return json(res, 200, { status: "PERSISTED", checkpoint: result.checkpoint, stateSha256: result.checkpoint.stateSha256, sequence: result.checkpoint.sequence, existing: result.existing, createdAt: result.checkpoint.createdAt });
     }
     const inputAction = req.url?.match(/^\/v1\/runner\/jobs\/([^/]+)\/input$/);
     if (inputAction && req.method === "POST") {
@@ -328,8 +436,14 @@ const server = createServer(async (req, res) => {
           return json(res, 201, { status: "PUBLISHED", persisted: true, ref: result.value });
         } catch (error) {
           if (stagedRef) {
-            const persisted = await artifactRefs.get(stagedRef.namespace, stagedRef.artifactId).catch(() => null);
-            if (!persisted) await artifactStore.remove(stagedRef).catch(() => undefined);
+            const rollbackStatus = await rollbackUnreferencedArtifact({
+              ref: stagedRef,
+              readPersistedRef: (ref) => artifactRefs.get(ref.namespace, ref.artifactId),
+              removeBytes: (ref) => artifactStore.remove(ref),
+            });
+            if (rollbackStatus !== "REMOVED_UNREFERENCED") {
+              console.warn(JSON.stringify({ event: "runner_artifact_rollback_preserved", namespace: stagedRef.namespace, artifactId: stagedRef.artifactId, status: rollbackStatus }));
+            }
           }
           throw error;
         }
@@ -368,25 +482,133 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "POST" && req.url === "/v1/model-gateway/fixture-call") {
       if (!modelGatewayFixture) return json(res, 404, { error: "model gateway fixture is available only in explicit test mode" });
-      const body = JSON.parse(raw) as { experimentId?: unknown; modelRunId?: unknown; requestedCents?: unknown; scenario?: unknown };
+      const body = JSON.parse(raw) as { experimentId?: unknown; modelRunId?: unknown; requestedCents?: unknown; roundIndex?: unknown; scenario?: unknown; runnerScenario?: unknown };
       if (typeof body.experimentId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(body.experimentId)
         || typeof body.modelRunId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(body.modelRunId)
         || !Number.isSafeInteger(body.requestedCents) || Number(body.requestedCents) < 1 || Number(body.requestedCents) > config.maxExperimentBudgetCents
-        || !["COMPLETED", "TIMEOUT", "OVER_BUDGET"].includes(String(body.scenario))) {
+        || (body.roundIndex !== undefined && (!Number.isInteger(body.roundIndex) || Number(body.roundIndex) < 1 || Number(body.roundIndex) > config.maxRounds))
+        || !["COMPLETED", "TIMEOUT", "OVER_BUDGET"].includes(String(body.scenario))
+        || (body.runnerScenario !== undefined && !["NORMAL", "CHECKPOINT_RECOVERY"].includes(String(body.runnerScenario)))) {
         return json(res, 422, { error: "fixture model call request is invalid" });
       }
       const scenario = body.scenario as "COMPLETED" | "TIMEOUT" | "OVER_BUDGET";
+      const runnerScenario = (body.runnerScenario ?? "NORMAL") as "NORMAL" | "CHECKPOINT_RECOVERY";
+      if (runnerScenario === "CHECKPOINT_RECOVERY" && scenario !== "COMPLETED") return json(res, 422, { error: "checkpoint recovery Fixture requires a completed deterministic model response" });
+      const testRunId = runnerScenario === "CHECKPOINT_RECOVERY" && typeof body.modelRunId === "string" && body.modelRunId.endsWith(".round-1") ? body.modelRunId.slice(0, -".round-1".length) : undefined;
+      if (runnerScenario === "CHECKPOINT_RECOVERY" && (!testRunId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(testRunId))) return json(res, 422, { error: "checkpoint recovery Fixture is valid only for round 1 of a UUID-bound TestRun" });
       const requestedCents = Number(body.requestedCents);
-      const requestFingerprint = createHash("sha256").update(JSON.stringify({ fixtureId: "v3.1-model-response-fixed-v1", experimentId: body.experimentId, modelRunId: body.modelRunId, requestedCents, scenario })).digest("hex");
+      if (runnerScenario === "CHECKPOINT_RECOVERY" && body.roundIndex !== 1) return json(res, 422, { error: "checkpoint recovery Fixture is restricted to round 1" });
+      const requestFingerprint = createHash("sha256").update(JSON.stringify({ fixtureId: "v3.1-model-response-fixed-v1", experimentId: body.experimentId, modelRunId: body.modelRunId, requestedCents, roundIndex: body.roundIndex ?? null, scenario, runnerScenario })).digest("hex");
       const result = await modelGatewayFixture.complete({
         experimentId: body.experimentId,
         modelRunId: body.modelRunId,
         requestFingerprint,
         requestedCents,
-        payload: { scenario, requestedCents },
+        ...(body.roundIndex === undefined ? {} : { roundIndex: Number(body.roundIndex) }),
+        payload: { scenario, requestedCents, runnerScenario, ...(testRunId ? { testRunId } : {}) },
       });
+      // Recover a lost Platform acknowledgement from the immutable Fixture response,
+      // but only when the exact request fingerprint is already settled. An uncertain
+      // or merely dispatched call remains fail-closed and is never reissued.
+      if (result.status === "ALREADY_EXISTS" && result.budgetStatus === "SETTLED") {
+        const settled = await budgetLedger.getModelCall(body.experimentId, body.modelRunId);
+        if (!settled || settled.status !== "SETTLED" || settled.requestFingerprint !== requestFingerprint
+          || settled.requestedCents !== requestedCents || settled.roundIndex !== (body.roundIndex ?? 1)) {
+          return json(res, 409, { providerMode: "FIXTURE", modelCalls: "NO_EXTERNAL_CALL", status: "ALREADY_EXISTS", modelRunId: body.modelRunId, budgetStatus: result.budgetStatus });
+        }
+        return json(res, 200, {
+          providerMode: "FIXTURE", modelCalls: "NO_EXTERNAL_CALL", status: "COMPLETED",
+          modelRunId: body.modelRunId, budgetStatus: "SETTLED", actualCostCents: settled.spentCents,
+          response: { fixtureId: "v3.1-model-response-fixed-v1", content: "deterministic fixture response", generatedCode: runnerScenario === "CHECKPOINT_RECOVERY" && testRunId ? fixedFixtureRecoveryGeneratedCode(testRunId) : fixedFixtureGeneratedCode },
+        });
+      }
       const status = result.status === "BLOCKED" ? 503 : result.status === "UNKNOWN" ? 202 : 200;
-      return json(res, status, { providerMode: "FIXTURE", modelCalls: "NO_EXTERNAL_CALL", ...result });
+      const response = result.status === "COMPLETED"
+        ? { status: result.status, modelRunId: result.modelRunId, response: result.response, actualCostCents: result.settledCostCents, budgetStatus: result.budgetStatus }
+        : result;
+      return json(res, status, { providerMode: "FIXTURE", modelCalls: "NO_EXTERNAL_CALL", ...response });
+    }
+    if (req.method === "POST" && req.url === "/v1/model-gateway/fixture/openai/v1/chat/completions") {
+      if (!modelGatewayFixture) return json(res, 404, { error: { message: "fixture gateway is disabled", type: "not_found_error" } });
+      const body = JSON.parse(raw) as { model?: unknown; messages?: unknown; stream?: unknown };
+      const experimentId = Array.isArray(req.headers["x-stockquant-experiment-id"]) ? undefined : req.headers["x-stockquant-experiment-id"];
+      const modelRunId = Array.isArray(req.headers["x-stockquant-model-run-id"]) ? undefined : req.headers["x-stockquant-model-run-id"];
+      const roundIndexHeader = Array.isArray(req.headers["x-stockquant-round-index"]) ? undefined : req.headers["x-stockquant-round-index"];
+      const roundIndex = typeof roundIndexHeader === "string" && /^[1-3]$/u.test(roundIndexHeader) ? Number(roundIndexHeader) : undefined;
+      const reservedHeader = Array.isArray(req.headers["x-stockquant-reserved-cents"]) ? undefined : req.headers["x-stockquant-reserved-cents"];
+      const reservedCents = typeof reservedHeader === "string" && /^[1-9][0-9]{0,3}$/u.test(reservedHeader) ? Number(reservedHeader) : NaN;
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      const safeMessages = Array.isArray(body?.messages) && body.messages.length > 0 && body.messages.length <= 256
+        && body.messages.every((message) => message && typeof message === "object" && !Array.isArray(message)
+          && ["system", "user", "assistant", "tool"].includes(String((message as { role?: unknown }).role))
+          && (typeof (message as { content?: unknown }).content === "string" || Array.isArray((message as { content?: unknown }).content)));
+      if (!body || typeof body !== "object" || Array.isArray(body) || body.model !== "stockquant-fixture" || body.stream === true
+        || !safeMessages || typeof experimentId !== "string" || !uuid.test(experimentId)
+        || (roundIndexHeader !== undefined && roundIndex === undefined)
+        || typeof modelRunId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(modelRunId)
+        || !Number.isSafeInteger(reservedCents) || reservedCents > config.maxExperimentBudgetCents) {
+        return json(res, 422, { error: { message: "invalid fixture chat request or budget binding", type: "invalid_request_error" } });
+      }
+      const requestFingerprint = createHash("sha256").update(JSON.stringify({ body, roundIndex: roundIndex ?? null })).digest("hex");
+      const result = await modelGatewayFixture.complete({
+        experimentId, modelRunId, requestFingerprint, requestedCents: reservedCents,
+        ...(roundIndex === undefined ? {} : { roundIndex }),
+        payload: { scenario: "COMPLETED", requestedCents: reservedCents },
+      });
+      if (result.status === "COMPLETED") {
+        return json(res, 200, {
+          id: `chatcmpl-${createHash("sha256").update(modelRunId).digest("hex").slice(0, 24)}`,
+          object: "chat.completion", created: 0, model: "stockquant-fixture",
+          choices: [{ index: 0, message: { role: "assistant", content: "deterministic fixture response" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: fixtureUsageEvidence.inputTokens, completion_tokens: fixtureUsageEvidence.outputTokens, total_tokens: fixtureUsageEvidence.inputTokens + fixtureUsageEvidence.outputTokens },
+        });
+      }
+      const status = result.status === "ALREADY_EXISTS" ? 409 : result.status === "BLOCKED" ? 503 : 202;
+      return json(res, status, { error: { message: "fixture model call was not completed", type: "server_error", code: result.status } });
+    }
+    if (req.method === "POST" && req.url === "/v1/model-gateway/fixture/openai/v1/embeddings") {
+      if (!modelGatewayFixture) return json(res, 404, { error: { message: "fixture gateway is disabled", type: "not_found_error" } });
+      const body = JSON.parse(raw) as { model?: unknown; input?: unknown; encoding_format?: unknown; dimensions?: unknown };
+      const inputs = typeof body?.input === "string" ? [body.input] : body?.input;
+      const experimentId = Array.isArray(req.headers["x-stockquant-experiment-id"]) ? undefined : req.headers["x-stockquant-experiment-id"];
+      const modelRunId = Array.isArray(req.headers["x-stockquant-model-run-id"]) ? undefined : req.headers["x-stockquant-model-run-id"];
+      const roundIndexHeader = Array.isArray(req.headers["x-stockquant-round-index"]) ? undefined : req.headers["x-stockquant-round-index"];
+      const roundIndex = typeof roundIndexHeader === "string" && /^[1-3]$/u.test(roundIndexHeader) ? Number(roundIndexHeader) : undefined;
+      const reservedHeader = Array.isArray(req.headers["x-stockquant-reserved-cents"]) ? undefined : req.headers["x-stockquant-reserved-cents"];
+      const reservedCents = typeof reservedHeader === "string" && /^[1-9][0-9]{0,3}$/u.test(reservedHeader) ? Number(reservedHeader) : NaN;
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      const validInputs = Array.isArray(inputs) && inputs.length > 0 && inputs.length <= 256 && inputs.every((item) => typeof item === "string" && item.length <= 4096);
+      if (!body || typeof body !== "object" || Array.isArray(body) || body.model !== "stockquant-fixture" || !validInputs
+        || (body.encoding_format !== undefined && body.encoding_format !== null && body.encoding_format !== "float" && body.encoding_format !== "base64") || (body.dimensions !== undefined && body.dimensions !== 3)
+        || typeof experimentId !== "string" || !uuid.test(experimentId)
+        || (roundIndexHeader !== undefined && roundIndex === undefined)
+        || typeof modelRunId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(modelRunId)
+        || !Number.isSafeInteger(reservedCents) || reservedCents > config.maxExperimentBudgetCents) {
+        return json(res, 422, { error: { message: "invalid fixture embedding request or budget binding", type: "invalid_request_error", validation: {
+          modelValid: body?.model === "stockquant-fixture", inputValid: validInputs, encodingFormatValid: body?.encoding_format === undefined || body.encoding_format === null || body.encoding_format === "float" || body.encoding_format === "base64",
+          dimensionsValid: body?.dimensions === undefined || body.dimensions === 3, experimentIdentityValid: typeof experimentId === "string" && uuid.test(experimentId),
+          runIdentityValid: typeof modelRunId === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(modelRunId), reservedBudgetValid: Number.isSafeInteger(reservedCents) && reservedCents <= config.maxExperimentBudgetCents,
+        } } });
+      }
+      const requestFingerprint = createHash("sha256").update(JSON.stringify({ body, roundIndex: roundIndex ?? null })).digest("hex");
+      const inputTokens = inputs.length * 4;
+      const result = await modelGatewayFixture.complete({
+        experimentId, modelRunId, requestFingerprint, requestedCents: reservedCents,
+        ...(roundIndex === undefined ? {} : { roundIndex }),
+        payload: { scenario: "COMPLETED", requestedCents: reservedCents, operation: "EMBEDDING", inputTokens },
+      });
+      if (result.status === "COMPLETED") {
+        const vector = [0.125, -0.25, 0.5];
+        const encodedVector = Buffer.allocUnsafe(12);
+        vector.forEach((value, index) => encodedVector.writeFloatLE(value, index * 4));
+        const embeddingValue = body.encoding_format === "base64" ? encodedVector.toString("base64") : vector;
+        return json(res, 200, {
+          object: "list", model: "stockquant-fixture", data: inputs.map((_, index) => ({ object: "embedding", index, embedding: embeddingValue })),
+          usage: { prompt_tokens: inputTokens, total_tokens: inputTokens },
+        });
+      }
+      const status = result.status === "ALREADY_EXISTS" ? 409 : result.status === "BLOCKED" ? 503 : 202;
+      return json(res, status, { error: { message: "fixture embedding call was not completed", type: "server_error", code: result.status } });
     }
     const match = req.url?.match(/^\/v1\/experiments\/([^/]+)(\/cancel)?$/);
     if (match && req.method === "GET" && !match[2]) {
@@ -403,14 +625,34 @@ const server = createServer(async (req, res) => {
       return budget ? json(res, 200, budget) : json(res, 404, { error: "budget reservation not found" });
     }
     if (budgetMatch && req.method === "POST" && req.url?.endsWith("/settle")) {
+      if (!fixtureBudgetSettlementEnabled(process.env)) return json(res, 404, { error: "direct budget settlement is available only in explicit Fixture test mode" });
       const body = JSON.parse(raw) as { spentCents?: number | "UNKNOWN" };
       if (body.spentCents !== "UNKNOWN" && !Number.isInteger(body.spentCents)) return json(res, 422, { error: "spentCents must be an integer or UNKNOWN" });
       return json(res, 200, await budgetLedger.settle(budgetMatch[1], body.spentCents as number | "UNKNOWN"));
     }
+    const ledgerSettlementMatch = req.url?.match(/^\/v1\/experiments\/([^/]+)\/budget\/settle-from-model-calls$/);
+    if (ledgerSettlementMatch && req.method === "POST") {
+      if (!(budgetLedger instanceof PgBudgetLedger)) return json(res, 503, { error: "model-call ledger settlement requires PostgreSQL persistence" });
+      const caller = identifyResearchService(Array.isArray(req.headers.authorization) ? undefined : req.headers.authorization, config.trustedServiceTokens);
+      if (caller !== "platform-api-service") return json(res, 403, { error: "model-call ledger settlement is restricted to Platform API" });
+      const body = JSON.parse(raw) as { testRunId?: unknown; expectedRounds?: unknown };
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["testRunId", "expectedRounds"].includes(key))
+        || typeof body.testRunId !== "string" || !uuid.test(body.testRunId) || !Number.isSafeInteger(body.expectedRounds) || Number(body.expectedRounds) < 1 || Number(body.expectedRounds) > 3) {
+        return json(res, 422, { error: "only a valid TestRun UUID and bounded expectedRounds are accepted" });
+      }
+      try {
+        return json(res, 200, await budgetLedger.settleFromModelCalls(ledgerSettlementMatch[1], body.testRunId, Number(body.expectedRounds)));
+      } catch (error) {
+        return json(res, 409, { error: error instanceof Error ? error.message : "Experiment model-call ledger is not settleable" });
+      }
+    }
     return json(res, 404, { error: "not found" });
   } catch (error) {
     if (error instanceof V31GateUnavailableError) return json(res, 503, { error: error.message, traceId: randomUUID() });
-    const status = error instanceof ExperimentIdempotencyConflict ? 409 : 422;
+    if (error instanceof RunnerInputPreflightError) return json(res, error.statusCode, { error: error.message, traceId: randomUUID() });
+    if (error instanceof ResearchCheckpointConflict) return json(res, error.statusCode, { error: error.message, traceId: randomUUID() });
+    const status = error instanceof ExperimentIdempotencyConflict || error instanceof RunnerJobIdempotencyConflict ? 409 : 422;
     return json(res, status, { error: error instanceof Error ? error.message : "invalid request", traceId: randomUUID() });
   }
 });

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand, ResourceReservation } from "../domain/account.js";
+import type { AccountSnapshot, CorrectFillFeeCommand, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand, ResourceReservation } from "../domain/account.js";
 
 interface StoredAccount {
   account_id: string;
@@ -42,7 +42,7 @@ export class PostgresAccountRepository {
         entry_id UUID PRIMARY KEY,
         account_id UUID NOT NULL REFERENCES accounts(account_id),
         namespace TEXT NOT NULL,
-        entry_type TEXT NOT NULL CHECK (entry_type IN ('INITIAL_CASH', 'TRADE_FILL')),
+        entry_type TEXT NOT NULL CHECK (entry_type IN ('INITIAL_CASH', 'TRADE_FILL', 'FEE_CORRECTION')),
         amount NUMERIC(20, 4) NOT NULL,
         currency CHAR(3) NOT NULL,
         effective_at TIMESTAMPTZ NOT NULL,
@@ -61,7 +61,7 @@ export class PostgresAccountRepository {
       ALTER TABLE ledger_entries DROP CONSTRAINT IF EXISTS ledger_entries_account_id_entry_type_key;
       CREATE UNIQUE INDEX IF NOT EXISTS ledger_entries_account_id_source_ref_key ON ledger_entries(account_id, source_ref);
       ALTER TABLE ledger_entries DROP CONSTRAINT IF EXISTS ledger_entries_entry_type_check;
-      ALTER TABLE ledger_entries ADD CONSTRAINT ledger_entries_entry_type_check CHECK (entry_type IN ('INITIAL_CASH', 'TRADE_FILL'));
+      ALTER TABLE ledger_entries ADD CONSTRAINT ledger_entries_entry_type_check CHECK (entry_type IN ('INITIAL_CASH', 'TRADE_FILL', 'FEE_CORRECTION'));
       CREATE TABLE IF NOT EXISTS account_positions (
         account_id UUID NOT NULL REFERENCES accounts(account_id),
         security TEXT NOT NULL,
@@ -79,12 +79,24 @@ export class PostgresAccountRepository {
         currency CHAR(3) NOT NULL,
         effective_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(), fee NUMERIC(20,4) NOT NULL DEFAULT 0,
+        original_fee NUMERIC(20,4), fee_revision INTEGER NOT NULL DEFAULT 0,
         side TEXT NOT NULL DEFAULT 'BUY' CHECK (side IN ('BUY','SELL')),
         reservation_id UUID NULL
       );
       ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS fee NUMERIC(20,4) NOT NULL DEFAULT 0;
+      ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS original_fee NUMERIC(20,4);
+      UPDATE recorded_fills SET original_fee=fee WHERE original_fee IS NULL;
+      ALTER TABLE recorded_fills ALTER COLUMN original_fee SET NOT NULL;
+      ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS fee_revision INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS side TEXT NOT NULL DEFAULT 'BUY';
       ALTER TABLE recorded_fills ADD COLUMN IF NOT EXISTS reservation_id UUID NULL;
+      CREATE TABLE IF NOT EXISTS fill_fee_corrections (
+        external_fill_id TEXT NOT NULL REFERENCES recorded_fills(external_fill_id),
+        revision INTEGER NOT NULL CHECK (revision > 0), previous_fee NUMERIC(20,4) NOT NULL,
+        corrected_fee NUMERIC(20,4) NOT NULL, effective_at TIMESTAMPTZ NOT NULL,
+        evidence_ref TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY(external_fill_id,revision)
+      );
       CREATE TABLE IF NOT EXISTS resource_reservations (
         reservation_id UUID PRIMARY KEY,
         account_id UUID NOT NULL REFERENCES accounts(account_id),
@@ -212,7 +224,7 @@ export class PostgresAccountRepository {
       if (account.currency !== command.currency) throw new Error("FILL_CURRENCY_MISMATCH");
       const side = command.side ?? "BUY";
       if (side !== "BUY" && side !== "SELL") throw new Error("INVALID_FILL_SIDE");
-      const previousFill = await client.query<any>(`SELECT *, (price=$2::numeric AND fee=$3::numeric AND effective_at=$4::timestamptz) AS values_match
+      const previousFill = await client.query<any>(`SELECT *, (price=$2::numeric AND original_fee=$3::numeric AND effective_at=$4::timestamptz) AS values_match
         FROM recorded_fills WHERE external_fill_id=$1`, [command.externalFillId, command.price, command.fee, command.effectiveAt]);
       if (previousFill.rowCount) {
         const row = previousFill.rows[0];
@@ -238,8 +250,8 @@ export class PostgresAccountRepository {
       }
       if (reservation && side === "SELL" && Number(reservation.captured_quantity) + command.quantity > Number(reservation.quantity)) throw new Error("FILL_EXCEEDS_RESERVED_QUANTITY");
       const inserted = await client.query(
-        `INSERT INTO recorded_fills (external_fill_id, account_id, namespace, security, quantity, price, currency, effective_at, side, reservation_id, fee)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (external_fill_id) DO NOTHING RETURNING external_fill_id`,
+        `INSERT INTO recorded_fills (external_fill_id, account_id, namespace, security, quantity, price, currency, effective_at, side, reservation_id, fee, original_fee)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11) ON CONFLICT (external_fill_id) DO NOTHING RETURNING external_fill_id`,
         [command.externalFillId, command.accountId, command.namespace, command.security, command.quantity, command.price, command.currency, command.effectiveAt, side, reservation?.reservation_id ?? null, command.fee]
       );
       if (inserted.rowCount === 1) {
@@ -262,13 +274,59 @@ export class PostgresAccountRepository {
         if (reservation && side === "BUY") await client.query("UPDATE resource_reservations SET captured_cash_amount=captured_cash_amount+$3::numeric,updated_at=now() WHERE account_id=$1 AND reservation_id=$2", [command.accountId, reservation.reservation_id, totalAmount.rows[0].amount]);
         if (reservation && side === "SELL") await client.query("UPDATE resource_reservations SET captured_quantity=captured_quantity+$3,updated_at=now() WHERE account_id=$1 AND reservation_id=$2", [command.accountId, reservation.reservation_id, command.quantity]);
       } else {
-        const previous = await client.query<any>("SELECT account_id,namespace,security,quantity,price=$3::numeric AS price_matches,fee=$4::numeric AS fee_matches,currency,side,reservation_id,effective_at=$2::timestamptz AS time_matches FROM recorded_fills WHERE external_fill_id=$1", [command.externalFillId, command.effectiveAt, command.price, command.fee]);
+        const previous = await client.query<any>("SELECT account_id,namespace,security,quantity,price=$3::numeric AS price_matches,original_fee=$4::numeric AS fee_matches,currency,side,reservation_id,effective_at=$2::timestamptz AS time_matches FROM recorded_fills WHERE external_fill_id=$1", [command.externalFillId, command.effectiveAt, command.price, command.fee]);
         const row = previous.rows[0];
         if (!row || row.account_id !== command.accountId || row.namespace !== command.namespace || row.security !== command.security || Number(row.quantity) !== command.quantity || !row.price_matches || !row.fee_matches || !row.time_matches || row.currency.trim() !== command.currency || row.side !== side || (row.reservation_id ?? null) !== (reservation?.reservation_id ?? null)) throw new Error("FILL_IDEMPOTENCY_CONFLICT");
       }
       const refreshed = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id = $1", [command.accountId]);
       await client.query("COMMIT");
       return { snapshot: await this.toSnapshot(refreshed.rows[0]), replayed: inserted.rowCount === 0 };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async correctFillFee(command: CorrectFillFeeCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }> {
+    if (!command.externalFillId || command.externalFillId.length > 128 || !Number.isSafeInteger(command.revision) || command.revision < 1 ||
+      !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.previousFee) || !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.correctedFee) ||
+      !/(?:Z|[+-]\d{2}:\d{2})$/u.test(command.effectiveAt) || !Number.isFinite(Date.parse(command.effectiveAt)) || !command.evidenceRef || command.evidenceRef.length > 512) {
+      throw new Error("INVALID_FEE_CORRECTION");
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const accountResult = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1 FOR UPDATE", [command.accountId]);
+      const account = accountResult.rows[0];
+      if (!account) throw new Error("ACCOUNT_NOT_FOUND");
+      const fillResult = await client.query<any>("SELECT *,fee=$2::numeric AS fee_matches FROM recorded_fills WHERE external_fill_id=$1 FOR UPDATE", [command.externalFillId, command.previousFee]);
+      const fill = fillResult.rows[0];
+      if (!fill || fill.account_id !== command.accountId || fill.namespace !== account.namespace) throw new Error("FILL_NOT_FOUND");
+      const priorCorrection = await client.query<any>(`SELECT previous_fee=$3::numeric AS previous_matches,corrected_fee=$4::numeric AS corrected_matches,
+        effective_at=$5::timestamptz AS effective_at_matches,evidence_ref FROM fill_fee_corrections
+        WHERE external_fill_id=$1 AND revision=$2`, [command.externalFillId, command.revision, command.previousFee, command.correctedFee, command.effectiveAt]);
+      if (priorCorrection.rowCount) {
+        const prior = priorCorrection.rows[0];
+        const same = prior.previous_matches && prior.corrected_matches && prior.effective_at_matches && prior.evidence_ref === command.evidenceRef;
+        if (!same) throw new Error("FEE_CORRECTION_IDEMPOTENCY_CONFLICT");
+        const refreshed = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1", [command.accountId]);
+        await client.query("COMMIT");
+        return { snapshot: await this.toSnapshot(refreshed.rows[0]), replayed: true };
+      }
+      if (command.revision !== fill.fee_revision + 1 || !fill.fee_matches) throw new Error("FEE_CORRECTION_STALE_OR_OUT_OF_ORDER");
+      const delta = await client.query<{ amount: string }>("SELECT ($1::numeric-$2::numeric)::numeric(20,4)::text AS amount", [command.previousFee, command.correctedFee]);
+      await client.query("UPDATE recorded_fills SET fee=$2::numeric,fee_revision=$3 WHERE external_fill_id=$1", [command.externalFillId, command.correctedFee, command.revision]);
+      await client.query("UPDATE accounts SET cash_amount=cash_amount+$2::numeric,ledger_version=ledger_version+1 WHERE account_id=$1", [command.accountId, delta.rows[0].amount]);
+      await client.query(`INSERT INTO ledger_entries(entry_id,account_id,namespace,entry_type,amount,currency,effective_at,source_ref)
+        VALUES($1,$2,$3,'FEE_CORRECTION',$4,$5,$6,$7)`, [randomUUID(), command.accountId, account.namespace, delta.rows[0].amount, fill.currency, command.effectiveAt, `fee-correction:${command.externalFillId}:${command.revision}`]);
+      if (fill.side === "BUY" && fill.reservation_id) {
+        await client.query("UPDATE resource_reservations SET captured_cash_amount=captured_cash_amount-$3::numeric,updated_at=now() WHERE account_id=$1 AND reservation_id=$2", [command.accountId, fill.reservation_id, delta.rows[0].amount]);
+      }
+      await client.query(`INSERT INTO fill_fee_corrections(external_fill_id,revision,previous_fee,corrected_fee,effective_at,evidence_ref)
+        VALUES($1,$2,$3,$4,$5,$6)`, [command.externalFillId, command.revision, command.previousFee, command.correctedFee, command.effectiveAt, command.evidenceRef]);
+      const refreshed = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1", [command.accountId]);
+      await client.query("COMMIT");
+      return { snapshot: await this.toSnapshot(refreshed.rows[0]), replayed: false };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -350,6 +408,8 @@ export class PostgresAccountRepository {
       "SELECT count(*) FROM ledger_entries WHERE account_id = $1",
       [account.account_id]
     )).rows[0].count);
+    const positions = await this.pool.query<{ security: string; quantity: string }>("SELECT security,quantity::text FROM account_positions WHERE account_id=$1 AND quantity>0 ORDER BY security", [account.account_id]);
+    const reservations = await this.pool.query<any>("SELECT reservation_id,client_order_id,side,cash_amount::text,captured_cash_amount::text,captured_quantity::text,status,evidence_ref FROM resource_reservations WHERE account_id=$1 ORDER BY created_at,reservation_id", [account.account_id]);
     return {
       accountId: account.account_id,
       namespace: account.namespace,
@@ -362,7 +422,9 @@ export class PostgresAccountRepository {
       cash: { amount: account.cash_amount, currency: account.currency },
       positionCount: Number((await this.pool.query<{ count: string }>("SELECT count(*) FROM account_positions WHERE account_id = $1 AND quantity > 0", [account.account_id])).rows[0].count),
       ledgerEntryCount,
-      ledgerVersion: Number((await this.pool.query<{ ledger_version: number }>("SELECT ledger_version FROM accounts WHERE account_id = $1", [account.account_id])).rows[0].ledger_version)
+      ledgerVersion: Number((await this.pool.query<{ ledger_version: number }>("SELECT ledger_version FROM accounts WHERE account_id = $1", [account.account_id])).rows[0].ledger_version),
+      positions: positions.rows.map((row) => ({ security: row.security, quantity: Number(row.quantity) })),
+      reservations: reservations.rows.map((row) => ({ reservationId: row.reservation_id, clientOrderId: row.client_order_id, side: row.side, cashAmount: row.cash_amount, capturedCashAmount: row.captured_cash_amount ?? "0.0000", capturedQuantity: Number(row.captured_quantity ?? 0), status: row.status, evidenceRef: row.evidence_ref }))
     };
   }
 }

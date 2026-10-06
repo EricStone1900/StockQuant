@@ -1,20 +1,755 @@
 {
   "openapi": "3.1.0",
-  "info": {"title": "StockQuant Market Calendar API", "version": "1.0.0"},
-  "servers": [{"url": "http://market-data-service:3002"}],
+  "info": {
+    "title": "StockQuant Market Calendar API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://market-data-service:3002"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
   "paths": {
+    "/v1/fixtures/normal/preview": {
+      "get": {
+        "operationId": "getV12NormalFixturePreview",
+        "summary": "Read the frozen V1.2 normal daily-bar fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Normal fixture preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v12-fixture-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v1/fixtures/bad-future/preview": {
+      "get": {
+        "operationId": "getV12FutureFixturePreview",
+        "summary": "Read the frozen V1.2 future-dated daily-bar fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Future-dated fixture preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v12-fixture-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/collection-schedules/{subscriptionId}": {
+      "get": {
+        "operationId": "getCollectionScheduleForPlatform",
+        "summary": "Read one persisted collection schedule for the Platform preview",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subscriptionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/collection-schedule-view-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "404": {
+            "description": "Schedule not found"
+          }
+        }
+      }
+    },
+    "/v2/minute/gaps/{subscriptionId}": {
+      "get": {
+        "operationId": "getMinuteGapsForPlatform",
+        "summary": "Read open collection gaps for a subscription",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subscriptionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open gaps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/minute-open-gaps-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
     "/v2/calendar/cn-a-share/{date}": {
       "get": {
         "operationId": "getCnAShareCalendarSession",
         "summary": "Read the versioned Shanghai/Shenzhen A-share session calendar",
-        "parameters": [{"name": "date", "in": "path", "required": true, "schema": {"type": "string", "format": "date"}}],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Calendar status; UNKNOWN is returned outside the calendar's authoritative coverage.",
-            "content": {"application/json": {"schema": {"$ref": "https://stockquant.local/schemas/market-data/cn-a-share-calendar-session.schema.json"}}}
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/market-data/cn-a-share-calendar-session.schema.json"
+                }
+              }
+            }
           },
-          "400": {"description": "The date path parameter is not a valid calendar date."},
-          "404": {"description": "No matching calendar route."}
+          "400": {
+            "description": "The date path parameter is not a valid calendar date."
+          },
+          "404": {
+            "description": "No matching calendar route."
+          }
+        }
+      }
+    },
+    "/v2/quote/preview": {
+      "get": {
+        "operationId": "getV24AuthorizedQuotePreview",
+        "summary": "Read the configured quote preview for V2.4 observation after explicit source-use authorization",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quote preview with per-security source status and observed/ingested times",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/live-quote-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "503": {
+            "description": "Source unavailable; response reports STALE per requested security"
+          }
+        }
+      }
+    },
+    "/v2/sources": {
+      "get": {
+        "operationId": "getV21SourceInventory",
+        "summary": "Read configured provider metadata without probing providers",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configured source inventory; this operation makes no provider request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/source-inventory-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/sampling": {
+      "get": {
+        "operationId": "getV21SamplingConfig",
+        "summary": "Read sampling configuration",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sampling schedule; orders are not placed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/sampling-config-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateV21SamplingConfig",
+        "summary": "Set sampling interval without submitting orders",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/sampling-update-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated sampling interval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/sampling-config-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Unsupported interval"
+          }
+        }
+      }
+    },
+    "/v2/watchlist": {
+      "get": {
+        "operationId": "getV21Watchlist",
+        "summary": "Read the configured online watchlist",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Watchlist, capped at 100 securities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/watchlist-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateV21Watchlist",
+        "summary": "Replace online watchlist, rejecting more than 100 securities",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/watchlist-update-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated watchlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/watchlist-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Watchlist exceeds capacity"
+          }
+        }
+      }
+    },
+    "/v2/news/preview": {
+      "get": {
+        "operationId": "getV21NewsPreview",
+        "summary": "Read deterministic news preview without fetching provider pages",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "News preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/news-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/news/live": {
+      "get": {
+        "operationId": "getV21LiveNews",
+        "summary": "Fetch and normalize configured live news sources",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live source items with observed, ingested and available times; source count can be partial",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/live-news-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/sources/smoke": {
+      "get": {
+        "operationId": "getV21SourceSmoke",
+        "summary": "Actively probe configured external quote and news providers",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-provider probe results; this operation makes external requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/source-smoke-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/sources/{sourceId}/fail": {
+      "post": {
+        "operationId": "openV21SourceCircuit",
+        "summary": "Open a source circuit for deterministic recovery testing",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Circuit state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/source-circuit-state-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "404": {
+            "description": "Unknown source"
+          }
+        }
+      }
+    },
+    "/v2/sources/{sourceId}/recover": {
+      "post": {
+        "operationId": "recoverV21SourceCircuit",
+        "summary": "Restore a source circuit for deterministic recovery testing",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Circuit state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/source-circuit-state-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "404": {
+            "description": "Unknown source"
+          }
+        }
+      }
+    },
+    "/v2/alerts": {
+      "get": {
+        "operationId": "getMarketDataAlertIncidents",
+        "summary": "List currently active collection alert incidents",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active incidents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/alert-incidents-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/alerts/{incidentId}/acknowledge": {
+      "post": {
+        "operationId": "acknowledgeMarketDataAlertIncident",
+        "summary": "Acknowledge one active alert incident",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incidentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/alert-acknowledge-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged incident",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/market-data-alert-incident-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "404": {
+            "description": "Incident not found"
+          }
         }
       }
     }

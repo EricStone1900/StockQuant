@@ -2,6 +2,8 @@
 
 日期：2026-09-27（Asia/Shanghai）。授权来源：用户在核对长期执行原因后明确要求“按照你的建议执行”。本文件替代[9月25日计划](./2026-09-25-parallel-delivery-plan.md)的持续排期方式；原计划、失败、审计和人工签署保留。
 
+2026-09-30状态更正：下一轮实施见[剩余实施与最终验收计划](./2026-09-30-complete-delivery-plan.md)。此前将本包整体写为COMPLETE过于宽泛：最小Fixture链已有实证，但本节原列的完整拒绝/恢复矩阵、全部浏览器路径及完整可操作验收包尚未关闭。这里更正当前汇总，已有成功、失败和签署继续保留；不恢复已清除的旧持续目标。
+
 ## 1. 本次收口
 
 本次交付边界是结束当前 P0.2 Research Automation 契约切片、冻结广泛自动续进、明确下一纵向范围。它不是 V1/V2/V3 完成或人工验收。
@@ -20,7 +22,7 @@
 | 范围 | 已有成果 | 剩余条件与下一处理方式 |
 |---|---|---|
 | P0.2 契约 | 回放/Runner/研究客户端、漂移检查、身份测试和固定流水线本地证据 | 当前切片收尾后停止全量扩展；只修下一 Paper 链实际需要的边界 |
-| P5 Paper | SNAPSHOT筛选/风险纯规则、持久预留、FakeBroker幂等及Outbox/Portfolio丢响应恢复 | 完整授权到快照下单仍未接通；作为下一唯一主工程 |
+| P5 Paper | Fixture v2.0隔离纵向链已贯通Governance→Portfolio→Trade Execution/FakeBroker/Outbox→Platform/Web/CLI；normal、stale rejection、接受响应丢失恢复均有独立PG证据 | P5.5～P5.8仍为部分完成；策略PREPARATION_ONLY，完整拒绝/恢复浏览器路径、其余故障矩阵、自然观察及人工签署按9月30日计划推进 |
 | P3.R 基础 | 隔离备份恢复、历史影子迁移和stage存储本地Web/CLI证据 | 活动切换/回退、周期和异地备份、RPO/RTO另列待交付，不重复小样本恢复 |
 | P6 数据 | CSV/Parquet上传、分区、冻结500×60归档及有界并发工程证据 | 共享PG生产余量、原生Ubuntu/长期容量等待适用环境，不扩大合成容量档位 |
 | P7/P8 研究 | 固定模型响应与真实受限Runner、候选Fixture复算等准备证据 | 真实RD-Agent、Provider出口/费用及前置验收尚缺；排在Paper切片之后 |
@@ -29,15 +31,15 @@
 
 ## 3. 下一唯一工程：隔离 Fixture Paper 链
 
-工作包：P5.5～P5.8 的最小完整交易用例。当前状态：NOT_STARTED；本次只冻结范围，没有新Paper业务PASS。范围依据[V2.4阶段任务](../prd/v2-data-and-replay/04-continuous-paper-trading.md)、[V2测试计划](../prd/v2-data-and-replay/90-test-plan.md)和[V2验收记录](../prd/v2-data-and-replay/99-acceptance.md)。
+工作包：P5.5～P5.8 的隔离Fixture交易链。当前工程包状态：PARTIALLY_IMPLEMENTED（2026-09-30更正）；2026-09-27最小三场景API与正常Web同Run实测保留，整个矩阵尚未完成；V2.4版本及人工验收仍未完成。范围依据[V2.4阶段任务](../prd/v2-data-and-replay/04-continuous-paper-trading.md)、[V2测试计划](../prd/v2-data-and-replay/90-test-plan.md)、[V2验收记录](../prd/v2-data-and-replay/99-acceptance.md)和[隔离Paper审计](../../evidence/audits/2026-09-27-v24-isolated-fixture-paper.md)。
 
 按以下顺序完成一个交付包，完成后停止并交付证据，不自动转入研究、容量或活动部署：
 
-1. 冻结新的隔离场景版本及政策/Mandate测试输入，绑定owner、TestRun、namespace、账户、精确策略/政策/费用版本；复用已有domain规则和本轮FakeBroker，不绕过治理。保留现有PREPARATION_ONLY默认配置。
-2. 实际服务完成治理授权、风险判断、Portfolio持久预留、订单接受、接受后首个合格SNAPSHOT、FakeBroker持久Fill、Outbox与Portfolio入账。平台只编排和汇集事实，不跨域写库。
-3. 同步正式Web/验收页，在同一TestRun查看订单、Fill、预留、账本及对账证据；CLI `--check-only`只读核对同一ID。
-4. 在隔离环境验证正常、拒绝和恢复；保存失败并修复后只复跑受影响检查，最终执行一次所需阶段套件及Web/CLI联核。
-5. 填写阶段第2/7/8节适用项、实际命令/退出码/输入Hash/截图/清理和恢复步骤，并交付人工可操作验收包。人工签署仍NOT_RUN直到用户实际确认。
+1. [x] 冻结Fixture v2.0隔离场景及不可复用的政策/Mandate测试输入，绑定owner、TestRun、namespace、账户、策略/政策/费用版本；默认仍为PREPARATION_ONLY。
+2. [x] 实际服务贯通治理授权、风险判断、Portfolio持久预留、订单接受、接受后首个合格SNAPSHOT、FakeBroker持久Fill、Outbox与Portfolio入账；无跨域写库。
+3. [x] Web正常场景展示持久业务证据；CLI `--check-only`只读核对相同TestRun。截图见[Web验收截图](../../evidence/audits/2026-09-27-v24-isolated-paper-web.png)。
+4. [ ] 完成本包要求的全部拒绝/恢复矩阵及浏览器路径。正常、陈旧拒绝、接受响应丢失恢复API/CLI及V2.4代码套件历史通过保留；剩余矩阵按新计划W1/W2补实证。
+5. [ ] 交付覆盖完整范围的可操作验收包。已填写部分阶段第2/7/8节状态、命令/Fixture Hash/清理恢复说明和工程证据；当前整阶段手册仍DRAFT，易读业务页面与完整同Run/导出待补。人工签署保持NOT_RUN，直到用户实际确认。
 
 固定正常数值沿用[SNAPSHOT Fixture目录](../../fixtures/v2/v2.4/snapshot-execution/manifest.json)的冻结语义；新接线输入另建版本而不覆盖旧文件。冻结并核验隔离账户10000元、100股×10元、费用5元后，断言现金8995元、持仓100股；若实际Fixture价格/费用不同，先更新新场景预期再执行，不凭上述例子标PASS。
 

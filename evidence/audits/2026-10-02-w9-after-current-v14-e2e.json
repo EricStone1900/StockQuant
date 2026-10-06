@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-02",
+  "timezone": "Asia/Shanghai",
+  "followupTo": "2026-10-02-w9-after-w2-event-ordering",
+  "v14CurrentEvidence": {
+    "command": "pnpm test:e2e -- --stage V1.4",
+    "status": "PASS",
+    "codeVersion": "sha256:249165d62f3a4179e3b6a456a9cb36d18b804c5ff3eb2f4837eedf0274f12fd7",
+    "quantBacktestRuns": 11,
+    "browserRuns": 6,
+    "playwright": "4/4",
+    "sameRunCli": true,
+    "resourcesCleaned": true,
+    "audit": "evidence/audits/2026-10-02-w1-v14-quant-configurable-web-29d7797558a9431213d2.json"
+  },
+  "evidenceGates": {
+    "V1": {
+      "status": "PASS",
+      "markdownFilesChecked": 9,
+      "evidenceReferences": 80,
+      "manifestsChecked": 9,
+      "manifestEntriesChecked": 88,
+      "failures": []
+    },
+    "V2": {
+      "status": "PASS",
+      "markdownFilesChecked": 12,
+      "evidenceReferences": 193,
+      "manifestsChecked": 29,
+      "manifestEntriesChecked": 50,
+      "failures": []
+    },
+    "V3": {
+      "status": "PASS"
+    }
+  },
+  "businessGates": [
+    {
+      "version": "V1",
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "unresolvedAcceptanceRows": 5,
+      "evidenceAudit": "PASS",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    },
+    {
+      "version": "V2",
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "unresolvedAcceptanceRows": 5,
+      "evidenceAudit": "PASS",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    },
+    {
+      "version": "V3",
+      "status": "INCOMPLETE",
+      "unresolvedStages": 4,
+      "unresolvedAcceptanceRows": 4,
+      "evidenceAudit": "PASS",
+      "stageDocumentationAudit": "PASS",
+      "invalidPassClaims": 0
+    }
+  ],
+  "interpretation": "The stale V1.4 point-in-time manifest is no longer linked as current evidence and remains preserved; the new V1.4 report and its workspace SHA manifest are linked in acceptance docs. V1/V2/V3 business versions remain incomplete; no user acceptance, source authorization, NO_TRADE override, or observation is inferred."
+}

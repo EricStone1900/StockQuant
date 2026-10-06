@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-05",
+  "timezone": "Asia/Shanghai",
+  "workPackage": "W1",
+  "stage": "V1.1",
+  "status": "PASS",
+  "scope": "isolated stage-storage code and Web/CLI integration only",
+  "commands": [
+    {"command": "pnpm verify:stage -- --stage V1.1 --suite code", "exitCode": 0},
+    {"command": "pnpm test:integration:v11-stage-storage", "exitCode": 0}
+  ],
+  "isolatedComposeProject": "sq-v11-stage-a401a1a8346c95b61bf7",
+  "scenarios": {
+    "normal": "PASS",
+    "rejection": "PASS",
+    "recovery": "PASS",
+    "playwrightPassed": 3,
+    "playwrightFailed": 0,
+    "sameRunCliCheckOnly": "PASS"
+  },
+  "testRunIds": [
+    "7fe40eae-26c8-4856-b5f0-4470e67323e7",
+    "c6717f2b-898b-4190-96de-391052179c68",
+    "7c4a07e9-cd8a-4ee4-ad63-8d6dd709faaf"
+  ],
+  "recoveryRestartTargetVerified": true,
+  "exactContainersAndVolumesRemoved": true,
+  "exactImagesRemoved": true,
+  "activeServicesTouched": false,
+  "providerOrMarketDataRequests": 0,
+  "humanAcceptance": "NOT_RUN",
+  "limitations": [
+    "does not verify active API cutover or rollback",
+    "does not resolve historical nonterminal TestRun records",
+    "does not constitute new human acceptance or V1.1/V1 completion"
+  ]
+}

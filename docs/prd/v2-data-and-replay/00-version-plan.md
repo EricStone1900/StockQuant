@@ -16,10 +16,10 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 
 | 阶段 | 交付 | 依赖 | 状态 |
 |---|---|---|---|
-| [V2.1](./01-free-data-and-news.md) | 免费行情、新闻聚合与在线股票池 | 本文件前置条件；详细依赖见阶段文件 | PASS |
-| [V2.2](./02-minute-data-import.md) | 历史分钟数据导入与校验 | V2.1；详细依赖见阶段文件 | PASS |
-| [V2.3](./03-historical-minute-replay.md) | 日频决策、分钟撮合与历史事件回放 | V2.2；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；生产研究路由、冻结市场数据、独立模型验证与新研究Web/CLI验收仍待完成；不含LIVE或容量观察门禁） |
-| [V2.4](./04-continuous-paper-trading.md) | 真实时钟下持续模拟交易 | V2.3；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成） |
+| [V2.1](./01-free-data-and-news.md) | 免费行情、新闻聚合与在线股票池 | 本文件前置条件；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（2026-09-09原范围自动/人工签署保留；当前来源许可/能力清单、两个可用新闻源、在线池/时间元数据等第2节必需项未完成，NO_TRADE且无源授权） |
+| [V2.2](./02-minute-data-import.md) | 历史分钟数据导入与校验 | V2.1；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（2026-09-09原范围签署及2025-09-25导入增量证据保留；第2节单位/时间语义、Parquet/流式、复权股票池与规则关联等必需项未完成，当前范围未重新签署） |
+| [V2.3](./03-historical-minute-replay.md) | 日频决策、分钟撮合与历史事件回放 | V2.2；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；合成Fixture研究路由及持久Artifact的Web/CLI自动验收已完成；冻结市场数据、独立模型验证、真实研究能力与新范围人工验收仍待完成；不含LIVE或容量观察门禁） |
+| [V2.4](./04-continuous-paper-trading.md) | 真实时钟下持续模拟交易 | V2.3；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；2026-10-05完整隔离V2.4代码套件再次通过，且P-F05撤单/Fill因果竞态、费用更正和外部委托差异均有持久化/HTTP/Web证据；真实行情驱动的连续Paper、新范围验收、20日观察与人工确认仍待完成。详见[当前suite审计](../../../evidence/audits/2026-10-05-w2-v24-code-suite.md)） |
 | [V2.5](./05-data-scale-and-v2-acceptance.md) | 历史数据扩容与 V2 验收 | V2.4；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成） |
 
 以功能纵向切片交付；服务内部仍采用S0～S6生命周期。每阶段先冻结场景和预期，再同时开发后端与Web，执行自动检查后人工验收。后续独立工作可推进，但未通过的依赖不能被假成功替代。
@@ -41,3 +41,4 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 共享数据采集扩展按[DC-00～DC-08计划](./06-shared-data-collection-plan.md)推进，任务状态与中断接续见[进度记录](./08-data-collection-progress.md)。按计划1.1先完成本模块DC-00～DC-07和DC-08A，再恢复主项目其他开发；DC-08B的60交易日积累后台继续，既有V2.4观察独立继续。这是新增规划，不代表既有V2.5、V2.4或新模块业务门禁通过。
 
 每次开始一个阶段，读取该阶段文件及共同规则，把复选任务作为本次边界。先确认已有工作区改动和依赖状态，按契约→最小后端→同步Web→异常→证据推进。不得仅搭空页面就报阶段完成；不得接入真实券商，也不得把假订单变成实际券商测试单。
+W9版本门禁结构审计（2026-10-01）：当前验证还检查本版本阶段链接/第2、7、8节和共享需求追踪矩阵存在性；三版阶段结构均通过，但业务/观察/人工验收状态不因此改变。实现与范围见[W9结构门禁审计](../../../evidence/audits/2026-10-01-w9-stage-document-guard.md)及[代码SHA-256](../../../evidence/audits/2026-10-01-w9-stage-document-guard.sha256)。

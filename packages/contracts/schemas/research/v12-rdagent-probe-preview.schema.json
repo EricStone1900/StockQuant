@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v12-rdagent-probe-preview.schema.json",
+  "title": "V12RDagentProbePreview",
+  "type": "object",
+  "required": ["adapter", "executionBoundary", "dockerSocketMounted", "codeProbe", "modelCalls"],
+  "properties": { "adapter": { "const": "rdagent" }, "executionBoundary": { "type": "string" }, "dockerSocketMounted": { "type": "boolean" }, "codeProbe": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string" } }, "additionalProperties": true }, "modelCalls": { "type": "string" }, "reason": { "type": "string" } },
+  "additionalProperties": true
+}

@@ -4,7 +4,7 @@
   "title": "AccountSnapshot",
   "type": "object",
   "additionalProperties": false,
-  "required": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
+    "required": ["accountId", "namespace", "testRunId", "ownerId", "fixtureAccountRef", "market", "environmentMode", "brokerMode", "cash", "positionCount", "ledgerEntryCount", "ledgerVersion"],
   "properties": {
     "accountId": { "type": "string", "format": "uuid" },
     "namespace": { "type": "string", "minLength": 1 },
@@ -17,6 +17,8 @@
     "cash": { "$ref": "money.schema.json" },
     "positionCount": { "type": "integer", "minimum": 0 },
     "ledgerEntryCount": { "type": "integer", "minimum": 0 },
-    "ledgerVersion": { "type": "integer", "minimum": 1 }
+    "ledgerVersion": { "type": "integer", "minimum": 1 },
+    "positions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["security", "quantity"], "properties": { "security": { "type": "string", "pattern": "^[A-Z0-9.]{3,20}$" }, "quantity": { "type": "integer", "minimum": 1 } } } },
+    "reservations": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["reservationId", "clientOrderId", "side", "cashAmount", "capturedCashAmount", "capturedQuantity", "status", "evidenceRef"], "properties": { "reservationId": { "type": "string", "format": "uuid" }, "clientOrderId": { "type": "string", "minLength": 1 }, "side": { "enum": ["BUY", "SELL"] }, "cashAmount": { "type": ["string", "null"] }, "capturedCashAmount": { "type": "string" }, "capturedQuantity": { "type": "integer", "minimum": 0 }, "status": { "enum": ["HELD", "UNKNOWN", "CAPTURED", "RELEASED"] }, "evidenceRef": { "type": ["string", "null"] } } } }
   }
 }

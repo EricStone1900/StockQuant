@@ -5,7 +5,31 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
   "rdagent @ git+https://github.com/microsoft/RD-Agent.git@274e274d5dbb72cc2ea139d1a7c93d73ce9b1198",
   "pyqlib @ git+https://github.com/microsoft/qlib.git@3e72593b8c985f01979bebcf646658002ac43b00",
+  "numpy==1.26.4",
+  "pandas==2.2.3",
+  "pyyaml==6.0.2",
+  "ruamel.yaml==0.18.10",
+  "mlflow-skinny==2.19.0",
+  "filelock==3.16.1",
+  "redis==5.2.1",
+  "dill==0.3.9",
+  "fire==0.7.0",
+  "tqdm==4.67.1",
+  "python-redis-lock==4.0.0",
+  "pymongo==4.10.1",
+  "loguru==0.7.3",
+  "lightgbm==4.5.0",
+  "gym==0.26.2",
+  "cvxpy==1.6.0",
+  "joblib==1.4.2",
+  "matplotlib==3.9.3",
+  "pyarrow==18.1.0",
+  "scikit-learn==1.6.1",
 ]
+
+[tool.uv]
+# The published Runner and its current validation target are Linux AMD64.
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [build-system]
 requires = ["setuptools>=68"]

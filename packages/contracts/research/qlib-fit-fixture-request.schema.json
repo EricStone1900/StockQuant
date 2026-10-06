@@ -10,6 +10,18 @@
     "sourceMode": { "const": "FIXTURE" },
     "featureRows": { "type": "array", "minItems": 30, "maxItems": 10000, "items": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "number" } } },
     "labels": { "type": "array", "minItems": 30, "maxItems": 10000, "items": { "type": "number" } },
+    "temporalMetadata": {
+      "type": "array", "minItems": 30, "maxItems": 10000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["decisionAt", "featureAvailableAt", "labelAvailableAt"],
+        "properties": {
+          "decisionAt": { "type": "string", "format": "date-time" },
+          "featureAvailableAt": { "type": "string", "format": "date-time" },
+          "labelAvailableAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
     "splits": {
       "type": "object", "additionalProperties": false, "required": ["train", "valid", "test"],
       "properties": {

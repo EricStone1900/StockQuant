@@ -1,6 +1,6 @@
 # DC-08A 启用前准备记录
 
-状态：`ACTIVE_OBSERVING`。本记录证明启动输入已冻结、正式短期订阅已启用并正在进行实际交易日观察；不代表长期观察或20只切换已完成。
+状态：`PAUSED_NO_SOURCE_AUTHORIZATION`（2026-09-30）。本记录保留此前启动与历史观察证据；当前正式订阅已停用，因为项目所有者确认暂无行情来源授权。不得将本文件较早的“已启用/观察中”描述解释为当前授权或当前采集状态。当前状态与恢复条件见[无来源授权暂停审计](../evidence/audits/2026-09-30-w3-no-source-pause.json)。
 
 ## 冻结输入
 
@@ -23,8 +23,9 @@
 
 ## 当前未完成项
 
-- 短期3只证券已完成 2026-09-14、2026-09-15 两个实际交易日；正式20只集合切换仍待 2026-09-17 定时任务执行。
-- 20 只集合尚未产生新的真实采集 Artifact；历史 58 日样本不能替代连续 60 日观察。
+- DC-08A唯一正式订阅`dc08a-20260917-20-v1`此前曾运行并形成历史观察；2026-09-30在无来源授权决定下已停用（版本425→426）。当前有效历史归档为8/20，尚差12日；暂停期间不计新日。
+- 20只集合尚未产生新的授权采集Artifact；历史归档不能替代暂停之后的新观察，也不能用于未获许可的研究用途。
+- 短期三只证券2026-09-14、2026-09-15观察及20只集合早期历史记录均保留，不将其删改或冒充当前运行状态。
 - 外部告警/异机灾备仍属于上线前生产就绪事项。
 
 ## 巡检与自动修复边界
@@ -74,17 +75,20 @@ Compose 重建，并显式设置 `STOCKQUANT_SCHEDULER_WORKER=1`、
 09:00 起每 15 分钟运行；激活脚本对已启用状态幂等，不会重复重建容器，避免激活前自动修复
 与正式启用发生竞态。
 
-已补充 `pnpm dc08a:eod-report` 日终质量门禁：15:20 运行，非交易日返回 0；交易日仅
-`PASS` 返回 0，`INCOMPLETE/NOT_RUN` 返回 2，以便计划任务的 `failed_runs_only` 通知策略
-能够提示覆盖缺口；日历不可用或未知时返回 `WAITING_DEPENDENCY`/退出码 2，实际 Bar 数量
-必须与预期严格相等。该任务只生成/更新日终报告，不修改订阅、队列或 Artifact。
+`pnpm dc08a:eod` 是唯一的日终编排入口，由独立的 15:20 自动化运行。它在交易日 15:15
+前返回 `WAITING_END_OF_DAY`/退出码 2，不会登记缺口、归档或计入观察；非交易日返回 0。
+交易日只有完整覆盖、无待发送 Outbox 和无开放缺口时才返回 0；其他完整性问题返回 2，
+日历不可用或未知同样返回 `WAITING_DEPENDENCY`/退出码 2。相同交易日的并发日终调用用
+本地互斥锁保护，避免重复归档与观察计数。
 
 已补充 `pnpm data:coverage -- --subscription ID --from today --to today --security-ids LIST`
 覆盖入口，按冻结日历、当前已闭合窗口、证券集合和逐 5 分钟窗口核对缺失、重复、意外 Bar、
 运行状态和开放缺口，生成 `evidence/dc08a/coverage-*.json`；非交易日退出 0，交易日缺覆盖
-或日历依赖未满足时退出 2。默认减去 120 秒发布宽限期（可用 `DC08A_COVERAGE_GRACE_SECONDS`
-调整）；使用 `--record-gaps` 时会按订阅、日期和证券范围原子登记当前缺口，并自动关闭本次
-覆盖已恢复的旧 `OPEN` 缺口，报告 `gapReconciliation.opened/closed`。
+或日历依赖未满足时退出 2。默认完成期限为 300 秒（120 秒发布延迟、两次 60 秒轮询和
+60 秒有界拉取/持久化余量；可用 `DC08A_COVERAGE_GRACE_SECONDS` 显式调整）。窗口尚未
+到期时提前到达的合法 Bar 不会被判为意外 Bar 或登记缺口；使用 `--record-gaps` 时才会按
+订阅、日期和证券范围原子登记已超过完成期限的缺口，并自动关闭本次覆盖已恢复的旧 `OPEN`
+缺口，报告 `gapReconciliation.opened/closed`。
 执行器现在拒绝部分证券窗口并保留原任务进入重试，不发布不完整 Artifact。
 
 已补充 `pnpm dc08a:active-subscription` 只读读取唯一启用订阅和当前证券集合；巡检与日终
@@ -138,3 +142,17 @@ V2.4 为 `PAPER + FAKE`，采集调度器/执行器均保持 `DISABLED`；行情
   `dc08a:supervise --check-only=HEALTHY`；当前活动订阅仍为短期订阅、证券数为 3。
 - 已新增项目级配置回归入口 `pnpm dc08a:verify-automation`，对当前 Mac 的心跳频率、旧任务暂停、
   20 只一次性切换及复核命令进行检查，结果 `PASS`。
+
+2026-10-01 11:50Z只读运行复核：enabled schedules=0、open gaps=0、pending outbox=0、日历CLOSED、无nextExecutionAt；这是无数据源授权的暂停态，不计观察日。注意活动Market Data镜像仍是旧版，`/ready`返回`liveQuoteMode=LIVE_SOURCE`、executor ENABLED且不含来源授权字段；新门禁代码未部署。没有触发来源调用或容器变更。完整快照及边界见[O1/W3活动运行审计](../evidence/audits/2026-10-01-o1-active-runtime-after-source-gates.json)。
+
+2026-10-02 10:41 Asia/Shanghai read-only follow-up: GET-only health probe found calendar CLOSED, scheduler tick recent but `nextExecutionAt=null`, no enabled subscription schedules, zero open gaps/outbox, and aggregate health UNHEALTHY because no next trigger is recorded. No quote/bar request or collection occurred. Recomputed archive remains 8/20 (7 complete + 1 recovered), 12 valid days remain; latest valid date 2026-09-30. Source authorization NONE and NO_TRADE remain active. See [health audit](../evidence/audits/2026-10-02-o1-readonly-health-no-source-1041.md), [JSON report](../evidence/audits/2026-10-02-o1-readonly-health-no-source-1041.json), [observation summary](../evidence/audits/2026-10-02-o1-current-observation-summary-no-source-1041.json) and [SHA-256](../evidence/audits/2026-10-02-o1-readonly-health-no-source-1041.sha256).
+
+2026-10-03 00:52 Asia/Shanghai read-only follow-up: readiness, scheduler, source inventory, quality, and market calendar GETs completed; no quote/bar request, collection, activation, or configuration/database write occurred. The calendar was CLOSED; scheduler/executor reported ENABLED but `nextExecutionAt=null`, so aggregate health remained UNHEALTHY. Open gaps/outbox were 0. Local archived observation remained 8/20 (7 complete + 1 recovered), 12 remaining, latest valid date 2026-09-30; this refresh added no observation day. Source authorization remains NONE and NO_TRADE remains active. Source `enabled` flags are configuration state only. See [current health and observation audit](../evidence/audits/2026-10-03-o1-readonly-health-and-observation.md) and [JSON](../evidence/audits/2026-10-03-o1-readonly-health-and-observation.json).
+
+## 2026-10-05 来源数据版本门禁补强
+
+激活脚本现在与 Market Data 运行时使用相同的分钟来源配置必需项：显式用途授权开关、授权引用、数据版本及完整的source ID白名单。此前脚本只要求开关/引用/source ID白名单，未要求 `STOCKQUANT_COLLECTION_DATA_VERSION`，可能在运行时必定保持未授权的情况下仍通过激活前置并重建服务。新增缺失/空数据版本用例，验证脚本在读取运行态、读取订阅及执行Compose前阻断。激活脚本专项10/10、Market Data运行时授权专项4/4通过。此变更不代表已取得授权；当前NO_TRADE/授权NONE，未执行激活检查、运行时读取或服务操作。
+
+## 2026-10-05 监督修复也受来源授权门禁约束
+
+监督器的 `--repair` 路径只在 `/ready` 为UNHEALTHY时重建Market Data容器；此前它会显式把Scheduler/Executor开关设为1，但不会先核验来源授权。虽然Market Data运行时仍会独立拒绝无授权采集，这种修复动作可能让未授权配置看起来像被监督器激活。激活器和监督器现在共用同一配置解析/判定模块，要求用途授权开关、授权引用、数据版本和当前配置的全部source ID白名单完整；来源缺项时Repair返回`WAITING_CONFIGURATION`/exit 2，Compose调用0次。`--check-only`仍如实报告运行态，不因许可缺项掩盖基础设施故障。`pnpm dc08a:test-supervise` 6/6、`pnpm dc08a:test-collection-authorization` 3/3、`pnpm dc08a:test-activate` 10/10及Market Data运行时授权4/4均通过。代码测试不改变当前NO_TRADE/授权NONE状态，未调用监督器repair、Compose、Provider或活动数据库。

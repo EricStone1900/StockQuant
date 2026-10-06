@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "stockquant-w8-ubuntu-host-preflight-v1",
+  "status": "BLOCKED",
+  "target": {
+    "operatingSystem": "darwin",
+    "distribution": null,
+    "distributionVersion": null,
+    "architecture": "aarch64"
+  },
+  "resources": {
+    "logicalCpuCount": 10,
+    "memoryBytes": 34359738368,
+    "diskAvailableBytes": 150710132736
+  },
+  "containerRuntime": {
+    "status": "UNAVAILABLE"
+  },
+  "checks": {
+    "targetIsUbuntuX86_64": "FAIL",
+    "linuxContainerRuntimeMatchesTarget": "FAIL",
+    "approvedResourceThresholds": "NOT_DEFINED",
+    "targetHostAuthorized": "NOT_CONFIRMED",
+    "deploymentOrMigrationPerformed": false,
+    "externalNetworkUsed": false,
+    "credentialsRead": false
+  },
+  "limitations": [
+    "INVENTORY_ONLY does not mean release-ready; resource thresholds, network/storage, host authorization and maintenance approvals require separate review.",
+    "This command is read-only and does not inspect credentials, contact a registry, modify services, or run a migration."
+  ],
+  "command": "pnpm verify:w8:ubuntu-host",
+  "exitCode": 2,
+  "environmentContext": "Current task shell; container runtime probe unavailable in this invocation. An earlier 2026-10-06 preflight saw a readable Docker Desktop linux/aarch64 runtime; neither host matches the required Ubuntu x86_64 target."
+}

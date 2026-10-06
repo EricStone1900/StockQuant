@@ -49,6 +49,7 @@ QlibFitFixtureRequest = TypedDict("QlibFitFixtureRequest", {
   "sourceMode": Required[Literal['FIXTURE']],
   "featureRows": Required[list[list[float]]],
   "labels": Required[list[float]],
+  "temporalMetadata": NotRequired[list[dict[str, object]]],
   "splits": Required[dict[str, object]],
 })
 
@@ -58,6 +59,7 @@ QlibFitFixtureResult = TypedDict("QlibFitFixtureResult", {
   "sourceMode": Required[Literal['FIXTURE']],
   "modelTraining": Required[Literal['PASS']],
   "modelValidation": Required[Literal['NOT_RUN']],
+  "temporalValidation": NotRequired[Literal['PASS', 'NOT_RUN']],
   "candidateSourceExecution": Required[Literal['NOT_PERFORMED']],
   "qlibVersion": Required[str],
   "lightgbmVersion": Required[str],
@@ -67,9 +69,28 @@ QlibFitFixtureResult = TypedDict("QlibFitFixtureResult", {
   "testPredictionsFinite": Required[Literal[True]],
   "testPredictionsSha256": Required[str],
   "modelSha256": Required[str],
+  "modelArtifactBase64": Required[str],
+  "testPredictionsCanonicalJson": Required[str],
+  "testPredictions": Required[list[float]],
   "evaluationMetrics": Required[dict[str, object]],
   "tracking": Required[Literal['temporary SQLite under /tmp; removed with the worker container']],
   "profitabilityClaim": Required[Literal['NOT_MADE']],
+})
+
+V14DailyBacktestFixtureRequest = TypedDict("V14DailyBacktestFixtureRequest", {
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees']],
+  "seed": Required[int],
+  "policy": Required[dict[str, object]],
+})
+
+V14DailyBacktestFixtureResult = TypedDict("V14DailyBacktestFixtureResult", {
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V1.4']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees']],
+  "seed": Required[int],
+  "status": Required[Literal['COMPLETED', 'FAILED']],
+  "assertions": Required[list[dict[str, object]]],
+  "evidence": Required[dict[str, object]],
 })
 
 V31ArtifactPublishCommand = TypedDict("V31ArtifactPublishCommand", {
@@ -97,8 +118,9 @@ V31ResearchArtifactRef = TypedDict("V31ResearchArtifactRef", {
   "kind": Required[Literal['INPUT', 'GENERATED_CODE', 'RUN_LOG', 'METRICS', 'ERROR', 'CANDIDATE', 'OUTPUT']],
   "namespace": Required[str],
   "sha256": Required[str],
-  "status": Required[Literal['PENDING', 'PUBLISHED', 'FAILED', 'RETAINED']],
+  "status": Required[Literal['PENDING', 'PUBLISHED', 'FAILED', 'RETAINED', 'EXPIRED']],
   "sourceRef": Required[str],
+  "expiresAt": NotRequired[str | None],
 })
 
 V31ExperimentBudgetResult = TypedDict("V31ExperimentBudgetResult", {
@@ -169,7 +191,9 @@ V31ModelGatewayFixtureCommand = TypedDict("V31ModelGatewayFixtureCommand", {
   "experimentId": Required[str],
   "modelRunId": Required[str],
   "requestedCents": Required[int],
+  "roundIndex": NotRequired[int],
   "scenario": Required[Literal['COMPLETED', 'TIMEOUT', 'OVER_BUDGET']],
+  "runnerScenario": NotRequired[Literal['NORMAL', 'CHECKPOINT_RECOVERY']],
 })
 
 V31ModelGatewayFixtureResult = TypedDict("V31ModelGatewayFixtureResult", {
@@ -181,6 +205,35 @@ V31ModelGatewayFixtureResult = TypedDict("V31ModelGatewayFixtureResult", {
   "budgetStatus": NotRequired[Literal['RESERVED', 'DISPATCHED', 'UNKNOWN', 'SETTLED', 'REJECTED']],
   "actualCostCents": NotRequired[int],
   "response": NotRequired[dict[str, object]],
+})
+
+V31ModelGatewayOpenAIChatCommand = TypedDict("V31ModelGatewayOpenAIChatCommand", {
+  "model": Required[Literal['stockquant-fixture']],
+  "messages": Required[list[dict[str, object]]],
+  "stream": NotRequired[Literal[False]],
+})
+
+V31ModelGatewayOpenAIChatResult = TypedDict("V31ModelGatewayOpenAIChatResult", {
+  "id": Required[str],
+  "object": Required[Literal['chat.completion']],
+  "created": Required[int],
+  "model": Required[Literal['stockquant-fixture']],
+  "choices": Required[list[dict[str, object]]],
+  "usage": Required[dict[str, object]],
+})
+
+V31ModelGatewayOpenAIEmbeddingCommand = TypedDict("V31ModelGatewayOpenAIEmbeddingCommand", {
+  "model": Required[Literal['stockquant-fixture']],
+  "input": Required[object],
+  "encoding_format": NotRequired[Literal['float', 'base64', null]],
+  "dimensions": NotRequired[Literal[3]],
+})
+
+V31ModelGatewayOpenAIEmbeddingResult = TypedDict("V31ModelGatewayOpenAIEmbeddingResult", {
+  "object": Required[Literal['list']],
+  "model": Required[Literal['stockquant-fixture']],
+  "data": Required[list[dict[str, object]]],
+  "usage": Required[dict[str, object]],
 })
 
 V31ExactRunPromotionGate = TypedDict("V31ExactRunPromotionGate", {
@@ -276,6 +329,7 @@ V31RunnerJob = TypedDict("V31RunnerJob", {
   "schemaVersion": Required[Literal['v3.1-runner-job-v1']],
   "testRunId": Required[str],
   "experimentId": Required[str],
+  "roundIndex": NotRequired[int],
   "imageDigest": Required[str],
   "inputArtifact": Required[str],
   "outputNamespace": Required[str],
@@ -413,6 +467,12 @@ V32PromotionDecisionResult = TypedDict("V32PromotionDecisionResult", {
   "idempotent": Required[bool],
 })
 
+V32PromotionRequestPreparationResult = TypedDict("V32PromotionRequestPreparationResult", {
+  "status": Required[Literal['WAITING', 'READY_FOR_GATE_CHECK']],
+  "blockers": Required[list[str]],
+  "promotionRequest": Required[object],
+})
+
 V32PromotionRegistryVersion = TypedDict("V32PromotionRegistryVersion", {
   "schemaVersion": Required[Literal['v3.2-promotion-registry-version-v1']],
   "promotionRequestId": Required[str],
@@ -521,18 +581,60 @@ V32PromotionValidationPlan = TypedDict("V32PromotionValidationPlan", {
   "metricsOutputPath": Required[str],
 })
 
+V33ExperimentLedgerSettlementCommand = TypedDict("V33ExperimentLedgerSettlementCommand", {
+  "testRunId": Required[str],
+  "expectedRounds": Required[int],
+})
+
+V33ExperimentLedgerSettlementResult = TypedDict("V33ExperimentLedgerSettlementResult", {
+  "experimentId": Required[str],
+  "testRunId": Required[str],
+  "requestedCents": Required[int],
+  "reservedCents": Required[int],
+  "spentCents": Required[int],
+  "status": Required[Literal['SETTLED']],
+  "modelCallCount": Required[int],
+  "rounds": Required[list[dict[str, object]]],
+})
+
+V33ReadinessCancelCommand = TypedDict("V33ReadinessCancelCommand", {
+  "confirmation": Required[Literal['CANCEL_V33_READINESS_RUN']],
+})
+
+V33ReadinessCancelResult = TypedDict("V33ReadinessCancelResult", {
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V3.3']],
+  "status": Required[Literal['CANCELLED']],
+  "idempotent": Required[bool],
+  "evidence": Required[dict[str, object]],
+})
+
 V33ReadinessRun = TypedDict("V33ReadinessRun", {
   "accepted": NotRequired[bool],
   "testRunId": Required[str],
   "stageId": Required[Literal['V3.3']],
   "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
   "scenarioVersion": Required[Literal['v3.3-readiness-v1']],
-  "status": Required[Literal['WAITING']],
+  "status": Required[Literal['WAITING', 'QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']],
   "seed": Required[int],
   "assertions": Required[list[dict[str, object]]],
   "evidence": Required[dict[str, object]],
   "createdAt": NotRequired[str],
   "completedAt": NotRequired[str | None],
+})
+
+V33RejectionVerifyCommand = TypedDict("V33RejectionVerifyCommand", {
+  "schemaVersion": Required[Literal['v3.3-rejection-verify-command-v1']],
+  "confirmation": Required[Literal['VERIFY_V33_BUDGET_REJECTION']],
+})
+
+V33RejectionVerifyResult = TypedDict("V33RejectionVerifyResult", {
+  "schemaVersion": Required[Literal['v3.3-rejection-verify-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['RUNNING']],
+  "idempotent": Required[bool],
+  "assertion": Required[dict[str, object]],
+  "evidence": Required[dict[str, object]],
 })
 
 V33ReadinessRunRequest = TypedDict("V33ReadinessRunRequest", {
@@ -553,6 +655,38 @@ V33RunnerBudget = TypedDict("V33RunnerBudget", {
   "note": Required[str],
 })
 
+V33RunnerCheckpointCommand = TypedDict("V33RunnerCheckpointCommand", {
+  "workerId": Required[str],
+  "fencingToken": Required[int],
+  "schemaVersion": Required[Literal['v3.3-research-checkpoint-v1']],
+  "testRunId": Required[str],
+  "roundIndex": Required[int],
+  "sequence": Required[int],
+  "state": Required[dict[str, object]],
+})
+
+V33RunnerCheckpointHistory = TypedDict("V33RunnerCheckpointHistory", {
+  "schemaVersion": Required[Literal['v3.3-runner-checkpoint-history-v1']],
+  "testRunId": Required[str],
+  "experimentId": Required[str],
+  "roundIndex": Required[int],
+  "checkpoints": Required[list[dict[str, object]]],
+})
+
+V33RunnerCheckpointReadResult = TypedDict("V33RunnerCheckpointReadResult", {
+  "status": Required[Literal['FOUND', 'EMPTY']],
+  "checkpoint": Required[dict[str, object] | None],
+})
+
+V33RunnerCheckpointResult = TypedDict("V33RunnerCheckpointResult", {
+  "status": Required[Literal['PERSISTED']],
+  "checkpoint": Required[dict[str, object]],
+  "stateSha256": Required[str],
+  "sequence": Required[int],
+  "existing": Required[bool],
+  "createdAt": Required[str],
+})
+
 V33RunnerCursorQueue = TypedDict("V33RunnerCursorQueue", {
   "schemaVersion": Required[Literal['v3.3-runner-cursor-queue-v1']],
   "testRunId": Required[str],
@@ -570,6 +704,81 @@ V33RunnerQueue = TypedDict("V33RunnerQueue", {
   "limit": Required[int],
   "hasMore": Required[bool],
   "jobs": Required[list[dict[str, object]]],
+})
+
+V33ScenarioFixtureRunnerDispatchCommand = TypedDict("V33ScenarioFixtureRunnerDispatchCommand", {
+  "schemaVersion": Required[Literal['v3.3-scenario-dispatch-command-v1']],
+  "confirmation": Required[Literal['DISPATCH_V33_FIXTURE_RUNNER']],
+})
+
+V33ScenarioFixtureRunnerDispatchResult = TypedDict("V33ScenarioFixtureRunnerDispatchResult", {
+  "schemaVersion": Required[Literal['v3.3-scenario-dispatch-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['RUNNING']],
+  "workflowStep": Required[Literal['RUNNER_JOBS_QUEUED']],
+  "idempotent": Required[bool],
+  "runnerJobsCreated": Required[Literal[2]],
+  "runnerJobIds": Required[list[str]],
+  "rounds": Required[list[dict[str, object]]],
+  "externalModelCalls": Required[Literal[0]],
+})
+
+V33ScenarioExperimentCommand = TypedDict("V33ScenarioExperimentCommand", {
+  "schemaVersion": Required[Literal['v3.3-scenario-experiment-command-v1']],
+  "confirmation": Required[Literal['CREATE_V33_FIXTURE_EXPERIMENT']],
+})
+
+V33ScenarioExperimentResult = TypedDict("V33ScenarioExperimentResult", {
+  "schemaVersion": Required[Literal['v3.3-scenario-experiment-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['WAITING']],
+  "idempotent": Required[bool],
+  "experiment": Required[V31ExperimentResult],
+})
+
+V33ScenarioReconcileCommand = TypedDict("V33ScenarioReconcileCommand", {
+  "schemaVersion": Required[Literal['v3.3-scenario-reconcile-command-v1']],
+  "confirmation": Required[Literal['RECONCILE_V33_FIXTURE_RESULTS']],
+})
+
+V33ScenarioReconcileResult = TypedDict("V33ScenarioReconcileResult", {
+  "schemaVersion": Required[Literal['v3.3-scenario-reconcile-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['RUNNING']],
+  "workflowStep": Required[Literal['EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED']],
+  "completedRounds": Required[Literal[2]],
+  "rounds": Required[list[dict[str, object]]],
+  "experimentSettlement": Required[Literal['VERIFIED_FIXTURE_LEDGER']],
+  "settlement": Required[dict[str, object]],
+  "businessValidation": Required[Literal['NOT_RUN']],
+  "humanAcceptance": Required[Literal['NOT_RUN']],
+})
+
+V33TestRunBudgetLimitCommand = TypedDict("V33TestRunBudgetLimitCommand", {
+  "schemaVersion": Required[Literal['v3.3-test-run-budget-limit-command-v1']],
+  "testRunId": Required[str],
+  "budgetCents": Required[int],
+})
+
+V33TestRunBudgetLimitResult = TypedDict("V33TestRunBudgetLimitResult", {
+  "schemaVersion": Required[Literal['v3.3-test-run-budget-limit-v1']],
+  "testRunId": Required[str],
+  "budgetCents": Required[int],
+  "status": Required[Literal['CONFIGURED']],
+})
+
+V33TestRunExperimentBudgetSummary = TypedDict("V33TestRunExperimentBudgetSummary", {
+  "schemaVersion": Required[Literal['v3.3-test-run-budget-summary-v1']],
+  "testRunId": Required[str],
+  "offset": Required[int],
+  "limit": Required[int],
+  "afterCursor": Required[str | None],
+  "nextAfterCursor": Required[str | None],
+  "hasMore": Required[bool],
+  "rows": Required[list[dict[str, object]]],
+  "totals": Required[object],
+  "accountingScope": Required[Literal['unique experiments bound to this TestRun; model-call attempts are counted once; no provider invoice reconciliation']],
+  "stageBudgetControl": Required[Literal['NOT_IMPLEMENTED', 'TEST_RUN_CAP_ENFORCED_ROUND_CAP_NOT_IMPLEMENTED', 'TEST_RUN_AND_ROUND_CAP_ENFORCED']],
 })
 
 InitializeAccountCommand = TypedDict("InitializeAccountCommand", {
@@ -605,6 +814,24 @@ AccountSnapshot = TypedDict("AccountSnapshot", {
   "positionCount": Required[int],
   "ledgerEntryCount": Required[int],
   "ledgerVersion": Required[int],
+  "positions": NotRequired[list[dict[str, object]]],
+  "reservations": NotRequired[list[dict[str, object]]],
+})
+
+ArtifactRef = TypedDict("ArtifactRef", {
+  "schemaVersion": Required[Literal['artifact-ref.v1']],
+  "artifactId": Required[str],
+  "testRunId": Required[str],
+  "ownerId": Required[str],
+  "kind": Required[str],
+  "namespace": Required[str],
+  "mediaType": NotRequired[str],
+  "byteLength": NotRequired[int],
+  "sha256": Required[str],
+  "status": Required[Literal['PENDING', 'PUBLISHED', 'FAILED', 'RETAINED', 'EXPIRED']],
+  "sourceRef": Required[str],
+  "createdAt": NotRequired[str],
+  "expiresAt": NotRequired[str | None],
 })
 
 ClockContext = TypedDict("ClockContext", {
@@ -622,6 +849,14 @@ ErrorResponse = TypedDict("ErrorResponse", {
   "correlationId": Required[str],
   "details": NotRequired[dict[str, object]],
   "acceptanceStatus": NotRequired[Literal['KNOWN', 'UNKNOWN']],
+})
+
+FillFeeCorrectionCommand = TypedDict("FillFeeCorrectionCommand", {
+  "revision": Required[int],
+  "previousFee": Required[str],
+  "correctedFee": Required[str],
+  "effectiveAt": Required[str],
+  "evidenceRef": Required[str],
 })
 
 HistoricalFakeExecutionCommand = TypedDict("HistoricalFakeExecutionCommand", {
@@ -647,20 +882,27 @@ HistoricalFakeExecutionResult = TypedDict("HistoricalFakeExecutionResult", {
   "replayed": Required[bool],
 })
 
+HistoricalFakeOrderState = TypedDict("HistoricalFakeOrderState", {
+  "order_id": Required[str],
+  "status": Required[str],
+  "rejection_reason": NotRequired[str | None],
+})
+
 Money = TypedDict("Money", {
   "amount": Required[str],
   "currency": Required[str],
 })
 
 PairedBackupManifest = TypedDict("PairedBackupManifest", {
-  "format": Required[Literal['stockquant.paired-backup.v1']],
-  "backupId": Required[str],
-  "createdAt": Required[str],
-  "retentionClass": Required[Literal['DAILY', 'MONTH_END']],
-  "database": Required[str],
-  "artifactVolume": Required[str],
-  "restoreValidation": Required[dict[str, object]],
-  "files": Required[list[dict[str, object]]],
+  "format": NotRequired[Literal['stockquant.paired-backup.v1', 'stockquant.paired-backup.cluster.v2']],
+  "backupId": NotRequired[str],
+  "createdAt": NotRequired[str],
+  "retentionClass": NotRequired[Literal['DAILY', 'MONTH_END']],
+  "database": NotRequired[str],
+  "databaseInventory": NotRequired[dict[str, object]],
+  "artifactVolume": NotRequired[str],
+  "restoreValidation": NotRequired[dict[str, object]],
+  "files": NotRequired[list[object]],
 })
 
 QuantCandidateRegistrationCommand = TypedDict("QuantCandidateRegistrationCommand", {
@@ -681,6 +923,24 @@ QuantCandidateRegistrationResult = TypedDict("QuantCandidateRegistrationResult",
   "activation": Required[Literal['DISABLED_UNTIL_MANDATE']],
   "createdAt": Required[str],
   "idempotent": Required[bool],
+})
+
+ReplayExecutionAuthorizationCommand = TypedDict("ReplayExecutionAuthorizationCommand", {
+  "namespace": Required[str],
+  "accountId": Required[str],
+  "environmentMode": Required[Literal['BACKTEST']],
+  "brokerMode": Required[Literal['FAKE']],
+  "command": Required[dict[str, object]],
+})
+
+ReplayExecutionAuthorizationResult = TypedDict("ReplayExecutionAuthorizationResult", {
+  "authorizationId": Required[str],
+})
+
+ReplayExecutionAuthorizationValidation = TypedDict("ReplayExecutionAuthorizationValidation", {
+  "authorizationId": Required[str],
+  "accountId": Required[str],
+  "command": Required[dict[str, object]],
 })
 
 ReservedFillCommand = TypedDict("ReservedFillCommand", {
@@ -763,7 +1023,33 @@ TestRun = TypedDict("TestRun", {
   "actualFaultSequence": NotRequired[list[dict[str, object]]],
   "createdAt": Required[str],
   "completedAt": NotRequired[str | None],
-  "artifactRefs": NotRequired[list[dict[str, object]]],
+  "artifactRefs": NotRequired[list[ArtifactRef]],
+})
+
+V13PaperStageRunAccepted = TypedDict("V13PaperStageRunAccepted", {
+  "accepted": Required[Literal[True]],
+  "testRunId": Required[str],
+  "status": Required[Literal['WAITING']],
+})
+
+V13PaperStageRunRequest = TypedDict("V13PaperStageRunRequest", {
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "seed": Required[int],
+})
+
+V13PaperStageRunResult = TypedDict("V13PaperStageRunResult", {
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V1.3']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "scenarioVersion": Required[str],
+  "ownerId": Required[str],
+  "namespace": Required[str],
+  "status": Required[Literal['WAITING']],
+  "seed": Required[int],
+  "assertions": Required[list[dict[str, object]]],
+  "evidence": Required[dict[str, object]],
+  "createdAt": Required[str],
+  "completedAt": Required[object],
 })
 
 V24ObservationRevisionList = TypedDict("V24ObservationRevisionList", {
@@ -784,6 +1070,64 @@ V24ObservationRevision = TypedDict("V24ObservationRevision", {
   "recordedAt": Required[str],
 })
 
+V24PaperAuthorizationCommand = TypedDict("V24PaperAuthorizationCommand", {
+  "grant": Required[V24PaperExecutionGrant],
+})
+
+V24PaperAuthorizationResult = TypedDict("V24PaperAuthorizationResult", {
+  "authorizationId": Required[str],
+  "status": Required[Literal['ACTIVE', 'CONSUMED']],
+  "expiresAt": Required[str],
+  "scope": Required[dict[str, object]],
+})
+
+V24PaperAuthorizationRevokeCommand = TypedDict("V24PaperAuthorizationRevokeCommand", {
+  "authorizationId": Required[str],
+  "namespace": Required[str],
+  "accountId": Required[str],
+  "reason": Required[str],
+})
+
+V24PaperAuthorizationRevokeResult = TypedDict("V24PaperAuthorizationRevokeResult", {
+  "authorizationId": Required[str],
+  "status": Required[Literal['REVOKED']],
+  "replayed": Required[bool],
+  "revokedAt": Required[str],
+})
+
+V24PaperAuthorizationValidation = TypedDict("V24PaperAuthorizationValidation", {
+  "authorizationId": Required[str],
+  "accountId": Required[str],
+  "command": Required[V24PaperExecutionGrant],
+})
+
+V24PaperExecutionCommand = TypedDict("V24PaperExecutionCommand", {
+  "authorizationId": Required[str],
+  "grant": Required[V24PaperExecutionGrant],
+})
+
+V24PaperExecutionGrant = TypedDict("V24PaperExecutionGrant", {
+  "scenarioId": Required[Literal['v24-isolated-snapshot-paper-normal']],
+  "scenarioVersion": Required[Literal['2.0.0']],
+  "testRunId": Required[str],
+  "ownerId": Required[str],
+  "namespace": Required[str],
+  "accountId": Required[str],
+  "clockNow": Required[str],
+  "dataMode": Required[Literal['FIXTURE']],
+  "environmentMode": Required[Literal['PAPER']],
+  "brokerMode": Required[Literal['FAKE']],
+  "liveTradingEnabled": Required[Literal[False]],
+  "market": Required[Literal['CN_A']],
+  "currency": Required[Literal['CNY']],
+  "policy": Required[dict[str, object]],
+  "mandate": Required[dict[str, object]],
+  "signal": Required[dict[str, object]],
+  "order": Required[dict[str, object]],
+  "snapshot": Required[dict[str, object]],
+  "fee": Required[str],
+})
+
 V24PaperExecutionPolicy = TypedDict("V24PaperExecutionPolicy", {
   "schemaVersion": Required[Literal['v24-paper-execution-policy-v1']],
   "policyId": Required[Literal['v24-snapshot-paper-policy']],
@@ -799,6 +1143,39 @@ V24PaperExecutionPolicy = TypedDict("V24PaperExecutionPolicy", {
   "approval": Required[dict[str, object]],
   "risk": Required[dict[str, object]],
   "configurationGaps": Required[list[Literal['STRATEGY_VERSION', 'MANDATE_VERSION', 'MAX_DEVIATION_BPS', 'RISK_POLICY_VERSION', 'FEE_POLICY_VERSION', 'US_MARKET_POLICY']]],
+})
+
+V24PaperExecutionResult = TypedDict("V24PaperExecutionResult", {
+  "schemaVersion": Required[Literal['v24-paper-execution-result-v2']],
+  "replayed": Required[bool],
+  "authorization": Required[dict[str, object]],
+  "riskEvaluation": Required[dict[str, object]],
+  "resourceReservation": Required[ResourceReservation],
+  "eligibility": Required[dict[str, object]],
+  "order": Required[dict[str, object]],
+  "fill": Required[object],
+  "outbox": Required[dict[str, object]],
+  "reconciliation": Required[dict[str, object]],
+})
+
+V24PaperExecutionScenario = TypedDict("V24PaperExecutionScenario", {
+  "$schema": NotRequired[str],
+  "scenarioId": Required[Literal['v24-isolated-snapshot-paper-normal']],
+  "scenarioVersion": Required[Literal['2.0.0']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "environmentMode": Required[Literal['PAPER']],
+  "brokerMode": Required[Literal['FAKE']],
+  "liveTradingEnabled": Required[Literal[False]],
+  "market": Required[Literal['CN_A']],
+  "currency": Required[Literal['CNY']],
+  "account": Required[dict[str, object]],
+  "policy": Required[dict[str, object]],
+  "mandate": Required[dict[str, object]],
+  "signal": Required[dict[str, object]],
+  "order": Required[dict[str, object]],
+  "snapshot": Required[dict[str, object]],
+  "risk": Required[dict[str, object]],
+  "fee": Required[str],
 })
 
 V24PaperMandate = TypedDict("V24PaperMandate", {
@@ -840,14 +1217,14 @@ V24PaperStageRunAccepted = TypedDict("V24PaperStageRunAccepted", {
 })
 
 V24PaperStageRunRequest = TypedDict("V24PaperStageRunRequest", {
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation']],
   "seed": Required[int],
 })
 
 V24PaperStageRunResult = TypedDict("V24PaperStageRunResult", {
   "testRunId": Required[str],
   "stageId": Required[Literal['V2.4']],
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation']],
   "scenarioVersion": Required[str],
   "ownerId": Required[str],
   "namespace": Required[str],
@@ -894,6 +1271,81 @@ V24SnapshotFixtureExecution = TypedDict("V24SnapshotFixtureExecution", {
   "expected": Required[dict[str, object]],
 })
 
+V33NormalVerifyCommand = TypedDict("V33NormalVerifyCommand", {
+  "schemaVersion": Required[Literal['v3.3-normal-verify-command-v1']],
+  "confirmation": Required[Literal['VERIFY_V33_NORMAL_RESULTS']],
+})
+
+V33NormalVerifyResult = TypedDict("V33NormalVerifyResult", {
+  "schemaVersion": Required[Literal['v3.3-normal-verify-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']],
+  "idempotent": Required[bool],
+  "assertion": Required[dict[str, object]],
+  "evidence": Required[dict[str, object]],
+})
+
+V33RecoveryVerifyCommand = TypedDict("V33RecoveryVerifyCommand", {
+  "schemaVersion": Required[Literal['v3.3-recovery-verify-command-v1']],
+  "confirmation": Required[Literal['VERIFY_V33_CHECKPOINT_RECOVERY']],
+})
+
+V33RecoveryVerifyResult = TypedDict("V33RecoveryVerifyResult", {
+  "schemaVersion": Required[Literal['v3.3-recovery-verify-result-v1']],
+  "testRunId": Required[str],
+  "status": Required[Literal['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'WAITING']],
+  "idempotent": Required[bool],
+  "assertion": Required[dict[str, object] | None],
+  "evidence": Required[dict[str, object] | None],
+})
+
+V32ReadinessRunRequest = TypedDict("V32ReadinessRunRequest", {
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "seed": NotRequired[int],
+  "sourceV31TestRunId": NotRequired[str],
+})
+
+V32ReadinessRunResult = TypedDict("V32ReadinessRunResult", {
+  "accepted": NotRequired[Literal[True]],
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V3.2']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "scenarioVersion": Required[Literal['v3.2-readiness-v1']],
+  "status": Required[Literal['WAITING']],
+  "seed": Required[int],
+  "assertions": Required[list[object]],
+  "evidence": Required[dict[str, object]],
+})
+
+MarketDataAlertAcknowledgeRequest = TypedDict("MarketDataAlertAcknowledgeRequest", {
+  "actorId": Required[str],
+})
+
+MarketDataAlertIncidents = TypedDict("MarketDataAlertIncidents", {
+  "incidents": Required[list[MarketDataAlertIncidentV1]],
+})
+
+PublishedMarketDataArtifactTaskContent = TypedDict("PublishedMarketDataArtifactTaskContent", {
+  "taskId": Required[str],
+  "artifactId": Required[str],
+  "fixtureVersion": Required[Literal['v1.2-market-data-1']],
+  "sha256": Required[str],
+  "contentBase64": Required[str],
+  "createdAt": Required[str],
+})
+
+MarketDataArtifactTask = TypedDict("MarketDataArtifactTask", {
+  "taskId": Required[str],
+  "artifactId": Required[str],
+  "fixtureVersion": Required[str],
+  "status": Required[Literal['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']],
+  "sha256": Required[str | None],
+  "error": Required[str | None],
+  "fence": Required[int],
+  "createdAt": Required[str],
+  "updatedAt": Required[str],
+})
+
 CnAShareCalendarSession = TypedDict("CnAShareCalendarSession", {
   "date": Required[str],
   "status": Required[Literal['TRADING', 'CLOSED', 'UNKNOWN']],
@@ -916,6 +1368,16 @@ CollectionRun = TypedDict("CollectionRun", {
   "sourceAttempts": NotRequired[list[dict[str, object]]],
 })
 
+CollectionScheduleView = TypedDict("CollectionScheduleView", {
+  "subscriptionId": Required[str],
+  "subscriptionVersion": Required[int],
+  "fromDate": Required[str],
+  "toDate": Required[str],
+  "calendarVersion": Required[str],
+  "enabled": Required[bool],
+  "version": Required[int],
+})
+
 CollectionSubscription = TypedDict("CollectionSubscription", {
   "subscriptionId": Required[str],
   "projectId": Required[str],
@@ -929,6 +1391,38 @@ CollectionSubscription = TypedDict("CollectionSubscription", {
   "enabled": Required[bool],
   "version": Required[int],
   "quota": NotRequired[dict[str, object]],
+})
+
+MarketDataLiveNewsPreview = TypedDict("MarketDataLiveNewsPreview", {
+  "observedAt": Required[str],
+  "items": Required[list[dict[str, object]]],
+  "sourceCount": Required[int],
+  "deduplicated": Required[bool],
+  "status": Required[Literal['PASS', 'PARTIAL']],
+})
+
+LiveQuotePreview = TypedDict("LiveQuotePreview", {
+  "sourceId": Required[Literal['tencent-quote']],
+  "requestedSymbols": Required[list[str]],
+  "securities": Required[list[dict[str, object]]],
+  "count": Required[int],
+  "ingestedAt": Required[str],
+  "status": NotRequired[Literal['STALE']],
+  "error": NotRequired[str],
+})
+
+MarketDataAlertIncidentV1 = TypedDict("MarketDataAlertIncidentV1", {
+  "incidentId": Required[str],
+  "alertKey": Required[str],
+  "code": Required[str],
+  "severity": Required[Literal['INFO', 'WARNING', 'CRITICAL']],
+  "payload": Required[dict[str, object]],
+  "state": Required[Literal['OPEN', 'ACKNOWLEDGED', 'RESOLVED']],
+  "firstSeenAt": Required[str],
+  "lastSeenAt": Required[str],
+  "acknowledgedBy": Required[str | None],
+  "acknowledgedAt": Required[str | None],
+  "resolvedAt": Required[str | None],
 })
 
 MinuteCsvImportRequest = TypedDict("MinuteCsvImportRequest", {
@@ -967,6 +1461,18 @@ MinuteCsvUploadProgress = TypedDict("MinuteCsvUploadProgress", {
   "idempotent": NotRequired[bool],
 })
 
+MinuteFixtureImportRequest = TypedDict("MinuteFixtureImportRequest", {
+  "fixture": NotRequired[Literal['normal', 'bad']],
+})
+
+MinuteFixturePreview = TypedDict("MinuteFixturePreview", {
+  "fixtureVersion": Required[str],
+  "rows": Required[int],
+  "securities": Required[int],
+  "quality": Required[list[dict[str, object]]],
+  "bars": Required[list[dict[str, object]]],
+})
+
 MinuteImportRecord = TypedDict("MinuteImportRecord", {
   "importId": Required[str],
   "version": Required[str],
@@ -976,6 +1482,45 @@ MinuteImportRecord = TypedDict("MinuteImportRecord", {
   "sha256": Required[str],
   "manifest": Required[dict[str, object]],
   "idempotent": Required[bool],
+})
+
+MinuteOpenGaps = TypedDict("MinuteOpenGaps", {
+  "subscriptionId": Required[str],
+  "open": Required[list[dict[str, object]]],
+})
+
+MarketDataNewsPreview = TypedDict("MarketDataNewsPreview", {
+  "items": Required[list[dict[str, object]]],
+  "deduplicated": Required[bool],
+  "sourceStatus": Required[str],
+})
+
+ProjectDataExportRequest = TypedDict("ProjectDataExportRequest", {
+  "projectId": Required[str],
+  "dataVersion": Required[str],
+  "items": Required[list[object]],
+})
+
+ProjectDataExport = TypedDict("ProjectDataExport", {
+  "projectId": Required[str],
+  "dataVersion": Required[str],
+  "rowCount": Required[int],
+  "sha256": Required[str],
+  "items": Required[list[object]],
+})
+
+ProjectDataPageRequest = TypedDict("ProjectDataPageRequest", {
+  "projectId": Required[str],
+  "dataVersion": Required[str],
+  "items": Required[list[object]],
+  "cursor": NotRequired[int],
+  "pageSize": NotRequired[int],
+})
+
+ProjectDataPage = TypedDict("ProjectDataPage", {
+  "dataVersion": Required[str],
+  "items": Required[list[object]],
+  "nextCursor": Required[str | None],
 })
 
 ProviderCapability = TypedDict("ProviderCapability", {
@@ -989,9 +1534,138 @@ ProviderCapability = TypedDict("ProviderCapability", {
   "notes": NotRequired[list[str]],
 })
 
+MarketDataSamplingConfig = TypedDict("MarketDataSamplingConfig", {
+  "intervalMinutes": Required[Literal[20, 30]],
+  "allowed": Required[list[Literal[20, 30]]],
+  "tradingWindows": Required[list[dict[str, object]]],
+  "lunchBreak": Required[list[str]],
+  "placeOrders": Required[Literal[False]],
+})
+
+MarketDataSamplingUpdate = TypedDict("MarketDataSamplingUpdate", {
+  "intervalMinutes": Required[Literal[20, 30]],
+})
+
+MarketDataSourceCircuitState = TypedDict("MarketDataSourceCircuitState", {
+  "sourceId": Required[str],
+  "circuit": Required[Literal['OPEN', 'HEALTHY']],
+  "failures": Required[int],
+})
+
+MarketDataSourceInventory = TypedDict("MarketDataSourceInventory", {
+  "sources": Required[list[dict[str, object]]],
+  "checkedAt": Required[str],
+  "note": NotRequired[str],
+})
+
+MarketDataSourceSmoke = TypedDict("MarketDataSourceSmoke", {
+  "checkedAt": Required[str],
+  "checks": Required[list[dict[str, object]]],
+  "status": Required[Literal['PASS', 'PARTIAL']],
+})
+
+V12FixturePreview = TypedDict("V12FixturePreview", {
+  "fixtureVersion": Required[Literal['v1.2-market-data-1']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "barCount": NotRequired[int],
+  "securityCount": NotRequired[int],
+  "quality": Required[dict[str, object]],
+  "bars": Required[list[dict[str, object]]],
+})
+
 V22StageRunRequest = TypedDict("V22StageRunRequest", {
   "scenarioId": NotRequired[Literal['normal', 'rejection', 'recovery', 'uploaded-csv']],
   "seed": NotRequired[int],
   "uploadId": NotRequired[str],
   "fileFormat": NotRequired[Literal['CSV', 'PARQUET']],
+})
+
+MarketDataWatchlistUpdate = TypedDict("MarketDataWatchlistUpdate", {
+  "securities": Required[list[str]],
+})
+
+MarketDataWatchlist = TypedDict("MarketDataWatchlist", {
+  "securities": Required[list[str]],
+  "count": Required[int],
+  "max": Required[Literal[100]],
+  "priority": NotRequired[str],
+})
+
+MultiBarResearchCommand = TypedDict("MultiBarResearchCommand", {
+  "runId": NotRequired[str],
+  "bars": Required[list[dict[str, object]]],
+  "executions": NotRequired[list[object]],
+})
+
+MultiBarResearchResult = TypedDict("MultiBarResearchResult", {
+  "status": Required[str],
+  "adapter": Required[str],
+  "dataMode": Required[str],
+  "barCount": Required[int],
+  "artifactHash": Required[str],
+  "assertions": Required[list[object]],
+})
+
+QlibSummaryTrainRequest = TypedDict("QlibSummaryTrainRequest", {
+  "bars": Required[list[dict[str, object]]],
+})
+
+QlibSummaryValidateRequest = TypedDict("QlibSummaryValidateRequest", {
+  "bars": Required[list[dict[str, object]]],
+  "artifactHash": Required[str],
+})
+
+V12FactorPreview = TypedDict("V12FactorPreview", {
+  "factorVersion": Required[Literal['v1.2-sma-factor-1']],
+  "dataVersion": Required[Literal['v1.2-market-data-1']],
+  "asOf": Required[str],
+  "qlibStatus": Required[str],
+  "noTrade": Required[bool],
+  "lookbackBars": Required[int],
+  "ranking": Required[list[dict[str, object]]],
+})
+
+V12QlibProbePreview = TypedDict("V12QlibProbePreview", {
+  "adapter": Required[Literal['qlib']],
+  "sourceCommit": NotRequired[str],
+  "dependencyImage": NotRequired[str],
+  "probe": Required[dict[str, object]],
+  "executionModel": NotRequired[str],
+  "modelCalls": NotRequired[str],
+})
+
+V12RDagentProbePreview = TypedDict("V12RDagentProbePreview", {
+  "adapter": Required[Literal['rdagent']],
+  "executionBoundary": Required[str],
+  "dockerSocketMounted": Required[bool],
+  "codeProbe": Required[dict[str, object]],
+  "modelCalls": Required[str],
+  "reason": NotRequired[str],
+})
+
+FakeBrokerCancellationResult = TypedDict("FakeBrokerCancellationResult", {
+  "outcome": Required[Literal['ACCEPTED', 'REJECTED']],
+  "reason": Required[str],
+  "sequence": Required[int],
+})
+
+FakeBrokerSimulatedExternalOrder = TypedDict("FakeBrokerSimulatedExternalOrder", {
+  "namespace": Required[str],
+  "externalOrderId": Required[str],
+  "clientOrderId": NotRequired[str],
+  "security": Required[str],
+  "requestedQuantity": Required[int],
+  "status": Required[Literal['NEW', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED', 'UNKNOWN']],
+  "evidenceRef": Required[str],
+  "observedAt": Required[str],
+})
+
+FakeBrokerSimulatedFillReport = TypedDict("FakeBrokerSimulatedFillReport", {
+  "externalFillId": Required[str],
+  "sequence": Required[int],
+  "cumulativeQuantity": Required[int],
+  "price": Required[str],
+  "fee": Required[str],
+  "effectiveAt": Required[str],
+  "evidenceRef": Required[str],
 })

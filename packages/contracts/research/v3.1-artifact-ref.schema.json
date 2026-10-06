@@ -11,7 +11,8 @@
     "kind": { "enum": ["INPUT", "GENERATED_CODE", "RUN_LOG", "METRICS", "ERROR", "CANDIDATE", "OUTPUT"] },
     "namespace": { "type": "string", "pattern": "^research/[^/]+/[^/]+/(inputs|outputs)$" },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "status": { "enum": ["PENDING", "PUBLISHED", "FAILED", "RETAINED"] },
-    "sourceRef": { "type": "string", "minLength": 1 }
+    "status": { "enum": ["PENDING", "PUBLISHED", "FAILED", "RETAINED", "EXPIRED"] },
+    "sourceRef": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" }
   }
 }

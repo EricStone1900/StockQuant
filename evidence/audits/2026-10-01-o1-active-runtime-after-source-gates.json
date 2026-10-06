@@ -1,0 +1,116 @@
+{
+  "capturedAt": "2026-10-01T11:50:54.566Z",
+  "observation": "O1 read-only operational health check; this is not an observation day",
+  "healthReport": {
+    "schemaVersion": "dc08a-health-v4",
+    "capturedAt": "2026-10-01T11:50:54.566Z",
+    "status": "UNHEALTHY",
+    "activeSubscription": "dc08a-20260917-20-v1",
+    "calendar": {
+      "status": "CLOSED",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sourceFreshnessExpected": false,
+      "sourceFreshnessState": "MARKET_CLOSED"
+    },
+    "ready": {
+      "status": "ready",
+      "persistence": "POSTGRES",
+      "scheduler": "ENABLED",
+      "executor": "ENABLED"
+    },
+    "scheduler": {
+      "status": "ENABLED",
+      "lastSuccessfulTickAt": "2026-10-01T11:50:05.391Z",
+      "nextExecutionAt": null,
+      "lastSubmitted": 0,
+      "tickAgeSeconds": 49.175
+    },
+    "sources": [
+      {
+        "sourceId": "baostock",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790208109.2940702,
+        "lastFailureAt": 1790171080.0519683,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "sina",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790751790.0561771,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "eastmoney",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "tdx",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      }
+    ],
+    "quality": {
+      "openGaps": 0,
+      "pendingOutbox": 0
+    },
+    "checks": {
+      "recentSuccessRecorded": true,
+      "nextTriggerRecorded": false,
+      "sourceReady": true,
+      "qualityReady": true
+    }
+  },
+  "enabledCollectionSchedules": 0,
+  "rawReady": {
+    "status": "ready",
+    "service": "market-data-service",
+    "dataMode": "MIXED",
+    "liveQuoteMode": "LIVE_SOURCE",
+    "fixtureRoutesAvailable": true,
+    "collectionPersistence": "POSTGRES",
+    "collectionSchedulerWorker": "ENABLED",
+    "collectionExecutor": "ENABLED",
+    "collectionSecurityIds": [
+      "600000.SH",
+      "600004.SH",
+      "600006.SH",
+      "600007.SH",
+      "600008.SH",
+      "600009.SH",
+      "600010.SH",
+      "600011.SH",
+      "600012.SH",
+      "600015.SH",
+      "600016.SH",
+      "600017.SH",
+      "600018.SH",
+      "600019.SH",
+      "600020.SH",
+      "600021.SH",
+      "600022.SH",
+      "600023.SH",
+      "600025.SH",
+      "600026.SH"
+    ]
+  },
+  "authorizationBoundary": "The active container is an older deployment without the new source authorization fields. No collection schedule is enabled. New code remains undeployed to preserve the running deployment; no source API was requested and no service/container was mutated.",
+  "decision": "NO_TRADE; no market source authorization"
+}

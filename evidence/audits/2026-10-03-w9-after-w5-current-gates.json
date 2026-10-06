@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-10-03T08:23:57Z",
+  "commands": [
+    "node scripts/verify-version.mjs --version V1",
+    "node scripts/verify-version.mjs --version V2",
+    "node scripts/verify-version.mjs --version V3"
+  ],
+  "baselineCheck": {
+    "command": "pnpm baseline:check",
+    "exitCode": 0,
+    "governanceTests": "26 passed, 0 failed",
+    "jsonFiles": 229,
+    "schemas": 159,
+    "fixtures": 39
+  },
+  "versions": {
+    "V1": { "exitCode": 2, "status": "INCOMPLETE", "unresolvedStages": 5, "evidenceAudit": "PASS", "references": 88, "manifests": 11, "manifestEntries": 28, "stageDocumentationAudit": "PASS", "invalidPassClaims": 0 },
+    "V2": { "exitCode": 2, "status": "INCOMPLETE", "unresolvedStages": 5, "evidenceAudit": "PASS", "references": 271, "manifests": 46, "manifestEntries": 112, "stageDocumentationAudit": "PASS", "invalidPassClaims": 0 },
+    "V3": { "exitCode": 2, "status": "INCOMPLETE", "unresolvedStages": 4, "evidenceAudit": "PASS", "references": 296, "manifests": 55, "manifestEntries": 120, "stageDocumentationAudit": "PASS", "invalidPassClaims": 0 }
+  },
+  "acceptanceMappingErrors": 0,
+  "conclusion": "All three evidence/documentation audits pass, but all three business versions remain INCOMPLETE; no stage, observation, Ubuntu, or user sign-off gate is closed by these governance checks."
+}

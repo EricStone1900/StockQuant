@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/artifact-ref.schema.json",
+  "title": "ArtifactRef",
+  "description": "Owner-scoped, immutable reference to evidence content associated with a TestRun.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "artifactId", "testRunId", "ownerId", "kind", "namespace", "sha256", "status", "sourceRef"],
+  "properties": {
+    "schemaVersion": { "const": "artifact-ref.v1" },
+    "artifactId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "mediaType": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "byteLength": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["PENDING", "PUBLISHED", "FAILED", "RETAINED", "EXPIRED"] },
+    "sourceRef": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

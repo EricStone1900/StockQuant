@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { lstat, readdir, readFile, realpath, rm } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-const FORMAT = "stockquant.paired-backup.v1";
+const FORMATS = new Set(["stockquant.paired-backup.v1", "stockquant.paired-backup.cluster.v2"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function sha256File(path) {
@@ -39,9 +39,16 @@ export async function inspectBackupDirectory(directory) {
     const manifestStat = await lstat(join(directory, "manifest.json"));
     if (!manifestStat.isFile() || manifestStat.isSymbolicLink()) return { valid: false, reason: "manifest-not-a-regular-file" };
     const manifest = JSON.parse(await readFile(join(directory, "manifest.json"), "utf8"));
-    if (manifest.format !== FORMAT || manifest.backupId !== directory.split(sep).at(-1) || !Number.isFinite(Date.parse(manifest.createdAt))) return { valid: false, reason: "invalid-manifest-identity" };
-    if (manifest.restoreValidation?.status !== "PASS" || !Number.isFinite(Date.parse(manifest.restoreValidation.checkedAt)) || !Number.isSafeInteger(manifest.restoreValidation.publishedArtifactRefs) || manifest.restoreValidation.publishedArtifactRefs < 0 || manifest.restoreValidation.method !== "PG_RESTORE_AND_ARTIFACT_SHA256") return { valid: false, reason: "backup-restore-not-verified" };
-    if (!(["DAILY", "MONTH_END"].includes(manifest.retentionClass)) || typeof manifest.database !== "string" || !manifest.database || typeof manifest.artifactVolume !== "string" || !manifest.artifactVolume) return { valid: false, reason: "invalid-manifest-metadata" };
+    if (!FORMATS.has(manifest.format) || manifest.backupId !== directory.split(sep).at(-1) || !Number.isFinite(Date.parse(manifest.createdAt))) return { valid: false, reason: "invalid-manifest-identity" };
+    const clusterV2 = manifest.format === "stockquant.paired-backup.cluster.v2";
+    const validationMethod = clusterV2 ? "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256" : "PG_RESTORE_AND_ARTIFACT_SHA256";
+    if (manifest.restoreValidation?.status !== "PASS" || !Number.isFinite(Date.parse(manifest.restoreValidation.checkedAt)) || !Number.isSafeInteger(manifest.restoreValidation.publishedArtifactRefs) || manifest.restoreValidation.publishedArtifactRefs < 0 || manifest.restoreValidation.method !== validationMethod) return { valid: false, reason: "backup-restore-not-verified" };
+    if (!( ["DAILY", "MONTH_END"].includes(manifest.retentionClass)) || typeof manifest.artifactVolume !== "string" || !manifest.artifactVolume || (!clusterV2 && (typeof manifest.database !== "string" || !manifest.database))) return { valid: false, reason: "invalid-manifest-metadata" };
+    if (clusterV2) {
+      const databases = manifest.databaseInventory?.databases;
+      const roles = manifest.databaseInventory?.roles;
+      if (!Array.isArray(databases) || databases.length < 1 || databases.some((name) => typeof name !== "string" || name.length < 1 || Buffer.byteLength(name) > 63 || name.includes("\0")) || new Set(databases).size !== databases.length || JSON.stringify([...databases].sort()) !== JSON.stringify(databases) || JSON.stringify(manifest.restoreValidation.restoredDatabases) !== JSON.stringify(databases) || !Array.isArray(roles) || roles.length < 1 || JSON.stringify(manifest.restoreValidation.restoredRoles) !== JSON.stringify(roles) || roles.some((role) => typeof role.name !== "string" || typeof role.superuser !== "boolean" || typeof role.inherit !== "boolean" || typeof role.createRole !== "boolean" || typeof role.createDb !== "boolean" || typeof role.login !== "boolean" || typeof role.replication !== "boolean" || typeof role.bypassRls !== "boolean" || !Number.isSafeInteger(role.connlimit) || (role.validUntil !== null && typeof role.validUntil !== "string"))) return { valid: false, reason: "invalid-cluster-inventory-or-restore-validation" };
+    }
     if (!Array.isArray(manifest.files) || manifest.files.length < 1) return { valid: false, reason: "manifest-has-no-files" };
     const declared = new Map();
     for (const file of manifest.files) {

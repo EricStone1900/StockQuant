@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-10-03T08:13:47Z",
+  "stageId": "V3.1",
+  "workPackage": "W5 offline code-suite verification",
+  "command": "node scripts/run-isolated-postgres-command.mjs --url-env RESEARCH_AUTOMATION_DATABASE_URL:research_automation:research_automation_test --url-env PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test -- pnpm verify:stage -- --stage V3.1 --suite code",
+  "exitCode": 0,
+  "status": "PASS",
+  "imageDigests": {
+    "researchFixture": "sha256:5a6177721fb5623ac75dbfa5da317c509f3a47d9e1802a84d0198c06adaa51f2",
+    "offlineRdagentLiteLlmRunner": "sha256:eb9030b8107c79c3554dabc68322814b81c04564bb0a1e5a9841bd603a67ccf1"
+  },
+  "fixtureResults": {
+    "modelGatewayExternalCalls": 0,
+    "internalLiteLlmExternalProviderCalls": 0,
+    "budgetSettlementExternalCalls": 0,
+    "artifactOwnerScopeTestRunId": "729fbc7a-ec4f-421d-b884-58b25be79c19",
+    "artifactByteHashesVerified": true,
+    "ownerRead": 200,
+    "foreignOwnerRead": 403,
+    "syntheticAcceptanceChangedRealUserGate": false
+  },
+  "isolation": {
+    "postgresDatabaseNames": [
+      "research_automation_test",
+      "platform_api_test"
+    ],
+    "postgresContainerAndNetworkRemoved": true,
+    "activeServicesTouched": false,
+    "credentialsRead": false,
+    "providerOrBrokerCalls": 0
+  },
+  "unverifiedRequirements": [
+    "real RD-Agent business experiment with an authorized live model provider",
+    "provider invoice reconciliation and approved outbound DNS/egress policy",
+    "actual Ubuntu x86_64 run",
+    "V3.1 user acceptance"
+  ],
+  "stageConclusion": "V3.1 remains NOT_RUN; fixture code-suite success is not business acceptance"
+}

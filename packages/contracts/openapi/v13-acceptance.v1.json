@@ -1,0 +1,57 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.3 Acceptance API", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "security": [{ "localSession": [] }],
+  "paths": {
+    "/api/v1/acceptance/v1/v1.3/scenarios": {
+      "get": {
+        "operationId": "listV13PaperAcceptanceScenarios",
+        "summary": "List the fixed V1.3 Paper acceptance scenarios",
+        "security": [{ "localSession": [] }],
+        "responses": {
+          "200": { "description": "The fixed normal, rejection and recovery scenario expectations", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object", "required": ["scenarioId", "version", "title", "expected"], "properties": { "scenarioId": { "enum": ["normal", "rejection", "recovery"] }, "version": { "type": "string" }, "title": { "type": "string" }, "expected": { "type": "string" } } } } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs": {
+      "post": {
+        "operationId": "createV13PaperAcceptanceRun",
+        "summary": "Persist an owner-scoped V1.3 WAITING run without business-service calls",
+        "security": [{ "localSession": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-paper-stage-run-request.schema.json" } } } },
+        "responses": {
+          "202": { "description": "A persisted WAITING TestRun; no order, Fill or ledger facts are created", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-paper-stage-run-accepted.schema.json" } } } },
+          "400": { "description": "Malformed JSON request" },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "422": { "description": "The request does not match a fixed scenario and bounded integer seed" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs/{testRunId}": {
+      "get": {
+        "operationId": "readOwnedV13PaperAcceptanceRun",
+        "summary": "Read an owner-scoped V1.3 WAITING TestRun",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Available only when the local test identity header is enabled.", "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "The exact persisted WAITING run and its explicit NOT_RUN evidence", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-paper-stage-run-result.schema.json" } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing, unowned, or not a V1.3 run" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" }
+    }
+  }
+}

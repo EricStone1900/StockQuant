@@ -1,0 +1,552 @@
+{
+  "schemaVersion": "stockquant.w8-current-amd64-image-inventory.v1",
+  "capturedAt": "2026-09-30T09:43:02.395Z",
+  "buildProject": "stockquant-w8-20260930-refresh",
+  "buildCommands": [
+    "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --progress plain -p stockquant-w8-20260930-refresh -f infra/compose/docker-compose.yml --env-file .env.example build",
+    "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --progress plain --profile web -p stockquant-w8-20260930-refresh -f infra/compose/docker-compose.yml --env-file .env.example build web"
+  ],
+  "hostArchitecture": "arm64",
+  "targetArchitecture": "linux/amd64",
+  "emulation": true,
+  "containerStarted": false,
+  "activeResourcesTouched": false,
+  "services": [
+    {
+      "service": "portfolio-risk-service",
+      "tag": "stockquant-w8-20260930-refresh-portfolio-risk-service",
+      "imageId": "sha256:4779f922c6b525b405e2df984bf5def49ddd69a7555825c95b8b53433924929c",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 506121374,
+      "exposedPorts": [
+        "3001/tcp"
+      ],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/portfolio-risk-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_BROKER_MODE",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_LIVE_TRADING_ENABLED",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION"
+      ],
+      "publishedPorts": [],
+      "mounts": [],
+      "dependsOn": [
+        "postgres"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "platform-api-service",
+      "tag": "stockquant-w8-20260930-refresh-platform-api-service",
+      "imageId": "sha256:8f6082ca55341c3a2323619374714864f95f63d731fc7bba259f898092ee1fb0",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 577011376,
+      "exposedPorts": [
+        "3000/tcp"
+      ],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/platform-api-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_BROKER_MODE",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL",
+        "STOCKQUANT_LIVE_TRADING_ENABLED",
+        "STOCKQUANT_LOCAL_DEVELOPMENT_USER",
+        "STOCKQUANT_MARKET_DATA_URL",
+        "STOCKQUANT_NATS_SUBJECT",
+        "STOCKQUANT_NATS_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_PORTFOLIO_API_URL",
+        "STOCKQUANT_PROJECT_ROOT",
+        "STOCKQUANT_QUANT_RESEARCH_URL",
+        "STOCKQUANT_RESEARCH_AUTOMATION_URL",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION",
+        "STOCKQUANT_TEMPORAL_ADDRESS",
+        "STOCKQUANT_TEMPORAL_INJECT_FAILURE",
+        "STOCKQUANT_TEMPORAL_TASK_QUEUE",
+        "STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED",
+        "STOCKQUANT_TRADE_EXECUTION_URL",
+        "STOCKQUANT_V11_RUN_STORAGE",
+        "STOCKQUANT_V24_AUTO_START",
+        "STOCKQUANT_V24_QUOTE_DATA_VERSION",
+        "STOCKQUANT_V24_QUOTE_SOURCE_AUTHORIZATION_REF",
+        "STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "3000",
+          "target": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [],
+      "dependsOn": [
+        "historical-replay-worker",
+        "nats",
+        "portfolio-risk-service",
+        "postgres",
+        "research-automation-service",
+        "temporal",
+        "trade-execution-service"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "trade-execution-service",
+      "tag": "stockquant-w8-20260930-refresh-trade-execution-service",
+      "imageId": "sha256:ee6fb455b13c02832c6670b158c20d42069d5ae94900a895b554610d83b3ee59",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253803827,
+      "exposedPorts": [
+        "3005/tcp"
+      ],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/trade-execution-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_BROKER_MODE",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_GOVERNANCE_URL",
+        "STOCKQUANT_LIVE_TRADING_ENABLED",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_PORTFOLIO_API_URL",
+        "STOCKQUANT_QUANT_RESEARCH_URL",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION"
+      ],
+      "publishedPorts": [],
+      "mounts": [],
+      "dependsOn": [
+        "portfolio-risk-service",
+        "postgres"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "decision-governance-service",
+      "tag": "stockquant-w8-20260930-refresh-decision-governance-service",
+      "imageId": "sha256:2bafb3ad4e2312a1bab29f6331acdce4b67317773f5f0fcfeaab670877d322a0",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253765391,
+      "exposedPorts": [],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/decision-governance-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_QUANT_RESEARCH_URL",
+        "STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION"
+      ],
+      "publishedPorts": [],
+      "mounts": [],
+      "dependsOn": [
+        "postgres",
+        "quant-research-service"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "historical-replay-worker",
+      "tag": "stockquant-w8-20260930-refresh-historical-replay-worker",
+      "imageId": "sha256:46655344e560e9cdeb7f7c0cc791d03577e15f5be960c442e11da998d19a4a0e",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 253773919,
+      "exposedPorts": [
+        "3006/tcp"
+      ],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/historical-replay-worker/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_GOVERNANCE_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_PORTFOLIO_API_URL",
+        "STOCKQUANT_QUANT_RESEARCH_URL",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_TRADE_EXECUTION_URL"
+      ],
+      "publishedPorts": [],
+      "mounts": [],
+      "dependsOn": [
+        "decision-governance-service",
+        "portfolio-risk-service",
+        "postgres",
+        "trade-execution-service"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "market-data-service",
+      "tag": "stockquant-w8-20260930-refresh-market-data-service",
+      "imageId": "sha256:31bdae1deae8a5f708b45094a99860a08f0f123e099eb52c75757f90c837e1bd",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 1016039690,
+      "exposedPorts": [],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/market-data-service/Dockerfile",
+        "args": [
+          "STOCKQUANT_INSTALL_TDX"
+        ]
+      },
+      "environmentVariableNames": [
+        "DEEPSEEK_API_KEY",
+        "SILICONFLOW_API_KEY",
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_COLLECTION_BAOSTOCK_BATCH_SIZE",
+        "STOCKQUANT_COLLECTION_BAOSTOCK_INTERVAL_SECONDS",
+        "STOCKQUANT_COLLECTION_CONTROL_TOKEN",
+        "STOCKQUANT_COLLECTION_DATA_VERSION",
+        "STOCKQUANT_COLLECTION_EXECUTOR",
+        "STOCKQUANT_COLLECTION_PER_SECURITY_INTERVAL_SECONDS",
+        "STOCKQUANT_COLLECTION_PROJECT_ID",
+        "STOCKQUANT_COLLECTION_SECURITY_IDS",
+        "STOCKQUANT_COLLECTION_SOURCES",
+        "STOCKQUANT_COLLECTION_SOURCE_BACKOFF_JITTER_SECONDS",
+        "STOCKQUANT_COLLECTION_SOURCE_BACKOFF_SECONDS",
+        "STOCKQUANT_COLLECTION_SOURCE_HEALTH_PATH",
+        "STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS",
+        "STOCKQUANT_COLLECTION_SOURCE_RECOVERY_COOLDOWN_SECONDS",
+        "STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS",
+        "STOCKQUANT_COLLECTION_SUBSCRIPTION_ID",
+        "STOCKQUANT_COLLECTION_TDX_BAR_COUNT",
+        "STOCKQUANT_COLLECTION_TDX_INTERVAL_SECONDS",
+        "STOCKQUANT_COLLECTION_TIMEOUT_MS",
+        "STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE",
+        "STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY",
+        "STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA",
+        "STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API",
+        "STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK",
+        "STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH",
+        "STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION",
+        "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION",
+        "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD",
+        "STOCKQUANT_PROJECT_ROOT",
+        "STOCKQUANT_RESEARCH_AUTOMATION_TOKEN",
+        "STOCKQUANT_SCHEDULER_WORKER",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST",
+        "STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "3002",
+          "target": 3002,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "market-data-health",
+          "target": "/var/lib/stockquant",
+          "readOnly": false
+        }
+      ],
+      "dependsOn": [
+        "postgres"
+      ],
+      "readOnlyRootFilesystem": true,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOptions": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [
+        "/tmp:rw,noexec,nosuid,size=256m"
+      ],
+      "cpuLimit": 1,
+      "memoryLimit": "1073741824",
+      "profiles": []
+    },
+    {
+      "service": "quant-research-service",
+      "tag": "stockquant-w8-20260930-refresh-quant-research-service",
+      "imageId": "sha256:5621fa54bb06ecce72e9476020293a9bae43316fd221fb9ac14410c6164e9f20",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 535902315,
+      "exposedPorts": [],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/quant-research-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "QLIB_IMAGE",
+        "QLIB_SOURCE_COMMIT",
+        "QLIB_WORKER_URL",
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_RESEARCH_AUTOMATION_URL",
+        "STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE",
+        "STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE",
+        "STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER",
+        "STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "3003",
+          "target": 3003,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [],
+      "dependsOn": [
+        "market-data-service",
+        "postgres",
+        "qlib-worker"
+      ],
+      "readOnlyRootFilesystem": true,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOptions": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "research-automation-service",
+      "tag": "stockquant-w8-20260930-refresh-research-automation-service",
+      "imageId": "sha256:4b43b1954c5ab190ebabb678c4c785aa6c0aa26d38ab1ed69e58f279eff11dbb",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 188734223,
+      "exposedPorts": [],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "services/research-automation-service/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "DEEPSEEK_API_KEY",
+        "SILICONFLOW_API_KEY",
+        "STOCKQUANT_BIND_HOST",
+        "STOCKQUANT_DATABASE_URL",
+        "STOCKQUANT_MODEL_GATEWAY_MODE",
+        "STOCKQUANT_PLATFORM_API_URL",
+        "STOCKQUANT_PORT",
+        "STOCKQUANT_QUANT_RESEARCH_URL",
+        "STOCKQUANT_RESEARCH_ARTIFACT_ROOT",
+        "STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS",
+        "STOCKQUANT_RESEARCH_EMBEDDING_MODEL",
+        "STOCKQUANT_RUNNER_MODE",
+        "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API",
+        "STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER",
+        "STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION",
+        "STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "3008",
+          "target": 3008,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "research-artifacts-v1",
+          "target": "/var/lib/stockquant/research-artifacts",
+          "readOnly": false
+        }
+      ],
+      "dependsOn": [
+        "postgres"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "qlib-worker",
+      "tag": "stockquant-w8-20260930-refresh-qlib-worker",
+      "imageId": "sha256:0713abe4f602ffd3eea797e73c5a52c29e1a50dee417a38b743e03348cab00c1",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "10001:10001",
+      "sizeBytes": 1393222451,
+      "exposedPorts": [],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant/services/quant-research-service",
+        "dockerfile": "qlib-worker.Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "QLIB_BIND_HOST",
+        "QLIB_PORT",
+        "STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "3004",
+          "target": 3004,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [],
+      "dependsOn": [],
+      "readOnlyRootFilesystem": true,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOptions": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [
+        "/tmp:rw,noexec,nosuid,size=512m"
+      ],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": []
+    },
+    {
+      "service": "web",
+      "tag": "stockquant-w8-20260930-refresh-web",
+      "imageId": "sha256:3844ff9d0672bb6fd1817298ead73ce753a88ffcbe9642226a736cc7b383a3ff",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "node",
+      "sizeBytes": 506348240,
+      "exposedPorts": [
+        "8080/tcp"
+      ],
+      "build": {
+        "context": "/Users/huangbosong/Documents/ChatGPT/StockQuant",
+        "dockerfile": "apps/web/Dockerfile",
+        "args": []
+      },
+      "environmentVariableNames": [
+        "STOCKQUANT_PLATFORM_API_URL"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "8080",
+          "target": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [],
+      "dependsOn": [
+        "platform-api-service"
+      ],
+      "readOnlyRootFilesystem": false,
+      "capDrop": [],
+      "securityOptions": [],
+      "tmpfs": [],
+      "cpuLimit": null,
+      "memoryLimit": null,
+      "profiles": [
+        "web"
+      ]
+    }
+  ],
+  "composeSha256": "3eae1afc4ee623621302b04c8e88ad7a65458e5365f60bb3eb8156872178c3e2",
+  "pnpmLockSha256": "2923aaab18250dfe782a6efc3ccb898721ac3464567ccc0fad90242e76971493",
+  "bootstrap": {
+    "sql": "infra/compose/postgres-init.sql",
+    "scramSha256Required": true,
+    "blankExampleCredentialsFailClosed": true,
+    "centralSchemaVersion": "NOT_PRESENT"
+  },
+  "limitations": [
+    "Mac arm64 emulation only; not Ubuntu evidence.",
+    "Image inventory does not prove a deploy, migration, restore, or full-stack runtime.",
+    "Current source tree is uncommitted; image hashes identify outputs but not a signed release provenance."
+  ]
+}

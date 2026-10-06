@@ -7,6 +7,7 @@ import { evaluatePromotion, persistRuntimeConfig, promote, promotionConfig, roll
 
 const config = promotionConfig({ DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "2026-09-14,2026-09-15" });
 const short = { subscriptionId: "short", enabled: true, fromDate: "2026-09-14", toDate: "2026-09-16", calendarVersion: "sse-cn-a-share-2026-1" };
+const sourceAuthorizedEnv = { STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "true", STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF: "evidence/source-use-authorization.json", STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS: "sina,baostock" };
 
 test("promotion requires both short observation reports to pass", () => {
   const result = evaluatePromotion({ config, schedules: [short], reports: [{ status: "PASS" }, { status: "INCOMPLETE" }] });
@@ -27,11 +28,11 @@ test("already promoted target is idempotent", () => {
 });
 
 test("already promoted target is blocked when runtime exposes the wrong universe", async () => {
-  const env = { DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "2026-09-14,2026-09-15", STOCKQUANT_COLLECTION_CONTROL_TOKEN: "test" };
+  const env = { ...sourceAuthorizedEnv, DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "2026-09-14,2026-09-15", STOCKQUANT_COLLECTION_CONTROL_TOKEN: "test" };
   const requestFn = async (_base, path) => {
     if (path.includes("/short")) return { subscriptionId: "short", enabled: false, fromDate: "2026-09-14", toDate: "2026-09-16", calendarVersion: "sse-cn-a-share-2026-1" };
     if (path.includes("/target")) return { subscriptionId: "target", enabled: true, fromDate: "2026-09-17", toDate: "2026-12-31", calendarVersion: "sse-cn-a-share-2026-1" };
-    if (path === "/ready") return { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: ["600000.SH", "000001.SZ", "600519.SH"] };
+    if (path === "/ready") return { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSourceAuthorization: "AUTHORIZED", collectionSecurityIds: ["600000.SH", "000001.SZ", "600519.SH"] };
     return {};
   };
   const result = await promote({ env, baseUrl: "http://test", outputDir: "/tmp/does-not-exist", requestFn });
@@ -40,7 +41,8 @@ test("already promoted target is blocked when runtime exposes the wrong universe
 });
 
 test("promotion runtime must expose the frozen 20-security configuration", () => {
-  assert.equal(verifyPromotedRuntime({ status: "ready", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: config.securityIds }, config), true);
+  assert.equal(verifyPromotedRuntime({ status: "ready", collectionSourceAuthorization: "AUTHORIZED", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: config.securityIds }, config), true);
+  assert.equal(verifyPromotedRuntime({ status: "ready", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: config.securityIds }, config), false);
   assert.equal(verifyPromotedRuntime({ status: "ready", collectionSchedulerWorker: "ENABLED", collectionExecutor: "DISABLED", collectionSecurityIds: config.securityIds }, config), false);
 });
 
@@ -63,7 +65,7 @@ test("rollback SQL is transactional and enforces the unique active subscription 
 });
 
 function failureScenario({ restartFails = false, apiRollbackFails = false, persistFails = false } = {}) {
-  const env = { DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "", DC08A_SHORT_SECURITY_IDS: "600000.SH,000001.SZ,600519.SH", STOCKQUANT_COLLECTION_CONTROL_TOKEN: "test" };
+  const env = { ...sourceAuthorizedEnv, DC08A_SHORT_SUBSCRIPTION_ID: "short", DC08A_20_SUBSCRIPTION_ID: "target", DC08A_PROMOTION_DATES: "", DC08A_SHORT_SECURITY_IDS: "600000.SH,000001.SZ,600519.SH", STOCKQUANT_COLLECTION_CONTROL_TOKEN: "test" };
   const state = { active: "short", runtime: "short", rollbackSqlSeen: false };
   const shortSchedule = { subscriptionId: "short", enabled: true, fromDate: "2026-09-14", toDate: "2026-10-19", calendarVersion: "sse-cn-a-share-2026-1" };
   const targetSchedule = { subscriptionId: "target", enabled: false, fromDate: "2026-09-17", toDate: "2026-12-31", calendarVersion: "sse-cn-a-share-2026-1" };
@@ -79,7 +81,7 @@ function failureScenario({ restartFails = false, apiRollbackFails = false, persi
     }
     if (path === "/ready") {
       const ids = state.runtime === "target" ? promotionConfig(env).securityIds : ["600000.SH", "000001.SZ", "600519.SH"];
-      return { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSecurityIds: ids };
+      return { status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED", collectionSourceAuthorization: "AUTHORIZED", collectionSecurityIds: ids };
     }
     return {};
   };
@@ -93,6 +95,16 @@ function failureScenario({ restartFails = false, apiRollbackFails = false, persi
   const persistConfigFn = async ({ subscriptionId }) => { if (persistFails && subscriptionId === "target") throw new Error("config write interrupted"); state.runtime = subscriptionId; };
   return { env, state, requestFn, command, persistConfigFn };
 }
+
+test("promotion makes no service request or mutation before source-use authorization", async () => {
+  let requests = 0;
+  let commands = 0;
+  const result = await promote({ env: {}, requestFn: async () => { requests += 1; return {}; }, command: () => { commands += 1; return { status: 0 }; } });
+  assert.equal(result.status, "BLOCKED");
+  assert.equal(result.exitCode, 2);
+  assert.equal(requests, 0);
+  assert.equal(commands, 0);
+});
 
 test("service restart failure rolls back subscription, runtime and exits 1", async () => {
   const scenario = failureScenario({ restartFails: true });

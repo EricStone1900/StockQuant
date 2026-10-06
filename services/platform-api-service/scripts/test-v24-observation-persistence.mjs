@@ -18,6 +18,7 @@ const firstObservationDate = new Date(Date.UTC(2099, 0, firstObservationDay)).to
 const nextObservationDate = new Date(Date.UTC(2099, 0, firstObservationDay + 1)).toISOString().slice(0, 10);
 const observationDates = [firstObservationDate, nextObservationDate];
 const ownerId = "p3-v24-observation-integrity-owner";
+const dailyOwnerId = process.env.STOCKQUANT_LOCAL_DEVELOPMENT_USER ?? "acceptance-owner-1";
 const invalidatedRunId = randomUUID();
 testRunIds.push(invalidatedRunId);
 
@@ -93,9 +94,34 @@ try {
   const afterRetry = await pool.query("SELECT status,assertions,evidence,completed_at FROM acceptance_stage_runs WHERE test_run_id=$1", [dailyRunId]);
   assert.deepEqual(afterRetry.rows[0], completed.rows[0]);
 
+  const gateRecord = {
+    ...observationRecord("EXECUTION_WINDOW", "09:31"),
+    sourceAvailable: false,
+    lastSnapshotAt: null,
+    dataAgeSeconds: null,
+    signalStatus: "UNKNOWN",
+    simulatedOrderStatus: "UNKNOWN",
+    fillStatus: "UNKNOWN",
+    outageStatus: "UNKNOWN",
+    evidence: { eventKind: "EXECUTION_WINDOW", executionGate: { status: "PAUSED", reason: "QUOTE_SOURCE_NOT_AUTHORIZED" } },
+  };
+  await repository.upsertObservation(gateRecord);
+  const endOfDayRecord = {
+    ...gateRecord,
+    enteredExecutionWindow: false,
+    evidence: { eventKind: "END_OF_DAY", observationCounted: false },
+  };
+  await repository.upsertObservation(endOfDayRecord);
+  const persistedGate = (await repository.listObservationsForOwner(dailyOwnerId)).find((record) => record.testRunId === dailyRunId);
+  assert.ok(persistedGate, "owner-scoped observation read should return the same daily TestRun");
+  assert.deepEqual(persistedGate.evidence, { eventKind: "END_OF_DAY", observationCounted: false, executionGate: { status: "PAUSED", reason: "QUOTE_SOURCE_NOT_AUTHORIZED" } });
+  assert.deepEqual(persistedGate?.evidence.executionGate, { status: "PAUSED", reason: "QUOTE_SOURCE_NOT_AUTHORIZED" });
+  assert.equal(persistedGate?.evidence.eventKind, "END_OF_DAY");
+
   console.log(JSON.stringify({
     invalidatedRun: { status: revised.rows[0].status, priorStatusRetained: revised.rows[0].prior_status, revisionCount: revisionCount.rows[0].count, ownerScopedRead: true },
-    dailyCompletion: { idempotentRetry: true, conflictingTerminalRewrite: "409", timestampsAndEvidencePreserved: true }
+    dailyCompletion: { idempotentRetry: true, conflictingTerminalRewrite: "409", timestampsAndEvidencePreserved: true },
+    executionGate: { persistedThroughEndOfDayMerge: true, status: persistedGate.evidence.executionGate.status, reason: persistedGate.evidence.executionGate.reason }
   }, null, 2));
 } catch (error) {
   console.error(error instanceof Error ? error.stack : error);

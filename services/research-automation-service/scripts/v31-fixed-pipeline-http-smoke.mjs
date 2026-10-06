@@ -9,7 +9,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { Client, Pool } from "pg";
 
 const adminUrl = new URL(process.env.STOCKQUANT_FIXED_PIPELINE_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
-assert.equal(`${adminUrl.hostname}:${adminUrl.port}${adminUrl.pathname}`, "127.0.0.1:5433/postgres", "smoke is restricted to the local PostgreSQL admin endpoint");
+assert.equal(adminUrl.hostname, "127.0.0.1", "smoke is restricted to loopback PostgreSQL");
+assert.ok(Number.isInteger(Number(adminUrl.port)) && Number(adminUrl.port) >= 1 && Number(adminUrl.port) <= 65535, "smoke requires an explicit loopback PostgreSQL port");
+assert.equal(adminUrl.pathname, "/postgres", "smoke requires the isolated PostgreSQL admin database");
 assert.equal(adminUrl.username, "postgres");
 const databaseName = `stockquant_pipeline_${randomUUID().replaceAll("-", "")}`;
 const smokeMode = process.env.STOCKQUANT_V31_PIPELINE_SMOKE_MODE ?? "normal";

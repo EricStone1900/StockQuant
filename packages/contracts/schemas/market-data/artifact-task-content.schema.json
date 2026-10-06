@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/market-data/artifact-task-content.schema.json",
+  "title": "Published Market Data Artifact Task Content",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["taskId", "artifactId", "fixtureVersion", "sha256", "contentBase64", "createdAt"],
+  "properties": {
+    "taskId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "fixtureVersion": { "type": "string", "const": "v1.2-market-data-1" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "contentBase64": { "type": "string", "contentEncoding": "base64" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

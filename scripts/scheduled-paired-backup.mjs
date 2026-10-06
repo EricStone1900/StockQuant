@@ -4,7 +4,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const producer = resolve(repositoryRoot, "scripts/create-paired-backup.mjs");
+const producer = resolve(repositoryRoot, "scripts/create-cluster-paired-backup.mjs");
 let activeChild = null;
 let abortRequested = false;
 
@@ -37,9 +37,7 @@ function runExecutable(executable, args, env) {
 }
 
 export async function runScheduledPairedBackup({ env = process.env, runCommand = runExecutable } = {}) {
-  const database = env.STOCKQUANT_BACKUP_DATABASE;
   const artifactVolume = env.STOCKQUANT_BACKUP_ARTIFACT_VOLUME;
-  if (!database || !/^[A-Za-z0-9_]+$/u.test(database)) throw new Error("STOCKQUANT_BACKUP_DATABASE must be an exact database identifier");
   if (!artifactVolume || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(artifactVolume)) throw new Error("STOCKQUANT_BACKUP_ARTIFACT_VOLUME must be an exact volume identifier");
   const backupRoot = requiredAbsolutePath("STOCKQUANT_BACKUP_DIR", env.STOCKQUANT_BACKUP_DIR);
   const composeFile = requiredAbsolutePath("STOCKQUANT_BACKUP_COMPOSE_FILE", env.STOCKQUANT_BACKUP_COMPOSE_FILE);
@@ -63,33 +61,32 @@ export async function runScheduledPairedBackup({ env = process.env, runCommand =
   let result;
   let failure;
   try {
-    await lock.writeFile(`${JSON.stringify({ pid: process.pid, database, artifactVolume, startedAt: new Date().toISOString() })}\n`);
-    const hookEnv = { PATH: env.PATH ?? "/usr/bin:/bin", HOME: env.HOME ?? "/var/lib/stockquant-backup", STOCKQUANT_BACKUP_DATABASE: database, STOCKQUANT_BACKUP_ARTIFACT_VOLUME: artifactVolume, STOCKQUANT_BACKUP_COMPOSE_FILE: composeFile };
+    await lock.writeFile(`${JSON.stringify({ pid: process.pid, scope: "cluster", artifactVolume, startedAt: new Date().toISOString() })}\n`);
+    const hookEnv = { PATH: env.PATH ?? "/usr/bin:/bin", HOME: env.HOME ?? "/var/lib/stockquant-backup", STOCKQUANT_BACKUP_SCOPE: "cluster", STOCKQUANT_BACKUP_ARTIFACT_VOLUME: artifactVolume, STOCKQUANT_BACKUP_COMPOSE_FILE: composeFile };
     quiesceAttempted = true;
-    await runCommand(quiesceHook, [database, artifactVolume], hookEnv);
+    await runCommand(quiesceHook, ["cluster", artifactVolume], hookEnv);
     if (abortRequested) throw new Error("backup interrupted after quiescence; capture not started");
     const producerEnv = {
       PATH: env.PATH ?? "/usr/bin:/bin",
       HOME: env.HOME ?? "/var/lib/stockquant-backup",
       ...(env.DOCKER_CONFIG ? { DOCKER_CONFIG: env.DOCKER_CONFIG } : {}),
       STOCKQUANT_BACKUP_DIR: backupRoot,
-      STOCKQUANT_BACKUP_DATABASE: database,
       STOCKQUANT_BACKUP_ARTIFACT_VOLUME: artifactVolume,
       STOCKQUANT_BACKUP_COMPOSE_FILE: composeFile,
       ...(env.STOCKQUANT_BACKUP_HELPER_IMAGE ? { STOCKQUANT_BACKUP_HELPER_IMAGE: env.STOCKQUANT_BACKUP_HELPER_IMAGE } : {}),
       ...(env.STOCKQUANT_BACKUP_TIMEOUT_MS ? { STOCKQUANT_BACKUP_TIMEOUT_MS: env.STOCKQUANT_BACKUP_TIMEOUT_MS } : {}),
     };
-    await runCommand(process.execPath, [producer, `--confirm-writes-quiesced=${database}/${artifactVolume}`], producerEnv);
-    result = { status: "PASS", database, artifactVolume, backupRoot };
+    await runCommand(process.execPath, [producer, `--confirm-writes-quiesced=cluster/${artifactVolume}`], producerEnv);
+    result = { status: "PASS", scope: "cluster", artifactVolume, backupRoot };
   } catch (error) {
     failure = error;
   } finally {
     if (quiesceAttempted) {
       try {
-        await runCommand(resumeHook, [database, artifactVolume], {
+        await runCommand(resumeHook, ["cluster", artifactVolume], {
           PATH: env.PATH ?? "/usr/bin:/bin",
           HOME: env.HOME ?? "/var/lib/stockquant-backup",
-          STOCKQUANT_BACKUP_DATABASE: database,
+          STOCKQUANT_BACKUP_SCOPE: "cluster",
           STOCKQUANT_BACKUP_ARTIFACT_VOLUME: artifactVolume,
           STOCKQUANT_BACKUP_COMPOSE_FILE: composeFile,
           STOCKQUANT_BACKUP_QUIESCE_RESULT: failure ? "FAILED" : "PASS",

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
+import { collectionSourceConfiguration } from "./dc08a-collection-authorization.mjs";
 
 export const composeArgs = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 
@@ -30,6 +30,7 @@ export function runtimeMatches(body, schedules, expected) {
 export function classifyReady(body, httpStatus = 200) {
   if (httpStatus !== 200 || !body || body.status !== "ready") return "UNHEALTHY";
   if (body.collectionPersistence !== "POSTGRES") return "WAITING_CONFIGURATION";
+  if (body.collectionSourceAuthorization !== "AUTHORIZED") return "WAITING_CONFIGURATION";
   if (body.collectionSchedulerWorker !== "ENABLED" || body.collectionExecutor !== "ENABLED") return "WAITING_CONFIGURATION";
   return "HEALTHY";
 }
@@ -70,14 +71,18 @@ function usage() {
   console.error("Usage: node scripts/dc08a-supervise.mjs [--check-only|--repair]");
 }
 
-export async function supervise({ mode = "check-only", url = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), preserveEnabled = process.env.DC08A_PRESERVE_ENABLED !== "0" } = {}) {
+export async function supervise({ env = process.env, mode = "check-only", url = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", command = run, probe = () => ready(url), waitMs = 15_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), preserveEnabled = env.DC08A_PRESERVE_ENABLED !== "0" } = {}) {
   let observation = await probe();
   const actions = [];
   if (observation.state === "UNHEALTHY") {
+    if (mode === "repair") {
+      const sourceConfiguration = collectionSourceConfiguration(env);
+      if (!sourceConfiguration.authorized) return { state: "WAITING_CONFIGURATION", observation, actions, sourceAuthorizationMissing: sourceConfiguration.missingConfiguration, exitCode: 2 };
+    }
     for (const [binary, args] of buildRepairPlan(observation.state, mode)) {
       // Let Compose restart the existing container with its persisted environment. Never
       // replace an active subscription with an empty or hard-coded fallback during repair.
-      const repairEnv = preserveEnabled ? { ...process.env, STOCKQUANT_SCHEDULER_WORKER: process.env.STOCKQUANT_SCHEDULER_WORKER ?? "1", STOCKQUANT_COLLECTION_EXECUTOR: process.env.STOCKQUANT_COLLECTION_EXECUTOR ?? "1" } : undefined;
+      const repairEnv = preserveEnabled ? { ...env, STOCKQUANT_SCHEDULER_WORKER: env.STOCKQUANT_SCHEDULER_WORKER ?? "1", STOCKQUANT_COLLECTION_EXECUTOR: env.STOCKQUANT_COLLECTION_EXECUTOR ?? "1" } : undefined;
       const result = command(binary, args, repairEnv ? { env: repairEnv } : undefined);
       actions.push({ command: [binary, ...args].join(" "), exitCode: result.status });
       if (result.status !== 0) return { state: "REPAIR_FAILED", observation, actions, exitCode: 1 };

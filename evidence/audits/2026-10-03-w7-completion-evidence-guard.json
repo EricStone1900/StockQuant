@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "stockquant-stage-audit-v1",
+  "capturedAt": "2026-10-03",
+  "workPackage": "W7 V3.3 completion evidence guard",
+  "stage": "V3.3",
+  "status": "PARTIAL_ENGINEERING_PASS",
+  "formalSuiteCommand": "Platform build + unit + isolated PostgreSQL integration; pnpm verify:stage -- --stage V3.3 --suite code",
+  "formalSuiteExitCode": 0,
+  "platformUnitTests": 169,
+  "platformIntegrationFiles": 4,
+  "platformIntegrationTests": 6,
+  "completionAssertions": [
+    "V3.1_ACCEPTANCE",
+    "V3.2_EXACT_VERSION",
+    "PAPER_CONTINUITY",
+    "V3.3_EXECUTOR"
+  ],
+  "completionEvidenceRequirements": [
+    "businessWorkflow=COMPLETED",
+    "paperContinuity=VERIFIED",
+    "stageBudgetControl=TEST_RUN_AND_ROUND_CAP_ENFORCED",
+    "non-empty Experiment and Runner Job IDs",
+    "all expected rounds completed (1..3)"
+  ],
+  "negativeCase": "Incomplete assertion set attempting COMPLETED is rejected in PostgreSQL and row remains RUNNING; no history/state completion is written",
+  "statePersistence": "transactional row lock; illegal terminal transition or incomplete terminal evidence rejects; exact retry remains idempotent",
+  "fullV33Suite": "PASS",
+  "externalProviderCalls": 0,
+  "marketRequests": 0,
+  "paperCalls": 0,
+  "brokerCalls": 0,
+  "ubuntu": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "sourceManifest": "evidence/audits/2026-10-03-w7-completion-evidence-guard.sources.sha256",
+  "sourceManifestSha256": "c2e4792acf0b7c3e8b714a6354c0a10b55421f1c994c2eeef7e8752345c540ea",
+  "limitations": [
+    "This guard prevents premature terminal state only; it does not implement experiment/Runner dispatch or round orchestration.",
+    "Paper continuity, Provider invoice reconciliation, Ubuntu, business scenarios and human acceptance remain unverified.",
+    "No source authorization; NO_TRADE remains in force."
+  ],
+  "fullV33SuiteExitCode": 0,
+  "fullV33SuiteLog": "evidence/audits/2026-10-03-w7-completion-evidence-guard-full-suite.log",
+  "webE2E": "3/3 PASS; scenarios remain WAITING/read-only",
+  "runnerRecovery": "two-round deterministic Fixture; SIGKILL lease takeover/fencing/stale publish 409; no model provider",
+  "preservedPreliminaryFailure": "evidence/audits/2026-10-03-w7-stale-v23-manifest-suite-failure.md",
+  "failureDisposition": "Stale historical V2.3 source manifest corrected in active references; historical file retained. New complete V2.3 run and later complete V3.3 suite passed.",
+  "suiteDetails": {
+    "researchAutomationUnit": "203 passed",
+    "researchAutomationIntegration": "28 passed",
+    "capacityProbe": "66100 synthetic rows PASS",
+    "runnerRecovery": "two deterministic rounds; SIGKILL takeover/fencing PASS",
+    "platformUnit": "169 passed",
+    "platformIntegration": "6 passed",
+    "webE2E": "3/3 passed"
+  }
+}

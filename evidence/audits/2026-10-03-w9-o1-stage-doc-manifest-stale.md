@@ -1,0 +1,5 @@
+# W9 O1 stage-document historical-manifest failure diagnosis
+
+Date: 2026-10-03. The read-only O1 runtime refresh was captured successfully to new audit files. Appending its result directly to `docs/prd/v2-data-and-replay/08-data-collection-progress.md` changed a file still listed in the linked historical `2026-10-02-o1-readonly-followup-2206.sha256` manifest. `node scripts/verify-version.mjs --version V2` correctly exited 1 with `evidenceAudit=FAIL` and reported the changed stage-document hash at manifest entry 4; stage structure remained PASS, with no acceptance mapping discrepancies. The full failed output is preserved in the adjacent `.log`.
+
+Recovery: remove only the newly appended progress line and keep the earlier stage document byte-for-byte consistent with its historical evidence. The fresh O1 runtime report remains in `evidence/audits/2026-10-03-o1-readonly-runtime-refresh-0350z.*` and the delivery plan links it. Re-run the V2 gate after restoring the stage document; do not overwrite the old manifest. This failure was caused by documentation-history integrity, not by an O1 runtime condition.

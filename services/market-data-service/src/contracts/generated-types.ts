@@ -47,6 +47,11 @@ export type QlibFitFixtureRequest = {
   "sourceMode": 'FIXTURE';
   "featureRows": Array<Array<number>>;
   "labels": Array<number>;
+  "temporalMetadata"?: Array<{
+  "decisionAt": string;
+  "featureAvailableAt": string;
+  "labelAvailableAt": string;
+}>;
   "splits": {
   "train": Array<unknown>;
   "valid": Array<unknown>;
@@ -60,6 +65,7 @@ export type QlibFitFixtureResult = {
   "sourceMode": 'FIXTURE';
   "modelTraining": 'PASS';
   "modelValidation": 'NOT_RUN';
+  "temporalValidation"?: 'PASS' | 'NOT_RUN';
   "candidateSourceExecution": 'NOT_PERFORMED';
   "qlibVersion": string;
   "lightgbmVersion": string;
@@ -85,9 +91,45 @@ export type QlibFitFixtureResult = {
   "testPredictionsFinite": true;
   "testPredictionsSha256": string;
   "modelSha256": string;
+  "modelArtifactBase64": string;
+  "testPredictionsCanonicalJson": string;
+  "testPredictions": Array<number>;
   "evaluationMetrics": Record<string, unknown>;
   "tracking": 'temporary SQLite under /tmp; removed with the worker container';
   "profitabilityClaim": 'NOT_MADE';
+}
+
+export type V14DailyBacktestFixtureRequest = {
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees';
+  "seed": number;
+  "policy": {
+  "initialCashCents": number;
+  "targetQuantity": number;
+  "participationRateBasisPoints": number;
+  "slippageBasisPoints": number;
+  "fixedFeeCents": number;
+  "marketFeeSchedule"?: unknown;
+  "sellOrder"?: {
+  "signalDate": string;
+  "executionDate": string;
+  "quantity": number;
+};
+};
+}
+
+export type V14DailyBacktestFixtureResult = {
+  "testRunId": string;
+  "stageId": 'V1.4';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees';
+  "seed": number;
+  "status": 'COMPLETED' | 'FAILED';
+  "assertions": Array<{
+  "assertionId": string;
+  "status": 'PASS' | 'FAIL';
+  "expected": unknown;
+  "actual": unknown;
+}>;
+  "evidence": Record<string, unknown>;
 }
 
 export type V31ArtifactPublishCommand = {
@@ -115,8 +157,9 @@ export type V31ResearchArtifactRef = {
   "kind": 'INPUT' | 'GENERATED_CODE' | 'RUN_LOG' | 'METRICS' | 'ERROR' | 'CANDIDATE' | 'OUTPUT';
   "namespace": string;
   "sha256": string;
-  "status": 'PENDING' | 'PUBLISHED' | 'FAILED' | 'RETAINED';
+  "status": 'PENDING' | 'PUBLISHED' | 'FAILED' | 'RETAINED' | 'EXPIRED';
   "sourceRef": string;
+  "expiresAt"?: string | null;
 }
 
 export type V31ExperimentBudgetResult = {
@@ -193,7 +236,9 @@ export type V31ModelGatewayFixtureCommand = {
   "experimentId": string;
   "modelRunId": string;
   "requestedCents": number;
+  "roundIndex"?: number;
   "scenario": 'COMPLETED' | 'TIMEOUT' | 'OVER_BUDGET';
+  "runnerScenario"?: 'NORMAL' | 'CHECKPOINT_RECOVERY';
 }
 
 export type V31ModelGatewayFixtureResult = {
@@ -205,6 +250,56 @@ export type V31ModelGatewayFixtureResult = {
   "budgetStatus"?: 'RESERVED' | 'DISPATCHED' | 'UNKNOWN' | 'SETTLED' | 'REJECTED';
   "actualCostCents"?: number;
   "response"?: Record<string, unknown>;
+}
+
+export type V31ModelGatewayOpenAIChatCommand = {
+  "model": 'stockquant-fixture';
+  "messages": Array<{
+  "role": 'system' | 'user' | 'assistant' | 'tool';
+  "content": string | Array<unknown>;
+}>;
+  "stream"?: false;
+}
+
+export type V31ModelGatewayOpenAIChatResult = {
+  "id": string;
+  "object": 'chat.completion';
+  "created": number;
+  "model": 'stockquant-fixture';
+  "choices": Array<{
+  "index": 0;
+  "message": {
+  "role": 'assistant';
+  "content": string;
+};
+  "finish_reason": 'stop';
+}>;
+  "usage": {
+  "prompt_tokens": number;
+  "completion_tokens": number;
+  "total_tokens": number;
+};
+}
+
+export type V31ModelGatewayOpenAIEmbeddingCommand = {
+  "model": 'stockquant-fixture';
+  "input": string | Array<string>;
+  "encoding_format"?: 'float' | 'base64' | null;
+  "dimensions"?: 3;
+}
+
+export type V31ModelGatewayOpenAIEmbeddingResult = {
+  "object": 'list';
+  "model": 'stockquant-fixture';
+  "data": Array<{
+  "object": 'embedding';
+  "index": number;
+  "embedding": [0.125,-0.25,0.5] | string;
+}>;
+  "usage": {
+  "prompt_tokens": number;
+  "total_tokens": number;
+};
 }
 
 export type V31ExactRunPromotionGate = {
@@ -337,6 +432,7 @@ export type V31RunnerJob = {
   "schemaVersion": 'v3.1-runner-job-v1';
   "testRunId": string;
   "experimentId": string;
+  "roundIndex"?: number;
   "imageDigest": string;
   "inputArtifact": string;
   "outputNamespace": string;
@@ -473,6 +569,8 @@ export type V32PromotionDecisionResult = {
   "idempotent": boolean;
 }
 
+export type V32PromotionRequestPreparationResult = unknown & unknown
+
 export type V32PromotionRegistryVersion = {
   "schemaVersion": 'v3.2-promotion-registry-version-v1';
   "promotionRequestId": string;
@@ -595,21 +693,62 @@ export type V32PromotionValidationPlan = {
   "metricsOutputPath": string;
 }
 
+export type V33ExperimentLedgerSettlementCommand = {
+  "testRunId": string;
+  "expectedRounds": number;
+}
+
+export type V33ExperimentLedgerSettlementResult = {
+  "experimentId": string;
+  "testRunId": string;
+  "requestedCents": number;
+  "reservedCents": number;
+  "spentCents": number;
+  "status": 'SETTLED';
+  "modelCallCount": number;
+  "rounds": Array<{
+  "roundIndex": number;
+  "settledCents": number;
+}>;
+}
+
+export type V33ReadinessCancelCommand = {
+  "confirmation": 'CANCEL_V33_READINESS_RUN';
+}
+
+export type V33ReadinessCancelResult = {
+  "testRunId": string;
+  "stageId": 'V3.3';
+  "status": 'CANCELLED';
+  "idempotent": boolean;
+  "evidence": {
+  "readiness": 'CANCELLED';
+  "runnerDispatch": 'NOT_PERFORMED';
+  "runnerJobsCreated": 0;
+  "externalModelCalls": 0;
+  "cancellation": {
+  "scope": 'READINESS_ONLY';
+  "cancelledAt": string;
+  "runnerJobsCancelled": 0;
+};
+};
+}
+
 export type V33ReadinessRun = {
   "accepted"?: boolean;
   "testRunId": string;
   "stageId": 'V3.3';
   "scenarioId": 'normal' | 'rejection' | 'recovery';
   "scenarioVersion": 'v3.3-readiness-v1';
-  "status": 'WAITING';
+  "status": 'WAITING' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   "seed": number;
   "assertions": Array<{
   "id": string;
-  "status": 'NOT_RUN';
+  "status": 'NOT_RUN' | 'PENDING' | 'PASS' | 'FAIL';
   "reason"?: string;
 }>;
   "evidence": {
-  "readiness": 'WAITING';
+  "readiness": 'WAITING' | 'CANCELLED';
   "blockers": Array<{
   "id": string;
   "status": 'VERIFIED' | 'NOT_VERIFIED' | 'NOT_PROVIDED' | 'NOT_IMPLEMENTED';
@@ -619,9 +758,51 @@ export type V33ReadinessRun = {
   "runnerJobsCreated": 0;
   "externalModelCalls": 0;
   "paperContinuity": 'NOT_CHECKED';
+  "paperContinuityPreflight"?: {
+  "schemaVersion": 'v3.3-paper-continuity-preflight-v1';
+  "capturedAt": string;
+  "status": 'NOT_VERIFIED';
+  "preflightStatus": 'READY_FOR_CONCURRENT_TEST' | 'BLOCKED';
+  "scheduler": {
+  "status": string;
+  "mode": string;
+  "brokerMode": string;
+  "samplingIntervalMinutes": number;
+  "lastSampleAt": string | null;
+  "nextSampleAt": string | null;
+  "tickCount": number;
+  "fresh": boolean;
+  "nextSampleScheduled": boolean;
+};
+  "observation": null | {
+  "status": 'PASS' | 'WAITING';
+  "targetDays": number;
+  "countedDays": number;
+  "recordedCountedDays": number;
+  "unverifiedCountedDays": number;
+  "remainingDays": number;
+  "latestDate": string | null;
+};
+  "blockers": Array<'PAPER_SCHEDULER_NOT_FRESH_AND_SCHEDULED' | 'O2_OBSERVATION_NOT_QUALIFIED_20_OF_20'>;
+  "acceptanceRequirement": string;
+};
 };
   "createdAt"?: string;
   "completedAt"?: string | null;
+}
+
+export type V33RejectionVerifyCommand = {
+  "schemaVersion": 'v3.3-rejection-verify-command-v1';
+  "confirmation": 'VERIFY_V33_BUDGET_REJECTION';
+}
+
+export type V33RejectionVerifyResult = {
+  "schemaVersion": 'v3.3-rejection-verify-result-v1';
+  "testRunId": string;
+  "status": 'RUNNING';
+  "idempotent": boolean;
+  "assertion": Record<string, unknown>;
+  "evidence": Record<string, unknown>;
 }
 
 export type V33ReadinessRunRequest = {
@@ -654,6 +835,23 @@ export type V33RunnerBudget = {
   "budgetsMissing": number;
 };
   "note": string;
+}
+
+export type V33RunnerCheckpointHistory = {
+  "schemaVersion": 'v3.3-runner-checkpoint-history-v1';
+  "testRunId": string;
+  "experimentId": string;
+  "roundIndex": number;
+  "checkpoints": Array<{
+  "schemaVersion": 'v3.3-research-checkpoint-v1';
+  "testRunId": string;
+  "experimentId": string;
+  "roundIndex": number;
+  "sequence": number;
+  "state": Record<string, unknown>;
+  "stateSha256": string;
+  "createdAt": string;
+}>;
 }
 
 export type V33RunnerCursorQueue = {
@@ -707,6 +905,79 @@ export type V33RunnerQueue = {
 }>;
 }
 
+export type V33ScenarioFixtureRunnerDispatchCommand = {
+  "schemaVersion": 'v3.3-scenario-dispatch-command-v1';
+  "confirmation": 'DISPATCH_V33_FIXTURE_RUNNER';
+}
+
+export type V33ScenarioFixtureRunnerDispatchResult = {
+  "schemaVersion": 'v3.3-scenario-dispatch-result-v1';
+  "testRunId": string;
+  "status": 'RUNNING';
+  "workflowStep": 'RUNNER_JOBS_QUEUED';
+  "idempotent": boolean;
+  "runnerJobsCreated": 2;
+  "runnerJobIds": Array<string>;
+  "rounds": Array<Record<string, unknown>>;
+  "externalModelCalls": 0;
+}
+
+export type V33ScenarioExperimentCommand = {
+  "schemaVersion": 'v3.3-scenario-experiment-command-v1';
+  "confirmation": 'CREATE_V33_FIXTURE_EXPERIMENT';
+}
+
+export type V33ScenarioExperimentResult = {
+  "schemaVersion": 'v3.3-scenario-experiment-result-v1';
+  "testRunId": string;
+  "status": 'WAITING';
+  "idempotent": boolean;
+  "experiment": V31ExperimentResult;
+}
+
+export type V33ScenarioReconcileCommand = {
+  "schemaVersion": 'v3.3-scenario-reconcile-command-v1';
+  "confirmation": 'RECONCILE_V33_FIXTURE_RESULTS';
+}
+
+export type V33ScenarioReconcileResult = {
+  "schemaVersion": 'v3.3-scenario-reconcile-result-v1';
+  "testRunId": string;
+  "status": 'RUNNING';
+  "workflowStep": 'EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED';
+  "completedRounds": 2;
+  "rounds": Array<Record<string, unknown>>;
+  "experimentSettlement": 'VERIFIED_FIXTURE_LEDGER';
+  "settlement": {
+  "experimentId": string;
+  "requestedCents": 80;
+  "settledCents": 46;
+  "modelCallCount": 2;
+  "rounds": Array<{
+  "roundIndex": 1 | 2;
+  "allocatedCents": 40;
+  "settledCents": 23;
+}>;
+};
+  "businessValidation": 'NOT_RUN';
+  "humanAcceptance": 'NOT_RUN';
+}
+
+export type V33TestRunBudgetLimitCommand = {
+  "schemaVersion": 'v3.3-test-run-budget-limit-command-v1';
+  "testRunId": string;
+  "budgetCents": number;
+}
+
+export type V33TestRunBudgetLimitResult = {
+  "schemaVersion": 'v3.3-test-run-budget-limit-v1';
+  "testRunId": string;
+  "budgetCents": number;
+  "status": 'CONFIGURED';
+}
+
+export type V33TestRunExperimentBudgetSummary = unknown & unknown
+
 export type InitializeAccountCommand = {
   "fixtureAccountRef": string;
   "ownerId": string;
@@ -754,6 +1025,36 @@ export type AccountSnapshot = {
   "positionCount": number;
   "ledgerEntryCount": number;
   "ledgerVersion": number;
+  "positions"?: Array<{
+  "security": string;
+  "quantity": number;
+}>;
+  "reservations"?: Array<{
+  "reservationId": string;
+  "clientOrderId": string;
+  "side": 'BUY' | 'SELL';
+  "cashAmount": string | null;
+  "capturedCashAmount": string;
+  "capturedQuantity": number;
+  "status": 'HELD' | 'UNKNOWN' | 'CAPTURED' | 'RELEASED';
+  "evidenceRef": string | null;
+}>;
+}
+
+export type ArtifactRef = {
+  "schemaVersion": 'artifact-ref.v1';
+  "artifactId": string;
+  "testRunId": string;
+  "ownerId": string;
+  "kind": string;
+  "namespace": string;
+  "mediaType"?: string;
+  "byteLength"?: number;
+  "sha256": string;
+  "status": 'PENDING' | 'PUBLISHED' | 'FAILED' | 'RETAINED' | 'EXPIRED';
+  "sourceRef": string;
+  "createdAt"?: string;
+  "expiresAt"?: string | null;
 }
 
 export type ClockContext = unknown
@@ -766,6 +1067,14 @@ export type ErrorResponse = {
   "correlationId": string;
   "details"?: Record<string, unknown>;
   "acceptanceStatus"?: 'KNOWN' | 'UNKNOWN';
+}
+
+export type FillFeeCorrectionCommand = {
+  "revision": number;
+  "previousFee": string;
+  "correctedFee": string;
+  "effectiveAt": string;
+  "evidenceRef": string;
 }
 
 export type HistoricalFakeExecutionCommand = {
@@ -812,6 +1121,12 @@ export type HistoricalFakeExecutionResult = {
   "replayed": boolean;
 }
 
+export type HistoricalFakeOrderState = {
+  "order_id": string;
+  "status": string;
+  "rejection_reason"?: string | null;
+}
+
 export type Money = {
   "amount": string;
   "currency": string;
@@ -829,6 +1144,51 @@ export type PairedBackupManifest = {
   "checkedAt": string;
   "publishedArtifactRefs": number;
   "method": 'PG_RESTORE_AND_ARTIFACT_SHA256';
+};
+  "files": Array<{
+  "path": string;
+  "bytes": number;
+  "sha256": string;
+}>;
+} | {
+  "format": 'stockquant.paired-backup.cluster.v2';
+  "backupId": string;
+  "createdAt": string;
+  "retentionClass": 'DAILY' | 'MONTH_END';
+  "databaseInventory": {
+  "databases": Array<string>;
+  "roles": Array<{
+  "name": string;
+  "superuser": boolean;
+  "inherit": boolean;
+  "createRole": boolean;
+  "createDb": boolean;
+  "login": boolean;
+  "replication": boolean;
+  "bypassRls": boolean;
+  "connlimit": number;
+  "validUntil": string | null;
+}>;
+};
+  "artifactVolume": string;
+  "restoreValidation": {
+  "status": 'PASS';
+  "checkedAt": string;
+  "publishedArtifactRefs": number;
+  "restoredDatabases": Array<string>;
+  "restoredRoles": Array<{
+  "name": string;
+  "superuser": boolean;
+  "inherit": boolean;
+  "createRole": boolean;
+  "createDb": boolean;
+  "login": boolean;
+  "replication": boolean;
+  "bypassRls": boolean;
+  "connlimit": number;
+  "validUntil": string | null;
+}>;
+  "method": 'ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256';
 };
   "files": Array<{
   "path": string;
@@ -855,6 +1215,46 @@ export type QuantCandidateRegistrationResult = {
   "activation": 'DISABLED_UNTIL_MANDATE';
   "createdAt": string;
   "idempotent": boolean;
+}
+
+export type ReplayExecutionAuthorizationCommand = {
+  "namespace": string;
+  "accountId": string;
+  "environmentMode": 'BACKTEST';
+  "brokerMode": 'FAKE';
+  "command": {
+  "namespace": string;
+  "accountId": string;
+  "clientOrderId": string;
+  "security": string;
+  "requestedQuantity": number;
+  "bar": {
+  "timestamp": string;
+  "open": string;
+  "volume": number;
+};
+};
+}
+
+export type ReplayExecutionAuthorizationResult = {
+  "authorizationId": string;
+}
+
+export type ReplayExecutionAuthorizationValidation = {
+  "authorizationId": string;
+  "accountId": string;
+  "command": {
+  "namespace": string;
+  "accountId": string;
+  "clientOrderId": string;
+  "security": string;
+  "requestedQuantity": number;
+  "bar": {
+  "timestamp": string;
+  "open": string;
+  "volume": number;
+};
+};
 }
 
 export type ReservedFillCommand = {
@@ -944,7 +1344,51 @@ export type TestRun = {
   "actualFaultSequence"?: Array<Record<string, unknown>>;
   "createdAt": string;
   "completedAt"?: string | null;
-  "artifactRefs"?: Array<Record<string, unknown>>;
+  "artifactRefs"?: Array<ArtifactRef>;
+}
+
+export type V13PaperStageRunAccepted = {
+  "accepted": true;
+  "testRunId": string;
+  "status": 'WAITING';
+}
+
+export type V13PaperStageRunRequest = {
+  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "seed": number;
+}
+
+export type V13PaperStageRunResult = {
+  "testRunId": string;
+  "stageId": 'V1.3';
+  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioVersion": string;
+  "ownerId": string;
+  "namespace": string;
+  "status": 'WAITING';
+  "seed": number;
+  "assertions": Array<{
+  "assertionId": string;
+  "status": 'WAITING';
+  "expected": unknown;
+  "actual": 'NOT_RUN';
+}>;
+  "evidence": {
+  "evidenceScope": 'PLATFORM_WAITING_DECLARATION';
+  "businessExecution": 'NOT_RUN';
+  "requiredBusinessServices": ['decision-governance-service','trade-execution-service','portfolio-risk-service','FakeBroker'];
+  "businessServicesCalled": Array<unknown>;
+  "scenarioExpectation": string;
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "seed": number;
+  "orderFacts": 'NOT_CREATED';
+  "fillFacts": 'NOT_CREATED';
+  "portfolioLedgerFacts": 'NOT_CREATED';
+};
+  "createdAt": string;
+  "completedAt": null;
 }
 
 export type V24ObservationRevisionList = {
@@ -963,6 +1407,110 @@ export type V24ObservationRevision = {
   "priorCompletedAt": string | null;
   "reason": 'OBSERVATION_EVENT_ERRORS';
   "recordedAt": string;
+}
+
+export type V24PaperAuthorizationCommand = {
+  "grant": V24PaperExecutionGrant;
+}
+
+export type V24PaperAuthorizationResult = {
+  "authorizationId": string;
+  "status": 'ACTIVE' | 'CONSUMED';
+  "expiresAt": string;
+  "scope": {
+  "testRunId": string;
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "strategyVersion": string;
+  "policyVersion": string;
+  "mandateVersion": string;
+};
+}
+
+export type V24PaperAuthorizationRevokeCommand = {
+  "authorizationId": string;
+  "namespace": string;
+  "accountId": string;
+  "reason": string;
+}
+
+export type V24PaperAuthorizationRevokeResult = {
+  "authorizationId": string;
+  "status": 'REVOKED';
+  "replayed": boolean;
+  "revokedAt": string;
+}
+
+export type V24PaperAuthorizationValidation = {
+  "authorizationId": string;
+  "accountId": string;
+  "command": V24PaperExecutionGrant;
+}
+
+export type V24PaperExecutionCommand = {
+  "authorizationId": string;
+  "grant": V24PaperExecutionGrant;
+}
+
+export type V24PaperExecutionGrant = {
+  "scenarioId": 'v24-isolated-snapshot-paper-normal';
+  "scenarioVersion": '2.0.0';
+  "testRunId": string;
+  "ownerId": string;
+  "namespace": string;
+  "accountId": string;
+  "clockNow": string;
+  "dataMode": 'FIXTURE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "market": 'CN_A';
+  "currency": 'CNY';
+  "policy": {
+  "policyId": 'v24-isolated-fixture-paper-policy';
+  "policyVersion": '2.0.0';
+  "riskPolicyVersion": 'fixture-risk-v1';
+  "feePolicyVersion": 'fixture-fee-v1';
+  "maxDeviationBps": number;
+  "freshnessLimitSeconds": number;
+  "executionWindowStart": string;
+  "executionWindowEnd": string;
+};
+  "mandate": {
+  "mandateId": 'v24-isolated-fixture-paper-mandate';
+  "mandateVersion": '2.0.0';
+  "strategyVersion": string;
+  "securityScope": Array<string>;
+  "maxOrderNotional": string;
+  "maxGrossExposure": string;
+  "maxDailyTurnover": string;
+  "approvalEvidenceRef": 'fixture-approval:v24-isolated-paper-v2';
+};
+  "signal": {
+  "signalId": string;
+  "asOf": string;
+  "action": 'BUY';
+  "quantity": number;
+  "referencePrice": string;
+};
+  "order": {
+  "clientOrderId": string;
+  "security": string;
+  "acceptedAt": string;
+  "requestedQuantity": number;
+};
+  "snapshot": {
+  "snapshotId": string;
+  "security": string;
+  "market": 'CN_A';
+  "sourceMode": 'FIXTURE';
+  "status": 'READY';
+  "observedAt": string;
+  "ingestedAt": string;
+  "price": string;
+};
+  "fee": string;
 }
 
 export type V24PaperExecutionPolicy = {
@@ -1002,6 +1550,123 @@ export type V24PaperExecutionPolicy = {
   "requiresResourceReservation": true;
 };
   "configurationGaps": Array<'STRATEGY_VERSION' | 'MANDATE_VERSION' | 'MAX_DEVIATION_BPS' | 'RISK_POLICY_VERSION' | 'FEE_POLICY_VERSION' | 'US_MARKET_POLICY'>;
+}
+
+export type V24PaperExecutionResult = {
+  "schemaVersion": 'v24-paper-execution-result-v2';
+  "replayed": boolean;
+  "authorization": {
+  "status": 'AUTHORIZED';
+  "testRunId": string;
+  "ownerId": string;
+  "mandateId": string;
+  "mandateVersion": string;
+  "strategyVersion": string;
+};
+  "riskEvaluation": {
+  "status": 'PASS_RISK_CHECK';
+  "quoteAgeSeconds": number;
+  "deviationBps": number;
+};
+  "resourceReservation": ResourceReservation;
+  "eligibility": {
+  "status": 'ELIGIBLE';
+  "snapshotId": string;
+  "executionModel": 'SNAPSHOT';
+  "policyVersion": string;
+  "dataMode": 'FIXTURE';
+  "liquidityParticipation": 'NOT_VERIFIED';
+};
+  "order": {
+  "order_id": string;
+  "status": string;
+  "clientOrderId": string;
+};
+  "fill": {
+  "externalFillId": string;
+  "quantity": number;
+  "price": string;
+  "fee": string;
+  "effectiveAt": string;
+} | null;
+  "outbox": {
+  "event_id": string;
+  "event_type": string;
+  "status": 'PENDING' | 'DELIVERING' | 'DELIVERED' | 'COMPENSATION_REQUIRED';
+  "attempts": number;
+  "delivered_at"?: string | null;
+};
+  "reconciliation": {
+  "namespace": string;
+  "brokerMode": 'FAKE';
+  "order_count": number;
+  "unresolved_order_count": number;
+  "fill_count": number;
+  "pending_outbox_count": number;
+};
+}
+
+export type V24PaperExecutionScenario = {
+  "$schema"?: string;
+  "scenarioId": 'v24-isolated-snapshot-paper-normal';
+  "scenarioVersion": '2.0.0';
+  "dataMode": 'FIXTURE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "market": 'CN_A';
+  "currency": 'CNY';
+  "account": {
+  "fixtureAccountRef": string;
+  "initialCash": string;
+};
+  "policy": {
+  "policyId": 'v24-isolated-fixture-paper-policy';
+  "policyVersion": '2.0.0';
+  "riskPolicyVersion": 'fixture-risk-v1';
+  "feePolicyVersion": 'fixture-fee-v1';
+  "maxDeviationBps": number;
+  "freshnessLimitSeconds": number;
+  "executionWindowStart": string;
+  "executionWindowEnd": string;
+};
+  "mandate": {
+  "mandateId": 'v24-isolated-fixture-paper-mandate';
+  "mandateVersion": '2.0.0';
+  "strategyVersion": string;
+  "securityScope": Array<string>;
+  "maxOrderNotional": string;
+  "maxGrossExposure": string;
+  "maxDailyTurnover": string;
+  "approvalEvidenceRef": string;
+};
+  "signal": {
+  "signalId": string;
+  "asOf": string;
+  "action": 'BUY';
+  "quantity": number;
+  "referencePrice": string;
+};
+  "order": {
+  "security": string;
+  "acceptedAt": string;
+  "requestedQuantity": number;
+  "clientOrderIdPrefix": string;
+};
+  "snapshot": {
+  "snapshotId": string;
+  "security": string;
+  "market": 'CN_A';
+  "sourceMode": 'FIXTURE';
+  "status": 'READY';
+  "observedAt": string;
+  "ingestedAt": string;
+  "price": string;
+};
+  "risk": {
+  "supportedMarkets": ['CN_A'];
+};
+  "fee": string;
 }
 
 export type V24PaperMandate = {
@@ -1070,14 +1735,14 @@ export type V24PaperStageRunAccepted = {
 }
 
 export type V24PaperStageRunRequest = {
-  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
   "seed": number;
 }
 
 export type V24PaperStageRunResult = {
   "testRunId": string;
   "stageId": 'V2.4';
-  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
   "scenarioVersion": string;
   "ownerId": string;
   "namespace": string;
@@ -1092,7 +1757,7 @@ export type V24PaperStageRunResult = {
   "evidence": {
   "testRunId": string;
   "stageId": 'V2.4';
-  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
   "scenarioVersion": string;
   "seed": number;
   "status": 'WAITING';
@@ -1139,6 +1804,84 @@ export type V24SnapshotFixtureExecutionV2 = unknown & unknown
 
 export type V24SnapshotFixtureExecution = unknown & unknown
 
+export type V33NormalVerifyCommand = {
+  "schemaVersion": 'v3.3-normal-verify-command-v1';
+  "confirmation": 'VERIFY_V33_NORMAL_RESULTS';
+}
+
+export type V33NormalVerifyResult = {
+  "schemaVersion": 'v3.3-normal-verify-result-v1';
+  "testRunId": string;
+  "status": 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  "idempotent": boolean;
+  "assertion": {
+  "id": 'V3.3_NORMAL_RESULTS_001';
+  "status": 'PASS' | 'FAIL';
+};
+  "evidence": Record<string, unknown>;
+}
+
+export type V33RecoveryVerifyCommand = {
+  "schemaVersion": 'v3.3-recovery-verify-command-v1';
+  "confirmation": 'VERIFY_V33_CHECKPOINT_RECOVERY';
+}
+
+export type V33RecoveryVerifyResult = {
+  "schemaVersion": 'v3.3-recovery-verify-result-v1';
+  "testRunId": string;
+  "status": 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'WAITING';
+  "idempotent": boolean;
+  "assertion": Record<string, unknown> | null;
+  "evidence": Record<string, unknown> | null;
+}
+
+export type V32ReadinessRunRequest = {
+  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "seed"?: number;
+  "sourceV31TestRunId"?: string;
+}
+
+export type V32ReadinessRunResult = {
+  "accepted"?: true;
+  "testRunId": string;
+  "stageId": 'V3.2';
+  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioVersion": 'v3.2-readiness-v1';
+  "status": 'WAITING';
+  "seed": number;
+  "assertions": Array<unknown>;
+  "evidence": Record<string, unknown>;
+}
+
+export type MarketDataAlertAcknowledgeRequest = {
+  "actorId": string;
+}
+
+export type MarketDataAlertIncidents = {
+  "incidents": Array<MarketDataAlertIncidentV1>;
+}
+
+export type PublishedMarketDataArtifactTaskContent = {
+  "taskId": string;
+  "artifactId": string;
+  "fixtureVersion": 'v1.2-market-data-1';
+  "sha256": string;
+  "contentBase64": string;
+  "createdAt": string;
+}
+
+export type MarketDataArtifactTask = {
+  "taskId": string;
+  "artifactId": string;
+  "fixtureVersion": string;
+  "status": 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  "sha256": string | null;
+  "error": string | null;
+  "fence": number;
+  "createdAt": string;
+  "updatedAt": string;
+}
+
 export type CnAShareCalendarSession = {
   "date": string;
   "status": 'TRADING' | 'CLOSED' | 'UNKNOWN';
@@ -1164,6 +1907,16 @@ export type CollectionRun = {
   "sourceAttempts"?: Array<Record<string, unknown>>;
 }
 
+export type CollectionScheduleView = {
+  "subscriptionId": string;
+  "subscriptionVersion": number;
+  "fromDate": string;
+  "toDate": string;
+  "calendarVersion": string;
+  "enabled": boolean;
+  "version": number;
+}
+
 export type CollectionSubscription = {
   "subscriptionId": string;
   "projectId": string;
@@ -1180,6 +1933,55 @@ export type CollectionSubscription = {
   "maxSecurities"?: number;
   "maxRequestsPerMinute"?: number;
 };
+}
+
+export type MarketDataLiveNewsPreview = {
+  "observedAt": string;
+  "items": Array<{
+  "newsId": string;
+  "sourceId": string;
+  "title": string;
+  "publishedAt": string | null;
+  "observedAt": string;
+  "ingestedAt": string;
+  "availableAt": string;
+  "revision": number;
+  "symbols": Array<string>;
+}>;
+  "sourceCount": number;
+  "deduplicated": boolean;
+  "status": 'PASS' | 'PARTIAL';
+}
+
+export type LiveQuotePreview = {
+  "sourceId": 'tencent-quote';
+  "requestedSymbols": Array<string>;
+  "securities": Array<{
+  "symbol": string;
+  "price": number;
+  "name": string | null;
+  "observedAt": string | null;
+  "ingestedAt": string;
+  "status": 'LIVE_SOURCE' | 'MISSING_TIMESTAMP' | 'MALFORMED' | 'SOURCE_ERROR';
+}>;
+  "count": number;
+  "ingestedAt": string;
+  "status"?: 'STALE';
+  "error"?: string;
+}
+
+export type MarketDataAlertIncidentV1 = {
+  "incidentId": string;
+  "alertKey": string;
+  "code": string;
+  "severity": 'INFO' | 'WARNING' | 'CRITICAL';
+  "payload": Record<string, unknown>;
+  "state": 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+  "firstSeenAt": string;
+  "lastSeenAt": string;
+  "acknowledgedBy": string | null;
+  "acknowledgedAt": string | null;
+  "resolvedAt": string | null;
 }
 
 export type MinuteCsvImportRequest = {
@@ -1250,6 +2052,35 @@ export type MinuteCsvUploadProgress = {
   "idempotent"?: boolean;
 }
 
+export type MinuteFixtureImportRequest = {
+  "fixture"?: 'normal' | 'bad';
+}
+
+export type MinuteFixturePreview = {
+  "fixtureVersion": string;
+  "rows": number;
+  "securities": number;
+  "quality": Array<{
+  "code": string;
+  "row": number;
+}>;
+  "bars": Array<{
+  "securityId": string;
+  "market": string;
+  "frequency": string;
+  "barStart": string;
+  "barEnd": string;
+  "availableAt": string;
+  "open": number;
+  "high": number;
+  "low": number;
+  "close": number;
+  "volume": number;
+  "amount": number;
+  "adjustment": string;
+}>;
+}
+
 export type MinuteImportRecord = {
   "importId": string;
   "version": string;
@@ -1272,6 +2103,52 @@ export type MinuteImportRecord = {
   "idempotent": boolean;
 }
 
+export type MinuteOpenGaps = {
+  "subscriptionId": string;
+  "open": Array<Record<string, unknown>>;
+}
+
+export type MarketDataNewsPreview = {
+  "items": Array<{
+  "newsId": string;
+  "sourceId": string;
+  "title": string;
+  "publishedAt": string;
+  "revision": number;
+  "symbols": Array<string>;
+}>;
+  "deduplicated": boolean;
+  "sourceStatus": string;
+}
+
+export type ProjectDataExportRequest = {
+  "projectId": string;
+  "dataVersion": string;
+  "items": Array<unknown>;
+}
+
+export type ProjectDataExport = {
+  "projectId": string;
+  "dataVersion": string;
+  "rowCount": number;
+  "sha256": string;
+  "items": Array<unknown>;
+}
+
+export type ProjectDataPageRequest = {
+  "projectId": string;
+  "dataVersion": string;
+  "items": Array<unknown>;
+  "cursor"?: number;
+  "pageSize"?: number;
+}
+
+export type ProjectDataPage = {
+  "dataVersion": string;
+  "items": Array<unknown>;
+  "nextCursor": string | null;
+}
+
 export type ProviderCapability = {
   "sourceId": string;
   "market": 'CN_A_SHARE' | 'US_EQUITY';
@@ -1283,4 +2160,187 @@ export type ProviderCapability = {
   "notes"?: Array<string>;
 }
 
+export type MarketDataSamplingConfig = {
+  "intervalMinutes": 20 | 30;
+  "allowed": Array<20 | 30>;
+  "tradingWindows": Array<{
+  "name": string;
+  "start": string;
+  "end": string;
+}>;
+  "lunchBreak": Array<string>;
+  "placeOrders": false;
+}
+
+export type MarketDataSamplingUpdate = {
+  "intervalMinutes": 20 | 30;
+}
+
+export type MarketDataSourceCircuitState = {
+  "sourceId": string;
+  "circuit": 'OPEN' | 'HEALTHY';
+  "failures": number;
+}
+
+export type MarketDataSourceInventory = {
+  "sources": Array<{
+  "sourceId": string;
+  "kind": 'QUOTE' | 'NEWS';
+  "url"?: string;
+  "status": string;
+  "license"?: string;
+  "circuit": string;
+}>;
+  "checkedAt": string;
+  "note"?: string;
+}
+
+export type MarketDataSourceSmoke = {
+  "checkedAt": string;
+  "checks": Array<{
+  "sourceId": string;
+  "status": 'PASS' | 'FAIL';
+  "httpStatus"?: number;
+  "bytes"?: number;
+  "error"?: string;
+}>;
+  "status": 'PASS' | 'PARTIAL';
+}
+
+export type V12FixturePreview = {
+  "fixtureVersion": 'v1.2-market-data-1';
+  "dataMode": 'FIXTURE';
+  "barCount"?: number;
+  "securityCount"?: number;
+  "quality": {
+  "status": 'READY' | 'REJECTED';
+  "errors": Array<{
+  "code": string;
+  "ticker"?: string;
+  "date"?: string;
+}>;
+};
+  "bars": Array<{
+  "securityId": string;
+  "ticker": string;
+  "date": string;
+  "open": number;
+  "high": number;
+  "low": number;
+  "close": number;
+  "volume": number;
+  "adjustment": 'raw';
+}>;
+}
+
 export type V22StageRunRequest = unknown
+
+export type MarketDataWatchlistUpdate = {
+  "securities": Array<string>;
+}
+
+export type MarketDataWatchlist = {
+  "securities": Array<string>;
+  "count": number;
+  "max": 100;
+  "priority"?: string;
+}
+
+export type MultiBarResearchCommand = {
+  "runId"?: string;
+  "bars": Array<{
+  "timestamp": string;
+  "open": string;
+  "volume": number;
+}>;
+  "executions"?: Array<unknown>;
+}
+
+export type MultiBarResearchResult = {
+  "status": string;
+  "adapter": string;
+  "dataMode": string;
+  "barCount": number;
+  "artifactHash": string;
+  "assertions": Array<unknown>;
+}
+
+export type QlibSummaryTrainRequest = {
+  "bars": Array<{
+  "timestamp"?: string;
+  "open": string;
+  "volume"?: number;
+}>;
+}
+
+export type QlibSummaryValidateRequest = {
+  "bars": Array<{
+  "timestamp"?: string;
+  "open": string;
+  "volume"?: number;
+}>;
+  "artifactHash": string;
+}
+
+export type V12FactorPreview = {
+  "factorVersion": 'v1.2-sma-factor-1';
+  "dataVersion": 'v1.2-market-data-1';
+  "asOf": string;
+  "qlibStatus": string;
+  "noTrade": boolean;
+  "lookbackBars": number;
+  "ranking": Array<{
+  "ticker": string;
+  "factor": string;
+  "signal": string;
+}>;
+}
+
+export type V12QlibProbePreview = {
+  "adapter": 'qlib';
+  "sourceCommit"?: string;
+  "dependencyImage"?: string;
+  "probe": {
+  "status": string;
+};
+  "executionModel"?: string;
+  "modelCalls"?: string;
+}
+
+export type V12RDagentProbePreview = {
+  "adapter": 'rdagent';
+  "executionBoundary": string;
+  "dockerSocketMounted": boolean;
+  "codeProbe": {
+  "status": string;
+};
+  "modelCalls": string;
+  "reason"?: string;
+}
+
+export type FakeBrokerCancellationResult = {
+  "outcome": 'ACCEPTED' | 'REJECTED';
+  "reason": string;
+  "sequence": number;
+}
+
+export type FakeBrokerSimulatedExternalOrder = {
+  "namespace": string;
+  "externalOrderId": string;
+  "clientOrderId"?: string;
+  "security": string;
+  "requestedQuantity": number;
+  "status": 'NEW' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED' | 'UNKNOWN';
+  "evidenceRef": string;
+  "observedAt": string;
+}
+
+export type FakeBrokerSimulatedFillReport = {
+  "externalFillId": string;
+  "sequence": number;
+  "cumulativeQuantity": number;
+  "price": string;
+  "fee": string;
+  "effectiveAt": string;
+  "evidenceRef": string;
+}

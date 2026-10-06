@@ -123,7 +123,12 @@ try {
     const tampered = await request("/internal/v1/authorizations/validate", { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify({ authorizationId, accountId: command.accountId, command: { ...command, requestedQuantity: 101 } }) });
     assert.equal(tampered.status, 403, "changed command must not consume or validate the authorization");
     const replayedValidations = await Promise.all([1, 2].map(() => request("/internal/v1/authorizations/validate", { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify({ authorizationId, accountId: command.accountId, command }) })));
-    assert.deepEqual(replayedValidations.map((response) => response.status).sort(), [200, 403], "authorization must be consumed exactly once under concurrent validation");
+    const replayedResults = await Promise.all(replayedValidations.map(async (response) => ({ status: response.status, body: await response.json() })));
+    assert.deepEqual(replayedResults.map((result) => result.status).sort(), [200, 200], "the same authorized command may safely retry validation after an uncertain response");
+    assert.equal(replayedResults.filter((result) => result.body.replayed === false).length, 1, "exactly one concurrent validation must perform the first consumption");
+    assert.equal(replayedResults.filter((result) => result.body.replayed === true).length, 1, "the other concurrent validation must be identified as an idempotent replay");
+    const authorizationState = await testDb.query("SELECT status FROM execution_authorizations WHERE authorization_id=$1", [authorizationId]);
+    assert.equal(authorizationState.rows[0]?.status, "CONSUMED", "concurrent validation must leave the authorization consumed exactly once");
 
     const renewedCommand = { ...command, clientOrderId: `order-${randomUUID()}`, requestedQuantity: 50 };
     const renewedResponse = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command: renewedCommand, environmentMode: "BACKTEST", brokerMode: "FAKE" }) });
@@ -147,6 +152,11 @@ try {
 
   await runService("historical-replay-worker", async (request) => {
     const runId = randomUUID();
+    const missingPath = `/internal/v1/replays/${randomUUID()}`;
+    const replayDb = new Client({ connectionString: databaseUrl.toString() });
+    replayDb.on("error", () => {});
+    await replayDb.connect();
+    try {
     const path = `/internal/v1/replays/${runId}`;
     const missing = await request(path, { caller: "platform-api-service" });
     const mismatched = await request(path, { caller: "platform-api-service", bearer: tokens.replay });
@@ -156,6 +166,13 @@ try {
     assert.equal(mismatched.status, 403);
     assert.equal(forged.status, 403);
     assert.equal(allowedRead.status, 404, "authorized read should reach the exact run lookup");
+
+    await replayDb.query("INSERT INTO replay_worker_runs (test_run_id,namespace,owner_id,scenario_id,request_hash,status,checkpoint,result) VALUES ($1,$2,$3,'normal',$4,'COMPLETED','{}'::jsonb,'{}'::jsonb)", [runId, `auth-smoke-${runId}`, "service-auth-smoke", "a".repeat(64)]);
+    const persistedRead = await request(path, { caller: "platform-api-service", bearer: tokens.platform });
+    const persistedRun = await persistedRead.json();
+    assert.equal(persistedRead.status, 200, "authorized read returns an existing persisted replay run");
+    assert.equal(persistedRun.testRunId, runId);
+    assert.equal(Object.hasOwn(persistedRun, "requestHash"), false, "internal idempotency fingerprint must not leak through the public run response");
 
     const platform = { caller: "platform-api-service", bearer: tokens.platform };
     const forbiddenCallers = [
@@ -182,10 +199,14 @@ try {
     const multiMalformed = await request("/internal/v1/replays/multi", { ...platform, method: "POST", body: "{}" });
     const asyncMalformed = await request("/internal/v1/replays/multi?async=true", { ...platform, method: "POST", body: "{}" });
     assert.deepEqual([singleMalformed.status, multiMalformed.status, asyncMalformed.status], [422, 422, 422], "authorized malformed submits must stop at input validation and create no run");
-    const lifecycleMissing = await Promise.all(["pause", "resume", "cancel"].map((action) => request(`${path}/${action}`, { ...platform, method: "POST" })));
+    const lifecycleMissing = await Promise.all(["pause", "resume", "cancel"].map((action) => request(`${missingPath}/${action}`, { ...platform, method: "POST" })));
     assert.deepEqual(lifecycleMissing.map((response) => response.status), [404, 404, 404], "authorized lifecycle operations on the isolated absent run must not create state");
-    const recoveryMissing = await request(`${path}/recover-unknown`, { ...platform, method: "POST" });
+    const recoveryMissing = await request(`${missingPath}/recover-unknown`, { ...platform, method: "POST" });
     assert.equal(recoveryMissing.status, 422, "authorized recovery of a run without original-order evidence must fail closed");
+    await replayDb.query("DELETE FROM replay_worker_runs WHERE test_run_id=$1 AND namespace=$2", [runId, `auth-smoke-${runId}`]);
+    } finally {
+      await replayDb.end().catch(() => undefined);
+    }
   });
 
   await runService("quant-research-service", async (request) => {

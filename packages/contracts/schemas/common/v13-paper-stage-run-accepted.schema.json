@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-paper-stage-run-accepted.schema.json",
+  "title": "V13PaperStageRunAccepted",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["accepted", "testRunId", "status"],
+  "properties": {
+    "accepted": { "const": true },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "WAITING" }
+  }
+}

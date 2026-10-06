@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import type { V24ObservationRevisionList, V24PaperReadiness, V24PaperStageRunAccepted, V24PaperStageRunRequest, V24PaperStageRunResult } from "../../../packages/contracts/generated/types.js";
 import "./styles.css";
 
-type Scenario = { scenarioId: "normal" | "rejection" | "recovery"; version: string; title: string; expected: string };
+type Scenario = { scenarioId: "normal" | "rejection" | "recovery" | "external-reconciliation"; version: string; title: string; expected: string };
 type Assertion = { assertionId: string; status: "PASS" | "FAIL" | "WAITING"; expected: unknown; actual: unknown; evidence: Record<string, unknown> };
 type TestRun = {
   testRunId: string;
@@ -81,6 +81,7 @@ function App() {
   if (route === "/acceptance/v2/v2.2") return <V22Acceptance />;
   if (route === "/acceptance/v2/v2.3") return <V23Acceptance />;
   if (route === "/acceptance/v2/v2.4") return <V24Acceptance />;
+  if (route === "/paper") return <V24PaperOverview />;
   if (route === "/acceptance/v2/v2.5") return <V25Acceptance />;
   if (route === "/acceptance/v3/v3.1") return <V31Acceptance />;
   if (route === "/acceptance/v3/v3.2") return <V32Acceptance />;
@@ -237,22 +238,90 @@ function App() {
 }
 
 function V12Acceptance() {
-  const [normal, setNormal] = useState<any>(null); const [bad, setBad] = useState<any>(null); const [probe, setProbe] = useState<any>(null); const [factor, setFactor] = useState<any>(null); const [rdagent, setRdagent] = useState<any>(null); const [error, setError] = useState<string | null>(null);
-  const run = async (path: string, setter: (value: any)=>void) => { try { const response = await fetch(path, { credentials:"include" }); if (!response.ok) throw new Error(`${response.status}`); setter(await response.json()); } catch (cause) { setError(String(cause)); } };
-  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.2 小样本数据与 Qlib 环境探针</h1><p>FIXTURE / SIMULATION_ONLY；Qlib 探针未通过时不得伪称因子计算成功。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>数据导入与质量</h2><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/data/normal',setNormal)}>预览正常 Fixture</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/data/bad-future',setBad)}>预览未来数据拒绝样本</button>{normal && <pre data-testid="normal-preview">{JSON.stringify(normal,null,2)}</pre>}{bad && <pre data-testid="bad-preview">{JSON.stringify(bad,null,2)}</pre>}</section><section><h2>Qlib 与因子</h2><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/probe',setProbe)}>运行 Qlib CPU 探针</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/factors',setFactor)}>预览基础因子排名</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/rdagent-probe',setRdagent)}>运行 RD-Agent 兼容探针</button>{probe && <pre data-testid="qlib-probe">{JSON.stringify(probe,null,2)}</pre>}{factor && <pre data-testid="factor-preview">{JSON.stringify(factor,null,2)}</pre>}{rdagent && <pre data-testid="rdagent-probe">{JSON.stringify(rdagent,null,2)}</pre>}</section></main>;
+  const [normal, setNormal] = useState<any>(null); const [bad, setBad] = useState<any>(null); const [probe, setProbe] = useState<any>(null); const [factor, setFactor] = useState<any>(null); const [rdagent, setRdagent] = useState<any>(null); const [scenario, setScenario] = useState("normal"); const [stageRun, setStageRun] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const run = async (path: string, setter: (value: any)=>void) => { try { setError(null); setter(await api<any>(path)); } catch (cause) { setError(String(cause)); } };
+  const startStageRun = async () => { try { setError(null); setStageRun(null); const accepted = await api<any>("/api/v1/acceptance/v1/v1.2/runs", { method:"POST", body:JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); for (let attempt=0; attempt<40; attempt+=1) { const current = await api<any>(`/api/v1/acceptance/v1/v1.2/runs/${accepted.testRunId}`); setStageRun(current); if (["COMPLETED", "FAILED", "WAITING"].includes(current.status)) return; await new Promise(resolve=>setTimeout(resolve,250)); } throw new Error(`V1.2 TestRun timed out: ${accepted.testRunId}`); } catch (cause) { setError(String(cause)); } };
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.2 小样本数据与 Qlib 环境探针</h1><p>FIXTURE / SIMULATION_ONLY；Qlib 探针未通过时不得伪称因子计算成功。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>数据导入与质量</h2><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/data/normal',setNormal)}>预览正常 Fixture</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/data/bad-future',setBad)}>预览未来数据拒绝样本</button>{normal && <pre data-testid="normal-preview">{JSON.stringify(normal,null,2)}</pre>}{bad && <pre data-testid="bad-preview">{JSON.stringify(bad,null,2)}</pre>}</section><section><h2>Qlib 与因子</h2><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/probe',setProbe)}>运行 Qlib CPU 探针</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/factors',setFactor)}>预览基础因子排名</button><button onClick={()=>void run('/api/v1/acceptance/v1/v1.2/quant/rdagent-probe',setRdagent)}>运行 RD-Agent 兼容探针</button>{probe && <pre data-testid="qlib-probe">{JSON.stringify(probe,null,2)}</pre>}{factor && <pre data-testid="factor-preview">{JSON.stringify(factor,null,2)}</pre>}{rdagent && <pre data-testid="rdagent-probe">{JSON.stringify(rdagent,null,2)}</pre>}</section><section><h2>持久化验收运行</h2><label>验收场景<select aria-label="V1.2 验收场景" value={scenario} onChange={event=>setScenario(event.target.value)}><option value="normal">正常数据与因子</option><option value="rejection">未来数据拒绝</option><option value="recovery">Qlib 探针可用性核验（不执行故障恢复）</option></select></label><button onClick={()=>void startStageRun()}>运行 V1.2 场景</button>{stageRun && <><dl><dt>testRunId</dt><dd data-testid="v12-test-run-id">{stageRun.testRunId}</dd><dt>状态</dt><dd data-testid="v12-run-status">{stageRun.status}</dd></dl><pre data-testid="v12-run-evidence">{JSON.stringify(stageRun.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th><th>预期</th><th>实际</th></tr></thead><tbody>{stageRun.assertions.map((item:any)=><tr key={item.assertionId}><td>{item.assertionId}</td><td>{item.status}</td><td><code>{JSON.stringify(item.expected)}</code></td><td><code>{JSON.stringify(item.actual)}</code></td></tr>)}</tbody></table></>}</section></main>;
 }
 
 function V13Acceptance() {
   const [scenario, setScenario] = useState<string>("normal");
   const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null);
   const start = async () => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v1/v1.3/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.3/runs/${accepted.testRunId}`)); } catch (cause) { setError(String(cause)); } };
-  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.3 治理、风控与模拟券商交易链路</h1><p>仅 PAPER + FAKE；所有订单、成交、余额和故障均由隔离模拟环境生成。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>场景</h2><select aria-label="验收场景" value={scenario} onChange={(event)=>setScenario(event.target.value)}><option value="normal">全成与不可变账本</option><option value="rejection">治理与风控拒绝</option><option value="recovery">UNKNOWN与重复成交恢复</option></select><button onClick={()=>void start()}>运行 V1.3 场景</button></section>{run && <section><h2>业务时间线与后端证据</h2><dl><dt>testRunId</dt><dd data-testid="v13-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v13-run-status">{run.status}</dd><dt>账户</dt><dd>{run.evidence.accountId}</dd></dl><pre data-testid="v13-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th><th>预期</th><th>实际</th></tr></thead><tbody>{run.assertions.map((item:any)=><tr key={item.assertionId}><td>{item.assertionId}</td><td>{item.status}</td><td><code>{JSON.stringify(item.expected)}</code></td><td><code>{JSON.stringify(item.actual)}</code></td></tr>)}</tbody></table></section>}</main>;
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.3 治理、风控与模拟券商交易链路</h1><p>当前仅生成平台合成 TestRun；治理、执行、组合账本与 FakeBroker 交易链路尚未接入，订单/成交仍为 NOT_RUN。</p></header>{error && <p role="alert" className="error">{error}</p>}<p role="status" data-testid="v13-business-boundary">此页面不会创建账户、订单、成交或账本记录，也不会调用 FakeBroker；等待真实隔离服务链路接入后再进行业务验收。</p><section><h2>场景</h2><select aria-label="验收场景" value={scenario} onChange={(event)=>setScenario(event.target.value)}><option value="normal">全成与不可变账本</option><option value="rejection">治理与风控拒绝</option><option value="recovery">UNKNOWN与重复成交恢复</option></select><button onClick={()=>void start()}>检查 V1.3 场景准备状态</button></section>{run && <section><h2>业务链路准备状态与证据</h2><dl><dt>testRunId</dt><dd data-testid="v13-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v13-run-status">{run.status}</dd><dt>证据范围</dt><dd>{run.evidence.evidenceScope}</dd><dt>业务执行</dt><dd>{run.evidence.businessExecution}</dd></dl><pre data-testid="v13-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th><th>预期</th><th>实际</th></tr></thead><tbody>{run.assertions.map((item:any)=><tr key={item.assertionId}><td>{item.assertionId}</td><td>{item.status}</td><td><code>{JSON.stringify(item.expected)}</code></td><td><code>{JSON.stringify(item.actual)}</code></td></tr>)}</tbody></table></section>}</main>;
 }
 
 function V14Acceptance() {
-  const [scenario, setScenario] = useState("normal"); const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null);
-  const start = async () => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v1/v1.4/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`)); } catch (cause) { setError(String(cause)); } };
-  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.4 日线历史回测与可核对报告</h1><p>DAILY_BAR / BACKTEST / FAKE；收盘信号最早下一交易时点成交。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>回测场景</h2><select aria-label="回测场景" value={scenario} onChange={(e)=>setScenario(e.target.value)}><option value="normal">日线回测与净值</option><option value="rejection">未来成交与公司行动拒绝</option><option value="recovery">取消与固定输入复跑</option></select><button onClick={()=>void start()}>运行回测</button></section>{run && <section><h2>回测报告</h2><dl><dt>testRunId</dt><dd data-testid="v14-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v14-run-status">{run.status}</dd></dl><pre data-testid="v14-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th></tr></thead><tbody>{run.assertions.map((a:any)=><tr key={a.assertionId}><td>{a.assertionId}</td><td>{a.status}</td></tr>)}</tbody></table></section>}</main>;
+  const [scenario, setScenario] = useState("normal");
+  const [initialCashCents, setInitialCashCents] = useState(1_000_000);
+  const [targetQuantity, setTargetQuantity] = useState(100);
+  const [participationRateBasisPoints, setParticipationRateBasisPoints] = useState(100);
+  const [slippageBasisPoints, setSlippageBasisPoints] = useState(0);
+  const [fixedFeeCents, setFixedFeeCents] = useState(500);
+  const [marketFeeMode, setMarketFeeMode] = useState(false);
+  const [marketFeeScheduleId, setMarketFeeScheduleId] = useState("CN_A_CASH_EQUITY_2023_08_28");
+  const [commissionRatePartsPerBillion, setCommissionRatePartsPerBillion] = useState(2_000_000);
+  const [minimumCommissionCents, setMinimumCommissionCents] = useState(500);
+  const [sellSignalDate, setSellSignalDate] = useState("");
+  const [sellExecutionDate, setSellExecutionDate] = useState("");
+  const [sellQuantity, setSellQuantity] = useState(0);
+  const [run, setRun] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const start = async () => {
+    try {
+      setBusy(true); setError(null);
+      const sellFields = [sellSignalDate.length > 0, sellExecutionDate.length > 0, sellQuantity > 0];
+      if (sellFields.some(Boolean) && !sellFields.every(Boolean)) throw new Error("卖出信号日、执行日和数量须同时填写，或全部留空");
+      const effectiveSell = scenario === "historical-fees" ? { signalDate: "2023-08-24", executionDate: "2023-08-25", quantity: targetQuantity } : sellFields.every(Boolean) ? { signalDate: sellSignalDate, executionDate: sellExecutionDate, quantity: sellQuantity } : undefined;
+      const policy = { initialCashCents, targetQuantity, participationRateBasisPoints, slippageBasisPoints, fixedFeeCents, ...(marketFeeMode || scenario === "historical-fees" ? { marketFeeSchedule: { scheduleId: scenario === "historical-fees" ? "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" : marketFeeScheduleId, commissionRatePartsPerBillion, minimumCommissionCents } } : {}), ...(effectiveSell ? { sellOrder: effectiveSell } : {}) };
+      const accepted = await api<any>("/api/v1/acceptance/v1/v1.4/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907, policy }) });
+      const completed = await api<any>(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`);
+      setRun(completed); setHistory((previous) => [...previous, completed]);
+    } catch (cause) { setError(String(cause)); }
+    finally { setBusy(false); }
+  };
+  const metrics = run?.evidence?.metrics;
+  const previous = history.length > 1 ? history.at(-2) : null;
+  const comparisonMetrics = ["returnBasisPoints", "maxDrawdownBasisPoints", "turnoverCents", "feesCents", "fillRateBasisPoints", "unfilledQuantity", "finalCashCents", "finalNavCents"];
+  return <main>
+    <header><p className="eyebrow">StockQuant · 回测研究</p><h1>V1.4 日线历史回测与可核对报告</h1><p>DAILY_BAR / BACKTEST / FAKE。输入使用冻结日线 Fixture，日终信号最早在下一交易日执行；结果不代表真实市场收益。</p></header>
+    {error && <p role="alert" className="error">{error}</p>}
+    <section aria-labelledby="v14-config-title">
+      <h2 id="v14-config-title">运行配置</h2>
+      <div className="form-grid">
+        <label>场景<select aria-label="回测场景" value={scenario} onChange={(event)=>{setScenario(event.target.value); if(event.target.value === "historical-fees"){setMarketFeeMode(true);setMarketFeeScheduleId("CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27");}}}><option value="normal">正常：净值和成交</option><option value="rejection">拒绝：未来成交时间</option><option value="recovery">恢复：取消后固定输入复跑</option><option value="market-restrictions">合成：停牌与限制价（Fixture）</option><option value="historical-fees">合成历史日期费率（Fixture）</option></select></label>
+        <label>初始现金（分）<input aria-label="初始现金（分）" type="number" min="1" step="1" value={initialCashCents} onChange={(event)=>setInitialCashCents(Number(event.target.value))} /></label>
+        <label>目标股数<input aria-label="目标股数" type="number" min="1" step="1" value={targetQuantity} onChange={(event)=>setTargetQuantity(Number(event.target.value))} /></label>
+        <label>参与率（基点）<input aria-label="参与率（基点）" type="number" min="1" max="10000" step="1" value={participationRateBasisPoints} onChange={(event)=>setParticipationRateBasisPoints(Number(event.target.value))} /></label>
+        <label>不利滑点（基点）<input aria-label="不利滑点（基点）" type="number" min="0" max="10000" step="1" value={slippageBasisPoints} onChange={(event)=>setSlippageBasisPoints(Number(event.target.value))} /></label>
+        <label>固定费用（分）<input aria-label="固定费用（分）" type="number" min="0" step="1" value={fixedFeeCents} onChange={(event)=>setFixedFeeCents(Number(event.target.value))} /></label>
+        <label>费用模型<select aria-label="费用模型" value={marketFeeMode ? "cn-a" : "fixed"} onChange={(event)=>setMarketFeeMode(event.target.value === "cn-a")}><option value="fixed">固定费用（兼容旧场景）</option><option value="cn-a">A股费率参数（非券商报价）</option></select></label>
+        {marketFeeMode && <><label>费率日期<select aria-label="A股费率日期" value={marketFeeScheduleId} onChange={(event)=>setMarketFeeScheduleId(event.target.value)}><option value="CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27">历史费表：2022-04-29 至 2023-08-27</option><option value="CN_A_CASH_EQUITY_2023_08_28">现行费表：2023-08-28 起</option></select></label><label>佣金参数（ppb；历史最低68,700，现行最低54,100）<input aria-label="佣金参数ppb" type="number" min={marketFeeScheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68700 : 54100} max="3000000" step="1" value={commissionRatePartsPerBillion} onChange={(event)=>setCommissionRatePartsPerBillion(Number(event.target.value))} /></label><label>最低佣金（分；用户配置）<input aria-label="最低佣金（分）" type="number" min="0" step="1" value={minimumCommissionCents} onChange={(event)=>setMinimumCommissionCents(Number(event.target.value))} /></label><p>费用含对应日期的经手费、过户费与卖方印花税；佣金和最低佣金由用户按账户合同填写。执行日必须处于所选费表有效期，结果不代表券商账单。</p></>}
+        <label>卖出信号日（可选）<input aria-label="卖出信号日" type="date" value={sellSignalDate} onChange={(event)=>setSellSignalDate(event.target.value)} /></label>
+        <label>卖出执行日（可选）<input aria-label="卖出执行日" type="date" value={sellExecutionDate} onChange={(event)=>setSellExecutionDate(event.target.value)} /></label>
+        <label>卖出数量（股，可选）<input aria-label="卖出数量" type="number" min="0" step="1" value={sellQuantity} onChange={(event)=>setSellQuantity(Number(event.target.value))} /></label>
+      </div>
+      <button disabled={busy} onClick={()=>void start()}>{busy ? "运行中…" : "运行回测"}</button>
+    </section>
+    {run && <>
+      <section aria-labelledby="v14-report-title">
+        <h2 id="v14-report-title" data-testid="v14-report-title">运行结果</h2>
+        <dl><dt>testRunId</dt><dd data-testid="v14-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v14-run-status">{run.status}</dd><dt>数据版本</dt><dd>{run.evidence.dataVersion}</dd><dt>Fixture SHA-256</dt><dd><code>{run.evidence.fixtureSha256}</code></dd><dt>执行模型</dt><dd>{run.evidence.barType} / {run.evidence.environmentMode} / {run.evidence.brokerMode}</dd></dl>
+        {metrics && <><h3>绩效与资金</h3><table><thead><tr><th>指标</th><th>结果</th></tr></thead><tbody>
+          <tr><th>累计收益</th><td>{metrics.returnBasisPoints} bp</td></tr><tr><th>最大回撤</th><td>{metrics.maxDrawdownBasisPoints} bp</td></tr><tr><th>成交金额</th><td>{metrics.turnoverCents} 分</td></tr><tr><th>费用</th><td>{metrics.feesCents} 分</td></tr><tr><th>成交率</th><td>{metrics.fillRateBasisPoints} bp</td></tr><tr><th>拒绝订单</th><td>{metrics.rejectedOrders}</td></tr><tr><th>未成交数量</th><td>{metrics.unfilledQuantity}</td></tr><tr><th>期末现金</th><td data-testid="v14-final-cash">{metrics.finalCashCents} 分</td></tr><tr><th>期末净值</th><td>{metrics.finalNavCents} 分</td></tr>
+        </tbody></table></>}
+        <h3>逐日净值</h3><table data-testid="v14-nav"><thead><tr><th>日期</th><th>净值（分）</th></tr></thead><tbody>{(run.evidence.nav ?? []).map((point:any)=><tr key={point.date}><td>{point.date}</td><td>{point.valueCents}</td></tr>)}</tbody></table>
+        <h3>持仓与可卖数量（A股 T+1）</h3><p>当日收盘成交的持仓计入估值，但当日不可卖；只有在Fixture中的下一交易日才转为可卖。未卖出持仓不会重复计入现金。</p><table data-testid="v14-position-availability"><thead><tr><th>日期</th><th>证券</th><th>持仓</th><th>可卖</th><th>未到可卖日</th></tr></thead><tbody>{(run.evidence.positionAvailability ?? []).map((position:any)=><tr key={`${position.date}-${position.securityId}`}><td>{position.date}</td><td>{position.securityId}</td><td>{position.heldQuantity}</td><td>{position.sellableQuantity}</td><td>{position.unsettledQuantity}</td></tr>)}</tbody></table>
+        <h3>现金与卖出款结算</h3><table data-testid="v14-cash-ledger"><thead><tr><th>日期</th><th>已结算现金（分）</th><th>未结算卖出款（分）</th></tr></thead><tbody>{(run.evidence.cashLedger ?? []).map((entry:any)=><tr key={entry.date}><td>{entry.date}</td><td>{entry.settledCashCents}</td><td>{entry.unsettledSaleProceedsCents}</td></tr>)}</tbody></table><table data-testid="v14-settlements"><thead><tr><th>卖出日</th><th>结算日</th><th>净卖出款（分）</th><th>状态</th></tr></thead><tbody>{(run.evidence.settlements ?? []).map((entry:any,index:number)=><tr key={`${entry.tradeDate}-${index}`}><td>{entry.tradeDate}</td><td>{entry.settlementDate ?? "窗口内未结算"}</td><td>{entry.proceedsCents}</td><td>{entry.status}</td></tr>)}</tbody></table><table data-testid="v14-order-outcomes"><thead><tr><th>方向</th><th>请求数量</th><th>成交数量</th><th>状态</th><th>原因</th></tr></thead><tbody>{(run.evidence.orderOutcomes ?? []).map((order:any,index:number)=><tr key={`${order.executionDate}-${index}`}><td>{order.side}</td><td>{order.requestedQuantity}</td><td>{order.filledQuantity}</td><td>{order.status}</td><td>{order.reason ?? "—"}</td></tr>)}</tbody></table>
+        <h3>成交明细</h3><table data-testid="v14-trades"><thead><tr><th>方向</th><th>证券</th><th>数量</th><th>成交价（分）</th><th>佣金（分）</th><th>过户费（分）</th><th>印花税（分）</th><th>总费用（分）</th><th>信号日</th><th>成交日</th></tr></thead><tbody>{(run.evidence.trades ?? []).map((trade:any,index:number)=><tr key={`${trade.executionDate}-${index}`}><td>{trade.side}</td><td>{trade.securityId ?? "600000.SH"}</td><td>{trade.quantity}</td><td>{trade.priceCents}</td><td>{trade.feeBreakdown?.commissionCents ?? trade.feeCents}</td><td>{trade.feeBreakdown?.transferFeeCents ?? 0}</td><td>{trade.feeBreakdown?.stampDutyCents ?? 0}</td><td>{trade.feeCents}</td><td>{trade.signalDate}</td><td>{trade.executionDate}</td></tr>)}</tbody></table>
+        <h3>后端断言</h3><table><thead><tr><th>断言</th><th>状态</th><th>预期</th><th>实际</th></tr></thead><tbody>{run.assertions.map((assertion:any)=><tr key={assertion.assertionId}><td>{assertion.assertionId}</td><td>{assertion.status}</td><td><code>{JSON.stringify(assertion.expected)}</code></td><td><code>{JSON.stringify(assertion.actual)}</code></td></tr>)}</tbody></table>
+        <details><summary>查看完整证据</summary><pre data-testid="v14-evidence">{JSON.stringify(run.evidence,null,2)}</pre></details>
+      </section>
+      {previous && <section aria-labelledby="v14-comparison-title"><h2 id="v14-comparison-title" data-testid="v14-comparison-title">本页运行比较</h2><p>比较当前浏览器会话中最近两次运行；每次运行均独立持久化，可通过 testRunId 单独复核。</p><table data-testid="v14-comparison"><thead><tr><th>指标</th><th>前一次 · {previous.testRunId}</th><th>当前 · {run.testRunId}</th></tr></thead><tbody>{comparisonMetrics.map((key)=><tr key={key}><th>{key}</th><td>{previous.evidence?.metrics?.[key] ?? "—"}</td><td>{metrics?.[key] ?? "—"}</td></tr>)}</tbody></table></section>}
+    </>}
+  </main>;
 }
 
 function V15Acceptance() { const [scenario, setScenario] = useState("normal"); const [run, setRun] = useState<any>(null); const [error, setError] = useState<string | null>(null); const start = async () => { try { setError(null); const a = await api<any>("/api/v1/acceptance/v1/v1.5/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: 20260907 }) }); setRun(await api<any>(`/api/v1/acceptance/v1/v1.5/runs/${a.testRunId}`)); } catch (e) { setError(String(e)); } }; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V1.5 无人调度、故障恢复与 V1 验收</h1><p>后台工作流、日历调度、恢复与备份；订单仍为 PAPER + FAKE。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>调度场景</h2><select aria-label="调度场景" value={scenario} onChange={(e)=>setScenario(e.target.value)}><option value="normal">后台调度与 60 日 HOLD</option><option value="rejection">暂停与窗口拒绝</option><option value="recovery">Worker/总线与备份恢复</option></select><button onClick={()=>void start()}>运行 V1.5 场景</button></section>{run && <section><h2>恢复与全链路证据</h2><dl><dt>testRunId</dt><dd data-testid="v15-test-run-id">{run.testRunId}</dd><dt>状态</dt><dd data-testid="v15-run-status">{run.status}</dd></dl><pre data-testid="v15-evidence">{JSON.stringify(run.evidence,null,2)}</pre><table><thead><tr><th>断言</th><th>状态</th></tr></thead><tbody>{run.assertions.map((a:any)=><tr key={a.assertionId}><td>{a.assertionId}</td><td>{a.status}</td></tr>)}</tbody></table></section>}</main>; }
@@ -322,22 +391,164 @@ function V22Acceptance() {
   useEffect(() => { if (!runId) return; void api<any>(`${basePath}/runs/${runId}`).then((result) => setData((old: any) => ({ ...(old ?? {}), run: result }))).catch((e) => { window.localStorage.removeItem(storageKey); setRunId(""); setError(String(e)); }); }, [runId]);
   return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.2 历史分钟数据导入与校验</h1><p>CN分钟Fixture与分块 CSV/Parquet 上传，支持 1m/5m 与显式时间戳语义；不触发交易。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>导入与预览</h2><button onClick={()=>void load(`${basePath}/preview`)}>预览分钟数据</button><button onClick={()=>void load(`${basePath}/import`, { fixture: "normal" })}>导入正常文件</button><button onClick={()=>void load(`${basePath}/import`, { fixture: "bad" })}>导入坏文件并拒绝</button></section><section><h2>分钟文件上传</h2><label>分钟频率 <select aria-label="分钟频率" value={csvFrequency} onChange={(event)=>{setCsvFrequency(event.target.value as "1m"|"5m");setData((old:any)=>({...old,csv:null}));}}><option value="1m">1分钟</option><option value="5m">5分钟</option></select></label><label>时间戳语义 <select aria-label="时间戳语义" value={csvTimestampSemantics} onChange={(event)=>{setCsvTimestampSemantics(event.target.value as "BAR_START"|"BAR_END");setData((old:any)=>({...old,csv:null}));}}><option value="BAR_START">源时间代表bar开始</option><option value="BAR_END">源时间代表bar结束</option></select></label><p>支持 CSV 与 Parquet 列映射；仅限 CN_A、1分钟或5分钟、RAW；按上海时区解释时间戳，成交量单位为股、成交额单位为人民币；最多64 MiB/100000行，每块512 KiB；分块预览最多显示100条Bar样本，并用barsTruncated提示，错误明细保持完整。时间戳支持上海本地 YYYY-MM-DD HH:mm 与 BaoStock YYYYMMDDHHmmssSSS 格式。</p><label>CSV 或 Parquet 文件 <input type="file" accept=".csv,text/csv,.parquet,application/vnd.apache.parquet" onChange={async (event)=>{const file=event.currentTarget.files?.[0]; if(!file)return; if(file.size>64*1024*1024){setError("分钟文件超过64 MiB限制");return;} const isParquet=file.name.toLowerCase().endsWith(".parquet"); const headerText=isParquet?"":await file.slice(0,128*1024).text(); const content=!isParquet&&file.size<=700_000?await file.text():""; const firstLine=headerText.replace(/^\uFEFF/,"").split(/\r?\n/,1)[0]??""; const headers=isParquet?[...csvFields]:parseCsvHeaders(firstLine); const savedSha=uploadSession&&(file.size>700_000||isParquet)?await sha256Bytes(await file.arrayBuffer()):null; const canResume=Boolean(uploadSession&&savedSha===uploadSession.expectedSha256&&uploadSession.mapping&&uploadSession.provenance&&uploadSession.fileFormat===(isParquet?"PARQUET":"CSV")); const defaultMapping=Object.fromEntries(csvFields.map((field)=>[field,isParquet?field:headers.find((header)=>header.toLowerCase()===field.toLowerCase())??headers[0]??""])); setCsvFile(file); setCsvContent(content); setCsvHeaders(headers); setCsvMapping(canResume?uploadSession!.mapping!:defaultMapping); if(canResume){setCsvProvenance(uploadSession!.provenance!);setCsvFrequency(uploadSession!.frequency??"1m");setCsvTimestampSemantics(uploadSession!.timestampSemantics??"BAR_START");} setData((old:any)=>({...old,csv:null}));}} /></label>{csvHeaders.length>0 && <><p>选择 CSV 源列，或填写 Parquet 源列名；每个目标字段必须对应一个不同的源列：</p>{csvFields.map((field)=><label key={field}>{field}{csvFile?.name.toLowerCase().endsWith(".parquet")?<input aria-label={`${field} Parquet 源列名`} value={csvMapping[field]??""} onChange={(event)=>{setCsvMapping((old)=>({...old,[field]:event.target.value}));setData((old:any)=>({...old,csv:null}));}} />:<select aria-label={`${field} CSV 源列`} value={csvMapping[field]??""} onChange={(event)=>{setCsvMapping((old)=>({...old,[field]:event.target.value}));setData((old:any)=>({...old,csv:null}));}}>{csvHeaders.map((header)=><option key={header} value={header}>{header}</option>)}</select>}</label>)}<h3>数据来源与许可</h3><label>数据来源名称 <input value={csvProvenance.sourceName} onChange={(event)=>{setCsvProvenance((old)=>({...old,sourceName:event.target.value}));setData((old:any)=>({...old,csv:null}));}} /></label><label>来源链接或引用（可留空） <input value={csvProvenance.sourceReference} onChange={(event)=>{setCsvProvenance((old)=>({...old,sourceReference:event.target.value}));setData((old:any)=>({...old,csv:null}));}} /></label><label>许可声明 <input value={csvProvenance.licenseStatement} onChange={(event)=>{setCsvProvenance((old)=>({...old,licenseStatement:event.target.value}));setData((old:any)=>({...old,csv:null}));}} /></label><label>取得时间 <input type="datetime-local" value={csvProvenance.acquiredAt} onChange={(event)=>{setCsvProvenance((old)=>({...old,acquiredAt:event.target.value}));setData((old:any)=>({...old,csv:null}));}} /></label><label><input type="checkbox" checked={csvProvenance.licenseVerification==="OPERATOR_CONFIRMED"} onChange={(event)=>{setCsvProvenance((old)=>({...old,licenseVerification:event.target.checked?"OPERATOR_CONFIRMED":"UNCONFIRMED"}));setData((old:any)=>({...old,csv:null}));}} /> 我确认已核对许可允许研究使用（这是操作者声明，不代表系统完成法律审查）</label><p>许可未确认的导入仍会保留来源记录，但会标记为不可用于研究。</p><button disabled={!csvFile||!csvProvenance.sourceName.trim()||!csvProvenance.licenseStatement.trim()||!csvProvenance.acquiredAt} onClick={()=>void uploadCsv("preview")}>上传并预览</button><button disabled={!data?.csv||data.csv.errors?.length>0||data.csv.acceptedRows===0} onClick={()=>void uploadCsv("import")}>确认并导入</button>{data?.csv?.uploadId&&data.csv.status==="PUBLISHED"&&<button data-testid="v22-record-upload-run" onClick={()=>void run("uploaded-csv",data.csv.uploadId,csvFile?.name.toLowerCase().endsWith(".parquet")?"PARQUET":"CSV")}>将此文件导入记入验收运行</button>}{uploadSession&&<button onClick={()=>void cancelCsvUpload()}>取消此上传并释放配额</button>}</>}</section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常</button><button onClick={()=>void run("rejection")}>运行质量拒绝</button><button onClick={()=>void run("recovery")}>运行重复幂等</button></section>{data?.run && <section aria-label="V2.2 持久运行"><h2>当前持久运行</h2><dl><dt>testRunId</dt><dd data-testid="v22-test-run-id">{data.run.testRunId}</dd><dt>状态</dt><dd data-testid="v22-run-status">{data.run.status}</dd></dl></section>}{data && <pre data-testid="v22-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 
-function V23Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const load = async (path: string) => { try { setError(null); const preview = await api<any>(path); setData((old: any) => ({ ...(old ?? {}), preview })); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string, defer = false) => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.3/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907, defer }) }); const result = defer ? accepted : await api<any>(`/api/v1/acceptance/v2/v2.3/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } }; const worker = async (action?: string) => { const id = data?.run?.testRunId; if (!id) return; try { setError(null); const path = action ? `/api/v1/acceptance/v2/v2.3/runs/${id}/worker/${action}` : `/api/v1/acceptance/v2/v2.3/runs/${id}/worker`; const result = await api<any>(path, action ? { method: "POST", body: "{}" } : undefined); setData((old: any) => ({ ...(old ?? {}), worker: result })); } catch (e) { setError(String(e)); } }; const research = data?.run?.evidence?.crossService?.research; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.3 日频决策、分钟撮合与历史事件回放</h1><p>MINUTE_BAR / BACKTEST / FAKE；虚拟时钟、确定性事件屏障、检查点恢复与 Qlib 研究 Artifact。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>回放数据</h2><button onClick={()=>void load("/api/v1/acceptance/v2/v2.3/preview")}>预览回放数据</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常回放</button><button onClick={()=>void run("rejection")}>运行未来信息拒绝</button><button onClick={()=>void run("recovery")}>运行检查点恢复</button><button onClick={()=>void run("normal", true)}>启动可暂停长回放</button></section>{data?.run && <section><h2>Worker 生命周期</h2><button onClick={()=>void worker()}>查询状态</button><button onClick={()=>void worker("pause")}>暂停</button><button onClick={()=>void worker("resume")}>恢复</button><button onClick={()=>void worker("cancel")}>取消</button>{data.worker && <pre data-testid="v23-worker-status">{JSON.stringify(data.worker,null,2)}</pre>}</section>}{research && <section><h2>量化研究 Artifact</h2><p data-testid="v23-research-status">{research.status} · {research.adapter} · {research.dataMode} · modelCalls={research.modelCalls}</p><code data-testid="v23-research-hash">{research.artifactHash}</code></section>}{data && <pre data-testid="v23-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
+function V23Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const [qlibRun, setQlibRun] = useState<any>(null); const load = async (path: string) => { try { setError(null); const preview = await api<any>(path); setData((old: any) => ({ ...(old ?? {}), preview })); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string, defer = false) => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.3/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907, defer }) }); const result = defer ? accepted : await api<any>(`/api/v1/acceptance/v2/v2.3/runs/${accepted.testRunId}`); setData((old: any) => ({ ...(old ?? {}), run: result })); } catch (e) { setError(String(e)); } }; const runQlib = async () => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.3/research/qlib-fixture/runs", { method: "POST", body: "{}" }); const result = await api<any>(`/api/v1/acceptance/v2/v2.3/runs/${accepted.testRunId}`); setQlibRun(result); } catch (e) { setError(String(e)); } }; const worker = async (action?: string) => { const id = data?.run?.testRunId; if (!id) return; try { setError(null); const path = action ? `/api/v1/acceptance/v2/v2.3/runs/${id}/worker/${action}` : `/api/v1/acceptance/v2/v2.3/runs/${id}/worker`; const result = await api<any>(path, action ? { method: "POST", body: "{}" } : undefined); setData((old: any) => ({ ...(old ?? {}), worker: result })); } catch (e) { setError(String(e)); } }; const research = data?.run?.evidence?.crossService?.research; const qlibEvidence = qlibRun?.evidence?.crossService?.research; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.3 日频决策、分钟撮合与历史事件回放</h1><p>MINUTE_BAR / BACKTEST / FAKE；虚拟时钟、确定性事件屏障、检查点恢复与 Qlib 研究。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>回放数据</h2><button onClick={()=>void load("/api/v1/acceptance/v2/v2.3/preview")}>预览回放数据</button></section><section><h2>统一场景运行</h2><button onClick={()=>void run("normal")}>运行正常回放</button><button onClick={()=>void run("rejection")}>运行未来信息拒绝</button><button onClick={()=>void run("recovery")}>运行检查点恢复</button><button onClick={()=>void run("normal", true)}>启动可暂停长回放</button></section><section><h2>Qlib Fixture 工程验证</h2><p>使用确定性合成样本执行实际 Qlib fit/predict；不读取市场数据；模型独立验证仍未运行，Fixture 模型和预测产物会以 TestRun 绑定方式持久保存。</p><button onClick={()=>void runQlib()}>运行合成 Fixture Qlib TestRun</button>{qlibRun && <pre data-testid="v23-qlib-fixture-evidence">{JSON.stringify(qlibRun,null,2)}</pre>}{qlibEvidence && <p data-testid="v23-qlib-fixture-status">{qlibEvidence.status} · {qlibEvidence.adapter} · {qlibEvidence.dataMode} · validation={qlibEvidence.modelValidation} · Artifact={qlibEvidence.durableArtifactStatus}{qlibEvidence.artifactRef?.url && <> · <a href={qlibEvidence.artifactRef.url} download>下载模型与预测产物</a></>}</p>}</section>{data?.run && <section><h2>Worker 生命周期</h2><button onClick={()=>void worker()}>查询状态</button><button onClick={()=>void worker("pause")}>暂停</button><button onClick={()=>void worker("resume")}>恢复</button><button onClick={()=>void worker("cancel")}>取消</button>{data.worker && <pre data-testid="v23-worker-status">{JSON.stringify(data.worker,null,2)}</pre>}</section>}{research && <section><h2>历史回放研究摘要</h2><p data-testid="v23-research-status">{research.status} · {research.adapter} · {research.dataMode} · modelCalls={research.modelCalls}</p><code data-testid="v23-research-hash">{research.artifactHash}</code></section>}{data && <pre data-testid="v23-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 
 function V24Acceptance() {
   const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null);
+  const [runningScenario, setRunningScenario] = useState<V24PaperStageRunRequest["scenarioId"] | null>(null);
   const [observations, setObservations] = useState<Array<{ observationDate: string; testRunId: string | null; reconciliationStatus: string; errors: string[] }>>([]);
   const [revisionData, setRevisionData] = useState<V24ObservationRevisionList | null>(null);
+  const [recoveryHistory, setRecoveryHistory] = useState<any>(null);
   const [paperReadiness, setPaperReadiness] = useState<V24PaperReadiness | null>(null);
   const call = async (path: string, init?: RequestInit) => { try { setError(null); setData(await api<any>(path, init)); } catch (e) { setError(String(e)); } };
   const loadObservations = async () => { try { setError(null); setObservations(await api<Array<{ observationDate: string; testRunId: string | null; reconciliationStatus: string; errors: string[] }>>("/api/v1/acceptance/v2/v2.4/observations")); } catch (e) { setError(String(e)); } };
   const loadRevisions = async (testRunId: string) => { try { setError(null); setRevisionData(await api<V24ObservationRevisionList>(`/api/v1/acceptance/v2/v2.4/runs/${testRunId}/revisions`)); } catch (e) { setError(String(e)); } };
   const loadPaperReadiness = async () => { try { setError(null); setPaperReadiness(await api<V24PaperReadiness>("/api/v1/acceptance/v2/v2.4/paper-readiness?market=CN_A")); } catch (e) { setError(String(e)); } };
-  const run = async (scenarioId: V24PaperStageRunRequest["scenarioId"]) => { try { setError(null); setRevisionData(null); const request: V24PaperStageRunRequest = { scenarioId, seed: 20260907 }; const accepted = await api<V24PaperStageRunAccepted>("/api/v1/acceptance/v2/v2.4/runs", { method: "POST", body: JSON.stringify(request) }); const result = await api<V24PaperStageRunResult>(`/api/v1/acceptance/v2/v2.4/runs/${accepted.testRunId}`); setData(result); } catch (e) { setError(String(e)); } };
+  const testRunStorageKey = "stockquant:v24:paper-testRunId";
+  useEffect(() => {
+    const savedTestRunId = window.localStorage.getItem(testRunStorageKey);
+    if (savedTestRunId) void api<V24PaperStageRunResult>(`/api/v1/acceptance/v2/v2.4/runs/${encodeURIComponent(savedTestRunId)}`).then(setData).catch((cause) => setError(String(cause)));
+  }, []);
+  const run = async (scenarioId: V24PaperStageRunRequest["scenarioId"]) => {
+    try {
+      setError(null); setRevisionData(null); setData(null); setRunningScenario(scenarioId);
+      const request: V24PaperStageRunRequest = { scenarioId, seed: 20260907 };
+      const accepted = await api<V24PaperStageRunAccepted>("/api/v1/acceptance/v2/v2.4/runs", { method: "POST", body: JSON.stringify(request) });
+      window.localStorage.setItem(testRunStorageKey, accepted.testRunId);
+      setData(await api<V24PaperStageRunResult>(`/api/v1/acceptance/v2/v2.4/runs/${encodeURIComponent(accepted.testRunId)}`));
+    } catch (e) { setError(String(e)); } finally { setRunningScenario(null); }
+  };
+  const recoverFailedRun = async () => {
+    if (!data?.testRunId) return;
+    try {
+      setError(null); setRunningScenario("recovery");
+      await api(`/api/v1/acceptance/v2/v2.4/runs/${encodeURIComponent(data.testRunId)}/recover`, { method: "POST" });
+      setData(await api<V24PaperStageRunResult>(`/api/v1/acceptance/v2/v2.4/runs/${encodeURIComponent(data.testRunId)}`));
+      setRecoveryHistory(await api<any>(`/api/v1/acceptance/v2/v2.4/runs/${encodeURIComponent(data.testRunId)}/history`));
+    } catch (e) { setError(String(e)); } finally { setRunningScenario(null); }
+  };
   const summary = data?.targetDays !== undefined && data?.countedDays !== undefined ? data : null;
   const policyReadiness = paperReadiness?.policyReadiness;
   const mandateReadiness = paperReadiness?.mandateReadiness;
-  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.4 真实时钟下持续模拟交易</h1><p data-testid="v24-mode">PAPER / NOT_CONNECTED / FAKE；Mandate 仍为 PREPARATION_ONLY，LIVE 激活关闭。未接通的场景会显示 WAITING，不生成模拟成交证据。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>运行配置</h2><button onClick={()=>void loadPaperReadiness()}>检查 Paper 就绪门禁</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/preview")}>查看采样与执行窗口</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/status")}>查看调度状态</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/observation-summary")}>查看日终观察进度</button><button onClick={()=>void loadObservations()}>查看观察记录</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/start", { method: "POST", body: "{}" })}>启动调度</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/tick", { method: "POST", body: "{}" })}>执行一次采样 Tick</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/stop", { method: "POST" })}>停止调度</button><button onClick={()=>void run("normal")}>检查正常路径前置</button><button onClick={()=>void run("rejection")}>检查拒绝路径前置</button><button onClick={()=>void run("recovery")}>检查恢复路径前置</button></section>{paperReadiness && <section aria-label="Paper 就绪门禁"><h2>Paper 就绪门禁</h2><p data-testid="v24-paper-readiness">{paperReadiness.market} · {paperReadiness.status} · {paperReadiness.environmentMode}/{paperReadiness.brokerMode}</p><p>策略：{policyReadiness?.status}；Mandate：{mandateReadiness?.status}</p><p>风控：{paperReadiness.riskEvaluation.status}；资源预留：{paperReadiness.resourceReservation.status}；下单：{paperReadiness.orderSubmissionEnabled ? "开启" : "关闭"}</p><p>LIVE：{paperReadiness.liveTradingEnabled ? "开启" : "关闭"}</p></section>}{summary && <section aria-label="日终观察汇总"><h2>日终观察汇总</h2><dl><dt>有效日终观察</dt><dd data-testid="v24-observed-days">{summary.countedDays}/{summary.targetDays}</dd><dt>剩余观察日</dt><dd data-testid="v24-remaining-days">{summary.remainingDays}</dd><dt>状态</dt><dd data-testid="v24-observation-status">{summary.status}</dd></dl></section>}{observations.length > 0 && <section aria-label="观察运行历史"><h2>观察运行历史</h2><ul>{observations.filter((item) => item.testRunId).map((item) => <li key={item.testRunId} data-testid={`v24-observation-run-${item.testRunId}`}>{item.observationDate} · {item.reconciliationStatus} · {item.errors.length} 个错误 <button onClick={() => void loadRevisions(item.testRunId!)}>查看 {item.observationDate} 修订历史</button></li>)}</ul></section>}{revisionData && <section aria-label="观察证据修订历史"><h2>观察证据修订历史</h2><p>TestRun：{revisionData.testRunId}；修订数：{revisionData.revisions.length}</p>{revisionData.revisions.length === 0 ? <p>此运行没有历史修订。</p> : revisionData.revisions.map((revision) => <article key={revision.revisionId}><h3>修订 {revision.revisionId} · {revision.reason}</h3><p>原状态：{revision.priorStatus}；记录时间：{revision.recordedAt}</p><pre>{JSON.stringify({ assertions: revision.priorAssertions, evidence: revision.priorEvidence }, null, 2)}</pre></article>)}</section>}{data && <pre data-testid="v24-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
+  const evidence = data?.evidence ?? {};
+  const fill = evidence.fills?.[0];
+  const order = evidence.order ?? evidence.orders?.[0];
+  const riskAssertion = evidence.assertions?.find((item: any) => item.assertionId === "V2.4-PAPER-002");
+  const businessEvents = [
+    evidence.fixture && { event: `Fixture ${evidence.fixture.fixtureId} v${evidence.fixture.fixtureVersion}`, time: evidence.source?.observedAt ?? "固定样本", status: evidence.source?.status ?? "LOADED" },
+    (evidence.authorization || evidence.governance) && { event: "治理授权", time: evidence.authorization?.expiresAt ?? "", status: evidence.authorization?.status ?? `${evidence.governance.status} · HTTP ${evidence.governance.httpStatus}` },
+    riskAssertion && { event: "风控检查", time: "", status: riskAssertion.status },
+    (order || evidence.orders) && { event: "FakeBroker订单", time: order?.acceptedAt ?? "", status: order?.status ?? "未创建" },
+    fill && { event: "成交回报", time: fill.effectiveAt ?? "", status: `${fill.quantity}股 · ${fill.price} · 费用${fill.fee}` },
+    evidence.outbox && { event: "Outbox对账", time: evidence.outbox.delivered_at ?? evidence.outbox.created_at ?? "", status: evidence.outbox.status },
+    evidence.reconciliation && { event: "最终对账", time: "", status: `订单${evidence.reconciliation.order_count ?? 0} / Fill${evidence.reconciliation.fill_count ?? 0} / 待处理${evidence.reconciliation.pending_outbox_count ?? 0}` }
+  ].filter(Boolean) as Array<{ event: string; time: string; status: string }>;
+  const downloadEvidence = () => {
+    if (!data) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = url; link.download = `v24-paper-${data.testRunId}.json`; link.click(); URL.revokeObjectURL(url);
+  };
+  return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.4 真实时钟下持续模拟交易</h1><p data-testid="v24-mode">当前活动行情为 NOT_CONNECTED；默认Paper策略仍为PREPARATION_ONLY，LIVE关闭。验收场景仅运行冻结的隔离FIXTURE / PAPER / FAKE链路，不会启用活动策略。</p><a href="/paper">查看 Paper 只读状态概览</a></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>运行配置</h2><button onClick={()=>void loadPaperReadiness()}>检查 Paper 就绪门禁</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/preview")}>查看采样与执行窗口</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/status")}>查看调度状态</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/observation-summary")}>查看日终观察进度</button><button onClick={()=>void loadObservations()}>查看观察记录</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/start", { method: "POST", body: "{}" })}>启动调度</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/tick", { method: "POST", body: "{}" })}>执行一次采样 Tick</button><button onClick={()=>void call("/api/v1/acceptance/v2/v2.4/scheduler/stop", { method: "POST" })}>停止调度</button><button disabled={runningScenario !== null} onClick={()=>void run("normal")}>运行隔离Paper正常场景</button><button disabled={runningScenario !== null} onClick={()=>void run("rejection")}>运行隔离Paper拒绝场景</button><button disabled={runningScenario !== null} onClick={()=>void run("recovery")}>运行隔离Paper恢复场景</button><button disabled={runningScenario !== null} onClick={()=>void run("external-reconciliation")}>运行外部订单差异场景</button>{runningScenario && <p role="status">{runningScenario} 场景正在执行，后台运行状态保存在 TestRun 中。</p>}</section>{paperReadiness && <section aria-label="Paper 就绪门禁"><h2>Paper 就绪门禁</h2><p data-testid="v24-paper-readiness">{paperReadiness.market} · {paperReadiness.status} · {paperReadiness.environmentMode}/{paperReadiness.brokerMode}</p><p>策略：{policyReadiness?.status}；Mandate：{mandateReadiness?.status}</p><p>风控：{paperReadiness.riskEvaluation.status}；资源预留：{paperReadiness.resourceReservation.status}；下单：{paperReadiness.orderSubmissionEnabled ? "开启" : "关闭"}</p><p>LIVE：{paperReadiness.liveTradingEnabled ? "开启" : "关闭"}</p></section>}{summary && <section aria-label="日终观察汇总"><h2>日终观察汇总</h2><dl><dt>严格证据通过的观察日</dt><dd data-testid="v24-observed-days">{summary.countedDays}/{summary.targetDays}</dd><dt>剩余观察日</dt><dd data-testid="v24-remaining-days">{summary.remainingDays}</dd><dt>历史系统曾标记计数</dt><dd data-testid="v24-recorded-observed-days">{summary.recordedCountedDays ?? summary.countedDays}/{summary.targetDays}</dd><dt>旧计数待补证</dt><dd data-testid="v24-unverified-observed-days">{summary.unverifiedCountedDays ?? 0}</dd><dt>状态</dt><dd data-testid="v24-observation-status">{summary.status}</dd></dl></section>}{observations.length > 0 && <section aria-label="观察运行历史"><h2>观察运行历史</h2><ul>{observations.filter((item) => item.testRunId).map((item) => <li key={item.testRunId} data-testid={`v24-observation-run-${item.testRunId}`}>{item.observationDate} · {item.reconciliationStatus} · {item.errors.length} 个错误 <button onClick={() => void loadRevisions(item.testRunId!)}>查看 {item.observationDate} 修订历史</button></li>)}</ul></section>}{revisionData && <section aria-label="观察证据修订历史"><h2>观察证据修订历史</h2><p>TestRun：{revisionData.testRunId}；修订数：{revisionData.revisions.length}</p>{revisionData.revisions.length === 0 ? <p>此运行没有历史修订。</p> : revisionData.revisions.map((revision) => <article key={revision.revisionId}><h3>修订 {revision.revisionId} · {revision.reason}</h3><p>原状态：{revision.priorStatus}；记录时间：{revision.recordedAt}</p><pre>{JSON.stringify({ assertions: revision.priorAssertions, evidence: revision.priorEvidence }, null, 2)}</pre></article>)}</section>}{data && <section aria-label="Paper场景业务证据"><h2>隔离 Paper 场景结果</h2><p data-testid="v24-scenario-status">{data.scenarioId} · {data.status}</p>{data.status === "FAILED" && data.scenarioId === "recovery" && evidence.recovery && <button data-testid="v24-resume-failed-run" disabled={runningScenario !== null} onClick={()=>void recoverFailedRun()}>按原订单身份安全恢复此 TestRun</button>}<dl><dt>TestRun</dt><dd data-testid="v24-test-run-id">{data.testRunId}</dd><dt>执行环境</dt><dd>{evidence.environmentMode ?? "PAPER"} / {evidence.dataMode ?? "FIXTURE"} / {evidence.brokerMode ?? "FAKE"}</dd><dt>LIVE</dt><dd>{evidence.executionPolicy?.liveTradingEnabled === true ? "开启" : "关闭"}</dd>{evidence.authorization && <><dt>授权</dt><dd data-testid="v24-authorization-result">{evidence.authorization.status}</dd></>}{evidence.governance && <><dt>拒绝结果</dt><dd data-testid="v24-governance-result">{evidence.governance.status} · HTTP {evidence.governance.httpStatus}</dd></>}{order && <><dt>订单状态</dt><dd data-testid="v24-order-status">{order.status} · {evidence.signal?.security ?? ""} · {evidence.signal?.quantity ?? ""}</dd></>}{riskAssertion && <><dt>风控检查</dt><dd data-testid="v24-risk-result">{riskAssertion.status} · {riskAssertion.expected}</dd></>}{fill && <><dt>成交</dt><dd data-testid="v24-fill-summary">{fill.quantity} 股 × {fill.price}；费用 {fill.fee}</dd></>}{evidence.resourceReservation && <><dt>资金预留</dt><dd data-testid="v24-reservation-status">{evidence.resourceReservation.status} · {evidence.resourceReservation.capturedCashAmount ?? evidence.resourceReservation.amount}</dd></>}{evidence.account && <><dt>现金</dt><dd data-testid="v24-cash">{evidence.account.cash?.amount} {evidence.account.cash?.currency}</dd><dt>持仓</dt><dd data-testid="v24-positions">{(evidence.account.positions ?? []).map((position: any) => `${position.security} ${position.quantity}股`).join("，") || "无"}</dd><dt>账本条目</dt><dd>{evidence.account.ledgerEntryCount}</dd></>}{evidence.reconciliation && <><dt>对账</dt><dd data-testid="v24-reconciliation">{evidence.reconciliation.status ?? "已检查"} · 订单 {evidence.reconciliation.order_count ?? 0}，成交 {evidence.reconciliation.fill_count ?? 0}，待处理 {evidence.reconciliation.pending_outbox_count ?? 0}，外部未匹配 {evidence.reconciliation.externalOnlyOrderCount ?? 0}</dd>{evidence.reconciliation.discrepancies?.length > 0 && <><dt>对账差异</dt><dd data-testid="v24-reconciliation-discrepancies"><ul>{evidence.reconciliation.discrepancies.map((item: any) => <li key={item.externalOrderId}>{item.kind} · {item.externalOrderId} · {item.security} {item.requestedQuantity}股 · {item.status} · {item.evidenceRef}</li>)}</ul></dd></>}</>}{evidence.fixture && <><dt>Fixture</dt><dd>{evidence.fixture.fixtureId} v{evidence.fixture.fixtureVersion} · SHA-256 {evidence.fixture.manifestSha256}</dd></>}{data.assertions?.length > 0 && <><dt>断言</dt><dd>{data.assertions.filter((item: any) => item.status === "PASS").length}/{data.assertions.length} PASS</dd></>}</dl>{recoveryHistory && <details open aria-label="TestRun恢复历史"><summary>TestRun 恢复历史（{recoveryHistory.revisions.length} 个历史版本）</summary><pre data-testid="v24-recovery-history">{JSON.stringify(recoveryHistory,null,2)}</pre></details>}{businessEvents.length > 0 && <section aria-label="Paper业务事件时间线"><h3>业务事件时间线</h3><ol data-testid="v24-business-timeline">{businessEvents.map((item, index) => <li key={`${item.event}-${index}`}>{item.event}{item.time && ` · ${item.time}`} · {item.status}</li>)}</ol></section>}<p>快照价格与流动性仅用于冻结 Fixture 验收；流动性未验证，不代表真实行情或可成交能力。</p><button data-testid="v24-download-evidence" onClick={downloadEvidence}>下载原始证据 JSON</button><details><summary>查看原始后端证据</summary><pre data-testid="v24-evidence">{JSON.stringify(data,null,2)}</pre></details></section>}</main>; }
+
+type V24PaperOverviewState = {
+  readiness: V24PaperReadiness;
+  scheduler: { status: "STOPPED" | "RUNNING"; samplingIntervalMinutes: number; executionWindow: string; lastSampleAt: string | null; nextSampleAt: string | null; mode: "PAPER"; brokerMode: "FAKE" };
+  observations: { targetDays: number; countedDays: number; recordedCountedDays: number; unverifiedCountedDays: number; remainingDays: number; status: "WAITING" | "PASS" };
+  latestExecutionGate: { observationDate: string; status: string; reason: string } | null;
+  alerts: Array<{ incidentId: string; alertKey: string; code: string; severity: "INFO" | "WARNING" | "CRITICAL"; payload: Record<string, unknown>; state: "OPEN" | "ACKNOWLEDGED"; firstSeenAt: string; lastSeenAt: string; acknowledgedBy: string | null }>;
+};
+
+function V24PaperOverview() {
+  const [state, setState] = useState<V24PaperOverviewState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [readiness, scheduler, observations, records, alertResponse] = await Promise.all([
+        api<V24PaperReadiness>("/api/v1/acceptance/v2/v2.4/paper-readiness?market=CN_A"),
+        api<V24PaperOverviewState["scheduler"]>("/api/v1/acceptance/v2/v2.4/scheduler/status"),
+        api<V24PaperOverviewState["observations"]>("/api/v1/acceptance/v2/v2.4/observation-summary"),
+        api<Array<{ observationDate: string; evidence?: { eventKind?: string; executionGate?: { status?: string; reason?: string } } }>>("/api/v1/acceptance/v2/v2.4/observations"),
+        api<{ incidents: V24PaperOverviewState["alerts"] }>("/api/v1/acceptance/v2/v2.4/alerts"),
+      ]);
+      const latestGateRecord = records.filter((record) => record.evidence?.executionGate).sort((a, b) => b.observationDate.localeCompare(a.observationDate))[0];
+      const latestExecutionGate = latestGateRecord?.evidence?.executionGate
+        ? { observationDate: latestGateRecord.observationDate, status: latestGateRecord.evidence.executionGate.status ?? "UNKNOWN", reason: latestGateRecord.evidence.executionGate.reason ?? "GATE_REASON_UNAVAILABLE" }
+        : null;
+      setState({ readiness, scheduler, observations, latestExecutionGate, alerts: alertResponse.incidents });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setLoading(false);
+    }
+  };
+  const acknowledgeAlert = async (incidentId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api(`/api/v1/acceptance/v2/v2.4/alerts/${encodeURIComponent(incidentId)}/acknowledge`, { method: "POST", body: "{}" });
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void refresh(); }, []);
+  return <main>
+    <header>
+      <p className="eyebrow">StockQuant · Paper 状态</p>
+      <h1>持续模拟交易概览</h1>
+      <p data-testid="paper-overview-boundary">NO_TRADE 只读观察基线已确认；行情来源尚未授权。此页只读取就绪、调度和日终汇总，不请求行情、不启动采集/调度、不创建订单。</p>
+    </header>
+    {error && <p role="alert" className="error">状态读取失败：{error}</p>}
+    <section aria-label="当前运行模式">
+      <h2>运行模式</h2>
+      <dl>
+        <dt>环境 / 券商</dt><dd data-testid="paper-overview-mode">PAPER / FAKE · LIVE 关闭</dd>
+        <dt>策略基线</dt><dd>NO_TRADE；不创建订单。正式策略政策保持 PREPARATION_ONLY。</dd>
+        <dt>就绪门禁</dt><dd data-testid="paper-overview-readiness">{state ? `${state.readiness.market} · ${state.readiness.status} · 下单${state.readiness.orderSubmissionEnabled ? "开启" : "关闭"}` : "读取中"}</dd>
+        <dt>模拟账户</dt><dd>未配置活动 Paper 账户；Fixture 测试账户不用于活动策略。</dd>
+      </dl>
+    </section>
+    <section aria-label="采样与执行窗口">
+      <h2>采样、评估与执行</h2>
+      <dl>
+        <dt>采样调度</dt><dd data-testid="paper-overview-scheduler">{state ? `${state.scheduler.status} · ${state.scheduler.samplingIntervalMinutes} 分钟` : "读取中"}</dd>
+        <dt>最近 / 下次采样</dt><dd>{state ? `${state.scheduler.lastSampleAt ?? "无记录"} / ${state.scheduler.nextSampleAt ?? "未排程"}` : "读取中"}</dd>
+        <dt>策略评估</dt><dd>未排程（来源授权与策略版本未配置）</dd>
+        <dt>执行窗口</dt><dd>未启用；准备政策中的 {state?.scheduler.executionWindow ?? "09:31–09:35"} 不构成活动执行授权。</dd>
+        <dt>行情年龄</dt><dd data-testid="paper-overview-data-age">未读取行情（来源未授权）</dd>
+      </dl>
+    </section>
+    <section aria-label="订单、资产与对账">
+      <h2>订单、资产与对账</h2>
+      <dl>
+        <dt>订单 / 成交</dt><dd>NO_TRADE；本观察版本不下单，无活动 Paper 订单或成交。</dd>
+        <dt>现金 / 持仓</dt><dd>活动模拟账户未配置。</dd>
+        <dt>日终对账</dt><dd>活动 Paper 尚未启用；无可对账活动订单。</dd>
+        <dt>严格证据通过的观察日</dt><dd data-testid="paper-overview-observations">{state ? `${state.observations.countedDays}/${state.observations.targetDays} · ${state.observations.status} · 剩余 ${state.observations.remainingDays} 日` : "读取中"}</dd>
+        <dt>旧系统标记计数 / 待补证</dt><dd data-testid="paper-overview-unverified-days">{state ? `${state.observations.recordedCountedDays} / ${state.observations.unverifiedCountedDays}` : "读取中"}</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>告警与操作</h2>
+      <p data-testid="paper-overview-execution-gate">最近执行门禁：{state?.latestExecutionGate ? `${state.latestExecutionGate.observationDate} · ${state.latestExecutionGate.status} · ${state.latestExecutionGate.reason}` : "暂无执行窗口观察记录；当前状态由只读配置显示为 NO_TRADE。"}</p>
+      <p>暂停原因取自持久化执行窗口观察记录。确认告警只记录当前登录用户及确认时间，不触发行情请求、调度或订单操作；账户过期需待活动账户接入后才能据真实账户状态判定。</p>
+      <div data-testid="paper-overview-alerts">
+        {state?.alerts.length ? <ul>{state.alerts.map((incident) => <li key={incident.incidentId} data-testid={`paper-alert-${incident.incidentId}`}>
+          <strong>{incident.severity} · {incident.code}</strong> · {incident.state} · 首次 {incident.firstSeenAt} · 最近 {incident.lastSeenAt}
+          {incident.state === "ACKNOWLEDGED" && <span> · 已由 {incident.acknowledgedBy ?? "用户"} 确认</span>}
+          {incident.state === "OPEN" && <button disabled={loading} onClick={() => void acknowledgeAlert(incident.incidentId)}>确认告警</button>}
+        </li>)}</ul> : <p>暂无活动告警。</p>}
+      </div>
+      <button data-testid="paper-overview-refresh" onClick={() => void refresh()} disabled={loading}>{loading ? "正在读取…" : "刷新只读状态"}</button>
+      <a href="/acceptance/v2/v2.4">打开隔离 Fixture 验收中心</a>
+    </section>
+  </main>;
+}
 
 function V25Acceptance() { const [data, setData] = useState<any>(null); const [error, setError] = useState<string | null>(null); const call = async (path: string, init?: RequestInit) => { try { setError(null); setData(await api<any>(path, init)); } catch (e) { setError(String(e)); } }; const run = async (scenarioId: string) => { try { setError(null); const accepted = await api<any>("/api/v1/acceptance/v2/v2.5/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907 }) }); setData(await api<any>(`/api/v1/acceptance/v2/v2.5/runs/${accepted.testRunId}`)); } catch (e) { setError(String(e)); } }; return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V2.5 历史数据扩容与 V2 验收</h1><p>20只 × 60交易日扩容档；BACKTEST / FIXTURE / FAKE。V2.4 20日观察门禁仍待完成。</p></header>{error && <p role="alert" className="error">{error}</p>}<section><h2>扩容与资源</h2><button onClick={()=>void call("/api/v1/acceptance/v2/v2.5/preview")}>查看扩容档与预算</button><button onClick={()=>void run("normal")}>运行扩容与模型验证</button><button onClick={()=>void run("rejection")}>运行资源/缓存拒绝</button><button onClick={()=>void run("recovery")}>运行任务恢复</button></section>{data && <pre data-testid="v25-evidence">{JSON.stringify(data,null,2)}</pre>}</main>; }
 
@@ -415,6 +626,9 @@ function V31Acceptance() {
 
 function V32Acceptance() {
   const [id, setId] = useState("");
+  const [readinessSourceRunId, setReadinessSourceRunId] = useState("");
+  const [readinessRunId, setReadinessRunId] = useState("");
+  const [readinessRun, setReadinessRun] = useState<Record<string, unknown> | null>(null);
   const [submitRunId, setSubmitRunId] = useState(() => window.localStorage.getItem("stockquant:v31:testRunId") ?? "");
   const [submitResult, setSubmitResult] = useState<Record<string, unknown> | null>(null);
   const [decisionResult, setDecisionResult] = useState<Record<string, unknown> | null>(null);
@@ -424,6 +638,25 @@ function V32Acceptance() {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const createReadinessRun = async (scenarioId: "normal" | "rejection" | "recovery") => {
+    setLoading(true); setError(null); setReadinessRun(null);
+    try {
+      const created = await api<Record<string, unknown>>("/api/v1/acceptance/v3/v3.2/runs", { method: "POST", body: JSON.stringify({ scenarioId, seed: 20260907, ...(readinessSourceRunId.trim() ? { sourceV31TestRunId: readinessSourceRunId.trim() } : {}) }) });
+      if (typeof created.testRunId !== "string") throw new Error("V3.2 readiness TestRun ID was not returned");
+      setReadinessRunId(created.testRunId);
+      setReadinessRun(await api<Record<string, unknown>>(`/api/v1/acceptance/v3/v3.2/runs/${encodeURIComponent(created.testRunId)}`));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const readReadinessRun = async () => {
+    const runId = readinessRunId.trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) { setError("请输入有效的 V3.2 TestRun UUID"); return; }
+    setLoading(true); setError(null);
+    try { setReadinessRun(await api<Record<string, unknown>>(`/api/v1/acceptance/v3/v3.2/runs/${encodeURIComponent(runId)}`)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
   const submit = async () => {
     const testRunId = submitRunId.trim();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(testRunId)) { setError("请输入有效的 V3.1 TestRun UUID"); return; }
@@ -472,6 +705,7 @@ function V32Acceptance() {
   const validationReport = reportResult?.report as Record<string, unknown> | undefined;
   const persistedDecision = request?.decision as Record<string, unknown> | null | undefined;
   return <main><header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V3.2 候选验证记录</h1><p>发起前会重新检查该 TestRun 的 V3.1 精确证据和用户验收；提交只创建待独立验证的 PromotionRequest，不会批准候选或修改 Registry。</p></header>
+    <section aria-label="V3.2 准备态 TestRun"><h2>记录阶段门禁状态</h2><p>此处只保存 V3.2 准备态 TestRun 和缺失门禁，不执行候选或独立复算，不写 Registry，也不调用 Paper。运行状态保持 WAITING、业务断言 NOT_RUN。</p><label>可选的 V3.1 来源 TestRun UUID <input aria-label="V3.1 来源 TestRun UUID" value={readinessSourceRunId} onChange={(event) => setReadinessSourceRunId(event.target.value)} /></label><button data-testid="v32-readiness-normal" disabled={loading} onClick={() => void createReadinessRun("normal")}>记录正常准备状态</button><button data-testid="v32-readiness-rejection" disabled={loading} onClick={() => void createReadinessRun("rejection")}>记录拒绝准备状态</button><button data-testid="v32-readiness-recovery" disabled={loading} onClick={() => void createReadinessRun("recovery")}>记录恢复准备状态</button><label>V3.2 TestRun UUID <input aria-label="V3.2 TestRun UUID" value={readinessRunId} onChange={(event) => setReadinessRunId(event.target.value)} /></label><button data-testid="v32-readiness-read" disabled={loading} onClick={() => void readReadinessRun()}>读取同一准备运行</button>{readinessRun && <div data-testid="v32-readiness-result"><p>TestRun：<code>{String(readinessRun.testRunId)}</code> · 状态：<strong>{String(readinessRun.status)}</strong></p><p>业务验证：{String((readinessRun.evidence as Record<string, unknown> | undefined)?.businessValidation ?? "NOT_RUN")} · 来源：{String((readinessRun.evidence as Record<string, unknown> | undefined)?.sourceMode ?? "READINESS_ONLY")}</p><pre>{JSON.stringify(readinessRun.evidence, null, 2)}</pre></div>}</section>
     <section aria-label="从 V3.1 TestRun 提交 PromotionRequest"><h2>提交研究候选进行独立验证</h2><label>V3.1 TestRun UUID <input aria-label="V3.1 TestRun UUID" value={submitRunId} onChange={(event) => setSubmitRunId(event.target.value)} /></label><button data-testid="v32-submit-promotion" disabled={loading} onClick={() => void submit()}>{loading ? "提交状态确认中…" : "提交此 TestRun 的 PromotionRequest"}</button>{submitResult && <><p data-testid="v32-submit-status">提交状态：{String(submitResult.status)}</p>{Array.isArray(submitResult.blockers) && <ul>{submitResult.blockers.map((blocker) => <li key={String(blocker)}>{String(blocker)}</li>)}</ul>}{typeof submitResult.promotionRequestId === "string" && <p>PromotionRequest：<code>{submitResult.promotionRequestId}</code></p>}<p>人工验收记录：{String(submitResult.humanAcceptance ?? "由 V3.1 精确运行页面单独记录")}</p></>}</section>
     <section><h2>查询已提交记录</h2><label>PromotionRequest UUID <input aria-label="PromotionRequest UUID" value={id} onChange={(event)=>setId(event.target.value)} /></label><button onClick={()=>void inspect()} disabled={loading}>{loading ? "读取中…" : "读取记录"}</button>{error && <p role="alert" className="error">{error}</p>}</section>
     {request && payload && <section aria-label="PromotionRequest 精确版本"><h2>PromotionRequest 精确版本</h2><p>来源：<strong>{String(payload.candidateSource)}</strong> · 状态：<strong>{String(request.status)}</strong></p><dl><dt>PromotionRequest ID</dt><dd>{String(request.promotionRequestId)}</dd><dt>TestRun ID</dt><dd>{String(payload.testRunId)}</dd><dt>Experiment ID</dt><dd>{String(payload.experimentId)}</dd><dt>候选 Artifact SHA-256</dt><dd><code>{String((payload.candidateArtifact as Record<string, unknown>)?.sha256)}</code></dd><dt>代码 SHA-256</dt><dd><code>{String(payload.codeSha256)}</code></dd><dt>数据 Manifest SHA-256</dt><dd><code>{String(payload.dataManifestSha256)}</code></dd><dt>指标 Manifest SHA-256</dt><dd><code>{String(payload.metricsManifestSha256)}</code></dd><dt>验证计划 SHA-256</dt><dd><code>{String(payload.validationPlanSha256)}</code></dd><dt>创建时间</dt><dd>{String(request.createdAt)}</dd></dl>{persistedDecision && <p data-testid="v32-registry-decision">决定：{String(persistedDecision.decision)} · Registry：{String(persistedDecision.registryStatus)} · 激活：{String(persistedDecision.activation)} · 版本指纹：<code>{String(persistedDecision.versionFingerprint)}</code></p>}</section>}
@@ -482,6 +716,8 @@ function V32Acceptance() {
 
 type V33RunnerQueue = { schemaVersion: "v3.3-runner-cursor-queue-v1"; testRunId: string; afterCursor: string | null; nextAfterCursor: string | null; limit: number; jobs: Array<{ jobId: string; status: string; submittedAt: string; startedAt: string | null; completedAt: string | null; attempt: number; retryOf: string | null; artifacts: unknown[]; execution: { exitCode?: number | null; durationMs?: number } | null }>; hasMore: boolean };
 type V33RunnerBudget = { schemaVersion: "v3.3-runner-budget-v1"; testRunId: string; offset: number; limit: number; rows: Array<{ jobId: string; experimentId: string; requestedCents?: number; reservedCents?: number; settledCents?: number; unknownReservedCents?: number; status: string; source: string }>; hasMore: boolean; coverage: { jobsOnPage: number; experimentsOnPage: number; budgetsFound: number; budgetsMissing: number }; note: string };
+type V33TestRunBudgetTotals = { experiments: number; requestedCents: number; reservedCents: number; settledCents: number; unknownReservedCents: number; modelCallCount: number };
+type V33TestRunBudgetSummary = { schemaVersion: "v3.3-test-run-budget-summary-v1"; testRunId: string; offset: number; limit: number; afterCursor: string | null; nextAfterCursor: string | null; rows: Array<{ experimentId: string; rounds: number; requestedCents: number; reservedCents: number; roundBudget: Array<{ roundIndex: number; allocatedCents: number; usedCents: number; unknownReservedCents: number }>; status: string; settledCents: number; unknownReservedCents: number; modelCallCount: number }>; totals: V33TestRunBudgetTotals | null; hasMore: boolean; accountingScope: string; stageBudgetControl: "NOT_IMPLEMENTED" | "TEST_RUN_CAP_ENFORCED_ROUND_CAP_NOT_IMPLEMENTED" | "TEST_RUN_AND_ROUND_CAP_ENFORCED" };
 
 function V33Acceptance() {
   const [testRunId, setTestRunId] = useState("");
@@ -490,12 +726,33 @@ function V33Acceptance() {
   const [promotionRequestId, setPromotionRequestId] = useState("");
   const [queue, setQueue] = useState<V33RunnerQueue | null>(null);
   const [budget, setBudget] = useState<V33RunnerBudget | null>(null);
+  const [testRunBudgetSummary, setTestRunBudgetSummary] = useState<V33TestRunBudgetSummary | null>(null);
+  const [testRunBudgetTotals, setTestRunBudgetTotals] = useState<V33TestRunBudgetTotals | null>(null);
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [pageCursors, setPageCursors] = useState<Array<string | null>>([null]);
+  const [budgetSummaryPage, setBudgetSummaryPage] = useState(0);
+  const [budgetSummaryCursors, setBudgetSummaryCursors] = useState<Array<string | null>>([null]);
+  const [budgetSummaryLoading, setBudgetSummaryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const pageSize = 25;
+
+  const readBudgetSummaryPage = async (pageNumber: number, requestedId = testRunId, cursorOverride?: string | null) => {
+    const id = requestedId.trim();
+    const afterCursor = cursorOverride === undefined ? budgetSummaryCursors[pageNumber] ?? null : cursorOverride;
+    setBudgetSummaryLoading(true); setBudgetError(null);
+    if (pageNumber === 0 && afterCursor === null) setTestRunBudgetTotals(null);
+    try {
+      const query = new URLSearchParams({ limit: String(pageSize) });
+      if (afterCursor !== null) query.set("afterCursor", afterCursor);
+      const summary = await api<V33TestRunBudgetSummary>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(id)}/research/budget/summary?${query}`);
+      if (summary.schemaVersion !== "v3.3-test-run-budget-summary-v1" || summary.testRunId !== id || summary.offset !== 0 || summary.afterCursor !== afterCursor || summary.limit !== pageSize || summary.stageBudgetControl !== "TEST_RUN_AND_ROUND_CAP_ENFORCED") throw new Error("全TestRun预算响应与请求范围不匹配");
+      setTestRunBudgetSummary(summary); if (summary.totals !== null) setTestRunBudgetTotals(summary.totals); setBudgetSummaryPage(pageNumber);
+      setBudgetSummaryCursors((previous) => { const updated = previous.slice(0, pageNumber + 1); if (summary.nextAfterCursor !== null) updated[pageNumber + 1] = summary.nextAfterCursor; return updated; });
+    } catch (cause) { setTestRunBudgetSummary(null); setBudgetError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setBudgetSummaryLoading(false); }
+  };
 
   const readQueue = async (pageNumber = 0, requestedId = testRunId, cursorOverride?: string | null) => {
     const nextOffset = pageNumber * pageSize;
@@ -517,10 +774,13 @@ function V33Acceptance() {
         const snapshot = await api<V33RunnerBudget>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(id)}/research/budget?offset=${nextOffset}&limit=${pageSize}`);
         if (snapshot.schemaVersion !== "v3.3-runner-budget-v1" || snapshot.testRunId !== id || snapshot.offset !== nextOffset) throw new Error("预算响应与请求的 TestRun 或分页不匹配");
         setBudget(snapshot); setBudgetError(null);
-      } catch (cause) { setBudget(null); setBudgetError(cause instanceof Error ? cause.message : String(cause)); }
+      } catch (cause) { setBudget(null); setTestRunBudgetSummary(null); setBudgetError(cause instanceof Error ? cause.message : String(cause)); }
+      if (pageNumber === 0) { setBudgetSummaryCursors([null]); await readBudgetSummaryPage(0, id, null); }
     } catch (cause) {
       setQueue(null);
       setBudget(null);
+      setTestRunBudgetSummary(null);
+      setTestRunBudgetTotals(null);
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally { setLoading(false); }
   };
@@ -533,19 +793,127 @@ function V33Acceptance() {
       const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(created.testRunId)}`);
       if (stored.testRunId !== created.testRunId || stored.stageId !== "V3.3" || stored.scenarioId !== scenarioId || stored.status !== "WAITING") throw new Error("Stored V3.3 TestRun does not match the created WAITING run");
       setReadinessRun(stored); setTestRunId(stored.testRunId);
-      setPageCursors([null]);
+      setPageCursors([null]); setBudgetSummaryCursors([null]);
       await readQueue(0, stored.testRunId, null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { setLoading(false); }
   };
 
+  const reserveScenarioExperiment = async () => {
+    if (!readinessRun?.testRunId || !["normal", "recovery"].includes(String(readinessRun.scenarioId))) return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/experiment`, {
+        method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-experiment-command-v1", confirmation: "CREATE_V33_FIXTURE_EXPERIMENT" }),
+      });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (stored.testRunId !== testRunId || stored.evidence?.workflowStep !== "EXPERIMENT_RESERVED" || stored.evidence?.experiment?.budget?.status !== "RESERVED") throw new Error("同一 V3.3 TestRun 未持久化准确的 Fixture Experiment 预留");
+      setReadinessRun(stored);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const verifyScenarioRejection = async () => {
+    if (!readinessRun?.testRunId || readinessRun.scenarioId !== "rejection" || readinessRun.status !== "WAITING" || readinessRun.evidence?.workflowStep !== "TEST_RUN_BUDGET_BOUND") return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/verify-rejection`, {
+        method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-rejection-verify-command-v1", confirmation: "VERIFY_V33_BUDGET_REJECTION" }),
+      });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (stored.testRunId !== testRunId || stored.status !== "RUNNING" || stored.evidence?.workflowStep !== "REJECTION_ASSERTION_VERIFIED" || stored.evidence?.businessValidation !== "PASS" || stored.evidence?.rejectionAssertion?.result !== "PASS") throw new Error("拒绝场景没有在同一 V3.3 TestRun 持久化预算拒绝与零副作用断言");
+      setReadinessRun(stored);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const dispatchScenarioExperiment = async () => {
+    if (!readinessRun?.testRunId || readinessRun.status !== "WAITING" || readinessRun.evidence?.workflowStep !== "EXPERIMENT_RESERVED") return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      const result = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/dispatch`, {
+        method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-dispatch-command-v1", confirmation: "DISPATCH_V33_FIXTURE_RUNNER" }),
+      });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (result.testRunId !== testRunId || result.runnerJobsCreated !== 2 || stored.testRunId !== testRunId || stored.status !== "RUNNING" || stored.evidence?.workflowStep !== "RUNNER_JOBS_QUEUED" || stored.evidence?.runnerJobsCreated !== 2) throw new Error("同一 V3.3 TestRun 未持久化两轮 Runner Job 派发证据");
+      setReadinessRun(stored); setTestRunId(testRunId);
+      setPageCursors([null]); setBudgetSummaryCursors([null]);
+      await readQueue(0, testRunId, null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const reconcileScenarioResults = async () => {
+    if (!readinessRun?.testRunId || readinessRun.status !== "RUNNING" || readinessRun.evidence?.workflowStep !== "RUNNER_JOBS_QUEUED") return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      const result = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/reconcile`, {
+        method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-reconcile-command-v1", confirmation: "RECONCILE_V33_FIXTURE_RESULTS" }),
+      });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (result.testRunId !== testRunId || result.completedRounds !== 2 || result.experimentSettlement !== "VERIFIED_FIXTURE_LEDGER" || stored.testRunId !== testRunId || stored.status !== "RUNNING" || stored.evidence?.workflowStep !== "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED" || stored.evidence?.completedRounds?.length !== 2 || stored.evidence?.experimentSettlement !== "VERIFIED_FIXTURE_LEDGER") throw new Error("同一 V3.3 TestRun 未持久化两轮结果与Fixture预算结算事实");
+      setReadinessRun(stored);
+      setPageCursors([null]); setBudgetSummaryCursors([null]);
+      await readQueue(0, testRunId, null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const verifyScenarioRecovery = async () => {
+    if (!readinessRun?.testRunId || readinessRun.scenarioId !== "recovery" || readinessRun.status !== "RUNNING" || readinessRun.evidence?.workflowStep !== "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED") return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      const result = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/verify-recovery`, {
+        method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-recovery-verify-command-v1", confirmation: "VERIFY_V33_CHECKPOINT_RECOVERY" }),
+      });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (result.testRunId !== testRunId || result.assertion?.id !== "V3.3_CHECKPOINT_RECOVERY_001" || stored.testRunId !== testRunId || stored.status !== "RUNNING" || stored.evidence?.workflowStep !== "RECOVERY_ASSERTION_VERIFIED" || stored.evidence?.businessValidation !== "PASS") throw new Error("恢复场景没有在同一 V3.3 TestRun 持久化检查点恢复断言");
+      setReadinessRun(stored);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const verifyScenarioNormal = async () => {
+    if (!readinessRun?.testRunId || readinessRun.scenarioId !== "normal" || readinessRun.status !== "RUNNING" || readinessRun.evidence?.workflowStep !== "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED") return;
+    setLoading(true); setError(null);
+    try {
+      const testRunId = String(readinessRun.testRunId);
+      const result = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}/verify-normal`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-normal-verify-command-v1", confirmation: "VERIFY_V33_NORMAL_RESULTS" }) });
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(testRunId)}`);
+      if (result.testRunId !== testRunId || result.assertion?.id !== "V3.3_NORMAL_RESULTS_001" || stored.testRunId !== testRunId || stored.status !== "RUNNING" || stored.evidence?.workflowStep !== "NORMAL_ASSERTION_VERIFIED" || stored.evidence?.businessValidation !== "PASS") throw new Error("正常场景没有在同一 V3.3 TestRun 持久化输出和结算断言");
+      setReadinessRun(stored);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const cancelReadinessRun = async () => {
+    if (!readinessRun?.testRunId || readinessRun.status !== "WAITING") return;
+    setLoading(true); setError(null);
+    try {
+      const cancelled = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(readinessRun.testRunId)}/cancel`, {
+        method: "POST", body: JSON.stringify({ confirmation: "CANCEL_V33_READINESS_RUN" }),
+      });
+      if (cancelled.testRunId !== readinessRun.testRunId || cancelled.status !== "CANCELLED") throw new Error("V3.3 readiness cancellation did not persist for the exact TestRun");
+      const stored = await api<any>(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(readinessRun.testRunId)}`);
+      if (stored.testRunId !== readinessRun.testRunId || stored.status !== "CANCELLED" || stored.evidence?.cancellation?.scope !== "READINESS_ONLY") throw new Error("Stored V3.3 cancellation does not match the exact readiness-only run");
+      setReadinessRun(stored);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    finally { setLoading(false); }
+  };
+
   return <main>
-    <header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V3.3 研究队列与预算证据</h1><p>可创建仅记录门禁状态的 WAITING 准备态 TestRun，并只读查看已有 TestRun 的 Runner 尝试和当前页关联实验的持久预算记录。准备态不会派发任务、改变预算或 Paper 状态；V3.3 正式工作流仍待实现，缺少合格前置时保持 WAITING。</p></header>
-    <section aria-label="创建等待态阶段运行"><h2>记录阶段准备状态</h2><p>提供精确的 V3.1 与 PromotionRequest UUID 可核验对应门禁；这会持久化场景元数据，不创建 Runner Job，也不调用模型。</p><label>已接受的 V3.1 TestRun UUID <input aria-label="已接受的 V3.1 TestRun UUID" value={sourceV31TestRunId} onChange={(event) => setSourceV31TestRunId(event.target.value)} /></label><label>PromotionRequest UUID <input aria-label="PromotionRequest UUID" value={promotionRequestId} onChange={(event) => setPromotionRequestId(event.target.value)} /></label><button data-testid="v33-create-normal" disabled={loading} onClick={() => void createReadinessRun("normal")}>记录正常场景</button><button data-testid="v33-create-rejection" disabled={loading} onClick={() => void createReadinessRun("rejection")}>记录预算/故障拒绝场景</button><button data-testid="v33-create-recovery" disabled={loading} onClick={() => void createReadinessRun("recovery")}>记录恢复场景</button>{readinessRun && <section aria-label="持久化运行状态"><h3>{readinessRun.scenarioId} · {readinessRun.status}</h3><p>TestRun：<code>{readinessRun.testRunId}</code> · seed {readinessRun.seed}</p><details open><summary>未通过门禁与执行事实</summary><pre data-testid="v33-readiness-evidence">{JSON.stringify(readinessRun.evidence, null, 2)}</pre></details></section>}</section>
+    <header><p className="eyebrow">StockQuant · 开发验收中心</p><h1>V3.3 研究队列与预算证据</h1><p>可创建阶段 TestRun，按明确确认逐步预留并派发冻结的两轮 Fixture Runner Job，再只读查看同一 TestRun 的运行尝试与预算。Fixture Runner 使用隔离容器、网络 DENY 和显式镜像摘要；这不会调用外部模型、行情、Paper 或 Broker，也不等同于 Paper 共存或阶段验收。</p></header>
+    <section aria-label="创建等待态阶段运行"><h2>记录阶段准备状态</h2><p>提供精确的 V3.1 与 PromotionRequest UUID 可核验对应门禁；按冻结Fixture绑定TestRun预算后默认保持WAITING。normal/recovery可明确确认创建80 cents、两轮Fixture Experiment，并再次确认后为两轮各运行Fixture模型响应、发布输入Artifact并派发Runner Job。</p><label>已接受的 V3.1 TestRun UUID <input aria-label="已接受的 V3.1 TestRun UUID" value={sourceV31TestRunId} onChange={(event) => setSourceV31TestRunId(event.target.value)} /></label><label>PromotionRequest UUID <input aria-label="PromotionRequest UUID" value={promotionRequestId} onChange={(event) => setPromotionRequestId(event.target.value)} /></label><button data-testid="v33-create-normal" disabled={loading} onClick={() => void createReadinessRun("normal")}>记录正常场景</button><button data-testid="v33-create-rejection" disabled={loading} onClick={() => void createReadinessRun("rejection")}>记录预算/故障拒绝场景</button><button data-testid="v33-create-recovery" disabled={loading} onClick={() => void createReadinessRun("recovery")}>记录恢复场景</button>{readinessRun && <section aria-label="持久化运行状态"><h3>{readinessRun.scenarioId} · {readinessRun.status}</h3><p>TestRun：<code>{readinessRun.testRunId}</code> · seed {readinessRun.seed}</p><details open><summary>未通过门禁与执行事实</summary><pre data-testid="v33-readiness-evidence">{JSON.stringify(readinessRun.evidence, null, 2)}</pre></details>{readinessRun.status === "WAITING" && readinessRun.evidence?.workflowStep === "TEST_RUN_BUDGET_BOUND" && <><button data-testid="v33-reserve-experiment" disabled={loading || !["normal", "recovery"].includes(String(readinessRun.scenarioId))} onClick={() => void reserveScenarioExperiment()}>明确确认并预留 Fixture Experiment</button><p>只创建Experiment及预算预留，不派发Job。</p>{readinessRun.scenarioId === "rejection" && <><button data-testid="v33-verify-rejection" disabled={loading} onClick={() => void verifyScenarioRejection()}>明确确认并验证预算拒绝</button><p>对同一 TestRun 尝试80 cents请求，核实50 cents上限返回拒绝且无Experiment、模型调用或Runner Job。</p></>}<button data-testid="v33-cancel-readiness" disabled={loading} onClick={() => void cancelReadinessRun()}>取消准备态 TestRun</button></>}{readinessRun.status === "WAITING" && readinessRun.evidence?.workflowStep === "EXPERIMENT_RESERVED" && <><button data-testid="v33-dispatch-runner" disabled={loading} onClick={() => void dispatchScenarioExperiment()}>明确确认并派发两轮 Fixture Runner</button><p>会产生两次明确标注的本地Fixture模型响应、不可变输入Artifact和两条Runner Job；外部Provider调用为0。</p></>}{readinessRun.status === "RUNNING" && readinessRun.evidence?.workflowStep === "RUNNER_JOBS_QUEUED" && <><button data-testid="v33-reconcile-runner-results" disabled={loading} onClick={() => void reconcileScenarioResults()}>明确确认并归并已完成的两轮结果</button><p>只在两条指定Job均完成且输出Artifact字节通过SHA-256校验后归并；这不会替代Experiment结算、场景断言或用户验收。</p></>}{readinessRun.status === "RUNNING" && readinessRun.scenarioId === "recovery" && readinessRun.evidence?.workflowStep === "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED" && <><button data-testid="v33-verify-recovery" disabled={loading} onClick={() => void verifyScenarioRecovery()}>明确确认并验证检查点恢复</button><p>复核同一 TestRun 的持久检查点序列及从检查点恢复的输出指标，并保存业务断言。</p></>}{readinessRun.status === "RUNNING" && readinessRun.scenarioId === "normal" && readinessRun.evidence?.workflowStep === "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED" && <><button data-testid="v33-verify-normal" disabled={loading} onClick={() => void verifyScenarioNormal()}>明确确认并验证正常场景结果</button><p>重新读取同一 TestRun 的Runner输出、Fixture指标与两轮结算账本并保存业务断言。</p></>}</section>}</section>
     <section aria-label="读取已有研究队列"><h2>读取已有 TestRun 队列</h2><label>V3.3 TestRun UUID <input aria-label="V3.3 TestRun UUID" value={testRunId} onChange={(event) => setTestRunId(event.target.value)} /></label><button data-testid="v33-read-queue" disabled={loading} onClick={() => { setPageCursors([null]); void readQueue(0, testRunId, null); }}>{loading ? "读取中…" : "读取只读队列和预算"}</button>{error && <p role="alert" className="error">{error}</p>}</section>
-    <section aria-label="V3.3能力边界"><h2>当前能力边界</h2><dl><dt>准备态 TestRun 元数据</dt><dd data-testid="v33-readiness-status">PERSISTED_WAITING_ONLY</dd><dt>Runner 队列读取</dt><dd>OWNER_SCOPED_READ_ONLY</dd><dt>实验预算读取</dt><dd data-testid="v33-budget-status">OWNER_SCOPED_LEDGER_READ_ONLY</dd><dt>正式业务工作流 / Runner 派发</dt><dd data-testid="v33-business-status">NOT_IMPLEMENTED</dd><dt>全阶段预算控制</dt><dd data-testid="v33-stage-budget-status">NOT_IMPLEMENTED</dd><dt>Paper 并行可用性</dt><dd data-testid="v33-paper-status">NOT_CHECKED</dd></dl><p>预算仅覆盖当前队列页中 Runner Job 所引用实验的账本记录；未关联 Job 的预留不在此页，重试可能重复显示同一实验且不能按行求和。账本值也不是供应商账单。读取结果不会让 V3.1/V3.2 前置或 V3.3 阶段验收变为通过。</p></section>
+    <section aria-label="V3.3能力边界"><h2>当前能力边界</h2><dl><dt>准备态 TestRun 元数据</dt><dd data-testid="v33-readiness-status">PERSISTED_WAITING_WITH_SCENARIO_PROGRESS</dd><dt>Runner 队列读取</dt><dd>OWNER_SCOPED_READ_ONLY</dd><dt>实验预算读取</dt><dd data-testid="v33-budget-status">OWNER_SCOPED_LEDGER_READ_ONLY</dd><dt>隔离 Fixture 工作流</dt><dd data-testid="v33-business-status">TWO_ROUND_EXECUTION_SETTLEMENT_AND_NORMAL_RECOVERY_REJECTION_ASSERTIONS_VERIFIED</dd><dt>TestRun及轮次预算硬限制</dt><dd data-testid="v33-stage-budget-status">TEST_RUN_AND_ROUND_CAP_ENFORCED</dd><dt>Paper 并行可用性</dt><dd data-testid="v33-paper-status">NOT_CHECKED</dd></dl><p>TestRun总账按唯一Experiment去重，UNKNOWN预留与实验预留不可重复计算。明确确认后，normal/recovery可运行隔离双轮Fixture并保存同一TestRun的业务断言；rejection验证超预算请求被拒且没有账本或Job副作用。自动代码套件已在隔离服务、数据库和无网络Runner容器中验证执行、结算及恢复路径。真实Provider与行情调用、Paper并行连续性、Ubuntu运行和阶段人工验收仍未通过此Fixture结果替代。</p></section>
     {queue && <section aria-label="研究队列结果"><h2>Runner 队列</h2><p data-testid="v33-queue-scope">TestRun：<code>{queue.testRunId}</code> · {queue.jobs.length} 条 · 偏移 {offset} · 每页 {queue.limit}</p>{queue.jobs.length === 0 ? <p data-testid="v33-queue-empty">此 TestRun 当前没有 Runner Job。</p> : <table><thead><tr><th>Job</th><th>状态</th><th>尝试</th><th>提交时间</th><th>完成时间</th><th>退出码</th><th>Artifact 数</th></tr></thead><tbody>{queue.jobs.map((job) => <tr key={job.jobId}><td><code>{job.jobId}</code>{job.retryOf && <small>重试自 {job.retryOf}</small>}</td><td>{job.status}</td><td>{job.attempt}</td><td>{job.submittedAt}</td><td>{job.completedAt ?? "—"}</td><td>{job.execution?.exitCode ?? "—"}</td><td>{job.artifacts.length}</td></tr>)}</tbody></table>}<div><button data-testid="v33-previous-page" disabled={loading || offset === 0} onClick={() => void readQueue(Math.max(0, Math.floor(offset / pageSize) - 1))}>上一页</button><button data-testid="v33-next-page" disabled={loading || !queue.hasMore || !queue.nextAfterCursor} onClick={() => void readQueue(Math.floor(offset / pageSize) + 1, testRunId, queue.nextAfterCursor)}>下一页</button></div><details><summary>查看原始队列证据</summary><pre data-testid="v33-queue-evidence">{JSON.stringify(queue, null, 2)}</pre></details></section>}
     {budgetError && <p role="alert" className="error">预算账本读取失败：{budgetError}</p>}
+    {testRunBudgetSummary && <section aria-label="V3.3 TestRun完整预算汇总"><h2>TestRun 预算总账（按唯一 Experiment）</h2><p>{testRunBudgetTotals ? `${testRunBudgetTotals.experiments} 个实验 · 申请 ${testRunBudgetTotals.requestedCents} cents · 保留 ${testRunBudgetTotals.reservedCents} cents · 已结算 ${testRunBudgetTotals.settledCents} cents · 未知预留 ${testRunBudgetTotals.unknownReservedCents} cents · 模型尝试 ${testRunBudgetTotals.modelCallCount}` : "总额仅在第一页计算，返回第一页读取。"}</p>{testRunBudgetSummary.rows.length === 0 ? <p data-testid="v33-test-run-budget-empty">该 TestRun 尚无已绑定的实验账本。</p> : <table><thead><tr><th>实验</th><th>轮数</th><th>每轮额度 / 已用</th><th>申请</th><th>预留</th><th>结算</th><th>UNKNOWN预留</th><th>模型调用</th><th>状态</th></tr></thead><tbody>{testRunBudgetSummary.rows.map((row) => <tr key={row.experimentId}><td><code>{row.experimentId}</code></td><td>{row.rounds}</td><td>{row.roundBudget.map((round) => `R${round.roundIndex}: ${round.usedCents}/${round.allocatedCents}${round.unknownReservedCents ? `（UNKNOWN ${round.unknownReservedCents}）` : ""}`).join(" · ")}</td><td>{row.requestedCents}</td><td>{row.reservedCents}</td><td>{row.settledCents}</td><td>{row.unknownReservedCents}</td><td>{row.modelCallCount}</td><td>{row.status}</td></tr>)}</tbody></table>}<p data-testid="v33-test-run-budget-scope">{testRunBudgetSummary.accountingScope}; stage budget control: {testRunBudgetSummary.stageBudgetControl}</p><div><button data-testid="v33-summary-previous-page" disabled={budgetSummaryLoading || budgetSummaryPage === 0} onClick={() => void readBudgetSummaryPage(budgetSummaryPage - 1)}>预算上页</button><button data-testid="v33-summary-next-page" disabled={budgetSummaryLoading || !testRunBudgetSummary.hasMore || !testRunBudgetSummary.nextAfterCursor} onClick={() => void readBudgetSummaryPage(budgetSummaryPage + 1, testRunId, testRunBudgetSummary.nextAfterCursor)}>预算下页</button><span>预算页 {budgetSummaryPage + 1}</span></div><details><summary>查看TestRun预算总账原始证据</summary><pre data-testid="v33-test-run-budget-evidence">{JSON.stringify(testRunBudgetSummary, null, 2)}</pre></details></section>}
     {budget && <section aria-label="V3.3持久预算证据"><h2>实验预算账本（本页 Runner Job）</h2><p>{budget.coverage.budgetsFound}/{budget.coverage.experimentsOnPage} 个不同实验可找到账本；缺失 {budget.coverage.budgetsMissing}。金额单位为 USD cents；费用未知时保留为 UNKNOWN。</p>{budget.rows.length === 0 ? <p>此页无Runner Job，因此没有可归属的实验预算行。</p> : <table><thead><tr><th>实验</th><th>申请额度</th><th>预留</th><th>已结算</th><th>未知预留</th><th>账本状态</th><th>来源</th></tr></thead><tbody>{budget.rows.map((row) => <tr key={`${row.jobId}:${row.experimentId}`}><td><code>{row.experimentId}</code></td><td>{row.requestedCents ?? "—"}</td><td>{row.reservedCents ?? "—"}</td><td>{row.settledCents ?? "—"}</td><td>{row.unknownReservedCents ?? "—"}</td><td>{row.status}</td><td>{row.source}</td></tr>)}</tbody></table>}<p>{budget.note}</p><details><summary>查看预算账本原始证据</summary><pre data-testid="v33-budget-evidence">{JSON.stringify(budget, null, 2)}</pre></details></section>}
   </main>;
 }

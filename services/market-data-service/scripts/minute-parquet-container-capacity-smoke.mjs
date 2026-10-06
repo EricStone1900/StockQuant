@@ -71,6 +71,12 @@ try {
   assert.equal(report.environment.platform, "Docker Linux/arm64");
   assert.equal(report.fixture.rows, 100_000);
   assert.equal(report.http.publishedRows, 100_000);
+  assert.equal(report.http.queryPageSize, 1_000);
+  assert.equal(report.http.queryPageCount, 100);
+  assert.equal(report.http.queriedRows, 100_000);
+  assert.equal(report.http.uniqueQueriedBars, 100_000);
+  assert.equal(report.http.filteredQueryRows, 40);
+  assert.equal(report.http.filteredQueryPages, 2);
   assert.equal(report.http.corruptUploadCancelled, "CANCELLED");
   assert.equal(report.http.crossInstanceCount, 2);
   assert.equal(report.http.crossInstancePreviewBusy, true);

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../packages/contracts/schemas/common/v24-paper-execution-scenario.schema.json",
+  "scenarioId": "v24-isolated-snapshot-paper-normal",
+  "scenarioVersion": "2.0.0",
+  "dataMode": "FIXTURE",
+  "environmentMode": "PAPER",
+  "brokerMode": "FAKE",
+  "liveTradingEnabled": false,
+  "market": "CN_A",
+  "currency": "CNY",
+  "account": {
+    "fixtureAccountRef": "v24-isolated-paper-account-v2",
+    "initialCash": "10000.0000"
+  },
+  "policy": {
+    "policyId": "v24-isolated-fixture-paper-policy",
+    "policyVersion": "2.0.0",
+    "riskPolicyVersion": "fixture-risk-v1",
+    "feePolicyVersion": "fixture-fee-v1",
+    "maxDeviationBps": 100,
+    "freshnessLimitSeconds": 1800,
+    "executionWindowStart": "2026-09-25T09:31:00+08:00",
+    "executionWindowEnd": "2026-09-25T09:35:00+08:00"
+  },
+  "mandate": {
+    "mandateId": "v24-isolated-fixture-paper-mandate",
+    "mandateVersion": "2.0.0",
+    "strategyVersion": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "securityScope": ["600000.SH"],
+    "maxOrderNotional": "1000.0000",
+    "maxGrossExposure": "10000.0000",
+    "maxDailyTurnover": "10000.0000",
+    "approvalEvidenceRef": "fixture-approval:v24-isolated-paper-v2"
+  },
+  "signal": {
+    "signalId": "fixture-signal-buy-600000-20260925",
+    "asOf": "2026-09-24T15:00:00+08:00",
+    "action": "BUY",
+    "quantity": 100,
+    "referencePrice": "10.0000"
+  },
+  "order": {
+    "security": "600000.SH",
+    "acceptedAt": "2026-09-25T09:31:00+08:00",
+    "requestedQuantity": 100,
+    "clientOrderIdPrefix": "v24-fixture-v2"
+  },
+  "snapshot": {
+    "snapshotId": "fixture-snapshot-v2-0932",
+    "security": "600000.SH",
+    "market": "CN_A",
+    "sourceMode": "FIXTURE",
+    "status": "READY",
+    "observedAt": "2026-09-25T09:32:00+08:00",
+    "ingestedAt": "2026-09-25T09:32:01+08:00",
+    "price": "10.0000"
+  },
+  "risk": { "supportedMarkets": ["CN_A"] },
+  "fee": "5.0000"
+}

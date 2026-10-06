@@ -85,13 +85,27 @@ Python / FastAPI + 导入与采集Worker组件按已启用能力部署；API和�
 
 V2.1调用身份补充（2026-09-27）：同一平台Bearer也保护共享Watchlist、来源目录、采样设置与其读写、实时行情预览、实时新闻、来源主动Smoke/熔断切换；Platform API相应代理先验证本地session。交易日历及容器级`/live`、`/ready`仍可内网直读；运维控制面使用各自控制凭据。采集订阅/运行/缺口和来源健康等详细读取现另有Bearer门禁，见[P7.2采集读取身份审计](../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。认证loopback smoke、Platform controller identity单测及V2.1完整code suite通过；容量探针未运行（会主动请求外部实时行情并暂时修改共享Watchlist），活动Compose未部署，人工阶段验收未签收。
 
+V2.1 Market Data Platform契约增量（2026-10-01）：来源目录、采样配置读写、Watchlist读写、静态新闻预览、来源Smoke、live quote/news及确定性Circuit fail/recover现由11个ServiceBearer OpenAPI操作和生成客户端代理，响应与写请求有独立Schema。来源目录只返回配置元数据，news preview是固定预览；Smoke及live quote/news可触发Provider请求，此次只用mock验证请求边界，没有触发Provider。写操作及Circuit改变服务状态，此次同样仅在mock客户端测试；活动Compose未部署。
+
 采集控制身份补充（2026-09-27）：持久化的`POST /v2/minute/gaps`现要求`STOCKQUANT_COLLECTION_CONTROL_TOKEN`，避免任意内网调用者伪造/关闭订阅缺口；采集coverage工具只在显式`--record-gaps`时读取该控制令牌并写入。隔离HTTP smoke验证未授权401、正确控制令牌抵达数据库边界503；完整V2.1与V2.2 code suites、8项coverage规则单测通过。该令牌属于运维控制身份，和Platform API业务Bearer分离。
 
 P7.2采集运维读取身份补齐（2026-09-27）：采集调度状态/计划、订阅列表/详情、运行状态、缺口、回填任务、来源健康等内部GET现要求平台API独立Bearer；DC-08A Platform代理同时核验本地session。宿主健康/激活/状态命令从环境或忽略的`.env.local`读取同一平台服务令牌，写操作仍另需控制令牌。临时随机端口HTTP smoke验证9类读取匿名401、Bearer到达路由、声明错身份401；日历和`/live`、`/ready`保持独立开放。Market Data 62项、Platform 54项及运维96项测试、build和隔离HTTP smoke通过。活动Compose未更新，以免中断持续采集；运行态部署及其余内部只读路由分类仍未完成。详见[P7.2采集读取身份审计](../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
 
 V2.2读取/API计算边界补充（2026-09-27）：`GET /v2/minute/preview`固定Fixture、`POST /v2/minute/quality`和`/v2/minute/coverage`也要求同一平台Bearer，避免Fixture内容直出及匿名消耗解析/覆盖资源；V2.2 Platform scenarios/preview先校验本地Session，preview代理携带Bearer。扩展认证HTTP smoke与Platform Session代理单测通过；完整V2.2 code suite通过。活动容器未部署新源码。
 
+V1.2 Fixture预览契约增量（2026-10-01）：冻结日线正常及未来数据预览由ServiceBearer OpenAPI操作`getV12NormalFixturePreview`、`getV12FutureFixturePreview`描述，响应共用`v12-fixture-preview-v1` schema。Platform预览路由和V1.2 TestRun读取均经生成Market Data客户端；此路径只读仓库固定Fixture，不触发外部来源。完整V1.2 code suite在受控loopback权限下通过，活动服务未部署。
+
+DC-08A Platform只读预览契约增量（2026-10-01）：持久采集计划与订阅缺口读取由`getCollectionScheduleForPlatform`、`getMinuteGapsForPlatform`两个ServiceBearer OpenAPI operation及canonical response schemas约束，并通过生成Market Data client消费。Platform DC-08A页面仍只读；Health的`/ready`保持基础探针读取。未启用/停用订阅、未触发采集、未请求数据源或访问活动账本。单测和静态合同通过，活动服务未部署。
+
 P6每日分区增量（2026-09-26）：受限CSV/Parquet的新发布版本写入按`bar_start` Asia/Shanghai自然日RANGE分区的`market_data_minute_import_bars_by_day`，小范围分页可通过半开起止时间触发PostgreSQL partition pruning。原`market_data_minute_import_rows`仍只读作历史兼容表，不在服务启动时自动迁移/删除；显式preview/apply CLI分批搬迁并保留旧表，操作范围由独立连接变量、目标库拒绝规则及`--apply`门槛限制。专用PG验证分区和EXPLAIN、旧数据过渡读取及CLI幂等回填通过。仍需数据库所有者安排旧数据迁移、容量/备份验证；本地未连接活动库。见[P6每日分区审计](../../evidence/audits/2026-09-26-p6-daily-partition-storage.md)。
+
+2026-10-01跨服务契约增量：Market Data分钟CSV import/preview、不可变import详情与Bar分页，以及CSV/Parquet分块upload create/chunk/progress/action新增8个OpenAPI operation，要求Platform服务Bearer和owner范围；Platform API使用对应生成客户端。Create/chunk/progress复用canonical upload schemas，动作结果按异构对象处理。此为既有端点的契约发布，不改变CSV语义、存储或来源授权。Platform client单测/typecheck与OpenAPI漂移校验通过；隔离Platform+Market Data+PostgreSQL/Chromium联验已通过，含owner隔离与取消；没有活动服务部署。证据：[W1 Market Data分钟import客户端审计](../../evidence/audits/2026-10-01-w1-market-data-minute-import-client.md)。
+
+2026-10-01 V2.2 Fixture/owner进度API客户端增量：固定分钟Fixture preview/import及uploaded-csv owner-scoped progress读由Platform生成客户端承载，422 Fixture拒绝仍作为业务结果返回。上传进度客户端迁移后完整V2.2 code suite退出0；隔离Platform/Market Data/PostgreSQL/Chromium验证匿名401、六行预览、正常PUBLISHED、重复幂等、坏Fixture零接收REJECTED、owner边界和同Run CLI只读检查。证据与清理范围见[Fixture客户端审计](../../evidence/audits/2026-10-01-w1-v22-minute-fixture-client.md)。未使用真实数据，活动容器未触碰。
+
+Artifact task 持久状态切片（2026-10-06，历史快照）：`market_data_artifact_tasks`和Bearer创建/查询/取消路由当时只有状态记录；当时未执行Artifact写入或状态关联。历史验证见[状态持久化审计](../../evidence/audits/2026-10-06-w1-v12-artifact-task-persistence.md)。
+
+Artifact task 原子发布与恢复（2026-10-06）：状态为`QUEUED/RUNNING/COMPLETED/FAILED/CANCELLED`。worker用数据库租约认领任务并递增fence；过期lease可被接管。`publishTask`对任务行加锁，Artifact BYTEA/SHA与COMPLETED状态在同一事务提交；同一task只允许字节完全相同的幂等发布，冲突内容拒绝。`cancelTask`与发布对同一行串行化，确保取消结果无Artifact，完成结果有完整Artifact；迟到旧worker被fence拒绝。当前只执行冻结Fixture `v1.2-market-data-1`，产物落在Market Data PostgreSQL，单元/PG并发和HTTP跨进程重启测试覆盖上述性质。详细设计和限制见[原子发布审计](../../evidence/audits/2026-10-06-w1-v12-artifact-task-atomic-publication.md)。
 
 P6容量边界（2026-09-26）：每日分区存储层直接仓储流smoke已覆盖100,000行和合成的1,440,000行/60日/500证券档，分别实测2.467秒和39.224秒；高档数据库增量899,104,768 bytes、Node峰值RSS 213,264 KiB，随机本地PostgreSQL库结束后确认删除。结果不包括Parquet/CSV解析或HTTP上传，不证明容器峰值、并发、Ubuntu、保留清理或恢复。详见[P6容量证据](../../evidence/audits/2026-09-26-p6-minute-capacity-smokes.md)。
 
@@ -100,3 +114,18 @@ P6冻结归档导入（2026-09-26）：CSV/Parquet入口现按声明支持CN_A `
 P6重型导入并发闸门（2026-09-26）：带PostgreSQL的Market Data实例对内存密集型CSV/Parquet预览、导入与Finalize使用固定session advisory lock；锁连接固定持有至HTTP响应排空，后续竞争实例快速返回429与`Retry-After: 1`。无法取得数据库协调锁时fail-closed返回503；无数据库的内存模式保留单进程闸门。双独立服务进程/随机PG烟测通过正常释放、忙拒绝和客户端断开释放。此验证覆盖共享PostgreSQL实例间互斥，不代表多主机断网/故障切换、DB池容量或生产Ubuntu负载；详情见[P6解析器及闸门审计](../../evidence/audits/2026-09-26-p6-minute-parser-memory.md)。
 
 Docker Desktop ARM64复验（2026-09-26）：当前源码Market Data镜像`sha256:8009ad45542e67438d9cdbf19ba1d847b01d4b35d0875b1191a27cfd42a193c9`在两只独立Linux/arm64容器（每只2 GiB/2 CPU/128 PIDs）中复现上述锁竞争与释放，随机测试库建于现有PostgreSQL服务器，验证后删除。测试关闭容器采集调度与执行器；没有重启/修改活动Market Data容器。容器网络同接开发栈网络以访问PG，测试代码未向行情、模型或券商发出请求。该结果不等同Ubuntu原生运行、资源容量或生产压力验证。
+
+2026-10-01 DC-06项目数据交付跨服务边界：Platform通过`market-data-project-delivery.v1`生成客户端调用项目分页与脱敏导出，使用`x-stockquant-project-id`和项目独立`x-stockquant-project-token`；服务端从可信配置解析该Token的项目/Scope，不接受调用方自报`x-stockquant-scopes`。缺Token返回401，已认证项目/Scope不匹配返回403。随机隔离项目的真实HTTP+PostgreSQL smoke验证分页/导出、SHA-256、脱敏及401/403并精确清理。生成契约和当前Dist构建在`pnpm test:integration:market-data`入口检查；未启用真实数据源或活动项目凭据。审计：[DC-06客户端与HTTP验证](../../evidence/audits/2026-10-01-w1-market-data-project-client.md)。
+
+
+2026-10-01分层实现增量（未完成S0验收）：PostgreSQL collection/schedule/coverage/artifact/project-access/alert-outbox/minute-import/minute-upload实现及advisory single-flight现位于`src/adapters/`，repository/gate接口位于`src/ports/`，业务类型与错误位于`src/domain/`，服务器组合根位于`src/bootstrap/`。分层检查、类型检查、63项单测、23项隔离PG集成、分区回填smoke、V2.2完整code suite与baseline均通过。迁移记录见[审计](../../evidence/audits/2026-10-01-w1-market-data-layer-boundary-increment.md)；本文S0/人工验收仍继续保持未勾选。
+
+外部来源调用运行时门禁（2026-10-01，2026-10-03补充）：quote、news、minute collection各自要求精确的`true`用途开关、授权引用、数据版本和允许的source ID。`/v2/quote/preview`、`/v2/news/live`及`/v2/sources/smoke`在请求Provider前先检查门禁；未授权返回403并记录`externalRequests: 0`。Scheduler与collection executor均只有在minute collection授权对全部配置source ID通过时才创建，避免未授权时产生不可执行的采集run；`/ready`显示`NOT_AUTHORIZED`，激活/晋级工具在请求服务或运行Compose之前返回配置等待。服务身份凭据并不授权外部来源。无来源授权配置下隔离HTTP smoke通过；未触碰活动服务，未请求外部来源；`NO_TRADE`仍有效。相关修复见[W3审计](../../evidence/audits/2026-10-03-w3-scheduler-authorization-gate.md)、[机器结果](../../evidence/audits/2026-10-03-w3-scheduler-authorization-gate.json)及[源码/执行SHA-256](../../evidence/audits/2026-10-03-w3-scheduler-authorization-gate.sha256)。
+
+采集适配器边界复核增补（2026-10-01）：同一分钟来源用途校验现也位于`market-data-adapter` Python CLI，早于BaoStock/Sina/Eastmoney/TDX client construction，避免绕过Node执行器直达外部网络。无授权与未列入allowlist的测试通过；Python provider suite 33/33、完整V2.4 code suite重跑退出0。此前仅HTTP executor门禁的记录由此补足。
+
+来源探针覆盖补充（2026-10-01）：授权门禁现覆盖四个独立脚本入口：Sina/BaoStock能力探针、BaoStock稳定性探针、TDX适配器能力探针和TDX lunch原始协议诊断。无授权时均先返回`BLOCKED`，不打开Provider会话、不发HTTP/TCP，也不创建边界证据文件。隔离回归67/67，最新完整V2.4 code suite与baseline通过；完整来源路径和限制见[W3审计](../../evidence/audits/2026-10-01-w3-market-source-runtime-gate.md)。
+
+2026-10-02边界维护：V2.1 Tencent行情预览、新闻页面读取和来源Smoke的外发HTTP传输现封装于`adapters/PublicSourceHttpAdapter`，bootstrap保留逐用途来源授权门禁并只在授权后调用该adapter。通过注入fetch/clock的单测覆盖请求头、有限超时、来源错误STALE结果和稳定新闻ID；没有实际Provider请求。源许可仍未确认，相关真实来源能力和V2.1验收保持NOT_RUN。
+
+告警事件生命周期与运维UI增量（2026-10-03）：PostgreSQL adapter以部分唯一索引保证每个`alertKey`最多一个`OPEN/ACKNOWLEDGED`事件；重复异常更新`last_seen_at`与载荷，`GET /v2/alerts`列出活动事件，`POST /v2/alerts/{incidentId}/acknowledge`记录首次确认人且幂等。采集完成回调关闭对应订阅/窗口事件，后续再次失败生成新事件；OPEN/RESOLVED通知事件与Incident状态在同一PostgreSQL事务提交并进入本地outbox。Platform通过登录会话代理读取/确认，Web `/paper`展示告警并提供显式确认。除Mock页面回归外，V2.4隔离HTTP/Chromium Harness现启动临时Market Data PostgreSQL/服务及Platform/Web，浏览器对真实Market Data incident执行读取/确认，并校验数据库持久状态和确认人来自登录Cookie；采集执行器/调度器关闭、行情请求0、活动服务未触碰，详见[W3告警浏览器集成审计](../../evidence/audits/2026-10-03-v24-paper-smoke-alert-integration-bd05a5f4f8464a03aeccc172bc3f1ead.json)及[SHA-256](../../evidence/audits/2026-10-03-w3-alert-browser-integration.sha256)。尚无通知dispatcher、真实外发或完整交易日终对账接线；来源授权为NONE时采集执行器继续关闭。本切片不代表W3完成。隔离生命周期行为见[W3告警生命周期审计](../../evidence/audits/2026-10-03-w3-alert-incident-lifecycle.md)。

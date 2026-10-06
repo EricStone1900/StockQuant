@@ -4,6 +4,7 @@ export type ResearchAutomationConfig = {
   liveTradingEnabled: false;
   runnerMode: "NOT_CONFIGURED" | "ISOLATED";
   modelGatewayMode: "NOT_CONFIGURED" | "LIVE";
+  providerCallsAuthorized: boolean;
   chatProvider: string;
   chatModel: string;
   chatBaseUrl: string;
@@ -20,6 +21,7 @@ export type ResearchAutomationConfig = {
   budgetCurrency: "USD";
   defaultBudgetCents: number;
   maxExperimentBudgetCents: number;
+  maxTestRunBudgetCents: number;
   stageBudgetCents: number;
   budgetWarningPercent: number;
   workerConcurrency: 1;
@@ -51,6 +53,9 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
   if (runnerMode !== "NOT_CONFIGURED" && runnerMode !== "ISOLATED") throw new Error("STOCKQUANT_RUNNER_MODE must be NOT_CONFIGURED or ISOLATED");
   const modelGatewayMode = env.STOCKQUANT_MODEL_GATEWAY_MODE ?? "NOT_CONFIGURED";
   if (modelGatewayMode !== "NOT_CONFIGURED" && modelGatewayMode !== "LIVE") throw new Error("STOCKQUANT_MODEL_GATEWAY_MODE must be NOT_CONFIGURED or LIVE");
+  const providerCallsAuthorization = env.STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED ?? "false";
+  if (providerCallsAuthorization !== "true" && providerCallsAuthorization !== "false") throw new Error("STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED must be true or false");
+  const providerCallsAuthorized = providerCallsAuthorization === "true";
   const chatProvider = env.STOCKQUANT_RESEARCH_CHAT_PROVIDER ?? "deepseek";
   const chatModel = env.STOCKQUANT_RESEARCH_CHAT_MODEL ?? "deepseek/deepseek-flash";
   const chatBaseUrl = env.STOCKQUANT_RESEARCH_CHAT_BASE_URL ?? "https://api.deepseek.com";
@@ -73,16 +78,18 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
   if (budgetCurrency !== "USD") throw new Error("STOCKQUANT_RESEARCH_BUDGET_CURRENCY must be USD");
   const defaultBudgetCents = parsePositiveInteger("STOCKQUANT_RESEARCH_DEFAULT_BUDGET_CENTS", env.STOCKQUANT_RESEARCH_DEFAULT_BUDGET_CENTS, 300);
   const maxExperimentBudgetCents = parsePositiveInteger("STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS", env.STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS, 1000);
+  const maxTestRunBudgetCents = parsePositiveInteger("STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS", env.STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS, 1000);
   const stageBudgetCents = parsePositiveInteger("STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS", env.STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS, 3000);
   const budgetWarningPercent = parsePositiveInteger("STOCKQUANT_RESEARCH_BUDGET_WARNING_PERCENT", env.STOCKQUANT_RESEARCH_BUDGET_WARNING_PERCENT, 80);
   if (maxExperimentBudgetCents > 1000) throw new Error("STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS must be at most 1000");
   if (defaultBudgetCents > maxExperimentBudgetCents) throw new Error("STOCKQUANT_RESEARCH_DEFAULT_BUDGET_CENTS must not exceed STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS");
   if (maxExperimentBudgetCents > stageBudgetCents) throw new Error("STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS must not exceed STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS");
+  if (maxTestRunBudgetCents > stageBudgetCents) throw new Error("STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS must not exceed STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS");
   if (budgetWarningPercent > 100) throw new Error("STOCKQUANT_RESEARCH_BUDGET_WARNING_PERCENT must be at most 100");
   const workerConcurrency = parsePositiveInteger("STOCKQUANT_RESEARCH_WORKER_CONCURRENCY", env.STOCKQUANT_RESEARCH_WORKER_CONCURRENCY, 1);
   if (workerConcurrency !== 1) throw new Error("STOCKQUANT_RESEARCH_WORKER_CONCURRENCY must remain 1 for V3.1");
 
-  const configured = runnerMode === "ISOLATED" && modelGatewayMode === "LIVE";
+  const configured = runnerMode === "ISOLATED" && modelGatewayMode === "LIVE" && providerCallsAuthorized;
   const trustedServiceTokens: ResearchAutomationConfig["trustedServiceTokens"] = {};
   for (const [serviceId, envName] of [["platform-api-service", "STOCKQUANT_SERVICE_TOKEN_PLATFORM_API"], ["runner-host", "STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST"], ["quant-validation-worker", "STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER"]] as const) {
     const token = env[envName]?.trim();
@@ -98,6 +105,7 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
     liveTradingEnabled: false,
     runnerMode,
     modelGatewayMode,
+    providerCallsAuthorized,
     chatProvider,
     chatModel,
     chatBaseUrl,
@@ -114,6 +122,7 @@ export function loadResearchAutomationConfig(env: NodeJS.ProcessEnv = process.en
     budgetCurrency: "USD",
     defaultBudgetCents,
     maxExperimentBudgetCents,
+    maxTestRunBudgetCents,
     stageBudgetCents,
     budgetWarningPercent,
     workerConcurrency: 1,

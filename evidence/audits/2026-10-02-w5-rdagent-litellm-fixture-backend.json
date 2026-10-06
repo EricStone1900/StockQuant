@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-02",
+  "status": "PASS",
+  "command": "STOCKQUANT_RESEARCH_IMAGE_ID=sha256:05a45830f2c15a7643f60ec2f0aa3c4a7250ffd761dabb0d07dbc30d0057ef53 STOCKQUANT_RUNNER_IMAGE_ID=sha256:eb9030b8107c79c3554dabc68322814b81c04564bb0a1e5a9841bd603a67ccf1 pnpm v31:litellm-model-gateway-internal-smoke",
+  "runnerDigest": "sha256:eb9030b8107c79c3554dabc68322814b81c04564bb0a1e5a9841bd603a67ccf1",
+  "researchDigest": "sha256:05a45830f2c15a7643f60ec2f0aa3c4a7250ffd761dabb0d07dbc30d0057ef53",
+  "backend": "rdagent.oai.backend.litellm.LiteLLMAPIBackend",
+  "rdagentVersion": "v0.8.0",
+  "testRunId": "7be5f0a7-b1f7-4a0b-a624-a1bd62b40f13",
+  "modelRunIds": [
+    "rdagent-chat-26110b60-5e99-44b3-96bb-859639408e5a",
+    "rdagent-embedding-e1f8e655-5148-42fd-8e12-a8048b4673e2"
+  ],
+  "budgetRows": {
+    "statuses": ["SETTLED", "SETTLED"],
+    "requestedCents": 120,
+    "reservedCents": 120,
+    "fixtureSettledCents": 46,
+    "count": 2,
+    "usageInputTokens": [12, 8],
+    "usageOutputTokens": [8, 0]
+  },
+  "externalProviderCalls": 0,
+  "network": "internal-only",
+  "activeServicesTouched": false,
+  "liveModelCallsAuthorized": false,
+  "providerInvoiceReconciliation": "NOT_PERFORMED",
+  "productionEgressEnforcement": "NOT_VERIFIED",
+  "fullRDagentExperiment": "NOT_RUN",
+  "fullV31BusinessValidation": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "firstFailuresRetained": [
+    "RD-Agent logger attempted to write beneath image read-only /run/input; smoke now sets writable tmpfs /tmp as workdir",
+    "legacy assertion expected usage on RD-Agent backend return; updated to verify persisted provider_evidence usage in the isolated database"
+  ],
+  "checks": {
+    "researchBuild": "PASS",
+    "researchLint": "PASS",
+    "researchUnitTests": "PASS 34 files / 191 tests (controlled loopback rerun)",
+    "isolatedDockerContainersAndNetworkAfterCleanup": "NONE"
+  }
+}

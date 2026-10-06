@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/market-data/project-data-export.schema.json",
+  "title": "ProjectDataExport",
+  "type": "object",
+  "required": ["projectId", "dataVersion", "rowCount", "sha256", "items"],
+  "properties": {
+    "projectId": { "type": "string", "minLength": 1 },
+    "dataVersion": { "type": "string", "minLength": 1 },
+    "rowCount": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "items": { "type": "array", "items": {} }
+  },
+  "additionalProperties": false
+}

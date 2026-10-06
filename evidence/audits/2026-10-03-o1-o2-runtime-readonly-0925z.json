@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "o1-o2-runtime-readonly-v1",
+  "capturedAt": "2026-10-03T09:25:25.205Z",
+  "commands": [
+    {"command":"pnpm dc08a:health-report","exitCode":1,"status":"UNHEALTHY","reason":"nextExecutionAt is null; nextTriggerRecorded=false"},
+    {"command":"pnpm dc08a:active-subscription -- --field enabled-count","exitCode":0,"enabledCount":0},
+    {"command":"pnpm dc08a:observation-summary","exitCode":2,"status":"WAITING"}
+  ],
+  "runtime": {"marketCalendar":"CLOSED","scheduler":"ENABLED","executor":"ENABLED","configuredActiveSubscription":"dc08a-20260917-20-v1","nextExecutionAt":null,"lastSubmitted":0,"tickAgeSeconds":1.283,"openGaps":0,"pendingOutbox":0,"providerCalls":0},
+  "observation": {"targetDays":20,"completedDays":7,"recoveredDays":1,"observedDays":8,"remainingDays":12,"latestEligibleDate":"2026-09-30","invalidEvidence":false},
+  "decision": {"tradeMode":"NO_TRADE","sourceAuthorization":"NONE","subscriptionChanged":false,"activeServiceChanged":false,"newObservationDay":false},
+  "finding": "readiness reports Scheduler/Executor enabled while independent enabled-subscription count is zero; retained as an unresolved runtime discrepancy"
+}

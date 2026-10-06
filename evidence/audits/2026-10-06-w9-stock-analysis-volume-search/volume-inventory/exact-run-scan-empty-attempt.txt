@@ -1,0 +1,5 @@
+Initial anonymous PostgreSQL volume scan:
+
+The 38 candidate clusters were mounted read-only and the scan process exited 0, but the script emitted output only for a matched TestRun or a cluster start/stop failure. The resulting file was empty, so it did not independently prove that every cluster had been scanned. The empty file is retained as `exact-testrun-scan-empty-attempt.tsv`.
+
+The scanner was changed to emit one `SCANNED` line per cluster, including the number of non-template databases and matching recovery tables, then rerun. The corrected evidence is `exact-testrun-scan.tsv` and `postgres-control-data.tsv`.

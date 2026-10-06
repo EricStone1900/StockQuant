@@ -19,7 +19,7 @@ export function isAuthorizedPlatformApi(input: {
 
 export function isProtectedPlatformApiRequest(method: string, pathname: string): boolean {
   const collectionRead = method === "GET" && (
-    ["/v2/collection-scheduler/status", "/v2/collection-schedules", "/v2/minute/sources"].includes(pathname)
+    ["/v2/collection-scheduler/status", "/v2/collection-schedules", "/v2/minute/sources", "/v2/alerts"].includes(pathname)
     || /^\/v2\/collection-scheduler\/plan(?:\/|$)/u.test(pathname)
     || /^\/v2\/collection\/health(?:\/|$)/u.test(pathname)
     || /^\/v2\/collection-schedules\/[^/]+$/u.test(pathname)
@@ -35,6 +35,7 @@ export function isProtectedPlatformApiRequest(method: string, pathname: string):
     || /^\/v2\/minute\/(?:csv|parquet)\/(?:preview|import|uploads(?:\/|$))/u.test(pathname)
     || /^\/v2\/minute\/imports\/[^/]+(?:\/bars)?$/u.test(pathname)
     || pathname === "/v2/watchlist"
+    || (method === "POST" && /^\/v2\/alerts\/[0-9a-f-]+\/acknowledge$/iu.test(pathname))
     || ["/v2/sources", "/v2/sampling", "/v2/news/preview"].includes(pathname)
     || (method === "GET" && ["/v2/quote/preview", "/v2/news/live", "/v2/sources/smoke"].includes(pathname))
     || (method === "PUT" && ["/v2/sampling", "/v2/watchlist"].includes(pathname))

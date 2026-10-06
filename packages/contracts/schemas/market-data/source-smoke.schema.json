@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/source-smoke-v1.schema.json",
+  "title": "MarketDataSourceSmoke",
+  "type": "object",
+  "required": ["checkedAt", "checks", "status"],
+  "properties": {"checkedAt": {"type": "string", "format": "date-time"}, "checks": {"type": "array", "items": {"type": "object", "required": ["sourceId", "status"], "properties": {"sourceId": {"type": "string"}, "status": {"enum": ["PASS", "FAIL"]}, "httpStatus": {"type": "integer"}, "bytes": {"type": "integer"}, "error": {"type": "string"}}, "additionalProperties": true}}, "status": {"enum": ["PASS", "PARTIAL"]}},
+  "additionalProperties": true
+}

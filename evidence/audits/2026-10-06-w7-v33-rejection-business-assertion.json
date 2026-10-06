@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-06",
+  "stageId": "V3.3",
+  "scenarioId": "rejection",
+  "assertionId": "V3.3_REJECTION_NO_SIDE_EFFECTS",
+  "assertionStatus": "PASS",
+  "testRunId": "0078637d-1696-4ad4-86c2-d51e8db23d7e",
+  "testRunBudgetCents": 50,
+  "attemptedExperiment": {
+    "fixtureId": "v3.3-research-orchestration-1",
+    "rounds": 2,
+    "budgetCents": 80,
+    "brokerMode": "FAKE",
+    "environmentMode": "RESEARCH"
+  },
+  "rejection": {
+    "httpStatus": 422,
+    "reason": "TestRun budget exhausted"
+  },
+  "sideEffects": {
+    "experimentAllocations": 0,
+    "modelCallBudgets": 0,
+    "runnerJobs": 0,
+    "budgetSummaryTotals": {
+      "experiments": 0,
+      "requestedCents": 0,
+      "reservedCents": 0,
+      "settledCents": 0,
+      "unknownReservedCents": 0,
+      "modelCallCount": 0
+    }
+  },
+  "stageRun": {
+    "status": "RUNNING",
+    "workflowStep": "REJECTION_ASSERTION_VERIFIED",
+    "businessValidation": "PASS",
+    "externalModelCalls": 0
+  },
+  "fullSuite": {
+    "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+    "status": "PASS",
+    "rejectionSmokeTestRunId": "0078637d-1696-4ad4-86c2-d51e8db23d7e",
+    "sameRunExecutionTestRunId": "3961e216-cf4c-40f5-9dc3-7e5cf8c0fb0a",
+    "logSha256": "c38aca5d095545e4a6b1fda1313247b6b68be6fb552ad2933ba6a31026cf1394",
+    "researchAutomation": { "unit": "217/217", "postgres": "32/32" },
+    "platform": { "unit": "196/196", "postgres": "8/8" },
+    "cli": "1/1",
+    "webE2e": "4/4",
+    "contractsAndBaseline": "PASS"
+  },
+  "providerCalls": 0,
+  "activeServicesConnected": false,
+    "humanAcceptance": "NOT_RUN",
+  "v33StageAcceptance": "NOT_RUN",
+  "versionGates": {
+    "evidence": { "status": "PASS", "exitCode": 0, "references": 353, "activeManifests": 56, "manifestEntries": 125, "historicalManifestsSkipped": 8 },
+    "formalV3": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": ["V3.1", "V3.2", "V3.3", "V3.4"] }
+  }
+}

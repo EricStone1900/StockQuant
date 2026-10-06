@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "dc08a-health-v4",
+  "capturedAt": "2026-10-01T22:28:47.411Z",
+  "status": "UNHEALTHY",
+  "activeSubscription": "dc08a-20260917-20-v1",
+  "calendar": {
+    "status": "CLOSED",
+    "calendarVersion": "sse-cn-a-share-2026-1",
+    "sourceFreshnessExpected": false,
+    "sourceFreshnessState": "MARKET_CLOSED"
+  },
+  "ready": {
+    "status": "ready",
+    "persistence": "POSTGRES",
+    "scheduler": "ENABLED",
+    "executor": "ENABLED"
+  },
+  "scheduler": {
+    "status": "ENABLED",
+    "lastSuccessfulTickAt": "2026-10-01T22:28:09.225Z",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "tickAgeSeconds": 38.186
+  },
+  "sources": [
+    {
+      "sourceId": "baostock",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1790208109.2940702,
+      "lastFailureAt": 1790171080.0519683,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "sina",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1790751790.0561771,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "eastmoney",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "tdx",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    }
+  ],
+  "quality": {
+    "openGaps": 0,
+    "pendingOutbox": 0
+  },
+  "checks": {
+    "recentSuccessRecorded": true,
+    "nextTriggerRecorded": false,
+    "sourceReady": true,
+    "qualityReady": true
+  },
+  "persistedCollectionSchedules": {
+    "endpoint": "GET http://127.0.0.1:3002/v2/collection-schedules",
+    "httpStatus": 200,
+    "enabledScheduleCount": 0,
+    "sideEffects": 0
+  },
+  "retainedReadFailure": {
+    "attempt": "GET http://127.0.0.1:3000/v2/collection-schedules",
+    "httpStatus": 404,
+    "reason": "initial request targeted Platform API instead of Market Data; retried using repository helper default 127.0.0.1:3002"
+  },
+  "observation": {
+    "archivedSummary": "evidence/dc08a/observation-summary.json",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "targetDays": 20,
+    "remainingDays": 12,
+    "daysAdded": 0,
+    "reason": "NO_TRADE and no market-source authorization; current session was market-closed"
+  }
+}

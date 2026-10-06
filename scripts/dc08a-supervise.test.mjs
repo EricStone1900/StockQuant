@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildRepairPlan, classifyReady, expectedRuntime, runtimeMatches, supervise } from "./dc08a-supervise.mjs";
 
+const sourceAuthorizedEnv = { STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "true", STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF: "evidence/source-use-authorization.json", STOCKQUANT_COLLECTION_DATA_VERSION: "minute-v1", STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS: "sina,baostock" };
+
 test("ready classification distinguishes disabled executor", () => {
-  assert.equal(classifyReady({ status: "ready", collectionPersistence: "POSTGRES", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }), "HEALTHY");
+  assert.equal(classifyReady({ status: "ready", collectionPersistence: "POSTGRES", collectionSourceAuthorization: "AUTHORIZED", collectionSchedulerWorker: "ENABLED", collectionExecutor: "ENABLED" }), "HEALTHY");
+  assert.equal(classifyReady({ status: "ready", collectionPersistence: "POSTGRES", collectionSourceAuthorization: "NOT_AUTHORIZED", collectionSchedulerWorker: "DISABLED", collectionExecutor: "DISABLED" }), "WAITING_CONFIGURATION");
   assert.equal(classifyReady({ status: "ready", collectionPersistence: "POSTGRES", collectionExecutor: "DISABLED" }), "WAITING_CONFIGURATION");
   assert.equal(classifyReady({ status: "ready", collectionPersistence: "DISABLED", collectionExecutor: "DISABLED" }), "WAITING_CONFIGURATION");
   assert.equal(classifyReady({}, 503), "UNHEALTHY");
@@ -19,6 +22,7 @@ test("repair plan only starts market-data-service", () => {
 test("failed repair returns failure without a second mutation", async () => {
   const commands = [];
   const result = await supervise({
+    env: sourceAuthorizedEnv,
     mode: "repair",
     probe: async () => ({ state: "UNHEALTHY", status: 0, body: {} }),
     command: (binary, args) => { commands.push([binary, args]); return { status: 1 }; },
@@ -31,6 +35,7 @@ test("failed repair returns failure without a second mutation", async () => {
 test("enabled repair preserves the approved worker configuration", async () => {
   let options;
   const result = await supervise({
+    env: sourceAuthorizedEnv,
     mode: "repair",
     preserveEnabled: true,
     probe: async () => ({ state: "UNHEALTHY", status: 0, body: {} }),
@@ -39,6 +44,21 @@ test("enabled repair preserves the approved worker configuration", async () => {
   assert.equal(result.exitCode, 1);
   assert.equal(options.env.STOCKQUANT_SCHEDULER_WORKER, "1");
   assert.equal(options.env.STOCKQUANT_COLLECTION_EXECUTOR, "1");
+});
+
+test("repair refuses to restart Market Data when source authorization is incomplete", async () => {
+  let called = false;
+  const result = await supervise({
+    env: { ...sourceAuthorizedEnv, STOCKQUANT_COLLECTION_DATA_VERSION: "" },
+    mode: "repair",
+    probe: async () => ({ state: "UNHEALTHY", status: 503, body: {} }),
+    command: () => { called = true; return { status: 0, stdout: "", stderr: "" }; },
+  });
+  assert.equal(result.state, "WAITING_CONFIGURATION");
+  assert.equal(result.exitCode, 2);
+  assert.equal(result.sourceAuthorizationMissing.includes("STOCKQUANT_COLLECTION_DATA_VERSION"), true);
+  assert.equal(result.actions.length, 0);
+  assert.equal(called, false);
 });
 
 test("runtime inspection detects restart configuration drift before patrol reports healthy", () => {

@@ -1,0 +1,30 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.4 Quant Daily Backtest Fixture API", "version": "1.0.0" },
+  "servers": [{ "url": "http://quant-research-service:3003" }],
+  "components": {
+    "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } },
+    "schemas": {
+      "V14DailyBacktestRequest": { "$ref": "https://stockquant.local/schemas/research/v14-daily-backtest-request.schema.json" },
+      "V14DailyBacktestResult": { "$ref": "https://stockquant.local/schemas/research/v14-daily-backtest-result.schema.json" }
+    }
+  },
+  "paths": {
+    "/v1/research/backtests/daily-fixture": {
+      "post": {
+        "operationId": "runV14DailyFixtureBacktest",
+        "summary": "Compute the fixed daily-bar Fixture backtest inside Quant Research",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/V14DailyBacktestRequest" } } } },
+        "responses": {
+          "200": { "description": "Fixture computation result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/V14DailyBacktestResult" } } } },
+          "403": { "description": "Platform service bearer required" },
+          "413": { "description": "Request exceeds the bounded Fixture command limit" },
+          "422": { "description": "Invalid or inconsistent Fixture request" },
+          "503": { "description": "Quant computation unavailable" }
+        }
+      }
+    }
+  }
+}

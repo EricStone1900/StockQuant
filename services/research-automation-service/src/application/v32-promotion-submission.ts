@@ -1,4 +1,5 @@
 import type { V32PromotionRequest } from "../contracts/generated-types.js";
+import { GeneratedQuantPromotionSubmitClient } from "../contracts/generated-quant-promotion-submit-client.js";
 import type { V32PromotionPreparationResult } from "./v32-promotion-preparation.js";
 
 export type V32PromotionSubmissionJournalPort = {
@@ -95,70 +96,32 @@ export class V32PromotionSubmissionService {
   }
 }
 
-/** Bounded, fail-closed HTTP adapter. Ambiguous outcomes are surfaced for exact-key reconciliation, never blindly retried. */
+/** Bounded, fail-closed OpenAPI adapter. Ambiguous outcomes are surfaced for exact-key reconciliation, never blindly retried. */
 export function createQuantPromotionSubmitter(input: {
   baseUrl: string;
   bearerToken: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }) {
-  const base = new URL(input.baseUrl);
-  if (!/^https?:$/u.test(base.protocol) || base.username || base.password || base.search || base.hash) throw new Error("Quant base URL must be an HTTP(S) origin/path without credentials, query, or fragment");
-  if (input.bearerToken.length < 32 || !/^[A-Za-z0-9_-]+$/u.test(input.bearerToken)) throw new Error("Quant Bearer token is invalid");
   const timeoutMs = input.timeoutMs ?? 5_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30_000) throw new Error("Quant submission timeout must be between 100 and 30000 ms");
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const endpoint = new URL("/v1/promotions", base);
+  const client = new GeneratedQuantPromotionSubmitClient(input.baseUrl, input.bearerToken, input.fetchImpl ?? fetch);
 
   return async (request: V32PromotionRequest) => {
-    let response: Response;
     try {
-      response = await fetchImpl(endpoint, {
-        method: "POST",
-        redirect: "error",
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: { authorization: `Bearer ${input.bearerToken}`, "content-type": "application/json" },
-        body: JSON.stringify(request),
-      });
+      const response = await client.submitPromotionRequest(request, timeoutMs);
+      if (response.promotionRequestId !== request.promotionRequestId || response.testRunId !== request.testRunId) {
+        return { status: "UNKNOWN" as const, reason: "quant-response-binding-mismatch" };
+      }
+      return {
+        status: "ACCEPTED" as const,
+        promotionRequestId: response.promotionRequestId,
+        testRunId: response.testRunId,
+        quantStatus: "AWAITING_INDEPENDENT_VALIDATION" as const,
+        idempotent: response.idempotent,
+      };
     } catch (error) {
       return { status: "UNKNOWN" as const, reason: error instanceof Error ? error.name : "transport-error" };
     }
-    let bytes: Uint8Array;
-    try {
-      const reader = response.body?.getReader();
-      if (!reader) return { status: "UNKNOWN" as const, reason: "empty-response-body" };
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > 64 * 1024) { await reader.cancel(); return { status: "UNKNOWN" as const, reason: "response-too-large" }; }
-        chunks.push(value);
-      }
-      bytes = new Uint8Array(size);
-      let offset = 0;
-      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-    } catch {
-      return { status: "UNKNOWN" as const, reason: "response-read-failed" };
-    }
-    let body: Record<string, unknown>;
-    try {
-      const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
-      body = parsed as Record<string, unknown>;
-    } catch {
-      return { status: "UNKNOWN" as const, reason: `invalid-json-response-${response.status}` };
-    }
-    if (!response.ok || body.schemaVersion !== "v3.2-promotion-request-result-v1" || typeof body.promotionRequestId !== "string" || typeof body.testRunId !== "string" || body.status !== "AWAITING_INDEPENDENT_VALIDATION" || typeof body.idempotent !== "boolean") {
-      return { status: "UNKNOWN" as const, reason: `unexpected-quant-response-${response.status}` };
-    }
-    return {
-      status: "ACCEPTED" as const,
-      promotionRequestId: body.promotionRequestId,
-      testRunId: body.testRunId,
-      quantStatus: "AWAITING_INDEPENDENT_VALIDATION" as const,
-      idempotent: body.idempotent,
-    };
   };
 }

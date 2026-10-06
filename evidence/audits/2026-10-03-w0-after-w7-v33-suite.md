@@ -1,0 +1,1 @@
+W0当前工作树点时快照（2026-10-03）：记录当前HEAD、现存tracked与nonignored-untracked逐文件SHA-256、缺失路径和tracked删除项。见[机器报告](../../evidence/audits/2026-10-03-w0-after-w7-v33-suite.json)及[逐文件Manifest](../../evidence/audits/2026-10-03-w0-after-w7-v33-suite.files.sha256)。快照不表示阶段或人工验收完成。

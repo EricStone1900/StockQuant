@@ -1,0 +1,7 @@
+# O1 no-source-authorization read-only refresh (2026-10-01 15:26Z)
+
+The approved operating state remains `NO_TRADE` with no source authorization. The health collector issued only readiness, scheduler-status, source-catalogue, subscription-quality and market-calendar HTTP GET requests; it did not submit a collection job or call a market provider. The observation summary read local archived evidence only. Both reports were written to `/tmp` first and copied here; the canonical active report files and business records were not overwritten.
+
+The Market Data service and PostgreSQL readiness were available, the scheduler worker and executor reported enabled, the latest successful tick was at `15:26:06Z`, and gap/outbox counts were zero. The market calendar was closed, `nextExecutionAt` was null and `lastSubmitted` was zero, so health correctly remained `UNHEALTHY` because no next trigger was recorded. BaoStock and Sina appeared enabled in the source catalogue; that configuration fact is not source authorization or evidence of a live subscription. The last observation remains 8/20 (7 complete days and 1 recovered day), with 12 valid days remaining; the latest counted day is 2026-09-30. This read-only refresh did not add an observation day.
+
+Raw reports: [health JSON](2026-10-01-o1-health-readonly-1526z.json) and [observation summary JSON](2026-10-01-o1-summary-readonly-1526z.json). No collection, trading, source-authorization, or deployment state was changed.

@@ -1,22 +1,60 @@
-import { randomUUID } from "node:crypto";
-export type V14Scenario = "normal" | "rejection" | "recovery";
+import type { V14DailyBacktestFixtureRequest, V14DailyBacktestFixtureResult } from "../contracts/generated-types.js";
+
+export type V14Scenario = V14DailyBacktestFixtureRequest["scenarioId"];
 export const V14_SCENARIOS = [
-  { scenarioId: "normal", version: "1.0.0", title: "日线回测与净值", expected: "收盘信号次日成交，费用与净值可核对" },
-  { scenarioId: "rejection", version: "1.0.0", title: "未来成交与公司行动拒绝", expected: "未来泄漏拒绝，公司行动只入账一次" },
-  { scenarioId: "recovery", version: "1.0.0", title: "取消与固定输入复跑", expected: "取消不发布报告，相同输入结果一致" }
+  { scenarioId: "normal", version: "1.1.0", title: "日线回测与净值", expected: "根据冻结日线Fixture计算逐日净值和成交" },
+  { scenarioId: "rejection", version: "1.1.0", title: "未来成交拒绝", expected: "拒绝在信号可见前成交" },
+  { scenarioId: "recovery", version: "1.1.0", title: "固定输入复跑", expected: "取消不发布报告，固定输入重新计算得到相同结果" },
+  { scenarioId: "market-restrictions", version: "1.2.0", title: "停牌与限制价合成规则", expected: "固定合成OHLC状态用例验证停牌和锁定限制价拒绝；不代表真实交易所规则" },
+  { scenarioId: "historical-fees", version: "1.3.0", title: "历史日期费率核对", expected: "冻结历史日期Fixture验证2023-08-28前费率及卖方印花税" }
 ] as const;
-type Assertion = { assertionId: string; status: "PASS" | "FAIL"; expected: unknown; actual: unknown };
-export type V14Run = { testRunId: string; stageId: "V1.4"; scenarioId: V14Scenario; seed: number; status: "COMPLETED" | "FAILED"; assertions: Assertion[]; evidence: Record<string, unknown> };
-export class V14BacktestEngine {
-  run(scenarioId: V14Scenario, seed = 20260907): V14Run {
-    const testRunId = randomUUID(); const assertions: Assertion[] = []; const evidence: Record<string, unknown> = { dataVersion: "v1.4-daily-backtest-1", barType: "DAILY_BAR", seed, brokerMode: "FAKE", environmentMode: "BACKTEST", initialCash: 10000, codeVersion: "8748ddc" };
-    const pass = (id: string, expected: unknown, actual: unknown) => assertions.push({ assertionId: id, status: JSON.stringify(expected) === JSON.stringify(actual) ? "PASS" : "FAIL", expected, actual });
-    if (scenarioId === "normal") {
-      evidence.signals = [{ date: "2024-01-02", visibleAt: "2024-01-02T15:00:00+08:00", executedAt: "2024-01-03T09:30:00+08:00" }]; evidence.nav = [{ date: "2024-01-02", value: 10000 }, { date: "2024-01-03", value: 10095 }]; evidence.trades = [{ side: "BUY", quantity: 100, price: 10, fee: 5, executionDate: "2024-01-03" }]; evidence.metrics = { return: 0.0095, maxDrawdown: 0, turnover: 0.1, fees: 5, fillRate: 1, rejected: 0 };
-      pass("V1.4-BT-NEXT-BAR-001", "2024-01-03", "2024-01-03"); pass("V1.4-BT-LEDGER-002", { fees: 5, finalCash: 8995 }, { fees: 5, finalCash: 8995 });
-    } else if (scenarioId === "rejection") {
-      const rejections = ["FUTURE_SIGNAL_SAME_DAY", "UNKNOWN_ORDER_STATE"]; evidence.rejections = rejections; evidence.corporateActions = [{ actionId: "div-001", bookedOnce: true }]; evidence.reportPublished = false; pass("V1.4-BT-PIT-001", 0, rejections.length - 2); pass("V1.4-BT-CORP-ACTION-002", true, true);
-    } else { const replay = { sameInputHash: true, sameResult: true }; evidence.cancelled = true; evidence.reportPublished = false; evidence.replay = replay; pass("V1.4-BT-CANCEL-001", false, evidence.reportPublished); pass("V1.4-BT-REPLAY-002", true, replay.sameResult); }
-    return { testRunId, stageId: "V1.4", scenarioId, seed, status: assertions.every((a) => a.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence };
+
+export const V14_DEFAULT_EXECUTION_POLICY: Readonly<V14DailyBacktestFixtureRequest["policy"]> = {
+  initialCashCents: 1_000_000,
+  targetQuantity: 100,
+  participationRateBasisPoints: 100,
+  slippageBasisPoints: 0,
+  fixedFeeCents: 500
+};
+
+export interface V14QuantBacktestPort {
+  run(scenarioId: V14Scenario, seed: number, policy?: V14DailyBacktestFixtureRequest["policy"]): Promise<V14DailyBacktestFixtureResult>;
+}
+
+export function validateV14ExecutionPolicy(value: unknown): V14DailyBacktestFixtureRequest["policy"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("V1.4 execution policy must be an object");
+  const candidate = value as Record<string, unknown>;
+  const keys = ["initialCashCents", "targetQuantity", "participationRateBasisPoints", "slippageBasisPoints", "fixedFeeCents"];
+  if (keys.some((key) => !Object.hasOwn(candidate, key)) || Object.keys(candidate).some((key) => !keys.includes(key) && !["sellOrder", "marketFeeSchedule"].includes(key))) throw new Error("V1.4 execution policy must contain exactly the supported fields");
+  const limits = {
+    initialCashCents: [1, Number.MAX_SAFE_INTEGER],
+    targetQuantity: [1, Number.MAX_SAFE_INTEGER],
+    participationRateBasisPoints: [1, 10_000],
+    slippageBasisPoints: [0, 10_000],
+    fixedFeeCents: [0, Number.MAX_SAFE_INTEGER]
+  } as const;
+  for (const key of keys) {
+    const item = candidate[key];
+    const [minimum, maximum] = limits[key as keyof typeof limits];
+    if (typeof item !== "number" || !Number.isSafeInteger(item) || item < minimum || item > maximum) throw new Error(`V1.4 execution policy field ${key} is outside its integer range`);
   }
+  if (candidate.marketFeeSchedule !== undefined) {
+    const schedule = candidate.marketFeeSchedule;
+    if (!schedule || typeof schedule !== "object" || Array.isArray(schedule)) throw new Error("V1.4 marketFeeSchedule must be an object");
+    const record = schedule as Record<string, unknown>;
+    const scheduleKeys = ["scheduleId", "commissionRatePartsPerBillion", "minimumCommissionCents"];
+    if (Object.keys(record).length !== scheduleKeys.length || scheduleKeys.some((key) => !Object.hasOwn(record, key)) || !["CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27", "CN_A_CASH_EQUITY_2023_08_28"].includes(String(record.scheduleId))) throw new Error("V1.4 marketFeeSchedule must contain a supported dated CN_A schedule");
+    const minimumRate = record.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68_700 : 54_100;
+    if (typeof record.commissionRatePartsPerBillion !== "number" || !Number.isSafeInteger(record.commissionRatePartsPerBillion) || record.commissionRatePartsPerBillion < minimumRate || record.commissionRatePartsPerBillion > 3_000_000) throw new Error("V1.4 CN_A commission rate must include the selected schedule's exchange fees and stay within the published ceiling");
+    if (typeof record.minimumCommissionCents !== "number" || !Number.isSafeInteger(record.minimumCommissionCents) || record.minimumCommissionCents < 0) throw new Error("V1.4 minimumCommissionCents must be a non-negative safe integer");
+  }
+  if (candidate.sellOrder !== undefined) {
+    const sellOrder = candidate.sellOrder;
+    if (!sellOrder || typeof sellOrder !== "object" || Array.isArray(sellOrder)) throw new Error("V1.4 sellOrder must be an object");
+    const order = sellOrder as Record<string, unknown>;
+    if (Object.keys(order).length !== 3 || Object.keys(order).some((key) => !["signalDate", "executionDate", "quantity"].includes(key))) throw new Error("V1.4 sellOrder must contain exactly signalDate, executionDate and quantity");
+    if (typeof order.signalDate !== "string" || !/^\d{4}-\d\d-\d\d$/.test(order.signalDate) || typeof order.executionDate !== "string" || !/^\d{4}-\d\d-\d\d$/.test(order.executionDate) || order.signalDate >= order.executionDate) throw new Error("V1.4 sellOrder must have a valid signal date before its execution date");
+    if (typeof order.quantity !== "number" || !Number.isSafeInteger(order.quantity) || order.quantity < 1) throw new Error("V1.4 sellOrder quantity must be a positive safe integer");
+  }
+  return candidate as V14DailyBacktestFixtureRequest["policy"];
 }

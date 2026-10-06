@@ -17,6 +17,13 @@ export interface HistoricalExecutionCommand {
   reservation?: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string };
 }
 
+export type SnapshotPaperExecutionCommand = {
+  namespace: string; accountId: string; clientOrderId: string; security: string; requestedQuantity: number;
+  price: string; fee: string; effectiveAt: string; currency: string; snapshotId: string; policyVersion: string; fixtureVersion: string;
+  quoteAgeSeconds: number; deviationBps: number; testRunId: string; ownerId: string; mandateId: string; mandateVersion: string; strategyVersion: string;
+  reservation: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string };
+};
+
 /** Stable, semantic request identity for FakeBroker idempotency keys. */
 export function historicalExecutionFingerprint(command: HistoricalExecutionCommand): string {
   const canonical = {

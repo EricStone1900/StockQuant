@@ -11,9 +11,16 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_collection_source_authorization, missing_historical_research_source_authorization
 
 
 def run_probe() -> dict[str, object]:
+    missing = sorted(set(missing_collection_source_authorization(["baostock"]) + missing_historical_research_source_authorization(["baostock"])))
+    if missing:
+        return {"source": "baostock", "status": "BLOCKED", "blockedBeforeNetwork": True, "missingAuthorization": missing}
     try:
         import baostock as bs  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -127,4 +134,4 @@ def run_probe() -> dict[str, object]:
 if __name__ == "__main__":
     output = run_probe()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    sys.exit(0 if output["status"] in {"PASS", "PARTIAL"} else 2 if output["status"] == "NOT_RUN" else 1)
+    sys.exit(0 if output["status"] in {"PASS", "PARTIAL"} else 2 if output["status"] in {"NOT_RUN", "BLOCKED"} else 1)

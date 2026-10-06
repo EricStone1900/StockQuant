@@ -1,0 +1,5 @@
+# Preserved W7 suite failure diagnosis
+
+Before the successful rerun, `pnpm verify:stage -- --stage V3.3 --suite code` stopped in `baseline:check` with one failure: the V2 version-evidence audit still treated three changed files in the historical 165-input V2.3 source manifest as current. The direct V2 gate returned exit 1 / FAIL with SHA mismatches for `postgres-stage-run-repository.ts`, `v33-run-state.ts`, and `v33-run-state.spec.ts`; the V3.3 suite did not reach its business/code checks on that attempt.
+
+The source manifest belonged to a prior TestRun, so it was retained as historical evidence and removed from the active V2.3 “current hash” references. A new complete V2.3 suite was run and bound TestRun `692619fb-dc30-4507-9e26-09a70611aa84` to the new 165-file codeVersion. `baseline:check` then passed 26/26, and the full V3.3 code suite later passed exit 0. The failure was evidence-linkage staleness; it did not indicate a code test failure. No active service or shared database was changed.

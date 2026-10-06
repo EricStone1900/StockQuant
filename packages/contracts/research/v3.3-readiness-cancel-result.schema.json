@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-readiness-cancel-result.schema.json",
+  "title": "V33ReadinessCancelResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "stageId", "status", "idempotent", "evidence"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V3.3" },
+    "status": { "const": "CANCELLED" },
+    "idempotent": { "type": "boolean" },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["readiness", "runnerDispatch", "runnerJobsCreated", "externalModelCalls", "cancellation"],
+      "properties": {
+        "readiness": { "const": "CANCELLED" },
+        "runnerDispatch": { "const": "NOT_PERFORMED" },
+        "runnerJobsCreated": { "const": 0 },
+        "externalModelCalls": { "const": 0 },
+        "cancellation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scope", "cancelledAt", "runnerJobsCancelled"],
+          "properties": {
+            "scope": { "const": "READINESS_ONLY" },
+            "cancelledAt": { "type": "string", "format": "date-time" },
+            "runnerJobsCancelled": { "const": 0 }
+          }
+        }
+      }
+    }
+  }
+}

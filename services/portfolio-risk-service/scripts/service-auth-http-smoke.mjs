@@ -37,8 +37,8 @@ async function waitReady() {
   }
   throw new Error(`portfolio service did not start: ${output}`);
 }
-async function request(path, method, caller, bearer, body) {
-  return fetch(`${base}${path}`, { method, headers: { ...(body ? { "content-type": "application/json" } : {}), ...(caller ? { "x-stockquant-service-id": caller } : {}), ...(bearer ? { authorization: `Bearer ${bearer}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+async function request(path, method, caller, bearer, body, extraHeaders = {}) {
+  return fetch(`${base}${path}`, { method, headers: { ...(body ? { "content-type": "application/json" } : {}), ...(caller ? { "x-stockquant-service-id": caller } : {}), ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...extraHeaders }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
 let accountId;
 try {
@@ -74,6 +74,15 @@ try {
   const fillResponse = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
   const fillReplayResponse = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
   if (![200, 201].includes(fillResponse.status) || ![200, 201].includes(fillReplayResponse.status) || !(await fillReplayResponse.json()).replayed) throw new Error("reserved fill posting or retry was not idempotent");
+  const feeCorrectionPath = `/internal/v1/accounts/${accountId}/fills/${fillCommand.externalFillId}/fee-corrections`;
+  const feeCorrection = { revision: 1, previousFee: "1.0000", correctedFee: "2.0000", effectiveAt: "2026-09-25T01:02:00.000Z", evidenceRef: "fakebroker-fee-correction:smoke-1" };
+  const wrongFeeCaller = await request(feeCorrectionPath, "POST", "platform-api-service", tokens.platform, feeCorrection);
+  const feeCorrectionResponse = await request(feeCorrectionPath, "POST", "trade-execution-service", tokens.trade, feeCorrection);
+  const feeCorrectionReplay = await request(feeCorrectionPath, "POST", "trade-execution-service", tokens.trade, feeCorrection);
+  const fillReplayAfterCorrection = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
+  const correctedSnapshotResponse = await request(`/internal/v1/accounts/${accountId}/snapshot`, "GET", "platform-api-service", tokens.platform, undefined, { "x-stockquant-owner-id": ownerId });
+  const correctedSnapshot = await correctedSnapshotResponse.json();
+  if (wrongFeeCaller.status !== 403 || feeCorrectionResponse.status !== 200 || !(await feeCorrectionReplay.json()).replayed || !(await fillReplayAfterCorrection.json()).replayed || correctedSnapshotResponse.status !== 200 || correctedSnapshot.cash.amount !== "8998.0000") throw new Error("fee correction route, retry, original Fill replay, or exact cash adjustment failed");
   const overBudget = await request(reservationPath, "POST", "trade-execution-service", tokens.trade, { ...reservationCommand, idempotencyKey: "cash-reserve-too-much", clientOrderId: "smoke-order-too-much", cashAmount: "8000.0000" });
   if (overBudget.status !== 409) throw new Error(`over-budget reservation should be rejected with 409, received ${overBudget.status}`);
   const resolvePath = `${reservationPath}/${reserved.reservation.reservationId}/resolve`;
@@ -86,7 +95,7 @@ try {
   if (unknownResolve.status !== 200 || (await unknownResolve.json()).status !== "UNKNOWN") throw new Error("UNKNOWN did not preserve the resource hold with update status 200");
   const release = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, outcome: "CANCELLED", evidenceRef: "smoke:authoritative-cancel-confirmed" });
   if (release.status !== 200 || (await release.json()).status !== "RELEASED") throw new Error("authoritative cancellation did not release the reservation with update status 200");
-  console.log(JSON.stringify({ status: "PASS", testRunId, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
+  console.log(JSON.stringify({ status: "PASS", testRunId, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, feeCorrection: feeCorrectionResponse.status, feeCorrectionReplay: true, originalFillReplayAfterCorrection: true, exactCorrectedCash: correctedSnapshot.cash.amount, wrongFeeCaller: wrongFeeCaller.status, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
 } finally {
   if (service.exitCode === null) { service.kill("SIGTERM"); await new Promise((resolveClose) => service.once("close", resolveClose)); }
   if (accountId) {
@@ -94,6 +103,7 @@ try {
     try {
       await client.query("BEGIN");
       await client.query("DELETE FROM resource_reservations WHERE account_id=$1", [accountId]);
+      await client.query("DELETE FROM fill_fee_corrections c USING recorded_fills f WHERE c.external_fill_id=f.external_fill_id AND f.account_id=$1", [accountId]);
       await client.query("DELETE FROM recorded_fills WHERE account_id=$1", [accountId]);
       await client.query("DELETE FROM account_positions WHERE account_id=$1", [accountId]);
       await client.query("DELETE FROM ledger_entries WHERE account_id=$1", [accountId]);

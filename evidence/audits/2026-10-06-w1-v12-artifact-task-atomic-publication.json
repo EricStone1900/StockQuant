@@ -1,0 +1,68 @@
+{
+  "auditId": "W1-V1.2-ARTIFACT-TASK-ATOMIC-PUBLICATION-2026-10-06",
+  "observedAt": "2026-10-06T10:39:08Z",
+  "status": "ENGINEERING_SLICE_PASS",
+  "stageAcceptance": "NOT_SIGNED",
+  "stateMachine": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"],
+  "publication": {
+    "artifactContentAndCompletedStateSamePostgresTransaction": true,
+    "existingDifferentBytesRejected": true,
+    "cancelPublishRaceLinearized": true,
+    "expiredLeaseTakeover": true,
+    "staleWorkerFenced": true,
+    "supportedFixtureVersion": "v1.2-market-data-1",
+    "artifactStorage": "PostgreSQL BYTEA"
+  },
+  "checks": {
+    "marketDataTypecheck": "PASS",
+    "marketDataBuild": "PASS",
+    "marketDataUnit": {"status": "PASS", "files": 19, "tests": 74},
+    "marketDataPostgresIntegration": {"status": "PASS", "tests": 28, "database": "random disposable PostgreSQL in full V1.2 suite"},
+    "artifactHttpProcessRestartSmoke": {
+      "status": "PASS",
+      "cancelledTaskRemainsCancelledAfterRestart": true,
+      "cancelledArtifactAbsent": true,
+      "queuedTaskExecutedAfterRestart": true,
+      "fixtureBytesExact": true,
+      "fixtureSha256": "2d799e0fc18dbb8d312c394ad61afbe009570bc4a5e9cec0b43231d669a66f78",
+      "anonymousCreate": 401,
+      "anonymousCancel": 401,
+      "missingTask": 404,
+      "externalRequests": 0
+    },
+    "fullV12CodeSuite": {
+      "status": "PASS",
+      "exitCode": 0,
+      "testRunIds": [
+        "967eab4b-6704-4599-9ecb-99032ffc58ff",
+        "7ac561df-3d83-4a0b-bcf0-21c06a93da22",
+        "4165ed6a-8fee-42e2-91c4-77cdec657c98"
+      ],
+      "temporaryComposeCleanup": "verified",
+      "activeServicesTouched": false
+    }
+  },
+  "retainedFailure": {
+    "attempt": "Standalone pnpm test:integration:market-data against its default local market_data_test database",
+    "outcome": "One unrelated global pending-alert count assertion failed because prior test rows existed",
+    "correction": "Scope assertion and cleanup to exact alert UUID; the complete V1.2 suite then passed against a disposable database",
+    "exactUnsentTestRowRemoved": {
+      "alertId": "ba1c0acb-7428-46e6-b5ec-e04401ba9639",
+      "alertKey": "alert-1791282818503"
+    },
+    "otherRowsModified": false
+  },
+  "limitations": [
+    "Single worker and one frozen Fixture input",
+    "Artifact bytes are stored in PostgreSQL; large object/object-store capacity is unverified",
+    "Stage-level user acceptance and Ubuntu x86_64 validation remain pending",
+    "V1 version gate remains unresolved independently of this slice"
+  ],
+  "authorization": {
+    "tradeMode": "NO_TRADE",
+    "dataSourceAuthorization": "NONE",
+    "marketDataRequests": 0,
+    "paperRequests": 0,
+    "brokerRequests": 0
+  }
+}

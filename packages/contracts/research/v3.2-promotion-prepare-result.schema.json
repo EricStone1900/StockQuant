@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.2-promotion-prepare-result.schema.json",
+  "title": "V3.2 PromotionRequest preparation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "blockers", "promotionRequest"],
+  "properties": {
+    "status": { "enum": ["WAITING", "READY_FOR_GATE_CHECK"] },
+    "blockers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "promotionRequest": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "WAITING" } }, "required": ["status"] },
+      "then": { "properties": { "promotionRequest": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "READY_FOR_GATE_CHECK" } }, "required": ["status"] },
+      "then": { "properties": { "blockers": { "maxItems": 0 }, "promotionRequest": { "$ref": "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json" } } }
+    }
+  ]
+}

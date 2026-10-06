@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CoverageRepository } from "../../src/application/coverage-repository.js";
+import { CoverageRepository } from "../../src/adapters/postgres-coverage-repository.js";
 
 function row(status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED") {
   return { task_id: "task-1", subscription_id: "dc08a", from_date: "2026-09-14", to_date: "2026-09-16", idempotency_key: "key", status };

@@ -11,3 +11,8 @@
 - 人工验收复验（2026-09-09）：normal `2d236506-042b-4e6c-a386-dfbb6553622f`、rejection `55417112-6ee9-4eeb-b252-1e0306048a0e`、recovery `d8c9540e-0ed2-4978-93f9-daaef6dc1e6f`，三项断言 PASS；全仓构建/单测 PASS；Web E2E 7 passed。
 
 未覆盖：Parquet 实际上传、持久化分区数据库、跨进程断点续传、真实用户文件导入和分钟聚合与日线差异报告；这些属于后续增强范围，当前 Fixture 仅证明小样本导入和质量逻辑。
+
+
+## 2026-10-01 跨服务上传/读取回归
+
+V2.2的 `pnpm --filter @stockquant/platform-api-service v22:upload-web-http-smoke` 在隔离PostgreSQL、实际Market Data与Platform进程、Vite和Chromium中退出0。覆盖浏览器→平台→市场服务→数据库的CSV和Parquet分块上传、预览、Finalize；上传取消owner成功/foreign owner 403；不可变导入详情、Bar分页的匿名/owner/foreign owner身份矩阵；同一TestRun CLI `--check-only`无写入。3个冻结文件合计8640根5m BAR_END行，研究使用许可为UNCONFIRMED、researchUseAllowed=false；FakeBroker模式、真实来源调用0。测试数据库、上传、导入、TestRun均按精确随机ID清理。机器结果、TestRun ID、Hash与限制见[跨服务E2E审计](../evidence/audits/2026-10-01-w1-v22-minute-api-http-e2e.md)、[JSON](../evidence/audits/2026-10-01-w1-v22-minute-api-http-e2e.json)和[SHA-256](../evidence/audits/2026-10-01-w1-v22-minute-api-http-e2e.sha256)。此为隔离软件验证，不替代来源许可、生产容量、Ubuntu、活动部署或新增人工验收。

@@ -1,0 +1,50 @@
+{
+  "recordedAt": "2026-10-03T08:21:44Z",
+  "stageId": "V3.2",
+  "workPackage": "W6 offline preparation code suite",
+  "command": "node scripts/run-isolated-postgres-command.mjs --url-env PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test -- pnpm verify:stage -- --stage V3.2 --suite code",
+  "exitCode": 0,
+  "status": "PASS",
+  "independentFixtureRecomputation": {
+    "status": "PASS",
+    "decisionsChecked": 70,
+    "tradesMatched": true,
+    "absoluteReturnTolerance": 0.000001,
+    "evaluator": "separate Python standard-library evaluator",
+    "containerNetwork": "none",
+    "inputMount": "read-only",
+    "sourceMode": "FIXTURE",
+    "profitabilityClaim": "NOT_MADE"
+  },
+  "readinessTestRun": {
+    "testRunId": "f6239ede-cc29-41cb-ae81-3545506e38a8",
+    "status": "WAITING",
+    "sourceMode": "READINESS_ONLY",
+    "sameOwnerRead": 200,
+    "anonymousRead": 401,
+    "crossOwnerRead": 403,
+    "businessValidation": "NOT_RUN",
+    "registryMutation": "NOT_PERFORMED",
+    "paperCalls": 0,
+    "humanAcceptance": "NOT_RUN"
+  },
+  "isolation": {
+    "platformPostgresDisposable": true,
+    "platformPostgresContainerAndNetworkRemoved": true,
+    "quantSmokeDatabases": "unique random test databases cleaned by the smoke scripts on the dedicated local test Postgres endpoint",
+    "activeRegistryMutation": false,
+    "activePaperCalls": 0,
+    "providerOrMarketDataCalls": 0,
+    "activeServicesTouched": false
+  },
+  "web": { "typecheck": "PASS", "build": "PASS", "unitTests": "PASS" },
+  "unverifiedRequirements": [
+    "candidate derived from an accepted real V3.1 research result",
+    "real candidate's independent business validation",
+    "exact-version user approval and governance consumption",
+    "downstream Paper validation",
+    "actual Ubuntu validation",
+    "V3.2 user acceptance"
+  ],
+  "stageConclusion": "V3.2 remains NOT_RUN / readiness-only"
+}

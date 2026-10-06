@@ -1,5 +1,17 @@
 # V2.5 历史数据扩容与 V2 验收证据
 
+2026-10-01 PostgreSQL 合成持久化切片：新增隔离集成用例，在`market_data_test`执行1,200行（20证券×60工作日、每证券每天一根合成5分钟样本）的`publishStream`分批持久写入、重复导入幂等、333行分页读回、证券过滤、DataVersion隔离和分区聚合。`pnpm test:integration:market-data`退出0，Market Data PostgreSQL集成23/23，分区回填smoke PASS。此数据没有市场来源内容且`researchUseAllowed=false`；结果不代表完整分钟数据、容量、真实CSV解析、生产队列恢复、真实PIT或研究许可。详见[W4 PostgreSQL合成持久化审计](../evidence/audits/2026-10-01-w4-v25-postgres-synthetic-scale.md)及[Hash](../evidence/audits/2026-10-01-w4-v25-postgres-synthetic-scale.sha256)。
+
+2026-10-01 CSV HTTP容量复验：分块上传链对重复、OHLC无效及有效输入各100,000行并发预览/Finalize；错误输入持久拒绝、零Bar，有效输入零错误持久化100,000行，500只证券各200根、5个会话日、唯一证券/时间键，结果重试幂等。最终RSS峰值414,944/537,584/307,664 KiB；测试数据库均精确清理，外部调用0。首次脚本误判201 PUBLISHED为失败，修正后最终三场景PASS。详见[W4 HTTP容量审计](../evidence/audits/2026-10-01-w4-v25-http-upload-error-capacity.md)及[Hash](../evidence/audits/2026-10-01-w4-v25-http-upload-error-capacity.sha256)。
+
+2026-10-01 CSV纯解析器容量：独立子进程流式处理重复键/OHLC无效输入各100,000行，诊断全数准确、RSS峰值121/172 MB、耗时0.72/0.83秒。`minute-csv:error-capacity-smoke`退出0。此项不含HTTP/数据库；见[解析器容量审计](../evidence/audits/2026-10-01-w4-v25-csv-parser-capacity.md)及[Hash](../evidence/audits/2026-10-01-w4-v25-csv-parser-capacity.sha256)。
+
+2026-10-01 有效Parquet HTTP容量：隔离HTTP服务与临时PostgreSQL库完成100,000行合成有效Bar的分块上传、预览、分区写入、分页/数据库核对及幂等重试；坏Parquet拒绝重试并取消，不影响已发布数据。服务RSS峰值256,576 KiB；外部源/模型/券商调用为0，测试库精确删除。此macOS arm64单服务容量点不能外推为全市场分钟容量或Ubuntu实机证据。详见[W4 Parquet有效数据容量审计](../evidence/audits/2026-10-01-w4-v25-parquet-valid-http-capacity.md)及[Hash](../evidence/audits/2026-10-01-w4-v25-parquet-valid-http-capacity.sha256)。
+
+2026-10-01 Linux/arm64双实例Parquet容量：在临时Docker网络/PostgreSQL与两个Market Data服务容器中，同一100,000行合成有效Parquet导入分区表；跨实例预览/Finalize并发被正确串行化，幂等、损坏文件取消和原有效版本不变均通过。峰值RSS 188,832 KiB，2 GiB/2 CPU约束；精确删除临时镜像和所有服务/数据库/网络资源。该Mac Docker Linux/arm64证据不是Ubuntu x86_64。详见[W4 Linux双实例容量审计](../evidence/audits/2026-10-01-w4-v25-parquet-linux-arm64-capacity.md)及[Hash](../evidence/audits/2026-10-01-w4-v25-parquet-linux-arm64-capacity.sha256)。
+
+2026-09-30 TDX午休边界跟进：当日上午与收盘定时shadow探针均为PARTIAL（20只各缺11:30、多13:00），原结果保留。18:28同一服务器的固定20只只读协议记录已包含规范11:30/13:05时间，18:30正式探针复核960/960根、完整性PASS、退出0。来源响应随时间变化的事实已证实，但旧归档不含异常行原始量价，不能追认旧结果或据此硬映射13:00；正式归一化规则未调整。边界原始记录、与Sina存量数据的差异、Hash和测试见[午休边界复核](../evidence/audits/2026-09-30-tdx-lunch-boundary-followup.md)。定时路径仍需新的实际交易日验证，候选来源与许可/长期稳定性门禁不变。
+
 2026-09-23 TDX 候选源适配与复核：新增可选 easy-tdx 分钟适配器，锁定 Git commit
 `4820b4a0496899ece0b8ca4d7f4d66a5159da7f8`，默认正式来源仍为 `sina,baostock`。适配器
 48/48、ruff、mypy、全仓 lint/typecheck/test 和文档检查通过；3 只证券只读探针返回
@@ -105,3 +117,19 @@ V2.5 Web 端到端复验（2026-09-15）：执行
 返回 `PASS`（容器 `linux/arm64`、Node `v24.1.0`）。`pnpm verify:version -- --version V2`
 按设计返回退出码 1（`NOT_PASS`），明确列出 V2.3 补偿/完整恢复编排、V2.4 20 个交易日
 观察以及 V2.5 分钟全量/长期稳定性/60 日备用源等未满足门禁；该非零结果为预期，不是测试故障。
+
+V2.5/W4 回归复验（2026-09-30）：在W3来源授权保持关闭的前提下执行 `pnpm verify:stage -- --stage V2.5 --suite code`，退出码0。合同/Fixture、全仓构建/lint/typecheck/unit、服务身份与PostgreSQL集成、Market Data Adapter 61项、Ops 135项、市场数据集成22项均通过。它是冻结输入上的代码回归，不改变分钟级全市场容量、第二免费源60日覆盖、长期限频、真实PIT、O1/O2或人工验收状态。
+
+上传配额并发边界复验（2026-09-30）：扩展 `tests/integration/collection-run-postgres.spec.ts`，使用本地PostgreSQL同时创建同一owner的3个上传，断言恰有2个成功、1个因配额拒绝；取消一个准入上传后，先前被拒的uploadId可成功重试。命令 `MARKET_DATA_DATABASE_URL=postgresql://market_data:market_data_local_only@localhost:5433/market_data pnpm --filter @stockquant/market-data-service exec vitest run tests/integration/collection-run-postgres.spec.ts` 退出0，22/22通过。该测试覆盖准入并发和取消释放，不声明大规模吞吐或容量通过。详见[并发配额审计](../evidence/audits/2026-09-30-w4-minute-upload-concurrency-quota.md)及[Hash](../evidence/audits/2026-09-30-w4-minute-upload-concurrency-quota.sha256)。
+
+Parquet单文件上限与Linux/arm64复验（2026-10-01）：PyArrow适配器合同上限为100,000行/文件。一个1,440,000行合成文件在预览阶段按合同返回422，未放宽限制；100,000行受支持输入随后经两个Linux/arm64服务容器和临时PostgreSQL全链路PASS，100页完整分页、100,000唯一Bar、双实例互斥、幂等与损坏文件隔离通过，峰值RSS 192,556 KiB。完整V2.5代码套件退出0。仓储层与冻结归档既有1.44M结果属于不同入口/能力，不代表1.44M Parquet单文件可导入。仍未验证Ubuntu x86_64、分钟全市场生产负载、来源授权、真实PIT或长期观察。详见[容量边界审计](../evidence/audits/2026-10-01-w4-v25-parquet-capacity-limit.md)及[SHA-256](../evidence/audits/2026-10-01-w4-v25-parquet-capacity-limit.sha256)。
+
+V2.5 正式浏览器回归（2026-09-30）：`pnpm test:e2e -- --stage V2.5` 退出码0，V2.5扩容页读取回归与恢复证据用例1/1通过。该用例验证页面证据展示，不代表分钟容量、来源稳定性、PIT或整体人工验收通过。
+
+V2.5 当前工作区三场景同Run复核（2026-10-01）：旧Platform API容器缺失已配置Bearer，导致最初三次CLI请求无法连接且未创建TestRun；只读依赖检查通过后，仅重建Platform API容器，`/ready`返回200。新Run使用seed `20261001`，normal `4b370296-b2f1-41c5-80ab-96677a9b580c` 6/6断言PASS；rejection `4907c01c-6aea-46c8-9a1f-8d25580a944f` 3/3 PASS；recovery `bb4ea149-3d83-4591-a0ca-c9b6bd2a2458` 3/3 PASS。三者同Run `--check-only`均退出0，`pnpm evidence:export -- --stage V2.5 --run <id>`均成功。证据目录位于`evidence/local/V2.5/<testRunId>/`，Manifest Hash依次为`5e461fde907df705f07cb8252324844ea22e3e4d0b81fac7a0ece2b28543036c`、`6ebe39075e4fff0632d42417e89b7eec8660c4245038f93811e3eccad95a3572`、`555136ceb89ad0dede5fd5092f040adf234abadb141fc03434dee521e9fbd982`。场景中的资源架构为`linux/amd64-emulated`，观察门禁仍为`V2.4_20_TRADING_DAYS_PENDING`。本次仅验证固定Fixture和应用链，不证明真实分钟全量、长期来源稳定、60日备用源、真实PIT或阶段整体验收。完整审计见[W4当前工作区闭环记录](../evidence/audits/2026-10-01-w4-v25-current-worktree-scenarios.md)及[SHA-256](../evidence/audits/2026-10-01-w4-v25-current-worktree-scenarios.sha256)。
+
+同日有效性更正：上述三条Run ID `4b370296-b2f1-41c5-80ab-96677a9b580c`、`4907c01c-6aea-46c8-9a1f-8d25580a944f`、`bb4ea149-3d83-4591-a0ca-c9b6bd2a2458`均保留，但复核发现旧引擎的并发拒绝、跨版本缓存、超预算和恢复结果来自硬编码actual字段，不再视作这些行为已执行的证据。它们已由[动态Fixture更正审计](../evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.md)中的新Run替代。
+
+最终代码取证（2026-10-01）：资源计量移至Fixture创建前启动后，再执行一轮build/场景/同Run/导出。请以[当前最终代码审计](../evidence/audits/2026-10-01-w4-v25-final-code-scenarios.md)列出的`70240b6d-ea36-4ae2-b3b0-fca24b754cd4`、`455146c8-122f-44fa-8913-713b196cd1e5`、`b5979c90-27fa-4ef9-9777-094359df2a1c`为当前代码TestRun；较早动态Run保留但已被替代。
+
+2026-10-03 V2.5隔离代码套件在Market Data调度时间字段与共享Artifact内容边界增量后的复验：`pnpm verify:stage -- --stage V2.5 --suite code`最终退出0。Parquet Linux/arm64 HTTP/PG容量切片100,000行/500只/5交易日，100页读回100,000个唯一Bar，双实例锁、幂等、过滤分页及损坏上传取消PASS；峰值RSS 193,640 KiB，外部行情/模型/Broker调用0。首次suite回放达到最后PASS但执行会话未返回退出码，随后完整重跑并将exit 0写入日志。仅属合成/UNCONFIRMED工程证据，不替代全市场分钟容量、第二源60日覆盖、长期稳定性、PIT、Ubuntu、观察或人工签收。见[完整复验审计](../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.md)、[JSON](../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.json)、[日志](../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.log)及[SHA-256](../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.sha256)。

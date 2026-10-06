@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/minute-open-gaps-v1.schema.json",
+  "title": "MinuteOpenGaps",
+  "type": "object",
+  "required": ["subscriptionId", "open"],
+  "properties": {
+    "subscriptionId": { "type": "string", "minLength": 1 },
+    "open": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+  },
+  "additionalProperties": false
+}

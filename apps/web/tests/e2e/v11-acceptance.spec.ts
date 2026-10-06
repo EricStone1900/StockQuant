@@ -14,6 +14,42 @@ function verifyV11RunWithCli(testRunId: string) {
   expect(cli.stdout).toContain('"status": "COMPLETED"');
 }
 
+function verifyV12RunWithCli(testRunId: string) {
+  console.info(`[V1.2 Web/CLI same-run] testRunId=${testRunId}`);
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.2", "--run", testRunId, "--check-only"], {
+    cwd: resolve(process.cwd(), "../.."),
+    encoding: "utf8",
+    env: process.env
+  });
+  expect(cli.status, cli.stderr).toBe(0);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "COMPLETED"');
+}
+
+function verifyV13RunWithCli(testRunId: string) {
+  console.info(`[V1.3 Web/CLI same-run] testRunId=${testRunId}`);
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId, "--check-only"], {
+    cwd: resolve(process.cwd(), "../.."),
+    encoding: "utf8",
+    env: process.env
+  });
+  expect(cli.status, cli.stderr).toBe(2);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "WAITING"');
+}
+
+function verifyV14RunWithCli(testRunId: string) {
+  console.info(`[V1.4 Web/CLI same-run] testRunId=${testRunId}`);
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.4", "--run", testRunId, "--check-only"], {
+    cwd: resolve(process.cwd(), "../.."),
+    encoding: "utf8",
+    env: process.env
+  });
+  expect(cli.status, cli.stderr).toBe(0);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "COMPLETED"');
+}
+
 test("V1.1 normal scenario creates an isolated run with backend assertions", async ({ page }) => {
   await page.goto("/acceptance/v1/v1.1");
   await expect(page.getByRole("heading", { name: "V1.1 环境、账户初始化与 Web 验收中心" })).toBeVisible();
@@ -66,7 +102,7 @@ test("V1.1 recovery resumes the same run after restarting only the verified isol
   verifyV11RunWithCli(testRunId!);
 });
 
-test("V1.2 data and Qlib probe page shows real container evidence", async ({ page }) => {
+test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI", async ({ page }) => {
   await page.goto("/acceptance/v1/v1.2");
   await page.getByRole("button", { name: "预览正常 Fixture" }).click();
   await expect(page.getByTestId("normal-preview")).toContainText("v1.2-market-data-1");
@@ -76,18 +112,53 @@ test("V1.2 data and Qlib probe page shows real container evidence", async ({ pag
   await expect(page.getByTestId("qlib-probe")).toContainText("READY");
   await page.getByRole("button", { name: "运行 RD-Agent 兼容探针" }).click();
   await expect(page.getByTestId("rdagent-probe")).toContainText("fixed-probe-ok");
+
+  for (const scenario of ["normal", "rejection", "recovery"] as const) {
+    await page.getByLabel("V1.2 验收场景").selectOption(scenario);
+    await page.getByRole("button", { name: "运行 V1.2 场景" }).click();
+    await expect(page.getByTestId("v12-run-status")).toHaveText("COMPLETED", { timeout: 15_000 });
+    const runEvidence = page.getByTestId("v12-run-evidence");
+    if (scenario === "normal") {
+      await expect(runEvidence).toContainText("v1.2-market-data-1");
+      await expect(page.getByText("V1.2-DATA-NORMAL-001")).toBeVisible();
+    } else if (scenario === "rejection") {
+      await expect(page.getByText("V1.2-DATA-PIT-001")).toBeVisible();
+      await expect(runEvidence).toContainText("FUTURE_DATA");
+    } else {
+      await expect(page.getByText("V1.2-QLIB-PROBE-001")).toBeVisible();
+      await expect(runEvidence).toContainText("READY");
+    }
+    const testRunId = (await page.getByTestId("v12-test-run-id").textContent())?.trim();
+    expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+    verifyV12RunWithCli(testRunId!);
+  }
 });
 
-test("V1.3 FakeBroker trading page verifies recovery evidence", async ({ page }) => {
-  await page.goto("/acceptance/v1/v1.3");
-  await expect(page.getByRole("heading", { name: "V1.3 治理、风控与模拟券商交易链路" })).toBeVisible();
-  await page.selectOption("[aria-label='验收场景']", "recovery");
-  await page.getByRole("button", { name: "运行 V1.3 场景" }).click();
-  await expect(page.getByTestId("v13-test-run-id")).not.toHaveText("");
-  await expect(page.getByTestId("v13-run-status")).toHaveText("COMPLETED");
-  await expect(page.getByTestId("v13-evidence")).toContainText("ACCEPT_RESPONSE_LOST");
-  await expect(page.getByText("V1.3-LEDGER-IDEMPOTENCY-001")).toBeVisible();
-});
+for (const scenario of ["normal", "rejection", "recovery"] as const) {
+  test(`V1.3 ${scenario} scenario is Web-visible and same-run CLI verifiable`, async ({ page }) => {
+    await page.goto("/acceptance/v1/v1.3");
+    await expect(page.getByRole("heading", { name: "V1.3 治理、风控与模拟券商交易链路" })).toBeVisible();
+    await expect(page.getByTestId("v13-business-boundary")).toContainText("不会创建账户、订单、成交或账本记录");
+    await page.selectOption("[aria-label='验收场景']", scenario);
+    await page.getByRole("button", { name: "检查 V1.3 场景准备状态" }).click();
+    await expect(page.getByTestId("v13-test-run-id")).not.toHaveText("");
+    await expect(page.getByTestId("v13-run-status")).toHaveText("WAITING");
+    const evidence = page.getByTestId("v13-evidence");
+    await expect(evidence).toContainText('"evidenceScope": "PLATFORM_SYNTHETIC_ONLY"');
+    await expect(evidence).toContainText('"businessExecution": "NOT_RUN"');
+    await expect(evidence).toContainText('"businessServicesCalled": []');
+    if (scenario === "normal") {
+      await expect(page.getByText("V1.3-EXE-FULL-FILL-001")).toBeVisible();
+    } else if (scenario === "rejection") {
+      await expect(page.getByText("V1.3-GOV-REJECT-001")).toBeVisible();
+    } else {
+      await expect(page.getByText("V1.3-LEDGER-IDEMPOTENCY-001")).toBeVisible();
+    }
+    const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+    expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+    verifyV13RunWithCli(testRunId!);
+  });
+}
 
 test("V1.4 daily backtest page shows report evidence", async ({ page }) => {
   await page.goto("/acceptance/v1/v1.4");
@@ -96,6 +167,91 @@ test("V1.4 daily backtest page shows report evidence", async ({ page }) => {
   await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
   await expect(page.getByTestId("v14-evidence")).toContainText("DAILY_BAR");
   await expect(page.getByText("V1.4-BT-NEXT-BAR-001")).toBeVisible();
+  const sellabilityRows = page.getByTestId("v14-position-availability").locator("tbody tr");
+  await expect(sellabilityRows).toHaveCount(3);
+  await expect(sellabilityRows.nth(0)).toContainText("2024-01-03");
+  await expect(sellabilityRows.nth(0)).toContainText("0");
+  await expect(sellabilityRows.nth(1)).toContainText("2024-01-04");
+  await expect(sellabilityRows.nth(1)).toContainText("100");
+  const testRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(testRunId!);
+});
+
+test("V1.4 synthetic suspension and locked-limit scenario is readable and same-run CLI verifiable", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.4");
+  await page.getByLabel("回测场景").selectOption("market-restrictions");
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-evidence")).toContainText("SYNTHETIC_FIXTURE_BOUNDARIES_ONLY");
+  await expect(page.getByTestId("v14-evidence")).toContainText("LOCKED_AT_UPPER_LIMIT");
+  await expect(page.getByTestId("v14-evidence")).toContainText("LOCKED_AT_LOWER_LIMIT");
+  const testRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(testRunId!);
+});
+
+test("V1.4 historical fee fixture uses the pre-cut date schedule", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.4");
+  await page.getByLabel("回测场景").selectOption("historical-fees");
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-evidence")).toContainText("v1.4-historical-fees-1");
+  await expect(page.getByTestId("v14-evidence")).toContainText("2023-08-25");
+  await expect(page.getByTestId("v14-evidence")).toContainText("stampDutyCents");
+  await expect(page.getByText("V1.4-BT-HISTORICAL-FEE-001")).toBeVisible();
+  const testRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(testRunId!);
+});
+
+test("V1.4 web accepts a bounded policy and compares persisted runs", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.4");
+  await page.getByLabel("初始现金（分）").fill("102000");
+  await page.getByLabel("目标股数").fill("100");
+  await page.getByLabel("参与率（基点）").fill("100");
+  await page.getByLabel("不利滑点（基点）").fill("100");
+  await page.getByLabel("固定费用（分）").fill("500");
+  await page.getByLabel("卖出信号日").fill("2024-01-03");
+  await page.getByLabel("卖出执行日").fill("2024-01-04");
+  await page.getByLabel("卖出数量").fill("99");
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-trades")).toContainText("99");
+  await expect(page.getByTestId("v14-final-cash")).toHaveText("99812 分");
+  await expect(page.getByTestId("v14-trades")).toContainText("SELL");
+  await expect(page.getByTestId("v14-settlements")).toContainText("2024-01-05");
+  await expect(page.getByTestId("v14-cash-ledger")).toContainText("99391");
+  await expect(page.getByTestId("v14-evidence")).toContainText('"initialCashCents": 102000');
+  await expect(page.getByTestId("v14-evidence")).toContainText('"slippageBasisPoints": 100');
+  const firstRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(firstRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(firstRunId!);
+
+  await page.getByLabel("目标股数").fill("50");
+  await page.getByLabel("卖出数量").fill("50");
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-comparison-title")).toBeVisible();
+  await expect(page.getByTestId("v14-comparison")).toContainText("99");
+  await expect(page.getByTestId("v14-comparison")).toContainText("50");
+  const secondRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(secondRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(secondRunId!);
+
+  await page.getByLabel("初始现金（分）").fill("1000000");
+  await page.getByLabel("目标股数").fill("100");
+  await page.getByLabel("参与率（基点）").fill("100");
+  await page.getByLabel("不利滑点（基点）").fill("0");
+  await page.getByLabel("费用模型").selectOption("cn-a");
+  await page.getByLabel("卖出数量").fill("100");
+  await page.getByRole("button", { name: "运行回测" }).click();
+  await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-trades")).toContainText("511");
+  await expect(page.getByTestId("v14-trades")).toContainText("562");
+  await expect(page.getByTestId("v14-trades")).toContainText("51");
+  const feeRunId = (await page.getByTestId("v14-test-run-id").textContent())?.trim();
+  expect(feeRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  verifyV14RunWithCli(feeRunId!);
 });
 
 test("V1.5 orchestration page shows recovery evidence", async ({ page }) => {
@@ -160,10 +316,10 @@ test("V2.3 long replay pauses and resumes from a committed checkpoint", async ({
   await expect(page.getByTestId("v23-worker-status")).toContainText('"status": "COMPLETED"', { timeout: 10_000 });
 });
 
-test("V2.4 continuous paper page shows unconnected execution scenarios as WAITING", async ({ page }) => {
+test("V2.4 continuous paper page reports strict observation qualification as WAITING", async ({ page }) => {
   const testRunId = "123e4567-e89b-42d3-a456-426614174099";
   await page.route("**/api/v1/session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ownerId: "acceptance-owner-1" }) }));
-  await page.route("**/api/v1/acceptance/v2/v2.4/observation-summary", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ countedDays: 4, targetDays: 20, remainingDays: 16, status: "WAITING" }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.4/observation-summary", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ countedDays: 0, recordedCountedDays: 10, unverifiedCountedDays: 10, targetDays: 20, remainingDays: 20, status: "WAITING" }) }));
   const evidence = { testRunId, stageId: "V2.4", scenarioId: "rejection", status: "WAITING", dataMode: "NOT_CONNECTED", executionPolicy: "PREPARATION_ONLY", executionGate: { status: "BLOCKED" }, mandate: { status: "PREPARATION_ONLY" }, source: { status: "NOT_RUN" }, orders: [], fills: [], reconciliation: { status: "NOT_RUN" }, assertions: [{ assertionId: "V2.4-REJECTION-CHAIN-001", status: "WAITING", expected: "real isolated execution chain", actual: "NOT_RUN" }] };
   await page.route("**/api/v1/acceptance/v2/v2.4/runs", async (route) => {
     if (route.request().method() === "POST") await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ accepted: true, testRunId, status: "WAITING" }) });
@@ -178,15 +334,10 @@ test("V2.4 continuous paper page shows unconnected execution scenarios as WAITIN
   expect(observedDaysText).toMatch(/^\d+\/20$/u);
   const countedDays = Number(observedDaysText?.split("/")[0]);
   await expect(page.getByTestId("v24-remaining-days")).toHaveText(String(Math.max(0, 20 - countedDays)));
+  await expect(page.getByTestId("v24-recorded-observed-days")).toHaveText("10/20");
+  await expect(page.getByTestId("v24-unverified-observed-days")).toHaveText("10");
   await expect(page.getByTestId("v24-observation-status")).toHaveText(countedDays >= 20 ? "PASS" : "WAITING");
-  await page.getByRole("button", { name: "检查拒绝路径前置" }).click();
-  await expect(page.getByTestId("v24-evidence")).toContainText('"status": "WAITING"');
-  await expect(page.getByTestId("v24-evidence")).toContainText('"actual": "NOT_RUN"');
-  await expect(page.getByTestId("v24-evidence")).not.toContainText("STALE_SNAPSHOT");
-  await expect(page.getByTestId("v24-evidence")).not.toContainText('"status": "ACTIVE"');
-  await page.getByRole("button", { name: "检查恢复路径前置" }).click();
-  await expect(page.getByTestId("v24-evidence")).toContainText('"reconciliation": {\n    "status": "NOT_RUN"');
-  await expect(page.getByTestId("v24-evidence")).not.toContainText("SOURCE_DISCONNECTED");
+  await expect(page.getByTestId("v24-mode")).toContainText("LIVE关闭");
 });
 
 test("V2.4 observation history displays preserved prior evidence revisions", async ({ page }) => {

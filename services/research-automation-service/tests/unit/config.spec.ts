@@ -10,6 +10,7 @@ describe("V3.1 research configuration", () => {
       liveTradingEnabled: false,
       runnerMode: "NOT_CONFIGURED",
       modelGatewayMode: "NOT_CONFIGURED",
+      providerCallsAuthorized: false,
       chatProvider: "deepseek",
       chatModel: "deepseek/deepseek-flash",
       chatBaseUrl: "https://api.deepseek.com",
@@ -25,6 +26,7 @@ describe("V3.1 research configuration", () => {
       budgetCurrency: "USD",
       defaultBudgetCents: 300,
       maxExperimentBudgetCents: 1000,
+      maxTestRunBudgetCents: 1000,
       stageBudgetCents: 3000,
       budgetWarningPercent: 80,
       workerConcurrency: 1,
@@ -46,8 +48,16 @@ describe("V3.1 research configuration", () => {
     }).outboundAllowlist).toEqual(["model-gateway.internal", "127.0.0.1"]);
   });
 
+  it("keeps external Provider calls unauthorized unless explicitly enabled", () => {
+    expect(loadResearchAutomationConfig({}).providerCallsAuthorized).toBe(false);
+    expect(loadResearchAutomationConfig({ STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED: "true" }).providerCallsAuthorized).toBe(true);
+    expect(() => loadResearchAutomationConfig({ STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED: "yes" }))
+      .toThrow("STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED must be true or false");
+  });
+
   it("keeps the confirmed budget hierarchy valid", () => {
     expect(() => loadResearchAutomationConfig({ STOCKQUANT_RESEARCH_DEFAULT_BUDGET_CENTS: "1001" })).toThrow("must not exceed");
+    expect(() => loadResearchAutomationConfig({ STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS: "3001" })).toThrow("must not exceed");
     expect(() => loadResearchAutomationConfig({ STOCKQUANT_RESEARCH_BUDGET_WARNING_PERCENT: "101" })).toThrow("at most 100");
   });
 

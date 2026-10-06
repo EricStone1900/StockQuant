@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "stockquant-o1-readonly-audit-v1",
+  "capturedAt": "2026-10-02T21:42:43.720Z",
+  "healthReportExit": 1,
+  "health": {
+    "schemaVersion": "dc08a-health-v4",
+    "capturedAt": "2026-10-02T21:42:43.720Z",
+    "status": "UNHEALTHY",
+    "activeSubscription": "dc08a-20260917-20-v1",
+    "calendar": {
+      "status": "CLOSED",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sourceFreshnessExpected": false,
+      "sourceFreshnessState": "MARKET_CLOSED"
+    },
+    "ready": {
+      "status": "ready",
+      "persistence": "POSTGRES",
+      "scheduler": "ENABLED",
+      "executor": "ENABLED"
+    },
+    "scheduler": {
+      "status": "ENABLED",
+      "lastSuccessfulTickAt": "2026-10-02T21:42:18.621Z",
+      "nextExecutionAt": null,
+      "lastSubmitted": 0,
+      "tickAgeSeconds": 25.099
+    },
+    "sources": [
+      {
+        "sourceId": "baostock",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790208109.2940702,
+        "lastFailureAt": 1790171080.0519683,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "sina",
+        "kind": "MINUTE_BAR",
+        "enabled": true,
+        "circuit": "CLOSED",
+        "failures": 0,
+        "lastSuccessAt": 1790751790.0561771,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "eastmoney",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      },
+      {
+        "sourceId": "tdx",
+        "kind": "MINUTE_BAR",
+        "enabled": false,
+        "circuit": "DISABLED",
+        "failures": 0,
+        "lastSuccessAt": null,
+        "lastFailureAt": null,
+        "lastErrorCode": null
+      }
+    ],
+    "quality": {
+      "openGaps": 0,
+      "pendingOutbox": 0
+    },
+    "checks": {
+      "recentSuccessRecorded": true,
+      "nextTriggerRecorded": false,
+      "sourceReady": true,
+      "qualityReady": true
+    }
+  },
+  "activeSubscriptionEnabledCount": 0,
+  "observationSummaryExit": 2,
+  "observationSummary": {
+    "status": "WAITING",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "remainingDays": 12,
+    "latest": {
+      "date": "2026-09-30",
+      "finalized": true,
+      "complete": true,
+      "hadFailure": false,
+      "observationCounted": true,
+      "capturedAt": "2026-09-30T07:22:22.613Z",
+      "status": "ACTIVE",
+      "runs": {
+        "total": 48,
+        "completed": 48,
+        "byStatus": [
+          {
+            "status": "COMPLETED",
+            "count": "48"
+          }
+        ]
+      },
+      "openGaps": 0,
+      "pendingOutbox": 0
+    }
+  },
+  "dockerPsExit": 0,
+  "containers": [
+    "stockquant-v12-market-data-service-1\tUp 46 hours (healthy)",
+    "stockquant-v12-postgres-1\tUp 46 hours (healthy)",
+    "stockquant-v12-platform-api-service-1\tUp 46 hours (healthy)",
+    "stockquant-v12-research-automation-service-1\tUp 7 days (healthy)",
+    "stockquant-v12-web-1\tUp 7 days",
+    "stockquant-v12-portfolio-risk-service-1\tUp 46 hours (healthy)",
+    "stockquant-v12-historical-replay-worker-1\tUp 46 hours (healthy)",
+    "stockquant-v12-trade-execution-service-1\tUp 46 hours (healthy)",
+    "stockquant-v12-decision-governance-service-1\tUp 46 hours (healthy)",
+    "stockquant-v12-temporal-1\tUp 9 days",
+    "stockquant-v12-nats-1\tUp 9 days",
+    "stockquant-v12-quant-research-service-1\tUp 10 days (healthy)",
+    "stockquant-v12-qlib-worker-1\tUp 13 days (healthy)"
+  ],
+  "marketDataRequests": 0,
+  "collectionTriggered": false,
+  "serviceWrites": false,
+  "interpretation": "A-share calendar CLOSED. Health is UNHEALTHY solely because nextExecutionAt is null; readiness, persistence, scheduler/executor, recent Tick, configured source health and quality are healthy. Enabled schedules count is zero. No collection was triggered; observation remains 8/20. Configured sources do not imply authorization."
+}

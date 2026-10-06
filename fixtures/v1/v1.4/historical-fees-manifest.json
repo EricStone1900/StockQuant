@@ -1,0 +1,13 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.4-historical-fees",
+  "fixtureVersion": "v1.4-historical-fees-1",
+  "stageId": "V1.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Synthetic OHLCV bars dated in valid sessions surrounding 2023-08-28, used only to verify date-bounded fee arithmetic; not historical market prices", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-02T00:00:00Z",
+  "files": [{ "path": "fixtures/v1/v1.4/backtest_historical_fees.csv", "sha256": "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573", "mediaType": "text/csv", "schemaRef": "daily-bar-v1" }],
+  "expectedAssertions": [{ "assertionId": "V1.4-BT-HISTORICAL-FEE-001", "description": "2023-08-25 SELL uses 0.1% stamp duty and 2023-08-28 is rejected by this schedule" }]
+}

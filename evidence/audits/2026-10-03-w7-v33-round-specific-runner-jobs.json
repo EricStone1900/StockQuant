@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "stockquant-v33-round-runner-identity-audit-v1",
+  "capturedAt": "2026-10-03",
+  "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+  "exitCode": 0,
+  "runnerIdentity": {
+    "legacyWithoutRoundIndex": "testRunId:experimentId",
+    "roundScoped": "testRunId:experimentId:round-N",
+    "retry": "child of round-scoped job identity",
+    "httpDispatchTestRunId": "15e3643d-4f6a-4664-9c2c-6127ef8a9a16",
+    "roundJobIds": [
+      "15e3643d-4f6a-4664-9c2c-6127ef8a9a16:a6efc44c-2f26-4ccf-bed3-e856df729d0a:round-1",
+      "15e3643d-4f6a-4664-9c2c-6127ef8a9a16:a6efc44c-2f26-4ccf-bed3-e856df729d0a:round-2"
+    ],
+    "rejected": { "anonymous": 401, "runnerHost": 403, "missingExperiment": 404, "crossTestRun": 409, "legacyUnbound": 409, "nonReservedBudget": 409, "roundMissing": 422, "roundOutOfRange": 422 }
+  },
+  "tests": {
+    "researchUnit": { "files": 36, "passed": 203 },
+    "researchPostgresIntegration": { "files": 4, "passed": 28 },
+    "platformUnit": { "files": 46, "passed": 166 },
+    "platformIntegration": { "files": 4, "passed": 5 },
+    "webPlaywright": { "passed": 3 },
+    "syntheticBudgetPaginationProbe": "PASS",
+    "twoRoundRunnerRecovery": "PASS"
+  },
+  "runnerRecovery": {
+    "testRunId": "aace7f14-a355-4049-aa5a-9ea694de46c6",
+    "jobId": "aace7f14-a355-4049-aa5a-9ea694de46c6:58a1acc0-7308-4f4c-b989-5669c6802d5c:round-1",
+    "datasetRows": 1000,
+    "simulatedHostKill": "SIGKILL",
+    "leaseTakeover": true,
+    "fencingToken": 2,
+    "previousContainerRemoved": true,
+    "peakMemoryBytes": 37297848,
+    "peakCpuPercent": 34.48,
+    "artifactRefsHashVerified": 3
+  },
+  "externalCalls": { "provider": 0, "paper": 0, "marketData": 0, "broker": 0 },
+  "acceptance": { "businessWorkflow": "NOT_IMPLEMENTED", "paperContinuity": "NOT_CHECKED", "businessValidation": "NOT_RUN", "humanAcceptance": "NOT_RUN" },
+  "scope": "Round-scoped durable job identity and deterministic fixture runner infrastructure only; W7 and V3.3 acceptance remain incomplete."
+}

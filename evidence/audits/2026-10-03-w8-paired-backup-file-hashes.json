@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "stockquant.w8.isolated-paired-backup-file-hashes.v1",
+  "capturedAt": "2026-10-03T00:33:54+08:00",
+  "status": "PASS",
+  "command": "pnpm --dir services/research-automation-service backup:paired-smoke",
+  "exitCode": 0,
+  "backupId": "cluster-paired-2026-10-02T16-33-50-701Z-07a19645",
+  "isolatedComposeProject": "sq-backup-smoke-e9fa4868aef3",
+  "databaseCount": 3,
+  "roleCount": 1,
+  "artifactVolume": "sq-backup-smoke-artifacts-e9fa4868aef3429098d57c886cc066e4",
+  "restoreValidation": {
+    "status": "PASS",
+    "method": "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256",
+    "publishedArtifactRefs": 5,
+    "restoredDatabases": [
+      "platform_api",
+      "postgres",
+      "research_automation"
+    ],
+    "restoredRoles": [
+      {
+        "name": "postgres",
+        "superuser": true,
+        "inherit": true,
+        "createRole": true,
+        "createDb": true,
+        "login": true,
+        "replication": true,
+        "bypassRls": true,
+        "connlimit": -1,
+        "validUntil": null
+      }
+    ]
+  },
+  "backupManifestSha256": "a66eda68dc169ba20c7dbe463394b94ccd902722c13cd3b2e26ade117135cc57",
+  "backupFiles": [
+    {
+      "path": "artifact-files.json",
+      "bytes": 1300,
+      "sha256": "962817adf3caa72234a45c9f5539c7c6845737af5ef22f57421d9d846145df5b"
+    },
+    {
+      "path": "artifacts.tar",
+      "bytes": 20480,
+      "sha256": "5675b33d5fe48f53515ce8ba75ce0c347e67030ed99679d63e50ceea526c29d7"
+    },
+    {
+      "path": "cluster.sql",
+      "bytes": 6970,
+      "sha256": "7e30f1e821689b467ed514e93312b0126ce06c00d8f583a706cec23483636afa"
+    },
+    {
+      "path": "database-inventory.json",
+      "bytes": 362,
+      "sha256": "36a4823018dd4779342093366901821ba7f81b8b0e8924ba7b584d322e8a3752"
+    }
+  ],
+  "productionResourcesTouched": false,
+  "cleanup": {
+    "isolatedContainersRemaining": 0,
+    "temporaryVolumesRemaining": 0,
+    "activeResearchArtifactVolumePresent": true,
+    "activeStockquantV12ContainerCount": 13,
+    "activeContainerIdsMatchSavedBaseline": true,
+    "isolatedComposeNetworksRemaining": 0,
+    "temporaryWorkspaceRemaining": false
+  },
+  "scopeLimitations": [
+    "Synthetic isolated databases and Artifacts only; no active cluster or named production Artifact volume was mounted.",
+    "No offsite copy, target-host restore, production quiescence, RPO/RTO, or Ubuntu observation was tested.",
+    "The first comparison against the saved active-container inventory found one mismatch caused by a mistyped ID in that JSON; a direct read-only Docker query showed the container had been Up 10 days, the transcription was corrected, and the repeated exact-ID comparison matched all 13 containers."
+  ]
+}

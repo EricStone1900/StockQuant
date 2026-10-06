@@ -20,22 +20,27 @@ export function identifyResearchService(authorization: string | undefined, crede
 
 function isAllowedRoute(serviceId: string, method: string, url: string): serviceId is ResearchServiceId {
   if (serviceId === "platform-api-service") {
-    return (method === "POST" && ["/v1/experiments", "/v1/runner/jobs/validate", "/v1/runner/jobs", "/v1/artifacts/validate", "/v1/artifacts/publish", "/v1/artifacts/read"].includes(url))
+    return (method === "POST" && ["/v1/experiments", "/v1/runner/budgets/test-run/limit", "/v1/runner/jobs/validate", "/v1/runner/jobs", "/v1/artifacts/validate", "/v1/artifacts/publish", "/v1/artifacts/read"].includes(url))
       || (method === "POST" && ["/v1/promotions/prepare", "/v1/promotions/submit"].includes(url))
       || (method === "GET" && url === "/v1/model-gateway/preflight")
       || (method === "POST" && url === "/v1/model-gateway/fixture-call")
+      || (method === "POST" && url === "/v1/model-gateway/fixture/openai/v1/chat/completions")
+      || (method === "POST" && url === "/v1/model-gateway/fixture/openai/v1/embeddings")
       || (method === "GET" && /^\/v1\/experiments\/[^/]+$/.test(url))
       || (method === "GET" && /^\/v1\/experiments\/[^/]+\/budget$/.test(url))
       || (method === "POST" && /^\/v1\/experiments\/[^/]+\/budget\/settle$/.test(url))
+      || (method === "POST" && /^\/v1\/experiments\/[^/]+\/budget\/settle-from-model-calls$/.test(url))
       || (method === "GET" && /^\/v1\/runner\/jobs\/[^/]+$/.test(url))
       || (method === "GET" && /^\/v1\/runner\/jobs\?.+$/u.test(url))
       || (method === "GET" && /^\/v1\/runner\/jobs\/cursor\?.+$/u.test(url))
+      || (method === "GET" && /^\/v1\/runner\/checkpoints\?.+$/u.test(url))
       || (method === "GET" && /^\/v1\/runner\/budgets\?.+$/u.test(url))
+      || (method === "GET" && /^\/v1\/runner\/budgets\/test-run\?.+$/u.test(url))
       || (method === "POST" && /^\/v1\/runner\/jobs\/[^/]+\/cancel$/.test(url))
       || (method === "POST" && /^\/v1\/experiments\/[^/]+\/cancel$/.test(url));
   }
   if (serviceId === "runner-host") {
-    return (method === "POST" && (url === "/v1/runner/jobs/claim" || /^\/v1\/runner\/jobs\/[^/]+\/(?:input|heartbeat|complete)$/.test(url) || url === "/v1/runner/jobs/validate" || url === "/v1/artifacts/validate" || url === "/v1/artifacts/publish"))
+    return (method === "POST" && (url === "/v1/runner/jobs/claim" || /^\/v1\/runner\/jobs\/[^/]+\/(?:input|heartbeat|complete|checkpoint|checkpoint\/read)$/.test(url) || url === "/v1/runner/jobs/validate" || url === "/v1/artifacts/validate" || url === "/v1/artifacts/publish"))
       || (method === "GET" && /^\/v1\/runner\/jobs\/[^/?]+$/.test(url));
   }
   if (serviceId === "quant-validation-worker") {

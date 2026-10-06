@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "stockquant.w9.gate-snapshot.v1",
+  "date": "2026-10-02",
+  "baselineCheck": { "command": "pnpm baseline:check", "exitCode": 0 },
+  "stageCodeSuite": {
+    "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+    "exitCode": 0,
+    "stage": "V2.4",
+    "apiTestRuns": [
+      "d0d8b9c8-4fc7-49be-8240-f8769d4503ff",
+      "1d81560a-e868-4362-bd9a-0c3087d0a8c1",
+      "a4120746-df55-4c09-b825-16c25da72041"
+    ],
+    "webTestRuns": "three scenario-specific Web TestRuns passed with their matching CLI --check-only assertions",
+    "webApiCliSameRun": true,
+    "activeServicesTouched": false,
+    "linuxArm64Readiness": "PASS"
+  },
+  "evidenceGates": {
+    "V1": { "status": "PASS", "references": 74, "manifests": 9, "manifestEntries": 19, "failures": 0 },
+    "V2": { "status": "PASS", "references": 175, "manifests": 28, "manifestEntries": 47, "failures": 0 },
+    "V3": { "status": "PASS", "references": 176, "manifests": 38, "manifestEntries": 45, "failures": 0 }
+  },
+  "businessGates": {
+    "V1": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 5, "invalidPassClaims": 0 },
+    "V2": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 5, "invalidPassClaims": 0 },
+    "V3": { "status": "INCOMPLETE", "exitCode": 2, "unresolvedStages": 4, "invalidPassClaims": 0 }
+  },
+  "scope": {
+    "tradeMode": "NO_TRADE",
+    "realMarketSourceAuthorization": "NONE",
+    "observation20Day": "NOT_RUN",
+    "ubuntuHardwareAcceptance": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN"
+  }
+}

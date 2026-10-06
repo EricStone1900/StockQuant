@@ -4,6 +4,7 @@ import os
 import threading
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer
 from pathlib import Path
 
@@ -34,9 +35,11 @@ try:
         raise RuntimeError(f"unexpected Qlib probe: {probe}")
     features = [[index / 120, (index % 7) / 7, (index % 11) / 11, (index % 13) / 13, (index % 5) / 5] for index in range(120)]
     labels = [0.01 * index / 120 + 0.02 * __import__("math").sin(index / 9) for index in range(120)]
-    body = {"schemaVersion": "qlib-fit-fixture-v1", "sourceMode": "FIXTURE", "featureRows": features, "labels": labels, "splits": {"train": [0, 72], "valid": [72, 96], "test": [96, 120]}}
+    origin = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    temporal = [{"decisionAt": (origin + timedelta(hours=index)).isoformat().replace("+00:00", "Z"), "featureAvailableAt": (origin + timedelta(hours=index, minutes=-1)).isoformat().replace("+00:00", "Z"), "labelAvailableAt": (origin + timedelta(hours=index, minutes=30)).isoformat().replace("+00:00", "Z")} for index in range(120)]
+    body = {"schemaVersion": "qlib-fit-fixture-v1", "sourceMode": "FIXTURE", "featureRows": features, "labels": labels, "temporalMetadata": temporal, "splits": {"train": [0, 72], "valid": [72, 96], "test": [96, 120]}}
     status, result = call("/qlib/fit-fixture", body)
-    if status != 200 or result.get("modelTraining") != "PASS" or result.get("modelValidation") != "NOT_RUN" or result.get("candidateSourceExecution") != "NOT_PERFORMED" or result.get("testPredictionCount") != 24 or result.get("testPredictionsFinite") is not True:
+    if status != 200 or result.get("modelTraining") != "PASS" or result.get("modelValidation") != "NOT_RUN" or result.get("temporalValidation") != "PASS" or result.get("candidateSourceExecution") != "NOT_PERFORMED" or result.get("testPredictionCount") != 24 or result.get("testPredictionsFinite") is not True:
         raise RuntimeError(f"Qlib fixture fit failed: HTTP {status} {result}")
     repeat_status, repeat_result = call("/qlib/fit-fixture", body)
     if repeat_status != 200 or repeat_result.get("testPredictionsSha256") != result.get("testPredictionsSha256") or repeat_result.get("modelSha256") != result.get("modelSha256"):
@@ -46,7 +49,7 @@ try:
     invalid_status, invalid_result = call("/qlib/fit-fixture", invalid)
     if invalid_status != 422 or invalid_result.get("status") != "REJECTED":
         raise RuntimeError(f"future-overlap split was not rejected: HTTP {invalid_status} {invalid_result}")
-    print(json.dumps({"status": "PASS", "runtime": "locked Qlib Worker image; linux/amd64 emulated on Apple Silicon", "qlibVersion": result["qlibVersion"], "lightgbmVersion": result["lightgbmVersion"], "model": result["model"], "segments": result["segments"], "testPredictionCount": result["testPredictionCount"], "testPredictionsSha256": result["testPredictionsSha256"], "modelSha256": result["modelSha256"], "repeatFitDeterminism": "same prediction/model SHA-256", "invalidSplit": "422", "tracking": result["tracking"], "candidateSourceExecution": result["candidateSourceExecution"], "profitabilityClaim": result["profitabilityClaim"]}, sort_keys=True))
+    print(json.dumps({"status": "PASS", "runtime": "locked Qlib Worker image; linux/amd64 emulated on Apple Silicon", "qlibVersion": result["qlibVersion"], "lightgbmVersion": result["lightgbmVersion"], "model": result["model"], "segments": result["segments"], "temporalValidation": result["temporalValidation"], "testPredictionCount": result["testPredictionCount"], "testPredictionsSha256": result["testPredictionsSha256"], "modelSha256": result["modelSha256"], "repeatFitDeterminism": "same prediction/model SHA-256", "invalidSplit": "422", "tracking": result["tracking"], "candidateSourceExecution": result["candidateSourceExecution"], "profitabilityClaim": result["profitabilityClaim"]}, sort_keys=True))
 finally:
     server.shutdown()
     server.server_close()

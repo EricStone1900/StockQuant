@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "stockquant-audit-v1",
+  "date": "2026-10-06",
+  "workPackage": "W7",
+  "stageId": "V3.3",
+  "status": "PASS",
+  "scope": "Isolated cross-service same-TestRun normal, recovery and rejection engineering smoke; full V3.3 code suite",
+  "commands": [
+    {
+      "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+      "exitCode": 0,
+      "log": "evidence/audits/2026-10-06-w7-v33-recovery-full-suite.log"
+    },
+    {
+      "command": "pnpm v33:platform-dispatch-cross-service-smoke",
+      "exitCode": 0,
+      "log": "evidence/audits/2026-10-06-w7-v33-same-run-recovery-cross-service.log"
+    },
+    {
+      "command": "pnpm --filter @stockquant/research-automation-service model-gateway:fixture-http-smoke",
+      "exitCode": 0,
+      "log": "evidence/audits/2026-10-06-w7-v33-recovery-fixture-model-smoke.log"
+    }
+  ],
+  "sameRunNormal": {
+    "testRunId": "a2864825-3218-4c0f-9aff-7a2ea9c96af7",
+    "runnerJobs": 2,
+    "completedRounds": 2,
+    "roundCostCents": [23, 23],
+    "experimentSettlement": {
+      "requestedCents": 80,
+      "settledCents": 46,
+      "status": "SETTLED"
+    },
+    "inputArtifactDeduplication": true,
+    "outputMetricsHashVerified": true
+  },
+  "sameRunRecovery": {
+    "testRunId": "2084e649-bab9-4b95-ae60-604a12db1d03",
+    "faultSequence": [
+      { "sequence": 1, "event": "ROUND_1_CHECKPOINT_COMMITTED", "checkpointSequence": 1, "stateSha256": "19db4286f66ee3f31ebb53ec056c964d8d3b7d723c6d5bfbc9bcd9c55f4fa5e0" },
+      { "sequence": 2, "event": "RUNNER_HOST_SIGKILL", "fence": 1 },
+      { "sequence": 3, "event": "LEASE_EXPIRED", "expiredAt": "2026-10-06T03:30:14.000Z" },
+      { "sequence": 4, "event": "LEASE_TAKEOVER", "fence": 2 },
+      { "sequence": 5, "event": "RESUME_FROM_CHECKPOINT", "checkpointSequence": 1, "resumedStateSha256": "19db4286f66ee3f31ebb53ec056c964d8d3b7d723c6d5bfbc9bcd9c55f4fa5e0" }
+    ],
+    "persistedCheckpoints": [
+      { "sequence": 1, "state": { "cursor": 1 }, "sha256": "19db4286f66ee3f31ebb53ec056c964d8d3b7d723c6d5bfbc9bcd9c55f4fa5e0" },
+      { "sequence": 2, "state": { "cursor": 2 }, "sha256": "a4e85d746ee09222e48e87b0562d4f5c37d113ffd34d6f599055c85f99754d2f" }
+    ],
+    "fencingToken": 2,
+    "staleFencePublishHttpStatus": 409,
+    "runnerJobId": "2084e649-bab9-4b95-ae60-604a12db1d03:eb4d2a4b-9107-41fc-ac64-44a8b5ed674f:round-1",
+    "completedRounds": 2,
+    "runnerImageDigest": "sha256:8cd6db4ae88cab7a1fb485613a67fb15a4d4e08460c28deb81510c1fa1861dfb",
+    "networkPolicy": "none",
+    "isolationAssertions": "PASS",
+    "platformStageRunBusinessValidation": "NOT_RUN"
+  },
+  "sameRunRejection": {
+    "testRunId": "bcb927ff-0941-4b94-911a-108119ae71b8",
+    "result": "PASS",
+    "expectedHttpStatus": 422,
+    "allocations": 0,
+    "modelCallRows": 0,
+    "runnerJobs": 0
+  },
+  "suiteCounts": {
+    "researchAutomationUnit": { "passed": 218, "failed": 0 },
+    "researchAutomationPostgresIntegration": { "passed": 32, "failed": 0 },
+    "platformApiUnit": { "passed": 196, "failed": 0 },
+    "platformApiPostgresIntegration": { "passed": 8, "failed": 0 },
+    "webPlaywrightE2E": { "passed": 4, "failed": 0 }
+  },
+  "externalProviderCalls": 0,
+  "activeServicesConnected": false,
+  "paperContinuity": "NOT_CHECKED",
+  "formalStageAcceptance": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "knownOpenItems": [
+    "Persist and expose recovery assertions through the owner-scoped Platform API and the Web/CLI same-TestRun recomputation flow.",
+    "Complete the remaining V3.3 Paper-continuity, evidence-export, Ubuntu and manual-acceptance gates."
+  ],
+  "manifest": "evidence/audits/2026-10-06-w7-v33-same-run-recovery.sha256"
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "stockquant.w8-backup-offline-contract-suite.v1",
+  "date": "2026-10-02",
+  "status": "PASS",
+  "tests": {
+    "pairedBackup": { "command": "pnpm test:paired-backup", "passed": 5, "failed": 0 },
+    "clusterPairedBackup": { "command": "pnpm test:cluster-paired-backup", "passed": 5, "failed": 0 },
+    "retention": { "command": "pnpm test:backup-retention", "passed": 3, "failed": 0 },
+    "scheduledBackup": { "command": "pnpm test:backup-scheduled", "passed": 8, "failed": 0 }
+  },
+  "total": { "passed": 21, "failed": 0 },
+  "externalEffects": {
+    "dockerBackupCapture": false,
+    "activeDatabaseWritersStopped": false,
+    "activeArtifactPublishersStopped": false,
+    "backupRootWritten": false,
+    "systemdTimerInstalledOrEnabled": false,
+    "activeServicesTouched": false
+  },
+  "acceptance": {
+    "actualUbuntuHost": "NOT_RUN",
+    "realPairedBackup": "NOT_RUN",
+    "isolatedRestoreOnDeploymentBackup": "NOT_RUN",
+    "rpoRto": "NOT_MEASURED",
+    "ubuntuObservation": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN"
+  },
+  "scope": "Local offline code contract tests only. No deployment or active-stack backup/restore was performed."
+}

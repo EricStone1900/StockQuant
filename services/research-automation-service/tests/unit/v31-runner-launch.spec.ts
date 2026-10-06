@@ -21,8 +21,8 @@ describe("V3.1 Runner launch plan", () => {
   it("builds a fixed amd64, no-network, no-secret Docker command", () => {
     const root = mkdtempSync(join(tmpdir(), "stockquant-runner-"));
     const managedRoot = join(root, "managed");
-    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "fence-5");
-    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "fence-5");
+    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "round-1", "fence-5");
+    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "round-1", "fence-5");
     mkdirSync(inputRoot, { recursive: true });
     mkdirSync(outputRoot, { recursive: true });
     let plan;
@@ -56,8 +56,8 @@ describe("V3.1 Runner launch plan", () => {
   it("rejects host paths, traversal, symlinks, mismatched job directories, and unsafe policy", () => {
     const root = mkdtempSync(join(tmpdir(), "stockquant-runner-reject-"));
     const managedRoot = join(root, "managed");
-    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "fence-5");
-    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "fence-5");
+    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "round-1", "fence-5");
+    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "round-1", "fence-5");
     mkdirSync(inputRoot, { recursive: true });
     mkdirSync(outputRoot, { recursive: true });
     const config = { imageRef: `stockquant-v31-runner@${digest}`, jobId: "run-1:exp-1", managedRoot, fencingToken: 5, inputRoot, outputRoot };
@@ -66,11 +66,11 @@ describe("V3.1 Runner launch plan", () => {
     expect(() => buildRunnerLaunchPlan(job, { ...config, imageRef: `stockquant-v31-runner@sha256:${"c".repeat(64)}` })).toThrow("does not match");
     expect(buildRunnerLaunchPlan(job, { ...config, imageRef: digest }).argv).toContain(digest);
     expect(() => buildRunnerLaunchPlan({ ...job, networkPolicy: { mode: "ALLOWLIST", allowlist: ["api.example.com"] } }, config)).toThrow("DENY");
-    expect(() => buildRunnerLaunchPlan(job, { ...config, inputRoot: "/etc" })).toThrow("exact fenced managed directory layout");
+    expect(() => buildRunnerLaunchPlan(job, { ...config, inputRoot: "/etc" })).toThrow("exact round-scoped fenced managed directory layout");
     expect(() => buildRunnerLaunchPlan(job, { ...config, outputRoot: `${managedRoot}/outputs/run-1/../exp-1` })).toThrow("cannot traverse");
     const linkRoot = join(root, "link");
     symlinkSync(inputRoot, linkRoot);
-    expect(() => buildRunnerLaunchPlan(job, { ...config, inputRoot: linkRoot })).toThrow("exact fenced managed directory layout");
+    expect(() => buildRunnerLaunchPlan(job, { ...config, inputRoot: linkRoot })).toThrow("exact round-scoped fenced managed directory layout");
     expect(() => buildRunnerLaunchPlan({ ...job, testRunId: "run-2" }, config)).toThrow("namespace does not match");
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
@@ -78,17 +78,37 @@ describe("V3.1 Runner launch plan", () => {
   it("binds each lease fencing token to a separate immutable workspace", () => {
     const root = mkdtempSync(join(tmpdir(), "stockquant-runner-fence-"));
     const managedRoot = join(root, "managed");
-    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "fence-5");
-    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "fence-5");
+    const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", "round-1", "fence-5");
+    const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", "round-1", "fence-5");
     mkdirSync(inputRoot, { recursive: true });
     mkdirSync(outputRoot, { recursive: true });
     try {
       const base = { imageRef: `stockquant-v31-runner@${digest}`, jobId: "run-1:exp-1", managedRoot, inputRoot, outputRoot };
       expect(() => buildRunnerLaunchPlan(job, { ...base, fencingToken: 0 })).toThrow("positive safe integer");
-      expect(() => buildRunnerLaunchPlan(job, { ...base, fencingToken: 6 })).toThrow("exact fenced managed directory layout");
+      expect(() => buildRunnerLaunchPlan(job, { ...base, fencingToken: 6 })).toThrow("exact round-scoped fenced managed directory layout");
       const plan = buildRunnerLaunchPlan(job, { ...base, fencingToken: 5 });
       expect(plan.previousContainerName).toBe(`sqrunner-${createHash("sha256").update("run-1:exp-1\0" + "4").digest("hex").slice(0, 32)}`);
       expect(plan.containerName).not.toBe(buildRunnerLaunchPlan(job, { ...base, jobId: "run-1:exp-1:retry-2", fencingToken: 5 }).containerName);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("keeps round workspaces separate inside the same TestRun and Experiment", () => {
+    const root = mkdtempSync(join(tmpdir(), "stockquant-runner-rounds-"));
+    const managedRoot = join(root, "managed");
+    const makePlan = (roundIndex: number) => {
+      const inputRoot = join(managedRoot, "inputs", "run-1", "exp-1", `round-${roundIndex}`, "fence-1");
+      const outputRoot = join(managedRoot, "outputs", "run-1", "exp-1", `round-${roundIndex}`, "fence-1");
+      mkdirSync(inputRoot, { recursive: true });
+      mkdirSync(outputRoot, { recursive: true });
+      return buildRunnerLaunchPlan({ ...job, roundIndex }, { imageRef: `stockquant-v31-runner@${digest}`, jobId: `run-1:exp-1:round-${roundIndex}`, managedRoot, fencingToken: 1, inputRoot, outputRoot });
+    };
+    try {
+      const roundOne = makePlan(1);
+      const roundTwo = makePlan(2);
+      expect(roundOne.outputRoot).not.toBe(roundTwo.outputRoot);
+      expect(roundOne.containerName).not.toBe(roundTwo.containerName);
+      expect(roundOne.outputRoot).toContain("/round-1/fence-1");
+      expect(roundTwo.outputRoot).toContain("/round-2/fence-1");
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 });

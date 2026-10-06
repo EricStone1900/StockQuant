@@ -1,4 +1,4 @@
-import type { PostgresStageRunRepository } from "../adapters/postgres-stage-run-repository.js";
+import type { StageRunRepository } from "../ports/stage-run-repository.js";
 
 type EngineRun = {
   testRunId: string;
@@ -12,18 +12,19 @@ type EngineRun = {
 
 export class PersistentStageRunService {
   constructor(
-    private readonly repository: PostgresStageRunRepository,
+    private readonly repository: StageRunRepository,
     private readonly stageId: string,
-    private readonly runEngine: (scenarioId: string, seed: number) => EngineRun
+    private readonly runEngine: (scenarioId: string, seed: number, configuration?: unknown) => EngineRun | Promise<EngineRun>,
+    private readonly scenarioVersion: (scenarioId: string) => string = () => "1.0.0"
   ) {}
 
-  async create(ownerId: string, scenarioId: string, seed: number) {
-    const result = this.runEngine(scenarioId, seed);
+  async create(ownerId: string, scenarioId: string, seed: number, configuration?: unknown) {
+    const result = await this.runEngine(scenarioId, seed, configuration);
     await this.repository.save({
       testRunId: result.testRunId,
       stageId: this.stageId,
       scenarioId: result.scenarioId,
-      scenarioVersion: "1.0.0",
+      scenarioVersion: this.scenarioVersion(scenarioId),
       ownerId,
       namespace: `${this.stageId.toLowerCase().replace(".", "-")}-${scenarioId}-${result.testRunId}`,
       status: result.status,

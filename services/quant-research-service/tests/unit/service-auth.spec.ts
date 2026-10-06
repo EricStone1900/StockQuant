@@ -8,6 +8,13 @@ const governanceTokens = loadQuantResearchTokens({ STOCKQUANT_SERVICE_TOKEN_PLAT
 const allowed = (method: string, path: string, caller: string, token: string) => authorizeQuantResearchRequest({ method, pathname: path, serviceId: caller, authorization: `Bearer ${token}`, tokens });
 
 describe("quant research service identity and route scopes", () => {
+  it("allows Platform only to invoke the V1.4 daily Fixture backtest operation", () => {
+    const path = "/v1/research/backtests/daily-fixture";
+    expect(allowed("POST", path, "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(allowed("GET", path, "platform-api-service", tokens["platform-api-service"])).toBe(false);
+    expect(allowed("POST", path, "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+  });
+
   it("requires distinct strong caller tokens", () => {
     expect(() => loadQuantResearchTokens({ STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "short", STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "r".repeat(40) })).toThrow();
     expect(() => loadQuantResearchTokens({ STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "x".repeat(40), STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "x".repeat(40) })).toThrow("must be distinct");

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "stockquant-w2-trade-cancel-fill-race-audit-v1",
+  "date": "2026-10-05",
+  "command": "pnpm --filter @stockquant/trade-execution-service test:integration:persistence:isolated",
+  "exitCode": 0,
+  "status": "PASS",
+  "databaseImageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+  "ephemeralContainer": "sq-test-postgres-646a72f4c31e38dd",
+  "databaseBinding": "ephemeral loopback only",
+  "activeServices": "NOT_CONNECTED",
+  "brokerMode": "FAKE",
+  "assertions": {
+    "fillDuringCancelRace": {
+      "laterCancelArrivesBeforeEarlierFill": true,
+      "bufferedWithoutStateChange": true,
+      "missingSequenceArrivalDrainsInOrder": true,
+      "postAckFillFenced": true,
+      "cumulativeToIncremental": true,
+      "cumulativeRegressionRejected": true,
+      "overfillRejected": true,
+      "noDeltaReportNoFill": true,
+      "idempotentReportReplay": true,
+      "reservationReleaseWaitsForAllFills": true
+    },
+    "feeCorrection": "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable",
+    "cancellationReservationOutbox": "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered",
+    "reconnectReplay": "current CANCELLED state plus original partial Fill"
+  },
+  "cleanup": "isolated test harness verifies disposable container removal",
+  "limitations": [
+    "This verifies the isolated FakeBroker/PostgreSQL implementation and deterministic failure fixtures only.",
+    "It does not complete live-data Paper, active-service deployment, user acceptance, or 20-day observation."
+  ]
+}

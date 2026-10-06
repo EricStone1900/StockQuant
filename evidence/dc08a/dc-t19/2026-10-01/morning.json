@@ -1,0 +1,101 @@
+{
+  "status": "BLOCKED",
+  "repair": {
+    "state": "UNHEALTHY",
+    "observation": {
+      "state": "UNHEALTHY",
+      "status": 200,
+      "body": {
+        "status": "ready",
+        "service": "market-data-service",
+        "dataMode": "MIXED",
+        "liveQuoteMode": "LIVE_SOURCE",
+        "fixtureRoutesAvailable": true,
+        "collectionPersistence": "POSTGRES",
+        "collectionSchedulerWorker": "ENABLED",
+        "collectionExecutor": "ENABLED",
+        "collectionSecurityIds": [
+          "600000.SH",
+          "600004.SH",
+          "600006.SH",
+          "600007.SH",
+          "600008.SH",
+          "600009.SH",
+          "600010.SH",
+          "600011.SH",
+          "600012.SH",
+          "600015.SH",
+          "600016.SH",
+          "600017.SH",
+          "600018.SH",
+          "600019.SH",
+          "600020.SH",
+          "600021.SH",
+          "600022.SH",
+          "600023.SH",
+          "600025.SH",
+          "600026.SH"
+        ]
+      },
+      "error": "active subscription mismatch"
+    },
+    "actions": [
+      {
+        "command": "docker compose --env-file .env.local -f infra/compose/docker-compose.yml up -d market-data-service",
+        "exitCode": 0
+      }
+    ],
+    "exitCode": 1
+  },
+  "activation": {
+    "status": "BLOCKED",
+    "reasons": [
+      "DC-08A subscription parameters are incomplete",
+      "expected exactly one enabled subscription, found 0"
+    ],
+    "exitCode": 2
+  },
+  "final": {
+    "state": "UNHEALTHY",
+    "observation": {
+      "state": "UNHEALTHY",
+      "status": 200,
+      "body": {
+        "status": "ready",
+        "service": "market-data-service",
+        "dataMode": "MIXED",
+        "liveQuoteMode": "LIVE_SOURCE",
+        "fixtureRoutesAvailable": true,
+        "collectionPersistence": "POSTGRES",
+        "collectionSchedulerWorker": "ENABLED",
+        "collectionExecutor": "ENABLED",
+        "collectionSecurityIds": [
+          "600000.SH",
+          "600004.SH",
+          "600006.SH",
+          "600007.SH",
+          "600008.SH",
+          "600009.SH",
+          "600010.SH",
+          "600011.SH",
+          "600012.SH",
+          "600015.SH",
+          "600016.SH",
+          "600017.SH",
+          "600018.SH",
+          "600019.SH",
+          "600020.SH",
+          "600021.SH",
+          "600022.SH",
+          "600023.SH",
+          "600025.SH",
+          "600026.SH"
+        ]
+      },
+      "error": "active subscription mismatch"
+    },
+    "actions": [],
+    "exitCode": 1
+  },
+  "exitCode": 2
+}

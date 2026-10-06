@@ -1,0 +1,1281 @@
+{
+  "schemaVersion": "stockquant-w9-version-gates-v1",
+  "date": "2026-10-03",
+  "stageSuite": {
+    "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+    "exitCode": 0
+  },
+  "versions": {
+    "V1": {
+      "business": {
+        "exitCode": 2,
+        "output": {
+          "version": "V1",
+          "status": "INCOMPLETE",
+          "stages": [
+            {
+              "stageId": "V1.1",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09既有范围自动与人工验收保留；2026-10-01公共Schema/TS-Python生成、账户详情/双市场幂等初始化、隔离stage存储Web/CLI同run、A股Calendar与Market Data分钟导入/上传客户端已有工程证据；DC-06分页/脱敏导出现有ProjectToken生成客户端与隔离HTTP/PG验证；Research Artifact `expiresAt`/`EXPIRED`状态与禁止复活有Research/Platform隔离PG、单测及完整V3.1回归证据。完整跨服务客户端发布流程、跨服务Artifact统一后端/策略调度、活动API切换/回退及新增范围用户验收仍未完成；当前49 legacy/44 shadow快照复演已验证只补5条并通过V1.1 code suite，但Runbook维护窗口与旧RUNNING/WAITING记录处置仍待完成；详见阶段文件与W1记录）"
+            },
+            {
+              "stageId": "V1.2",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09本机/amd64仿真与历史签署保留；当前第8节仍含目标命令及W8 Ubuntu实机复核未完成）"
+            },
+            {
+              "stageId": "V1.3",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09历史自动/人工PASS保留；当前第7节/第8节未完成且W1/W2新增范围待验收）"
+            },
+            {
+              "stageId": "V1.4",
+              "status": "PARTIALLY_IMPLEMENTED（历史自动/人工PASS保留；2026-10-02隔离API/Web/CLI TestRun以精确workspace codeVersion Hash绑定；SELL/T+1、结算和现行/历史日期费率已有Fixture闭环；全市场规则、公司行动、Qlib规则对照及手册人工交付仍未完成）"
+            },
+            {
+              "stageId": "V1.5",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09历史自动/人工/Ubuntu烟测签署保留；当前第2节运维交付项、第7/8节手册及W8实机门禁未完成）"
+            }
+          ],
+          "unresolvedStages": [
+            {
+              "stageId": "V1.1",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09既有范围自动与人工验收保留；2026-10-01公共Schema/TS-Python生成、账户详情/双市场幂等初始化、隔离stage存储Web/CLI同run、A股Calendar与Market Data分钟导入/上传客户端已有工程证据；DC-06分页/脱敏导出现有ProjectToken生成客户端与隔离HTTP/PG验证；Research Artifact `expiresAt`/`EXPIRED`状态与禁止复活有Research/Platform隔离PG、单测及完整V3.1回归证据。完整跨服务客户端发布流程、跨服务Artifact统一后端/策略调度、活动API切换/回退及新增范围用户验收仍未完成；当前49 legacy/44 shadow快照复演已验证只补5条并通过V1.1 code suite，但Runbook维护窗口与旧RUNNING/WAITING记录处置仍待完成；详见阶段文件与W1记录）"
+            },
+            {
+              "stageId": "V1.2",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09本机/amd64仿真与历史签署保留；当前第8节仍含目标命令及W8 Ubuntu实机复核未完成）"
+            },
+            {
+              "stageId": "V1.3",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09历史自动/人工PASS保留；当前第7节/第8节未完成且W1/W2新增范围待验收）"
+            },
+            {
+              "stageId": "V1.4",
+              "status": "PARTIALLY_IMPLEMENTED（历史自动/人工PASS保留；2026-10-02隔离API/Web/CLI TestRun以精确workspace codeVersion Hash绑定；SELL/T+1、结算和现行/历史日期费率已有Fixture闭环；全市场规则、公司行动、Qlib规则对照及手册人工交付仍未完成）"
+            },
+            {
+              "stageId": "V1.5",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09历史自动/人工/Ubuntu烟测签署保留；当前第2节运维交付项、第7/8节手册及W8实机门禁未完成）"
+            }
+          ],
+          "unresolvedAcceptance": [
+            {
+              "stageId": "V1.1",
+              "backend": "PASS（自动验证）",
+              "web": "PASS（用户确认）",
+              "evidence": "normal `d5add8bf-ae44-48a8-b726-b4be34ab4278`（[恢复的原始TestRun证据包](../../../evidence/local/V1.1/d5add8bf-ae44-48a8-b726-b4be34ab4278/evidence.json)，manualConclusion仍NOT_RUN）；rejection `24276340-2e5a-4516-a7d0-20f92851754b`；recovery `bdb53484-19b4-4363-a130-eee94761df54`；2026-09-26 stage-mode code suite及Web normal/rejection/recovery同run CLI见[审计](../../../evidence/audits/2026-09-26-v11-stage-store-code-suite.md)",
+              "limitations": "历史 2026-09-09 验收范围为本地 ARM64；当前统一TestRun存储模式代码和三场景Web/CLI在独立PG验证通过；2026-10-01 V1.1全代码套件受控退出0，包含DC-06项目分页/导出生成客户端漂移检查，Market Data分钟API八操作及账户客户端仍有效；新增Research Artifact不可变过期时间/EXPIRED终态有隔离PG、Platform投影与完整V3.1套件证据，但未批准保留期/调度或物理清理；DC-06分页/导出另有匿名401、跨项目403的真实隔离HTTP/PG证据；活动API仍为`legacy`且未执行切换/回退窗口；本轮未新增人工签署",
+              "signoff": "用户确认（本会话） / 2026-09-09；历史签署保留，新增范围未签署"
+            },
+            {
+              "stageId": "V1.2",
+              "backend": "PARTIALLY_IMPLEMENTED（2026-09-09历史自动验证PASS保留；当前操作手册仍有未执行目标命令）",
+              "web": "历史用户确认PASS（2026-09-09）；本轮Ubuntu实机范围NOT_RUN",
+              "evidence": "`v1.2-market-data-1`；Qlib 0.9.6；平台 run `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`；Artifact task `artifact-task-1788953766848`；Web E2E 2 passed",
+              "limitations": "Qlib 为 Mac ARM64 上的 linux/amd64 仿真；真实模型调用、全量数据、当前可执行手册和W8 Ubuntu重验仍未验证",
+              "signoff": "用户历史确认保留 / 2026-09-09；新增范围NOT_RUN"
+            },
+            {
+              "stageId": "V1.3",
+              "backend": "PARTIALLY_IMPLEMENTED（历史代码/容器场景PASS保留；当前第7/8节交接清单未完成）",
+              "web": "历史用户Web确认PASS（2026-09-09）；本轮W1/W2新增范围NOT_RUN",
+              "evidence": "`39c9b7c0-080d-45d7-83cf-b8865f6a4b42`、`d1540cb1-d085-40bf-860d-43031951bd55`、`5a817c7f-64c0-4c8d-a979-97b44fc9f6ed`",
+              "limitations": "FakeBroker 为隔离模拟；历史三场景与E2E记录保留；真实券商、跨重启和新增范围复验/签署未完成",
+              "signoff": ""
+            },
+            {
+              "stageId": "V1.4",
+              "backend": "PARTIALLY_IMPLEMENTED（历史验收保留；Quant日线回测、固定/可配置A股费税模型、现行/历史费表日期约束、合成停牌限制、T+1卖出与结算有自动化隔离证据；完整交易所规则、日历、公司行动、Qlib一致性、完整范围人工验收未完成）",
+              "web": "`pnpm verify:stage -- --stage V1.4 --suite code`退出0；最新隔离`pnpm test:e2e -- --stage V1.4`退出0，11个BacktestRun/Manifest/resultHash配对、6个Web Run由CLI同Run核验、浏览器4/4；人工结论NOT_RUN",
+              "evidence": "最新结构化业务结果仍为2026-10-02隔离E2E，报告/机器JSON原件保留于`evidence/audits/2026-10-02-w1-v14-quant-configurable-web-29d7797558a9431213d2.{md,json}`，其SHA清单为该执行时的历史快照（`evidence/audits/2026-10-02-w1-v14-quant-configurable-web-29d7797558a9431213d2.sha256`）；当前共享合同生成类型与Runner RoundIndex增量见[合同/Runner绑定审计](../../../evidence/audits/2026-10-02-w7-v33-runner-round-binding.md)、[JSON](../../../evidence/audits/2026-10-02-w7-v33-runner-round-binding.json)及[刷新后的当前共享源码/合同SHA-256](../../../evidence/audits/2026-10-03-w7-current-shared-contracts.sha256)；费表依据与日期边界见[阶段规则范围](./04-daily-backtest.md)",
+              "limitations": "历史合成Fixture核对2023-08-25旧费率卖出、2023-08-28切换日拒绝；券商佣金仍需按账户设置，公开费率不代表券商报价。真实行情源调用0、Provider/Paper/Broker调用0；无来源授权未执行；自动PASS不替代人工签收或V1.4关闭",
+              "signoff": ""
+            },
+            {
+              "stageId": "V1.5",
+              "backend": "PARTIALLY_IMPLEMENTED（历史代码/容器与当前Compose持久卷重建证据保留；当前第2/7/8节待办未完成）",
+              "web": "历史用户Web与Ubuntu烟测确认PASS（2026-09-09）；当前W8目标主机明细/范围重验NOT_RUN",
+              "evidence": "`25fe0718-5a76-4477-a02b-5e954f621dde`、`48e32a09-4901-424f-8585-7b01ab9f83f7`、`113fea95-5fee-42ee-b702-f8423b8a173c`；运行时补充：[V1.5-NATS/Temporal 证据](../../evidence-v1.5-real-integration.md)、[阶段五审计](../../../evidence/audits/2026-09-23-phase-5-nats-temporal.md)",
+              "limitations": "历史签署保留；仍未验证宿主/磁盘灾难恢复、异机备份、生产HA，当前Ubuntu主机版本/架构/Commit/命令输出及完整手册待补",
+              "signoff": "Ubuntu历史人工签署保留；本轮新增范围未签署"
+            }
+          ],
+          "invalidPassClaims": [],
+          "testRunEvidenceAudit": {
+            "status": "INCOMPLETE",
+            "stagesChecked": 5,
+            "testRunIdsChecked": 10,
+            "unresolvedAssociations": [
+              {
+                "stageId": "V1.1",
+                "testRunId": "24276340-2e5a-4516-a7d0-20f92851754b",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.1",
+                "testRunId": "bdb53484-19b4-4363-a130-eee94761df54",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.2",
+                "testRunId": "5dc2a5a7-28f1-4c9f-a867-3a676994f5b4",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.3",
+                "testRunId": "39c9b7c0-080d-45d7-83cf-b8865f6a4b42",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.3",
+                "testRunId": "d1540cb1-d085-40bf-860d-43031951bd55",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.3",
+                "testRunId": "5a817c7f-64c0-4c8d-a979-97b44fc9f6ed",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.5",
+                "testRunId": "25fe0718-5a76-4477-a02b-5e954f621dde",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.5",
+                "testRunId": "48e32a09-4901-424f-8585-7b01ab9f83f7",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.5",
+                "testRunId": "113fea95-5fee-42ee-b702-f8423b8a173c",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              }
+            ],
+            "results": [
+              {
+                "stageId": "V1.1",
+                "testRunIds": [
+                  "d5add8bf-ae44-48a8-b726-b4be34ab4278",
+                  "24276340-2e5a-4516-a7d0-20f92851754b",
+                  "bdb53484-19b4-4363-a130-eee94761df54"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "d5add8bf-ae44-48a8-b726-b4be34ab4278",
+                    "status": "PASS",
+                    "evidencePath": "evidence/local/V1.1/d5add8bf-ae44-48a8-b726-b4be34ab4278/evidence.json",
+                    "failures": []
+                  },
+                  {
+                    "testRunId": "24276340-2e5a-4516-a7d0-20f92851754b",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "bdb53484-19b4-4363-a130-eee94761df54",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing",
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.2",
+                "testRunIds": [
+                  "5dc2a5a7-28f1-4c9f-a867-3a676994f5b4"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "5dc2a5a7-28f1-4c9f-a867-3a676994f5b4",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.3",
+                "testRunIds": [
+                  "39c9b7c0-080d-45d7-83cf-b8865f6a4b42",
+                  "d1540cb1-d085-40bf-860d-43031951bd55",
+                  "5a817c7f-64c0-4c8d-a979-97b44fc9f6ed"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "39c9b7c0-080d-45d7-83cf-b8865f6a4b42",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "d1540cb1-d085-40bf-860d-43031951bd55",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "5a817c7f-64c0-4c8d-a979-97b44fc9f6ed",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing",
+                  "structured run export is missing",
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V1.4",
+                "testRunIds": [],
+                "status": "PASS",
+                "results": [],
+                "failures": []
+              },
+              {
+                "stageId": "V1.5",
+                "testRunIds": [
+                  "25fe0718-5a76-4477-a02b-5e954f621dde",
+                  "48e32a09-4901-424f-8585-7b01ab9f83f7",
+                  "113fea95-5fee-42ee-b702-f8423b8a173c"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "25fe0718-5a76-4477-a02b-5e954f621dde",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "48e32a09-4901-424f-8585-7b01ab9f83f7",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "113fea95-5fee-42ee-b702-f8423b8a173c",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing",
+                  "structured run export is missing",
+                  "structured run export is missing"
+                ]
+              }
+            ],
+            "scope": "Checks exact TestRun UUIDs against stage-scoped structured evidence exports and their SHA-256 manifests; PASS stages additionally require completed runs, all-PASS assertions, and a UUID-bound dated user sign-off. Legacy IDs without exported bundles remain unresolved rather than being inferred as valid."
+          },
+          "duplicateStageRows": [],
+          "duplicateAcceptanceRows": [],
+          "missingAcceptance": [],
+          "unexpectedAcceptance": [],
+          "versionSummaryIncomplete": true,
+          "uncheckedVersionGate": true,
+          "stageDocumentationAudit": {
+            "status": "PASS",
+            "stagesChecked": 5,
+            "failures": []
+          },
+          "evidenceAudit": {
+            "status": "PASS",
+            "evidenceReferences": 83,
+            "manifestsChecked": 10,
+            "manifestEntriesChecked": 42,
+            "failures": [],
+            "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+          }
+        }
+      },
+      "evidence": {
+        "exitCode": 0,
+        "output": {
+          "version": "V1",
+          "status": "PASS",
+          "markdownFilesChecked": 9,
+          "evidenceReferences": 83,
+          "manifestsChecked": 10,
+          "manifestEntriesChecked": 42,
+          "manifestResults": [
+            {
+              "manifest": "evidence/audits/2026-10-01-w9-stage-document-guard.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-decision-governance-layer-boundary.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-research-artifact-layer-boundary.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w1-v11-stage-storage-rerun.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-common-artifact-content-store.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w1-quant-promotion-submit-client.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-v11-stage-storage-current-reverification.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.sha256",
+              "entriesChecked": 8,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w1-v11-live-nonterminal-readonly-review.sha256",
+              "entriesChecked": 3,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-03-w7-current-shared-contracts.sha256",
+              "entriesChecked": 23,
+              "failures": []
+            }
+          ],
+          "missingEvidence": [],
+          "failures": [],
+          "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+        }
+      }
+    },
+    "V2": {
+      "business": {
+        "exitCode": 2,
+        "output": {
+          "version": "V2",
+          "status": "INCOMPLETE",
+          "stages": [
+            {
+              "stageId": "V2.1",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09原范围自动/人工签署保留；当前来源许可/能力清单、两个可用新闻源、在线池/时间元数据等第2节必需项未完成，NO_TRADE且无源授权）"
+            },
+            {
+              "stageId": "V2.2",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09原范围签署及2025-09-25导入增量证据保留；第2节单位/时间语义、Parquet/流式、复权股票池与规则关联等必需项未完成，当前范围未重新签署）"
+            },
+            {
+              "stageId": "V2.3",
+              "status": "PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；合成Fixture研究路由及持久Artifact的Web/CLI自动验收已完成；冻结市场数据、独立模型验证、真实研究能力与新范围人工验收仍待完成；不含LIVE或容量观察门禁）"
+            },
+            {
+              "stageId": "V2.4",
+              "status": "PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成；2026-10-02 FakeBroker部分Fill撤单请求以隔离PG验证`CANCEL_REQUESTED`事务原子性、重试幂等和原Fill/outbox保留，但撤单确认/拒绝、成交竞态和费用更正仍NOT_RUN，详见[W2审计](../../../evidence/audits/2026-10-02-w2-fakebroker-partial-cancel-idempotency.md)）"
+            },
+            {
+              "stageId": "V2.5",
+              "status": "PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成）"
+            }
+          ],
+          "unresolvedStages": [
+            {
+              "stageId": "V2.1",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09原范围自动/人工签署保留；当前来源许可/能力清单、两个可用新闻源、在线池/时间元数据等第2节必需项未完成，NO_TRADE且无源授权）"
+            },
+            {
+              "stageId": "V2.2",
+              "status": "PARTIALLY_IMPLEMENTED（2026-09-09原范围签署及2025-09-25导入增量证据保留；第2节单位/时间语义、Parquet/流式、复权股票池与规则关联等必需项未完成，当前范围未重新签署）"
+            },
+            {
+              "stageId": "V2.3",
+              "status": "PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；合成Fixture研究路由及持久Artifact的Web/CLI自动验收已完成；冻结市场数据、独立模型验证、真实研究能力与新范围人工验收仍待完成；不含LIVE或容量观察门禁）"
+            },
+            {
+              "stageId": "V2.4",
+              "status": "PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成；2026-10-02 FakeBroker部分Fill撤单请求以隔离PG验证`CANCEL_REQUESTED`事务原子性、重试幂等和原Fill/outbox保留，但撤单确认/拒绝、成交竞态和费用更正仍NOT_RUN，详见[W2审计](../../../evidence/audits/2026-10-02-w2-fakebroker-partial-cancel-idempotency.md)）"
+            },
+            {
+              "stageId": "V2.5",
+              "status": "PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成）"
+            }
+          ],
+          "unresolvedAcceptance": [
+            {
+              "stageId": "V2.1",
+              "backend": "PARTIALLY_IMPLEMENTED（历史代码/容器场景PASS保留；当前来源许可/能力、两个新闻源和完整股票池/时间元数据要求未完成）",
+              "web": "历史用户确认并复验PASS（2026-09-09）；当前NO_TRADE/无源授权，新增范围NOT_RUN",
+              "evidence": "`docs/evidence-v2.1.md`；normal `dd1792f9-4947-472d-bd9c-2a0399224068`；rejection `9a0d9bb5-7106-4b95-b113-bea633aab576`；recovery `7419dbd9-d635-4ccb-993f-9d66e5f11865`",
+              "limitations": "Sina行情源曾超时；来源许可及长期观察仍待补，不能重新启用或采集",
+              "signoff": "历史用户确认保留 / 2026-09-09；新增范围未签署"
+            },
+            {
+              "stageId": "V2.2",
+              "backend": "PARTIALLY_IMPLEMENTED（原代码及2026-09-25持久导入/分块续传/同Run增量PASS保留；第2节仍有未完成分钟语义/单位、Parquet流式和规则关联任务）",
+              "web": "历史用户确认并复验PASS（2026-09-09）；后续工程未获新人工签署",
+              "evidence": "`docs/evidence-v2.2.md`；normal `2d236506-042b-4e6c-a386-dfbb6553622f`；rejection `55417112-6ee9-4eeb-b252-1e0306048a0e`；recovery `d8c9540e-0ed2-4978-93f9-daaef6dc1e6f`；[P6持久分钟导入后续证据](../../../evidence/audits/2026-09-25-p6-persistent-minute-import.md)；[受限CSV小文件导入](../../../evidence/audits/2026-09-25-p6-csv-minute-import.md)；[可续传与上传TestRun审计](../../../evidence/audits/2026-09-25-p6-resumable-minute-upload.md)",
+              "limitations": "64 MiB/100,000行限制、整批内存解析、Parquet/日期分区/生产容量及阶段手册仍未达要求",
+              "signoff": "历史用户确认保留 / 2026-09-09；新范围未签署"
+            },
+            {
+              "stageId": "V2.3",
+              "backend": "PARTIALLY_IMPLEMENTED（历史回放/模拟撮合自动验证保留；完整V2.3 code suite与锁定Qlib `LGBModel.fit/predict` 合成数据烟测通过；新增owner-scoped持久Qlib Fixture TestRun真实隔离HTTP/Web/CLI同Run自动回归与脱敏证据导出通过；2026-10-02新TestRun复验通过；研究独立验证未完成）",
+              "web": "历史用户确认保留（2026-09-19；仅覆盖当时的normal/rejection/recovery、同Run、Web E2E声明范围；新增研究子能力人工验收待执行）",
+              "evidence": "历史场景ID与Manifest保留；2026-09-27边界复核见[边界更正审计](../../../evidence/audits/2026-09-27-v23-qlib-boundary-correction.md)，2026-10-01接线范围见[Qlib Fixture TestRun审计](../../../evidence/audits/2026-10-01-w4-v23-qlib-fixture-testrun.md)；[新TestRun](../../../evidence/local/V2.3/41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe/evidence.json)、[Manifest](../../../evidence/local/V2.3/41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe/manifest.sha256)、[复验审计](../../../evidence/audits/2026-10-02-w4-v23-qlib-fixture-rerun.md)",
+              "limitations": "输入为120行确定性合成数据，不是市场数据或已授权冻结研究Fixture；`modelValidation=NOT_RUN`、合成模型/预测Artifact已绑定TestRun持久化并owner-scoped读取；真实数据/PIT、模型独立复算与新增能力人工验收待完成；V2.4/V2.5观察门禁独立",
+              "signoff": "历史用户人工确认 / 2026-09-19（保留）；新增研究能力仍待用户验收"
+            },
+            {
+              "stageId": "V2.4",
+              "backend": "PARTIALLY_IMPLEMENTED；Fixture v2.0隔离API与容器化Chromium normal/rejection/recovery/external-reconciliation四场景通过；Platform四项Paper/Trade调用使用生成客户端；Web TestRun同Run CLI `--check-only`；外部差异场景证明1条`EXTERNAL_ORDER_MISSING_LOCALLY`并在正式页展示；完整V2.4 code suite退出0、随机四库快照导出后清理，`activeServicesTouched=false`",
+              "web": "历史签署保留；本次工程证据不构成当前范围人工签署",
+              "evidence": "[本轮完整HTTP/Web smoke](../../../evidence/audits/2026-10-02-v24-paper-smoke-912a971fa6374e339157f75bee08b5f6.json)；[四场景Web证据](../../../evidence/audits/2026-10-02-v24-paper-web-e2e-bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1.json)；[独立差异截图](../../../evidence/audits/2026-10-02-v24-paper-web-external-reconciliation-bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1.png)；[V2.4执行/恢复客户端回归](../../../evidence/audits/2026-10-01-w1-v24-client-regression.md)",
+              "limitations": "默认策略仍PREPARATION_ONLY；OD-007活动策略、数据源许可及真实行情、完整实时观察、20个自然交易日观察、容量、Ubuntu实机验收和当前用户人工签收待完成",
+              "signoff": "历史人工确认 / 2026-09-11（不覆盖新范围）；当前范围继续待后续用户确认"
+            },
+            {
+              "stageId": "V2.5",
+              "backend": "PARTIALLY_IMPLEMENTED（20×60 Fixture 与 BaoStock 真实分钟切片、57,600 行/20/20 SHA-256/逐日窗口/真实归档回放通过；Mac 监控池 50/80/100 质量、5/100/500/5219 多年日线、归档和隔离恢复 5,219/5,219 SHA-256 通过；BaoStock 财务公告日字段已核验但行业 PIT/修订链不足；BaoStock 有界稳定性与恢复探针通过，2026-10-02隔离完整code suite与Linux/arm64 100k Parquet容量复验通过；真实交易时段长期稳定性仍待观察；Ubuntu 实机人工子项已确认通过）",
+              "web": "PASS（用户人工验收确认，2026-09-20；页面、normal/rejection/recovery 场景和导出证据已复核）",
+              "evidence": "`docs/evidence-v2.5.md`；DC-T23 `evidence/dc08a/historical-replay-2026-09-16.json`；normal `e033c817-d521-40a8-892c-3c5b8098ea4c`；rejection `17057748-135a-4337-a726-e654f97ed565`；recovery `d3fefb85-2fb9-42c2-9cc1-adefba08af77`；导出 Manifest `f2a8f76cfe03fb5f4a76988812d20c46ff1eca562dadb5027344bd277ff1f575`；[V2.5完整隔离code suite审计](../../../evidence/audits/2026-10-02-w4-v25-isolated-capacity-code-suite.md)及[SHA-256](../../../evidence/audits/2026-10-02-w4-v25-isolated-capacity-code-suite.sha256)",
+              "limitations": "分钟级全量、真实交易时段长期限频/恢复稳定性、60日备用免费分钟源、带修订链的真实 PIT、容量长期稳定性和 V2.4 20 日观察待完成；Ubuntu 原始技术日志待补",
+              "signoff": "用户人工确认 / 2026-09-20；技术复核 / 2026-09-20"
+            }
+          ],
+          "invalidPassClaims": [],
+          "testRunEvidenceAudit": {
+            "status": "INCOMPLETE",
+            "stagesChecked": 5,
+            "testRunIdsChecked": 11,
+            "unresolvedAssociations": [
+              {
+                "stageId": "V2.1",
+                "testRunId": "dd1792f9-4947-472d-bd9c-2a0399224068",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.1",
+                "testRunId": "9a0d9bb5-7106-4b95-b113-bea633aab576",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.1",
+                "testRunId": "7419dbd9-d635-4ccb-993f-9d66e5f11865",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.2",
+                "testRunId": "2d236506-042b-4e6c-a386-dfbb6553622f",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.2",
+                "testRunId": "55417112-6ee9-4eeb-b252-1e0306048a0e",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.2",
+                "testRunId": "d8c9540e-0ed2-4978-93f9-daaef6dc1e6f",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.4",
+                "testRunId": "bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1",
+                "status": "INCOMPLETE",
+                "failures": [
+                  "structured run export is missing"
+                ]
+              }
+            ],
+            "results": [
+              {
+                "stageId": "V2.1",
+                "testRunIds": [
+                  "dd1792f9-4947-472d-bd9c-2a0399224068",
+                  "9a0d9bb5-7106-4b95-b113-bea633aab576",
+                  "7419dbd9-d635-4ccb-993f-9d66e5f11865"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "dd1792f9-4947-472d-bd9c-2a0399224068",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "9a0d9bb5-7106-4b95-b113-bea633aab576",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "7419dbd9-d635-4ccb-993f-9d66e5f11865",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing",
+                  "structured run export is missing",
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.2",
+                "testRunIds": [
+                  "2d236506-042b-4e6c-a386-dfbb6553622f",
+                  "55417112-6ee9-4eeb-b252-1e0306048a0e",
+                  "d8c9540e-0ed2-4978-93f9-daaef6dc1e6f"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "2d236506-042b-4e6c-a386-dfbb6553622f",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "55417112-6ee9-4eeb-b252-1e0306048a0e",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  },
+                  {
+                    "testRunId": "d8c9540e-0ed2-4978-93f9-daaef6dc1e6f",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing",
+                  "structured run export is missing",
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.3",
+                "testRunIds": [
+                  "41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe"
+                ],
+                "status": "PASS",
+                "results": [
+                  {
+                    "testRunId": "41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe",
+                    "status": "PASS",
+                    "evidencePath": "evidence/local/V2.3/41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe/evidence.json",
+                    "failures": []
+                  }
+                ],
+                "failures": []
+              },
+              {
+                "stageId": "V2.4",
+                "testRunIds": [
+                  "bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1"
+                ],
+                "status": "INCOMPLETE",
+                "results": [
+                  {
+                    "testRunId": "bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1",
+                    "status": "INCOMPLETE",
+                    "failures": [
+                      "structured run export is missing"
+                    ]
+                  }
+                ],
+                "failures": [
+                  "structured run export is missing"
+                ]
+              },
+              {
+                "stageId": "V2.5",
+                "testRunIds": [
+                  "e033c817-d521-40a8-892c-3c5b8098ea4c",
+                  "17057748-135a-4337-a726-e654f97ed565",
+                  "d3fefb85-2fb9-42c2-9cc1-adefba08af77"
+                ],
+                "status": "PASS",
+                "results": [
+                  {
+                    "testRunId": "e033c817-d521-40a8-892c-3c5b8098ea4c",
+                    "status": "PASS",
+                    "evidencePath": "evidence/local/V2.5/e033c817-d521-40a8-892c-3c5b8098ea4c/evidence.json",
+                    "failures": []
+                  },
+                  {
+                    "testRunId": "17057748-135a-4337-a726-e654f97ed565",
+                    "status": "PASS",
+                    "evidencePath": "evidence/local/V2.5/17057748-135a-4337-a726-e654f97ed565/evidence.json",
+                    "failures": []
+                  },
+                  {
+                    "testRunId": "d3fefb85-2fb9-42c2-9cc1-adefba08af77",
+                    "status": "PASS",
+                    "evidencePath": "evidence/local/V2.5/d3fefb85-2fb9-42c2-9cc1-adefba08af77/evidence.json",
+                    "failures": []
+                  }
+                ],
+                "failures": []
+              }
+            ],
+            "scope": "Checks exact TestRun UUIDs against stage-scoped structured evidence exports and their SHA-256 manifests; PASS stages additionally require completed runs, all-PASS assertions, and a UUID-bound dated user sign-off. Legacy IDs without exported bundles remain unresolved rather than being inferred as valid."
+          },
+          "duplicateStageRows": [],
+          "duplicateAcceptanceRows": [],
+          "missingAcceptance": [],
+          "unexpectedAcceptance": [],
+          "versionSummaryIncomplete": true,
+          "uncheckedVersionGate": true,
+          "stageDocumentationAudit": {
+            "status": "PASS",
+            "stagesChecked": 5,
+            "failures": []
+          },
+          "evidenceAudit": {
+            "status": "PASS",
+            "evidenceReferences": 222,
+            "manifestsChecked": 35,
+            "manifestEntriesChecked": 6608,
+            "failures": [],
+            "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+          }
+        }
+      },
+      "evidence": {
+        "exitCode": 0,
+        "output": {
+          "version": "V2",
+          "status": "PASS",
+          "markdownFilesChecked": 12,
+          "evidenceReferences": 222,
+          "manifestsChecked": 35,
+          "manifestEntriesChecked": 6611,
+          "manifestResults": [
+            {
+              "manifest": "evidence/audits/2026-10-01-w9-stage-document-guard.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w3-market-data-provider-adapter.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w4-qlib-temporal-leakage-guard.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/local/V2.3/e3c05763-aa11-4a6a-bf43-a63e525098a1/manifest.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-v31-artifact-evidence-export.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/local/V2.3/bf32f747-0339-40f6-bb53-37a4401fa1bf/manifest.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-fixture-authorization-gate.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-v23-qlib-artifact-lifecycle.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-common-artifact-content-store.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w4-qlib-temporal-metadata-not-run.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w3-v24-simulation-policy-persistence.sha256",
+              "entriesChecked": 9,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-03-w0-after-v24-event-order-suite.sha256",
+              "entriesChecked": 6547,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-03-w3-scheduler-poll-and-v24-code-suite.sha256",
+              "entriesChecked": 5,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-v24-client-regression.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-postgres-synthetic-scale.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-http-upload-error-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-csv-parser-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-parquet-valid-http-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-parquet-linux-arm64-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w4-minute-upload-concurrency-quota.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-current-worktree-scenarios.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w4-v25-isolated-capacity-code-suite.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-parquet-http-pagination.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-parquet-capacity-limit.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w4-v25-final-code-scenarios.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-market-data-project-client.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1b-tdx-timestamp-semantics-review.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1-readonly-health-no-source.sha256",
+              "entriesChecked": 3,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1-readonly-health-no-source-0743.sha256",
+              "entriesChecked": 3,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1-o2-readonly-rerun-1013z.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1-o2-readonly-rerun-1251z.sha256",
+              "entriesChecked": 4,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-o1-readonly-followup-2206.sha256",
+              "entriesChecked": 4,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w9-version-gates-after-o1-2206.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/local/V2.3/41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe/manifest.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            }
+          ],
+          "missingEvidence": [],
+          "failures": [],
+          "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+        }
+      }
+    },
+    "V3": {
+      "business": {
+        "exitCode": 2,
+        "output": {
+          "version": "V3",
+          "status": "INCOMPLETE",
+          "stages": [
+            {
+              "stageId": "V3.1",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.2",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.3",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.4",
+              "status": "NOT_RUN"
+            }
+          ],
+          "unresolvedStages": [
+            {
+              "stageId": "V3.1",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.2",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.3",
+              "status": "NOT_RUN"
+            },
+            {
+              "stageId": "V3.4",
+              "status": "NOT_RUN"
+            }
+          ],
+          "unresolvedAcceptance": [
+            {
+              "stageId": "V3.1",
+              "backend": "NOT_RUN（固定Fixture工程闭环与当前V3.1代码套件通过；2026-10-01 Research 177单测/25隔离PG集成、Platform 142单测、EXPIRED生命周期合同/owner读门禁与LiteLLM内部Fixture均通过；固定镜像完整code suite退出0，外部Provider调用0）",
+              "web": "NOT_RUN",
+              "evidence": "[准备证据](../../evidence-v3.1-preparation.md)；[P7.2 HTTP/PG](../../../evidence/audits/2026-09-25-p7-2-service-identity.md)；[P7.3 Runner](../../../evidence/audits/2026-09-25-p7-3-offline-runner-smoke.md)；[P7.4预检/账本](../../../evidence/audits/2026-09-25-p7-4-request-budget-ledger.md)；[P3.R Artifact授权](../../../evidence/audits/2026-09-25-p3-r-artifact-boundary.md)；[P7.5固定浏览器全链路与故障恢复](../../../evidence/audits/2026-09-25-p7-5-fixed-pipeline-smoke.md)；[W5 Docker上下文与V3.1回归](../../../evidence/audits/2026-10-01-w5-docker-context-v31-regression.md)；[W5离线完整回归](../../../evidence/audits/2026-10-01-w5-v31-offline-regression.md)；[W5固定镜像复验](../../../evidence/audits/2026-10-01-w5-v31-literal-fixture-regression.md)；[Artifact过期生命周期](../../../evidence/audits/2026-10-01-w1-artifact-expiry-lifecycle.md)",
+              "limitations": "生产研究容器仍未部署本次测试路由；真实 RD-Agent/模型调用、生产费用对账和Provider外发限制、过期策略/调度、物理Artifact清理、文件写入后事务崩溃孤儿回收及其余故障矩阵、Ubuntu实机未完成。网络拒绝证据限于本地 `--network none`；OOM/网络并发验证只是固定小样本，不是生产连续性/容量证据；`modelCalls=NOT_RUN`。固定Fixture测试不等于模型实验或候选有效性",
+              "signoff": "人工验收未签署"
+            },
+            {
+              "stageId": "V3.2",
+              "backend": "NOT_RUN（当前工作树完整 code suite PASS；随机隔离PG/HTTP中固定合成候选源码于受限ARM64容器执行，70/70信号经第二隔离容器独立重算并用于OOS交易；新增owner-scoped `READINESS_ONLY`准备态TestRun创建/同ID读取及可导出WAITING/NOT_RUN证据包，完整套件仍明确`businessValidation=NOT_RUN`）",
+              "web": "NOT_RUN",
+              "evidence": "[PromotionRequest intake及读路由复核](../../../evidence/audits/2026-09-25-v3-2-promotion-intake.md)；[验证报告持久化](../../../evidence/audits/2026-09-27-v32-validation-report-persistence.md)；[精确版本决策](../../../evidence/audits/2026-09-27-v32-exact-version-decision.md)；[Worker候选隔离执行](../../../evidence/audits/2026-09-27-v32-independent-worker-process.md)；[当前工作树code suite复验](../../../evidence/audits/2026-09-27-v32-code-suite-reverification.md)；[浏览器及场景复核](../../../evidence/audits/2026-09-27-v32-browser-scenario-recheck.md)；[准备态证据导出CLI](../../../evidence/audits/2026-09-27-v32-evidence-export.md)；[W6准备态TestRun基础](../../../evidence/audits/2026-09-30-w6-readiness-testrun.md)；[W6准备态TestRun Hash](../../../evidence/audits/2026-09-30-w6-readiness-testrun.sha256)；[W6 TestRun导出审计](../../../evidence/audits/2026-09-30-w6-readiness-run-export.md)；[W6 TestRun导出Hash](../../../evidence/audits/2026-09-30-w6-readiness-run-export.sha256)",
+              "limitations": "实验仅限精确白名单合成Fixture；非Fixture/用户候选执行与Qlib独立验证仍缺，V3.1权威前置、治理/Paper正式精确指纹消费、V3.2业务TestRun/正式证据包及人工验收缺失；准备态元数据不替代正式业务运行；无活动Registry/Mandate变更",
+              "signoff": "待用户确认"
+            },
+            {
+              "stageId": "V3.3",
+              "backend": "NOT_RUN（V3.3 owner-scoped队列/分页账本读取、持久化WAITING准备态TestRun API/页面有契约、单测、专用PG、Bearer HTTP、Platform/Web类型检查、同run CLI核对及Playwright证据；阶段normal/rejection/recovery只创建WAITING/NOT_RUN记录，不派发Job）",
+              "web": "NOT_RUN",
+              "evidence": "[V3.3队列/账本/准备态运行切片](../../../evidence/audits/2026-09-27-v33-runner-queue-read.md)",
+              "limitations": "Research Job派发、完整预算控制与轮次汇总、Paper并行可用性、阶段断言/证据导出、V3.1/3.2前置及Ubuntu证据未完成",
+              "signoff": "人工验收未签署"
+            },
+            {
+              "stageId": "V3.4",
+              "backend": "NOT_RUN（2026-10-02本地代码门禁及21项离线备份合同测试PASS；Ubuntu/业务E2E仍NOT_RUN）",
+              "web": "NOT_RUN",
+              "evidence": "[V3.4本地代码门禁复验](../../../evidence/audits/2026-10-02-w8-v34-code-suite-rerun.md)；[离线备份合同套件](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.md)；[SHA-256](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.sha256)",
+              "limitations": "Ubuntu真实迁移/恢复、部署级备份和隔离恢复、RPO/RTO、业务工作流、全阶段E2E、5个实际交易日Paper观察未执行；不得以本地amd64容器仿真替代Ubuntu；用户验收未签署",
+              "signoff": "待用户确认"
+            }
+          ],
+          "invalidPassClaims": [],
+          "testRunEvidenceAudit": {
+            "status": "NOT_RUN",
+            "stagesChecked": 4,
+            "testRunIdsChecked": 0,
+            "unresolvedAssociations": [],
+            "results": [
+              {
+                "stageId": "V3.1",
+                "testRunIds": [],
+                "status": "PASS",
+                "results": [],
+                "failures": []
+              },
+              {
+                "stageId": "V3.2",
+                "testRunIds": [],
+                "status": "PASS",
+                "results": [],
+                "failures": []
+              },
+              {
+                "stageId": "V3.3",
+                "testRunIds": [],
+                "status": "PASS",
+                "results": [],
+                "failures": []
+              },
+              {
+                "stageId": "V3.4",
+                "testRunIds": [],
+                "status": "PASS",
+                "results": [],
+                "failures": []
+              }
+            ],
+            "scope": "Checks exact TestRun UUIDs against stage-scoped structured evidence exports and their SHA-256 manifests; PASS stages additionally require completed runs, all-PASS assertions, and a UUID-bound dated user sign-off. Legacy IDs without exported bundles remain unresolved rather than being inferred as valid."
+          },
+          "duplicateStageRows": [],
+          "duplicateAcceptanceRows": [],
+          "missingAcceptance": [],
+          "unexpectedAcceptance": [],
+          "versionSummaryIncomplete": true,
+          "uncheckedVersionGate": true,
+          "stageDocumentationAudit": {
+            "status": "PASS",
+            "stagesChecked": 4,
+            "failures": []
+          },
+          "evidenceAudit": {
+            "status": "PASS",
+            "evidenceReferences": 194,
+            "manifestsChecked": 39,
+            "manifestEntriesChecked": 52,
+            "failures": [],
+            "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+          }
+        }
+      },
+      "evidence": {
+        "exitCode": 0,
+        "output": {
+          "version": "V3",
+          "status": "PASS",
+          "markdownFilesChecked": 9,
+          "evidenceReferences": 194,
+          "manifestsChecked": 39,
+          "manifestEntriesChecked": 52,
+          "manifestResults": [
+            {
+              "manifest": "evidence/audits/2026-10-01-w9-stage-document-guard.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-artifact-expiry-lifecycle.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-03-w7-experiment-clock-injection.sha256",
+              "entriesChecked": 7,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w1-runner-host-artifact-client.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w1-v31-artifact-evidence-export.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w5-v31-offline-regression.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w5-provider-authorization-gate.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w5-rdagent-litellm-fixture-backend.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w5-v31-isolated-code-suite.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w5-docker-context-v31-regression.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w5-v31-literal-fixture-regression.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-03-w5-artifact-reconcile-clock.sha256",
+              "entriesChecked": 3,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w6-readiness-run-export.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-budget-proxy-integration.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w7-runner-queue-parity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-data-scale-1k-10k.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-100k-repeat-variance.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-single-slot-backpressure.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-cancellation-recovery.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-fault-matrix-after-cancel-smoke-fix.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-isolated-code-suite.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-runner-submit-idempotency.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-runner-retry-idempotency.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-rounds-recovery-rerun.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w7-v33-runner-capacity-sample.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-testrun-budget-summary.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w9-after-w7-budget-summary.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-test-run-budget-cap.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-runner-rounds-recovery.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-queue-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-budget-summary-pagination.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-budget-summary-capacity.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-01-w7-v33-code-rerun.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w6-readiness-testrun.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-10-02-w8-backup-offline-contract-suite.sha256",
+              "entriesChecked": 2,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w5-model-call-count-cap.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w5-provider-readiness-guard.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w5-model-credential-preflight.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            },
+            {
+              "manifest": "evidence/audits/2026-09-30-w5-runner-dependency-lock.sha256",
+              "entriesChecked": 1,
+              "failures": []
+            }
+          ],
+          "missingEvidence": [],
+          "failures": [],
+          "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+        }
+      }
+    }
+  },
+  "checks": {
+    "docsCheck": {
+      "exitCode": 0,
+      "summary": "Local Markdown links checked: 2848; failures: 0"
+    },
+    "baselineCheck": {
+      "exitCode": 0,
+      "summary": "ℹ suites 0\nℹ pass 26\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 856.037917"
+    }
+  },
+  "limitations": [
+    "All three business-version gates remain INCOMPLETE",
+    "NO_TRADE and source authorization remain unresolved",
+    "O1/O2, Ubuntu and human acceptance are outstanding"
+  ]
+}

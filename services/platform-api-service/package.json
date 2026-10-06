@@ -11,6 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
+    "dc06:project-delivery-http-smoke": "pnpm build && node scripts/market-data-project-delivery-http-smoke.mjs",
+    "test:v24-observation-persistence": "pnpm build && node scripts/test-persistence.mjs && node scripts/test-v24-observation-persistence.mjs",
     "test:integration:persistence": "pnpm build && node scripts/test-persistence.mjs && node scripts/test-v24-observation-persistence.mjs && node scripts/test-legacy-test-run-migration.mjs && node scripts/test-legacy-stage-dual-store.mjs && node scripts/test-legacy-stage-http-smoke.mjs",
     "test:legacy-migration-rehearsal": "pnpm build && node scripts/rehearse-legacy-test-run-migration.mjs",
     "v11:legacy-shadow-migration": "pnpm build && node scripts/apply-legacy-test-run-shadow-migration.mjs --apply",
@@ -20,9 +22,13 @@
     "v24:revision-web-http-smoke": "pnpm build && node scripts/v24-observation-revision-web-http-smoke.mjs",
     "v24:revision-container-smoke": "node scripts/v24-observation-revision-web-http-smoke.mjs --containerized",
     "v24:waiting-http-smoke": "pnpm --filter @stockquant/trade-execution-service build && pnpm build && node scripts/v24-waiting-http-smoke.mjs",
-    "v22:upload-web-http-smoke": "pnpm --filter @stockquant/market-data-service build && pnpm build && node scripts/v22-upload-web-http-smoke.mjs"
+    "v22:upload-web-http-smoke": "pnpm --filter @stockquant/market-data-service build && pnpm build && node scripts/v22-upload-web-http-smoke.mjs",
+    "v24:paper-http-smoke": "pnpm --filter @stockquant/decision-governance-service build && pnpm --filter @stockquant/portfolio-risk-service build && pnpm --filter @stockquant/trade-execution-service build && pnpm --filter @stockquant/market-data-service build && pnpm build && node scripts/v24-paper-http-smoke.mjs",
+    "v23:qlib-fixture-testrun-smoke": "pnpm --filter @stockquant/quant-research-service build && pnpm build && node scripts/v23-qlib-fixture-testrun-http-smoke.mjs",
+    "v23:qlib-legacy-backfill": "pnpm build && node scripts/backfill-qlib-legacy-payloads.mjs"
   },
   "dependencies": {
+    "@stockquant/artifact-content-store": "workspace:*",
     "@nestjs/common": "12.0.1",
     "@nestjs/core": "12.0.1",
     "@nestjs/platform-express": "12.0.1",

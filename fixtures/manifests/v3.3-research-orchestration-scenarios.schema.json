@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-research-orchestration-scenarios.schema.json",
+  "title": "V33ResearchOrchestrationScenarios",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "stageId", "fixtureVersion", "environment", "scenarios"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-research-orchestration-scenarios-v1" },
+    "stageId": { "const": "V3.3" },
+    "fixtureVersion": { "const": "v3.3-research-orchestration-1" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataMode", "runnerMode", "providerCalls", "marketDataCalls", "paperCalls", "brokerCalls", "liveTrading", "clock", "seed", "maxConcurrentJobs", "currency", "budgetUnit"],
+      "properties": {
+        "dataMode": { "const": "FIXTURE" },
+        "runnerMode": { "const": "ISOLATED_CONTAINER" },
+        "providerCalls": { "const": 0 },
+        "marketDataCalls": { "const": 0 },
+        "paperCalls": { "const": 0 },
+        "brokerCalls": { "const": 0 },
+        "liveTrading": { "const": false },
+        "clock": { "const": "FIXED_AT_2026-09-07T09:30:00.000Z" },
+        "seed": { "const": 20260907 },
+        "maxConcurrentJobs": { "const": 1 },
+        "currency": { "const": "USD" },
+        "budgetUnit": { "const": "integer cents" }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "oneOf": [{ "$ref": "#/$defs/normal" }, { "$ref": "#/$defs/rejection" }, { "$ref": "#/$defs/recovery" }] },
+      "contains": { "properties": { "scenarioId": { "const": "normal" } }, "required": ["scenarioId"] },
+      "minContains": 1,
+      "maxContains": 1
+    }
+  },
+  "$defs": {
+    "commonAssertions": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "normal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "description", "testRunBudgetCents", "experimentBudgetCents", "roundBudgetsCents", "expected", "assertions"],
+      "properties": {
+        "scenarioId": { "const": "normal" },
+        "description": { "type": "string", "minLength": 1 },
+        "testRunBudgetCents": { "const": 100 },
+        "experimentBudgetCents": { "const": 80 },
+        "roundBudgetsCents": { "const": [40, 40] },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["testRunStatus", "roundStatuses", "runnerJobsCreated", "roundResultArtifacts", "workflowSummaryArtifacts", "publishedArtifactsTotal", "duplicatePublications", "roundSettledCents", "testRunSettledCents", "testRunUnknownCents", "releasedReservationCents", "remainingTestRunBudgetCents"],
+          "properties": {
+            "testRunStatus": { "const": "COMPLETED" }, "roundStatuses": { "const": ["COMPLETED", "COMPLETED"] },
+            "runnerJobsCreated": { "const": 2 }, "roundResultArtifacts": { "const": 2 }, "workflowSummaryArtifacts": { "const": 1 }, "publishedArtifactsTotal": { "const": 3 }, "duplicatePublications": { "const": 0 },
+            "roundSettledCents": { "const": [23, 23] }, "testRunSettledCents": { "const": 46 }, "testRunUnknownCents": { "const": 0 }, "releasedReservationCents": { "const": 34 },
+            "remainingTestRunBudgetCents": { "const": 54 }
+          }
+        },
+        "assertions": { "$ref": "#/$defs/commonAssertions", "minItems": 5 }
+      }
+    },
+    "rejection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "description", "testRunBudgetCents", "existingSettledCents", "existingReservedCents", "requestedExperimentBudgetCents", "expected", "assertions"],
+      "properties": {
+        "scenarioId": { "const": "rejection" }, "description": { "type": "string", "minLength": 1 },
+        "testRunBudgetCents": { "const": 50 }, "existingSettledCents": { "const": 20 }, "existingReservedCents": { "const": 20 }, "requestedExperimentBudgetCents": { "const": 15 },
+        "expected": {
+          "type": "object", "additionalProperties": false,
+          "required": ["testRunStatus", "scenarioAssertionStatus", "operationResult", "rejectionCode", "experimentCreated", "runnerJobsCreated", "additionalProviderCalls", "ledgerMutation", "paperStateMutation"],
+          "properties": {
+            "testRunStatus": { "const": "COMPLETED" }, "scenarioAssertionStatus": { "const": "PASS" }, "operationResult": { "const": "REJECTED" }, "rejectionCode": { "const": "TEST_RUN_BUDGET_EXCEEDED" },
+            "experimentCreated": { "const": false }, "runnerJobsCreated": { "const": 0 }, "additionalProviderCalls": { "const": 0 },
+            "ledgerMutation": { "const": false }, "paperStateMutation": { "const": false }
+          }
+        },
+        "assertions": { "$ref": "#/$defs/commonAssertions" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioId", "description", "testRunBudgetCents", "experimentBudgetCents", "roundBudgetsCents", "faultSequence", "expected", "assertions"],
+      "properties": {
+        "scenarioId": { "const": "recovery" }, "description": { "type": "string", "minLength": 1 },
+        "testRunBudgetCents": { "const": 100 }, "experimentBudgetCents": { "const": 80 }, "roundBudgetsCents": { "const": [40, 40] },
+        "faultSequence": {
+          "type": "array",
+          "prefixItems": [
+            { "const": { "sequence": 1, "event": "ROUND_1_CHECKPOINT_COMMITTED", "checkpointSequence": 1 } },
+            { "const": { "sequence": 2, "event": "RUNNER_HOST_SIGKILL", "fence": 1 } },
+            { "const": { "sequence": 3, "event": "LEASE_EXPIRED" } },
+            { "const": { "sequence": 4, "event": "LEASE_TAKEOVER", "fence": 2 } },
+            { "const": { "sequence": 5, "event": "RESUME_FROM_CHECKPOINT", "checkpointSequence": 1 } }
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "expected": {
+          "type": "object", "additionalProperties": false,
+          "required": ["testRunStatus", "runnerJobsCreated", "checkpointResumeSequence", "currentFence", "staleFencePublishStatus", "duplicatePublications", "round1Settlements", "dataAtRisk"],
+          "properties": {
+            "testRunStatus": { "const": "COMPLETED" }, "runnerJobsCreated": { "const": 2 }, "checkpointResumeSequence": { "const": 1 },
+            "currentFence": { "const": 2 }, "staleFencePublishStatus": { "const": 409 }, "duplicatePublications": { "const": 0 },
+            "round1Settlements": { "const": 1 }, "dataAtRisk": { "const": false }
+          }
+        },
+        "assertions": { "$ref": "#/$defs/commonAssertions", "minItems": 5 }
+      }
+    }
+  }
+}

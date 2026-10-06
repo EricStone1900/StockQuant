@@ -1,0 +1,42 @@
+{
+  "auditId": "W1-V1.3-SYNTHETIC-WEB-SAME-RUN-20261006",
+  "date": "2026-10-06",
+  "status": "PASS_LIMITED_SCOPE",
+  "scope": "V1.3 synthetic Platform acceptance page, persisted TestRun, and same-run CLI check-only",
+  "command": "pnpm test:e2e:v13-isolated",
+  "exitCode": 0,
+  "completeCodeSuite": {
+    "command": "pnpm verify:stage -- --stage V1.3 --suite code",
+    "exitCode": 0,
+    "coverage": ["baseline governance/contracts/fixtures/layers", "workspace build", "typecheck", "service unit tests"]
+  },
+  "scenarios": [
+    { "scenarioId": "normal", "testRunId": "89759582-5c4d-4e55-b466-97e88dbe8c74", "webAssertions": "PASS", "sameRunCliCheckOnly": "PASS" },
+    { "scenarioId": "rejection", "testRunId": "7c25bd30-91b9-419a-8928-f89768008485", "webAssertions": "PASS", "sameRunCliCheckOnly": "PASS" },
+    { "scenarioId": "recovery", "testRunId": "75e9d9e1-f90f-476a-92c2-d4fc1c8e71e2", "webAssertions": "PASS", "sameRunCliCheckOnly": "PASS" }
+  ],
+  "additionalChecks": {
+    "webTypecheck": "PASS",
+    "isolatedHarnessNodeSyntax": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "isolation": {
+    "randomComposeProject": "sq-v13-web-2cec42f28ace39a37546",
+    "randomHostPorts": true,
+    "randomDatabasePasswords": true,
+    "resourcesRemoved": ["containers", "volume", "network"],
+    "independentCleanupCheck": "PASS"
+  },
+  "externalProviderCalls": 0,
+  "brokerCalls": 0,
+  "businessServicesActuallyCalled": [],
+  "limitations": [
+    "V13TradingEngine directly synthesizes order, fill, risk and recovery evidence.",
+    "This test does not call Decision Governance, Trade Execution, Portfolio ledger, or FakeBroker.",
+    "This is not V1.3 trading/business acceptance and does not change human sign-off or stage/version gate."
+  ],
+  "activeServicesTargeted": false,
+  "humanAcceptance": "NOT_RUN",
+  "stageStatus": "PARTIALLY_IMPLEMENTED",
+  "stageTaskReconciliation": "V1.3 section 2 implementation claims restored to unchecked because current synthetic engine does not prove cross-service business behavior; historical dated human sign-off preserved"
+}

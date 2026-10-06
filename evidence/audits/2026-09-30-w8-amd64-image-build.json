@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "w8-amd64-image-build-v1",
+  "builtAt": "2026-09-30",
+  "host": "Mac M1 / Docker Desktop (linux/amd64 emulation)",
+  "command": "DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -p stockquant-w8-20260930 --env-file .env.example -f infra/compose/docker-compose.yml build; DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose --profile web -p stockquant-w8-20260930 --env-file .env.example -f infra/compose/docker-compose.yml build web",
+  "status": "PASS_BUILD_BOUNDARY_AND_SCRAM_BOOTSTRAP_SMOKE",
+  "servicesStarted": false,
+  "activeServicesTouched": false,
+  "quoteSourceRequests": 0,
+  "paperOrders": 0,
+  "images": [
+    {
+      "service": "platform-api-service",
+      "tag": "stockquant-w8-20260930-platform-api-service:latest",
+      "imageId": "sha256:cf8a472ab4d12870787f5695ef389435cec47eb80643df0ebb51df517d7ebef4",
+      "platform": "linux/amd64",
+      "sizeBytes": 577011376
+    },
+    {
+      "service": "market-data-service",
+      "tag": "stockquant-w8-20260930-market-data-service:latest",
+      "imageId": "sha256:790f421374326966b63920b126e49d23e36d25339dac667dacb29ca199e0db9a",
+      "platform": "linux/amd64",
+      "sizeBytes": 1016037077
+    },
+    {
+      "service": "portfolio-risk-service",
+      "tag": "stockquant-w8-20260930-portfolio-risk-service:latest",
+      "imageId": "sha256:5c1c209e2a360198e0a85827338130d1c059752f5ef2f0dbcc20b77235a9b72a",
+      "platform": "linux/amd64",
+      "sizeBytes": 506121374
+    },
+    {
+      "service": "trade-execution-service",
+      "tag": "stockquant-w8-20260930-trade-execution-service:latest",
+      "imageId": "sha256:446b6af85e1a945860add5c20932b611af3de8cb319eb6e75d83e47cda7e9d65",
+      "platform": "linux/amd64",
+      "sizeBytes": 253803827
+    },
+    {
+      "service": "decision-governance-service",
+      "tag": "stockquant-w8-20260930-decision-governance-service:latest",
+      "imageId": "sha256:03dcf7b7ef7e52232ded0d6f7e391180f574e9a916a9eebe9f75d0dfbff879a7",
+      "platform": "linux/amd64",
+      "sizeBytes": 253765391
+    },
+    {
+      "service": "historical-replay-worker",
+      "tag": "stockquant-w8-20260930-historical-replay-worker:latest",
+      "imageId": "sha256:c85c0315857937128a3603755e5a83259049baf735234ac0f8cf094ef9128626",
+      "platform": "linux/amd64",
+      "sizeBytes": 253773919
+    },
+    {
+      "service": "quant-research-service",
+      "tag": "stockquant-w8-20260930-quant-research-service:latest",
+      "imageId": "sha256:4a30092129f25c95aefc108a260e9b5e550ad19147cc2791250780a09ef1958a",
+      "platform": "linux/amd64",
+      "sizeBytes": 535901088
+    },
+    {
+      "service": "research-automation-service",
+      "tag": "stockquant-w8-20260930-research-automation-service:latest",
+      "imageId": "sha256:46efe42bb6e4e854bb6a32e0b768af7f685391d3d572c12b17e2819c5bc0320f",
+      "platform": "linux/amd64",
+      "sizeBytes": 188731936
+    },
+    {
+      "service": "qlib-worker",
+      "tag": "stockquant-w8-20260930-qlib-worker:latest",
+      "imageId": "sha256:0871cdf5b225a965161b88dd5ab3a017214fbf101a36a58c90752bf730b78485",
+      "platform": "linux/amd64",
+      "sizeBytes": 1393222451
+    },
+    {
+      "service": "web",
+      "tag": "stockquant-w8-20260930-web:latest",
+      "imageId": "sha256:46cdc0bc3e8e9f2202f6e3750ea717512178166dace214241599ebebed920e92",
+      "platform": "linux/amd64",
+      "sizeBytes": 506348240
+    }
+  ],
+  "limits": [
+    "This is Mac M1 Docker Desktop emulation, not an Ubuntu-host build or runtime acceptance.",
+    "This records local Docker image config IDs; registry manifest digests and signed release provenance are not created.",
+    "Postgres/NATS/Temporal base images are external runtime images and are not included in this application build matrix.",
+    "No target Ubuntu host, production volume migration, paired live backup, RPO/RTO, service-token rotation, or five-day observation was tested.",
+    "Market Data named-volume ownership on existing active volumes requires a backed-up maintenance migration; only a disposable empty volume was write-tested.",
+    "The Runner image was previously pinned and smoke-tested but was not rebuilt as part of the ten-image W8 matrix; real RD-Agent/provider/fee acceptance remains outstanding.",
+    "The minimal Qlib Worker image lacks the git executable; MLflow run logs a warning and does not attach Git worktree metadata. This Fixture fit still records the pinned QLIB_SOURCE_COMMIT environment and returned model/prediction hashes."
+  ],
+  "runtimeBoundarySmoke": {
+    "command": "pnpm verify:w8:container-boundary",
+    "status": "PASS",
+    "checks": 10,
+    "target": "linux/amd64 (Mac M1 emulation)",
+    "network": "none",
+    "readOnlyRoot": true,
+    "capabilitiesDropped": "ALL"
+  },
+  "qlibFixtureFit": {
+    "status": "PASS",
+    "sourceMode": "FIXTURE",
+    "container": "stockquant-w8-20260930-qlib-worker:latest",
+    "uid": 10001,
+    "network": "none",
+    "rootFilesystem": "read-only",
+    "qlibVersion": "0.9.6",
+    "lightgbmVersion": "4.7.0",
+    "training": "PASS",
+    "validation": "NOT_RUN",
+    "testPredictionCount": 5,
+    "testPredictionsSha256": "99ee7dee0f9d3265dea131d15683fcfd22e2ecdc733b22c681b24d2fcefda6bc",
+    "modelSha256": "1da2a7d7c050b415aadf5ed207b03932bc47a65377b93446f61868318617b6c0",
+    "profitabilityClaim": "NOT_MADE",
+    "warnings": [
+      "MLflow emitted benign warnings because git is not installed in the minimal Qlib worker image; the configured QLIB_SOURCE_COMMIT remains pinned, but this smoke does not verify MLflow Git metadata."
+    ]
+  },
+  "composeHardening": {
+    "services": [
+      "market-data-service",
+      "quant-research-service",
+      "qlib-worker"
+    ],
+    "readOnlyRootFilesystem": true,
+    "dropCapabilities": "ALL",
+    "noNewPrivileges": true,
+    "writableTmpfs": {
+      "market-data-service": "/tmp 256MiB",
+      "qlib-worker": "/tmp 512MiB"
+    },
+    "composeConfigParsed": true
+  },
+  "runnerImage": {
+    "tag": "stockquant-v31-runner:rd-agent-v0.8.0-qlib-3e72593",
+    "imageId": "sha256:8cd6db4ae88cab7a1fb485613a67fb15a4d4e08460c28deb81510c1fa1861dfb",
+    "source": "previously pinned local image; not rebuilt in this W8 matrix",
+    "smoke": {
+      "command": "node scripts/v31-runner-host-smoke.mjs",
+      "status": "PASS",
+      "cases": 6,
+      "casesPassed": [
+        "normal-output-copy",
+        "runner-timeout",
+        "path-rejection",
+        "oom",
+        "read-only-root-input-and-isolated-writable-output",
+        "host-timeout-daemon-cleanup"
+      ],
+      "platform": "linux/amd64 on macOS arm64 emulation",
+      "network": "none",
+      "modelProviderCalls": 0,
+      "liveSourceCalls": 0
+    }
+  },
+  "baseImages": {
+    "nodeAlpine": "node@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e",
+    "nodeBookwormSlim": "node@sha256:5ae787590295f944e7dc200bf54861bac09bf21b5fdb4c9b97aee7781b6d95a2",
+    "python311Slim": "python@sha256:a36c24f9cbdf4fd0f52d67f0823eeac19c2028c637cecc392d97f980d4fec56b",
+    "qlibWorkerPython": "python@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e",
+    "postgres": "postgres@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7"
+  },
+  "databaseAuthentication": {
+    "freshDatabase": {
+      "authMethod": "scram-sha-256",
+      "initdbArgs": "--auth-host=scram-sha-256",
+      "independentApplicationRoles": 9,
+      "correctPasswordsAccepted": 9,
+      "passwordlessRejected": 9,
+      "wrongPasswordRejected": 9,
+      "smoke": "pnpm verify:w8:postgres-auth",
+      "status": "PASS",
+      "network": "none",
+      "hostPortsPublished": false,
+      "temporaryCredentialsRemoved": true
+    },
+    "existingVolumes": {
+      "status": "BLOCKER",
+      "reason": "Compose initialization does not rewrite existing pg_hba.conf or role passwords; explicit backed-up maintenance migration/rollback and restore evidence remain required."
+    },
+    "activeServicesChanged": false
+  },
+  "runtimeInventory": {
+    "observedAt": "2026-09-30T07:45:51Z",
+    "postgres": {
+      "container": "stockquant-v12-postgres-1",
+      "imageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+      "volume": "stockquant-v12_postgres-v11",
+      "health": "healthy",
+      "activeHostAuth": "trust",
+      "applicationRolesWithUnsetPasswords": 9
+    },
+    "platform": {
+      "container": "stockquant-v12-platform-api-service-1",
+      "imageId": "sha256:2d3b6d1c18fd2b190adbad5491ca00e8c09fdc0a87f682f5e96857ef3ad05709",
+      "state": "running",
+      "health": "unhealthy",
+      "failingStreak": 697,
+      "readyHttpStatus": 503,
+      "platformBearerConfigured": false,
+      "databaseSelectOne": "PASS",
+      "requiredDependenciesReady": 3,
+      "sourceOrOrderActions": 0,
+      "changed": false
+    },
+    "migrationRunbook": "docs/operations/postgres-scram-migration.md",
+    "migrationStatus": "NOT_EXECUTED"
+  },
+  "stackUpCredentialPreflight": {
+    "file": "scripts/postgres-secret-preflight.mjs",
+    "command": "pnpm test:ops",
+    "status": "PASS",
+    "tests": 4,
+    "sharedOpsTests": 139,
+    "requiredCredentials": 10,
+    "requiresDistinct64CharacterHex": true,
+    "requiresIgnoredEnvFilePermissions": "0600-or-more-restrictive",
+    "printsCredentialValues": false,
+    "stackUpInvoked": false
+  },
+  "localSecretsPreparation": {
+    "observedAt": "2026-09-30T08:01:01Z",
+    "file": ".env.local",
+    "gitIgnored": true,
+    "fileMode": "0600",
+    "postgresPasswordsGenerated": 10,
+    "distinctPasswords": 10,
+    "composeDsnBindingsVerified": 8,
+    "valuesLogged": false,
+    "appliedToActiveDatabase": false,
+    "activeServicesChanged": false
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "stockquant.w8.isolated-paired-backup-restore.v1",
+  "status": "PASS",
+  "checkedAt": "2026-10-02T13:16:06.118Z",
+  "command": "pnpm --dir services/research-automation-service backup:paired-smoke",
+  "exitCode": 0,
+  "backupId": "cluster-paired-2026-10-02T13-16-02-848Z-2669b960",
+  "isolatedComposeProject": "sq-backup-smoke-112b627636a2",
+  "temporaryArtifactVolume": "sq-backup-smoke-artifacts-112b627636a243d5ab85239e4660c0f4",
+  "sourceArtifactVolume": "isolated random volume; active stockquant-v12_research-artifacts-v1 was not mounted",
+  "databaseCount": 3,
+  "roleCount": 1,
+  "manifestFiles": 4,
+  "restoreValidation": {
+    "status": "PASS",
+    "method": "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256",
+    "publishedArtifactRefs": 5,
+    "restoredDatabases": ["platform_api", "postgres", "research_automation"],
+    "restoredRoles": ["postgres"]
+  },
+  "fixtureArtifactSha256": [
+    "edafdfd64a9bf8cf0ad674b701830109bf787111b60efe545c5ca18426682103",
+    "06331f280818cbe0283c1ee9f4cf737c172b23e2b1d702c0a2b82611bff1ad77",
+    "6dbf7ec464639f791a24114a220853ca945170d143b07e9b0e6dc08e2fee050d",
+    "6557c3e8a1a53643d1afe7f6cb18c4f4f809f7eae9a1d4fa8689d0b887f00049",
+    "a0770a08714c8d19eaaf58198411ea49ee708253d24642211a3bce8d8bf59ada"
+  ],
+  "archiveSha256": null,
+  "archiveHashNote": "The smoke validates the produced backup's per-file hashes during restore but does not emit or retain the temporary archive SHA-256 after cleanup.",
+  "network": "postgres container network_mode none; helper containers network none; no host ports",
+  "cleanup": {
+    "isolatedContainersAndVolumesRemoved": true,
+    "activeContainersRestartedOrModified": false,
+    "activeArtifactVolumeWritten": false,
+    "externalNetworkAccess": false
+  },
+  "limitations": [
+    "Synthetic isolated content only; not the production database or named Artifact volume.",
+    "Does not verify the Ubuntu systemd timer or backup procedure on the target host.",
+    "Does not establish production quiescence, RPO/RTO, actual-volume restore, or five-day Ubuntu Paper observation."
+  ]
+}

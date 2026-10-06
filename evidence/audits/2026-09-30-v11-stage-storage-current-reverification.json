@@ -1,0 +1,56 @@
+{
+  "date": "2026-09-30",
+  "scope": "isolated V1.1 unified stage-mode storage and Web/CLI recovery integration only",
+  "initialFailure": {
+    "command": "pnpm test:integration:v11-stage-storage",
+    "exitCode": 1,
+    "cause": "test Compose mounted postgres-init.sql, which requires nine role password variables; isolated postgres exited before healthcheck",
+    "disposition": "failure preserved; no active project changed"
+  },
+  "fix": {
+    "files": [
+      "scripts/test-v11-stage-storage-isolated.mjs",
+      "infra/compose/docker-compose.v11-integration.yml"
+    ],
+    "behavior": "generate nine random 32-byte role passwords per unique isolated run, pass only to disposable PostgreSQL, clean exact project images in addition to containers/volumes/networks and assert no leftovers"
+  },
+  "successfulRuns": [
+    {
+      "isolatedProject": "sq-v11-stage-1057b98d68fdaa9fa6d7",
+      "exitCode": 0,
+      "browser": "3/3",
+      "testRunIds": [
+        "dd1d0390-f702-43b0-8fea-3dd9b7909205",
+        "b8abaf4d-e1f0-4b9e-9d47-50c84b0e3435",
+        "dba991c9-ee39-4edd-9880-1f9b05c85211"
+      ],
+      "cleanup": "containers/volumes/networks removed; two exact build image refs subsequently removed"
+    },
+    {
+      "isolatedProject": "sq-v11-stage-016bd4e4b840102e4092",
+      "exitCode": 0,
+      "browser": "3/3",
+      "testRunIds": [
+        "ab1ff495-791f-44ea-81c7-ce6b4d971586",
+        "04aac2e5-3e95-45e3-a571-8c9dc00c6ccb",
+        "c27f5cdd-76e8-4e7c-96be-eec1909623fb"
+      ],
+      "cleanup": "script removed and checked containers/volumes/networks and both exact per-project app image tags"
+    }
+  ],
+  "assertions": [
+    "stage-mode PostgreSQL persistence",
+    "normal/rejection/recovery each creates its own durable TestRun",
+    "each Web run is checked by CLI --check-only using the same testRunId",
+    "recovery restarts only the isolated Portfolio container after verifying exact container ID",
+    "Chromium 3/3 per run"
+  ],
+  "sideEffects": {
+    "activeServicesTouched": false,
+    "activeVolumesTouched": false,
+    "activeComposeRestarted": false,
+    "realBrokerOrMarketData": false,
+    "realOrders": false
+  },
+  "remaining": "V1.1 active API deployment/cutover/rollback and new-scope user acceptance remain NOT_RUN; this is isolated engineering evidence only."
+}

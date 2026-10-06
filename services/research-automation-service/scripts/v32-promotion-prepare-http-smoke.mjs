@@ -73,7 +73,7 @@ try {
   });
   await new Promise((resolveListen, reject) => mockServer.once("error", reject).listen(mockPort, "127.0.0.1", resolveListen));
   artifactRoot = await mkdtemp(`${tmpdir()}/stockquant-promotion-prepare-artifacts-`);
-  child = spawn(process.execPath, [resolve(serviceDir, "dist/bootstrap/main.js")], { cwd: serviceDir, env: { PATH: process.env.PATH ?? "/usr/bin:/bin", NODE_ENV: "test", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_RESEARCH_ARTIFACT_ROOT: artifactRoot, STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: platformToken, STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST: runnerToken, STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: quantValidationToken, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: researchToken, STOCKQUANT_PLATFORM_API_URL: `http://127.0.0.1:${mockPort}`, STOCKQUANT_QUANT_RESEARCH_URL: `http://127.0.0.1:${mockPort}` }, stdio: ["ignore", "pipe", "pipe"] });
+  child = spawn(process.execPath, [resolve(serviceDir, "dist/bootstrap/main.js")], { cwd: serviceDir, env: { PATH: process.env.PATH ?? "/usr/bin:/bin", NODE_ENV: "test", STOCKQUANT_MODEL_GATEWAY_TEST_FIXTURE: "true", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_RESEARCH_ARTIFACT_ROOT: artifactRoot, STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: platformToken, STOCKQUANT_SERVICE_TOKEN_RUNNER_HOST: runnerToken, STOCKQUANT_SERVICE_TOKEN_QUANT_VALIDATION_WORKER: quantValidationToken, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: researchToken, STOCKQUANT_PLATFORM_API_URL: `http://127.0.0.1:${mockPort}`, STOCKQUANT_QUANT_RESEARCH_URL: `http://127.0.0.1:${mockPort}` }, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => { if (output.length < 4000) output += chunk.toString().slice(0, 4000 - output.length); });
   const base = `http://127.0.0.1:${port}`;
@@ -85,11 +85,11 @@ try {
   }
   assert.equal(ready, true, `research service did not become ready: ${output}`);
 
-  const experimentResponse = await jsonRequest(`${base}/v1/experiments`, { fixtureId: "v32-local-smoke-fixture", modelProfile: "fixture", rounds: 1, budgetCurrency: "USD", budgetCents: 100, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: `prepare-${randomUUID()}` }, platformToken, "platform-api-service");
+  const testRunId = randomUUID();
+  const experimentResponse = await jsonRequest(`${base}/v1/experiments`, { testRunId, fixtureId: "v32-local-smoke-fixture", modelProfile: "fixture", rounds: 1, budgetCurrency: "USD", budgetCents: 100, environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey: `prepare-${randomUUID()}` }, platformToken, "platform-api-service");
   assert.equal(experimentResponse.status, 202);
   const experiment = await experimentResponse.json();
   const experimentId = experiment.experimentId;
-  const testRunId = randomUUID();
   const jobId = `${testRunId}:${experimentId}`;
   const inputNamespace = `research/${testRunId}/${experimentId}/inputs`;
   const outputNamespace = `research/${testRunId}/${experimentId}/outputs`;
@@ -110,7 +110,7 @@ try {
 
   const job = { schemaVersion: "v3.1-runner-job-v1", testRunId, experimentId, imageDigest: `sha256:${"a".repeat(64)}`, inputArtifact: `${inputNamespace}/${inputHash}`, outputNamespace, resources: { cpuMilli: 500, memoryMiB: 512, timeoutSeconds: 60, pidsLimit: 32 }, networkPolicy: { mode: "DENY", allowlist: [] } };
   const submitJob = await jsonRequest(`${base}/v1/runner/jobs`, job, platformToken, "platform-api-service");
-  assert.equal(submitJob.status, 202);
+  assert.equal(submitJob.status, 202, await submitJob.text());
   const claimResponse = await jsonRequest(`${base}/v1/runner/jobs/claim`, { workerId: "promotion-smoke-runner", testRunId }, runnerToken, "runner-host");
   assert.equal(claimResponse.status, 200);
   const claim = await claimResponse.json();
@@ -138,10 +138,12 @@ try {
   const preparedUrl = `${base}/v1/promotions/prepare`;
   assert.equal((await jsonRequest(preparedUrl, { testRunId, experimentId }, runnerToken, "runner-host")).status, 403);
   assert.equal((await jsonRequest(preparedUrl, { testRunId }, platformToken, "platform-api-service")).status, 422);
+  assert.equal((await jsonRequest(preparedUrl, { testRunId, experimentId, extra: true }, platformToken, "platform-api-service")).status, 422);
+  assert.equal((await jsonRequest(preparedUrl, { testRunId: "not-a-uuid", experimentId }, platformToken, "platform-api-service")).status, 422);
   const firstResponse = await jsonRequest(preparedUrl, { testRunId, experimentId }, platformToken, "platform-api-service");
   const secondResponse = await jsonRequest(preparedUrl, { testRunId, experimentId }, platformToken, "platform-api-service");
-  assert.equal(firstResponse.status, 200);
-  assert.equal(secondResponse.status, 200);
+  assert.equal(firstResponse.status, 200, JSON.stringify(await firstResponse.clone().json()));
+  assert.equal(secondResponse.status, 200, JSON.stringify(await secondResponse.clone().json()));
   const first = await firstResponse.json();
   const second = await secondResponse.json();
   assert.deepEqual(first, second);

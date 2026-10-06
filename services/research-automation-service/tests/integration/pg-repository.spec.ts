@@ -11,7 +11,7 @@ const request = { testRunId: randomUUID(), fixtureId: "v3.1-research-small-sampl
 run("PostgreSQL experiment repository", () => {
   const pool = new Pool({ connectionString });
   const repository = new PgExperimentRepository(pool);
-  const experiment = createExperiment(validateRequest(request));
+  const experiment = createExperiment(validateRequest(request), new Date("2026-10-03T00:00:00.000Z"));
 
   beforeAll(async () => repository.initialize());
   afterAll(async () => {

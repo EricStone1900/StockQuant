@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "stockquant-audit-v1",
+  "date": "2026-10-02",
+  "workPackage": "W7",
+  "stage": "V3.3",
+  "change": "durable runner job round identity binding",
+  "status": "CODE_SUITE_PASS_LIMITED",
+  "implementation": {
+    "contractField": "roundIndex",
+    "range": [1, 3],
+    "multiRoundMissingRound": "REJECTED_422",
+    "unallocatedRound": "REJECTED_422",
+    "singleRoundLegacyOmission": "COMPATIBLE_AS_ROUND_1",
+    "retryPreservesRound": true,
+    "postgresJsonbRoundTrip": true
+  },
+  "verification": {
+    "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+    "exitCode": 0,
+    "researchAutomationUnitTests": "201/201",
+    "researchAutomationPostgresTests": "27/27",
+    "platformUnitTests": "162/162",
+    "platformPostgresTests": "5/5",
+    "webPlaywright": "3/3",
+    "contractSchemas": 151,
+    "providerCalls": 0,
+    "marketDataCalls": 0,
+    "paperCalls": 0
+  },
+  "isolatedDispatchSmoke": {
+    "testRunId": "48328bd8-93d5-4eea-8a0b-2380f5cffde5",
+    "experimentId": "949e09ac-53ad-45f7-908f-9fce69497c4e",
+    "missingRoundStatus": 422,
+    "unallocatedRoundStatus": 422,
+    "acceptedRoundIndex": 2,
+    "acceptedStatus": 202,
+    "execution": "NOT_STARTED",
+    "externalCalls": 0
+  },
+  "remaining": {
+    "formalBusinessWorkflow": "NOT_IMPLEMENTED",
+    "perRoundDispatchAndAccounting": "NOT_PROVEN",
+    "checkpointResume": "NOT_IMPLEMENTED",
+    "paperContinuity": "NOT_CHECKED",
+    "humanAcceptance": "NOT_RUN",
+    "v33Acceptance": "NOT_RUN"
+  }
+}

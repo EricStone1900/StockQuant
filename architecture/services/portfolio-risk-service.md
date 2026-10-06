@@ -20,7 +20,7 @@ domain：Money/Quantity、账户/持仓Lot、结算/风控/占用；application�
 
 ## 3. 数据与一致性
 
-逻辑持久化：accounts/portfolios、ledger_entries、position_lots、cash_settlements、risk_policy_versions/evaluations、resource_reservations、portfolio_snapshots、inbox/outbox。
+逻辑持久化：accounts/portfolios、ledger_entries、position_lots、cash_settlements、risk_policy_versions/evaluations、resource_reservations、portfolio_snapshots、inbox/outbox。成交更正必须保留原始事实并追加版本化差额LedgerEntry；不能覆写既有流水或通过改写Fill消除差异。
 
 事务/幂等：初始化键唯一；Fill来源唯一约束；账户/币种/证券资源在事务内锁定，多个策略共享账户不能双重占用；Inbox与入账及快照版本推进同事务。
 
@@ -33,6 +33,7 @@ domain：Money/Quantity、账户/持仓Lot、结算/风控/占用；application�
 | GET /api/v1/accounts/{id}/snapshot；GET /api/v1/portfolios/{id}/ledger | 返回原币、可用/冻结/未结算、可卖量及ledgerVersion。 |
 | POST /internal/v1/risk-evaluations | 校验全Leg及中间路径，绑定策略/证据/账户版本。 |
 | POST /internal/v1/resource-reservations | 按最新事实预留，输入预计费用/数量及幂等键；释放须有权威执行证据。 |
+| POST /internal/v1/accounts/{accountId}/fills/{externalFillId}/fee-corrections | 仅执行服务可用；按连续revision、previousFee及证据引用校验，以事务追加FEE_CORRECTION现金差额并更新BUY预留捕获额。 |
 
 读取数据规则/价格/FX/公司行动；消费执行归一化Fill和模拟券商快照；向治理提供风险/占用，向执行提供最新资源事实。
 
@@ -74,6 +75,8 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 服务身份补充（2026-09-25）：平台API、FakeBroker执行服务和历史回放Worker现使用各自独立Bearer Token；portfolio服务以恒定时间比较凭据并按调用方/HTTP方法/路径做最小授权，`service-id`只作身份选择器。缺失/无效token分别拒绝为503/401，未授权route为403；读账户仍强制owner scope。临时portfolio服务在`portfolio_risk_test`上通过HTTP smoke，覆盖有效平台初始化/查询、缺失/错token、跨route和跨owner拒绝；临时账户精确清理。Compose把对应引用注入收件服务/发件服务，静态配置检查通过；活动portfolio及其调用容器未重建。资源预留API和BUY/SELL原子Fill能力现已实现；Mandate readiness、risk evaluation和Paper执行调用仍未接线/启用，故P5.5继续未完成。
 
 原子Fill补充（2026-09-25）：`ReservedFillCommand`现由规范Schema/类型/OpenAPI描述。PAPER Fill必须绑定账户范围内的资源预留；账户、预留、Fill、现金/持仓和Ledger在同一事务更新，重复Fill做语义核对并幂等回放。部分成交仅扣减已使用的现金/数量，剩余HELD/UNKNOWN仍参与可用资源计算；SELL入账扣持仓并增加净现金。专用`portfolio_risk_test`覆盖BUY/SELL及HTTP实际路由。该能力未接FakeBroker Outbox，Mandate/报价/风险/订单前置仍未实现，不能视作完整Paper交易链；详见[原子Fill审计](../../evidence/audits/2026-09-25-p5-5-fill-reservation-atomicity.md)。
+
+费用更正补充（2026-10-02）：新增版本化`FillFeeCorrectionCommand`、执行服务Bearer专属Portfolio路由和`fill_fee_corrections`历史表。原Fill费用保存在`original_fee`且重放仍按原始语义幂等；更正按Fill行锁检查revision、previousFee和精确证据引用，原子更新当前费用、账号现金、BUY Reservation captured现金，并追加`FEE_CORRECTION`差额账本行。相同版本/载荷幂等，改写同版本或跳版拒绝。`portfolio_risk_test`验证费用从1→2→1、现金差额、预留捕获额和原Fill重放，HTTP smoke验证错误服务403及正确执行服务调用。Trade→Portfolio持久费用更正Outbox尚未接线，本记录只证明Portfolio接收端，V2.4端到端场景仍未完成。
 
 ## 9. S0冻结与变更检查
 

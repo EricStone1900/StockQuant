@@ -26,13 +26,13 @@ async function request(path, init = {}) {
 
 function runV34Preflight() {
   if (value("--suite") === "code") {
-    const commands = [["pnpm", ["baseline:check"]], ["pnpm", ["build"]], ["pnpm", ["lint"]], ["pnpm", ["typecheck"]], ["pnpm", ["test"]], [process.execPath, ["--test", "scripts/verify-v34-preflight.test.mjs"]]];
+    const commands = [["pnpm", ["baseline:check"]], ["pnpm", ["build"]], ["pnpm", ["lint"]], ["pnpm", ["typecheck"]], ["pnpm", ["test"]], [process.execPath, ["--test", "scripts/verify-v34-preflight.test.mjs"]], [process.execPath, ["--test", "scripts/w8-ubuntu-host-preflight.test.mjs"]]];
     for (const [command, commandArgs] of commands) {
       console.log(`\n[V3.4 local code preflight] ${command} ${commandArgs.join(" ")}`);
       const code = runCommand(command, commandArgs);
       if (code !== 0) process.exit(code);
     }
-    console.log(JSON.stringify({ stageId: "V3.4", suite: "code", status: "PASS", scope: "local-repository-build-lint-typecheck-tests-and-contract-baseline", v34BusinessWorkflow: "NOT_IMPLEMENTED", ubuntuValidation: "NOT_RUN", fullStageE2E: "NOT_IMPLEMENTED", paperObservation: "NOT_RUN", humanAcceptance: "NOT_RUN" }, null, 2));
+    console.log(JSON.stringify({ stageId: "V3.4", suite: "code", status: "PASS", scope: "local-repository-build-lint-typecheck-tests-and-contract-baseline", ubuntuHostPreflightRules: "UNIT_TESTED", ubuntuHostValidation: "NOT_RUN", v34BusinessWorkflow: "NOT_IMPLEMENTED", ubuntuValidation: "NOT_RUN", fullStageE2E: "NOT_IMPLEMENTED", paperObservation: "NOT_RUN", humanAcceptance: "NOT_RUN" }, null, 2));
     return;
   }
   const acceptedScenarios = ["normal", "rejection", "recovery"];
@@ -111,9 +111,9 @@ async function runV2Stage() {
     console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
     process.exit(runExitCode(run));
   }
-  const allowedScenarios = stage === "V2.2" ? ["normal", "rejection", "recovery", "uploaded-csv"] : ["normal", "rejection", "recovery"];
+  const allowedScenarios = stage === "V2.2" ? ["normal", "rejection", "recovery", "uploaded-csv"] : stage === "V2.4" ? ["normal", "rejection", "recovery", "external-reconciliation"] : ["normal", "rejection", "recovery"];
   if (!allowedScenarios.includes(scenario)) {
-    console.error(stage === "V2.2" ? "specify --scenario normal|rejection|recovery|uploaded-csv [--upload-id UUID], --suite code, or --run RUN_ID --check-only" : "specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
+    console.error(stage === "V2.2" ? "specify --scenario normal|rejection|recovery|uploaded-csv [--upload-id UUID], --suite code, or --run RUN_ID --check-only" : stage === "V2.4" ? "specify --scenario normal|rejection|recovery|external-reconciliation, --suite code, or --run RUN_ID --check-only" : "specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
     process.exit(2);
   }
   if (scenario === "uploaded-csv" && (!has("--upload-id") || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value("--upload-id") ?? ""))) { console.error("uploaded-csv requires --upload-id UUID"); process.exit(2); }
@@ -130,10 +130,16 @@ async function runV31Stage() {
   const route = "/api/v1/acceptance/v3/v3.1/runs";
   if (value("--suite") === "code") {
     for (const [command, commandArgs, commandEnv] of [
+      [process.execPath, ["--test", "scripts/evidence-export.test.mjs"]],
+      [process.execPath, ["scripts/evidence-export-http-smoke.mjs"]],
       ["pnpm", ["contracts:check"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "lint"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "test"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "test:integration"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:queue-capacity-probe"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "model-gateway:fixture-http-smoke"]],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "budget:settlement-production-http-smoke"]],
+      ["pnpm", ["v31:litellm-model-gateway-internal-smoke"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "test"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "v31:artifact-owner-scope-http-smoke"], {
@@ -162,7 +168,7 @@ async function runV31Stage() {
   process.exit(runExitCode(run));
 }
 
-function runV32PreparationStage() {
+async function runV32PreparationStage() {
   if (value("--suite") === "code") {
     const commands = [
       ["pnpm", ["baseline:check"]],
@@ -170,6 +176,7 @@ function runV32PreparationStage() {
       [process.execPath, ["scripts/evidence-export-http-smoke.mjs"]],
       [process.execPath, ["scripts/v32-preparation-check.mjs"]],
       [process.execPath, ["--test", "scripts/v32-stage-preparation.test.mjs"]],
+      [process.execPath, ["--test", "scripts/v32-readiness-cli.test.mjs"]],
       ["pnpm", ["--filter", "@stockquant/quant-research-service", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/quant-research-service", "test"]],
       ["pnpm", ["--filter", "@stockquant/quant-research-service", "v32:fixture-recompute"]],
@@ -181,27 +188,34 @@ function runV32PreparationStage() {
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "v32:promotion-prepare-http-smoke"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "build"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "test"]],
+      ["pnpm", ["--filter", "@stockquant/platform-api-service", "test:integration"], { PLATFORM_API_TEST_DATABASE_URL: process.env.PLATFORM_API_TEST_DATABASE_URL ?? "postgresql://platform_api_test@127.0.0.1:5433/platform_api_test" }],
+      ["pnpm", ["verify:w8:v32-readiness"]],
       ["pnpm", ["--filter", "@stockquant/web", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/web", "build"]],
       ["pnpm", ["--filter", "@stockquant/web", "test"]]
     ];
-    for (const [command, commandArgs] of commands) {
+    for (const [command, commandArgs, commandEnv] of commands) {
       console.log(`\n[V3.2 code] ${command} ${commandArgs.join(" ")}`);
-      const exitCode = runCommand(command, commandArgs);
+      const exitCode = runCommand(command, commandArgs, commandEnv);
       if (exitCode !== 0) process.exit(exitCode);
     }
-    console.log(JSON.stringify({ stageId: "V3.2", suite: "code", status: "PASS", scope: "contracts-fixtures-independent-synthetic-recomputation-persisted-evidence-guarded-submit-exact-version-decision-disabled-registry-governance-exact-mandate-binding-owner-scoped-preparation-evidence-snapshot-and-web-build", businessValidation: "NOT_RUN", activeRegistryMutation: "NOT_PERFORMED", isolatedSyntheticRegistryMutation: "PERFORMED_IN_DISPOSABLE_TEST_DATABASE", humanAcceptance: "NOT_RUN" }, null, 2));
+    console.log(JSON.stringify({ stageId: "V3.2", suite: "code", status: "PASS", scope: "contracts-fixtures-independent-synthetic-recomputation-persisted-evidence-guarded-submit-exact-version-decision-disabled-registry-governance-exact-mandate-binding-owner-scoped-readiness-TestRun-metadata-and-preparation-evidence-snapshot", businessValidation: "NOT_RUN", activeRegistryMutation: "NOT_PERFORMED", isolatedSyntheticRegistryMutation: "PERFORMED_IN_DISPOSABLE_TEST_DATABASE", humanAcceptance: "NOT_RUN" }, null, 2));
     return;
   }
   if (runId && has("--check-only")) {
-    console.error(JSON.stringify({ stageId: "V3.2", status: "NOT_RUN", reason: "V3.2 TestRun business API is not implemented; no run was queried or mutated" }));
-    process.exit(2);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
+    const run = await request(`/api/v1/acceptance/v3/v3.2/runs/${encodeURIComponent(runId)}`);
+    console.log(JSON.stringify({ checkOnly: true, stageId: "V3.2", ...run }, null, 2));
+    process.exit(runExitCode(run));
   }
   if (["normal", "rejection", "recovery"].includes(scenario)) {
-    console.log(JSON.stringify({ stageId: "V3.2", scenarioId: scenario, status: "WAITING", testRunId: null, businessValidation: "NOT_RUN", blockers: ["authoritative V3.1 prerequisite acceptance", "eligible persisted non-Fixture candidate execution and recomputation from bound artifacts", "governance and Paper consumers must enforce the approved version fingerprint", "V3.2 TestRun scenario workflow and evidence export"] }, null, 2));
+    const created = await request("/api/v1/acceptance/v3/v3.2/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: Number(value("--seed") ?? 20260907), ...(value("--source-v31-run") ? { sourceV31TestRunId: value("--source-v31-run") } : {}) }) });
+    if (typeof created.testRunId !== "string") throw new Error("V3.2 readiness run creation returned no testRunId");
+    const run = await request(`/api/v1/acceptance/v3/v3.2/runs/${encodeURIComponent(created.testRunId)}`);
+    console.log(JSON.stringify(run, null, 2));
     process.exit(2);
   }
-  console.error("V3.2 preparation supports --suite code; business scenarios remain WAITING until V3.1 is accepted, persisted candidate code is independently recomputed, downstream Mandate/Paper enforces the exact version, and the TestRun workflow is implemented");
+  console.error("V3.2 preparation supports --suite code or owner-scoped persisted readiness TestRuns; business assertions remain WAITING until V3.1 is accepted, persisted candidate code is independently recomputed, downstream Mandate/Paper enforces the exact version, and the business workflow is implemented");
   process.exit(2);
 }
 
@@ -215,10 +229,14 @@ async function runV33PreparationStage() {
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:experiment-binding-http-smoke"]],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "test:integration"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
       ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:research-queue-http-smoke"]],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:test-run-budget-summary-http-smoke"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:test-run-budget-summary-capacity-probe"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
+      ["pnpm", ["--filter", "@stockquant/research-automation-service", "v33:runner-host-rounds-recovery-http-smoke"], { RESEARCH_AUTOMATION_DATABASE_URL: process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test" }],
       [process.execPath, ["--test", "scripts/v33-readiness-cli.test.mjs"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "typecheck"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "test"]],
       ["pnpm", ["--filter", "@stockquant/platform-api-service", "test:integration"], { PLATFORM_API_TEST_DATABASE_URL: process.env.PLATFORM_API_TEST_DATABASE_URL ?? "postgresql://platform_api_test@127.0.0.1:5433/platform_api_test" }],
+      [process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--admin-env", "V33_DISPATCH_SMOKE_ADMIN_DATABASE_URL", "--", "pnpm", "v33:platform-dispatch-cross-service-smoke"]],
       ["pnpm", ["--filter", "@stockquant/web", "typecheck"]],
       ["pnpm", ["test:e2e", "--", "--stage", "V3.3"]],
     ];
@@ -227,23 +245,65 @@ async function runV33PreparationStage() {
       const exitCode = runCommand(command, commandArgs, commandEnv);
       if (exitCode !== 0) process.exit(exitCode);
     }
-    console.log(JSON.stringify({ stageId: "V3.3", suite: "code", status: "PASS", scope: "owner-scoped-read-only-research-queue-page-scoped-budget-ledger-readiness-TestRun-metadata-and-Research-Automation-dispatch-binding", readinessTestRunCreation: "PERSISTED_WAITING_ONLY", businessWorkflow: "NOT_IMPLEMENTED", dispatch: "RESEARCH_AUTOMATION_QUEUE_API_ONLY", budgetEnforcement: "PER_EXPERIMENT_RESERVED_CHECK_ONLY", stageBudgetControl: "NOT_IMPLEMENTED", paperContinuity: "NOT_CHECKED", businessValidation: "NOT_RUN", humanAcceptance: "NOT_RUN" }, null, 2));
+    console.log(JSON.stringify({ stageId: "V3.3", suite: "code", status: "PASS", scope: "owner-scoped-queue-and-budget-summary-pagination-plus-50k-postgres-probe-plus-runner-host-checkpoint-recovery-plus-test-run-and-round-budget-caps-plus-cross-service-80-cent-rejection-with-zero-side-effects-plus-confirmed-two-round-fixture-dispatch-plus-same-test-run-isolated-container-execution-plus-output-artifact-hash-metrics-and-experiment-ledger-settlement-plus-owner-scoped-normal-and-recovery-business-assertions", readinessTestRunCreation: "PERSISTED_WAITING_WITH_IMMUTABLE_TEST_RUN_CAP", workflowProgress: "CROSS_SERVICE_TWO_ROUND_RUNNER_RESULTS_SETTLED_RECONCILED_NORMAL_RECOVERY_AND_REJECTION_ASSERTED", businessWorkflow: "FIXTURE_RUNNER_SETTLEMENT_NORMAL_RECOVERY_AND_REJECTION_ASSERTIONS", rejectionAssertion: "CROSS_SERVICE_50_CENT_CAP_REJECTED_80_CENT_EXPERIMENT; NO_ALLOCATION_MODEL_CALL_OR_RUNNER_JOB", dispatch: "PLATFORM_RESEARCH_HTTP_PG_VERIFIED; SAME_TEST_RUN_TWO_JOB_CONTAINER_COMPLETION_OUTPUT_HASH_METRICS_AND_46_CENT_LEDGER_SETTLEMENT_VERIFIED", sameRunRunnerExecution: "PINNED_NO_NETWORK_ISOLATED_CONTAINER", experimentSettlement: "VERIFIED_FIXTURE_LEDGER; NOT_PROVIDER_INVOICE_RECONCILIATION", modelProviderCalls: 0, rounds: 2, settledCents: 46, queueReadCapacity: "SYNTHETIC_ROWS_100_TO_50000; CURSOR_PAGINATION_PREFERRED_FOR_DEEP_PAGES", budgetSummaryPagination: "KEYSET_CURSOR; EXACT_TOTALS_ON_FIRST_PAGE_ONLY; CONTINUATION_TOTALS_NULL", budgetEnforcement: "PER_TEST_RUN_AND_FIXED_PER_ROUND_CAPS; RESERVED_AND_UNKNOWN_FULL; SETTLED_ACTUAL; NO_CROSS_ROUND_TRANSFER", stageBudgetControl: "TEST_RUN_AND_ROUND_CAP_ENFORCED", paperContinuity: "NOT_CHECKED", businessValidation: "NORMAL_OUTPUT_SHA_FIXTURE_METRICS_AND_SETTLED_LEDGER_VERIFIED; RECOVERY_CHECKPOINT_SEQUENCE_AND_RESUME_VERIFIED; REJECTION_BUDGET_CAP_AND_ZERO_SIDE_EFFECTS_VERIFIED", humanAcceptance: "NOT_RUN" }, null, 2));
     return;
   }
+  if (has("--check-only") && (has("--reconcile-runner-results") || has("--verify-rejection") || has("--verify-recovery") || has("--verify-normal"))) throw new Error("mutating V3.3 assertions cannot be combined with --check-only");
   if (runId && has("--check-only")) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
     const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}`);
     console.log(JSON.stringify({ checkOnly: true, stageId: "V3.3", ...run }, null, 2));
     process.exit(runExitCode(run));
   }
+  if (runId && has("--reconcile-runner-results")) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
+    const reconciled = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}/reconcile`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-reconcile-command-v1", confirmation: "RECONCILE_V33_FIXTURE_RESULTS" }) });
+    const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}`);
+    if (reconciled.testRunId !== runId || reconciled.completedRounds !== 2 || reconciled.experimentSettlement !== "VERIFIED_FIXTURE_LEDGER" || run.testRunId !== runId || run.status !== "RUNNING" || run.evidence?.workflowStep !== "EXPERIMENT_SETTLED_AND_RESULTS_RECONCILED" || run.evidence?.experimentSettlement !== "VERIFIED_FIXTURE_LEDGER") throw new Error("V3.3 Runner results and Fixture Experiment settlement were not verified on the same TestRun");
+    console.log(JSON.stringify({ reconciliation: reconciled, ...run }, null, 2));
+    process.exitCode = runExitCode(run);
+    return;
+  }
+  if (runId && has("--verify-rejection")) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
+    const verified = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}/verify-rejection`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-rejection-verify-command-v1", confirmation: "VERIFY_V33_BUDGET_REJECTION" }) });
+    const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}`);
+    if (verified.testRunId !== runId || verified.assertion?.id !== "V3.3_REJECTION_NO_SIDE_EFFECTS" || run.testRunId !== runId || run.status !== "RUNNING" || run.evidence?.workflowStep !== "REJECTION_ASSERTION_VERIFIED") throw new Error("V3.3 budget rejection assertion was not persisted on the same TestRun");
+    console.log(JSON.stringify({ rejectionVerification: verified, ...run }, null, 2));
+    process.exitCode = runExitCode(run);
+    return;
+  }
+  if (runId && has("--verify-recovery")) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
+    const verified = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}/verify-recovery`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-recovery-verify-command-v1", confirmation: "VERIFY_V33_CHECKPOINT_RECOVERY" }) });
+    const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}`);
+    if (verified.testRunId !== runId || verified.assertion?.id !== "V3.3_CHECKPOINT_RECOVERY_001" || run.testRunId !== runId || run.status !== "RUNNING" || run.evidence?.workflowStep !== "RECOVERY_ASSERTION_VERIFIED") throw new Error("V3.3 checkpoint recovery assertion was not persisted on the same TestRun");
+    console.log(JSON.stringify({ recoveryVerification: verified, ...run }, null, 2));
+    process.exitCode = runExitCode(run);
+    return;
+  }
+  if (runId && has("--verify-normal")) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(runId)) { console.error("--run must be a TestRun UUID"); process.exit(2); }
+    const verified = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}/verify-normal`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-normal-verify-command-v1", confirmation: "VERIFY_V33_NORMAL_RESULTS" }) });
+    const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(runId)}`);
+    if (verified.testRunId !== runId || verified.assertion?.id !== "V3.3_NORMAL_RESULTS_001" || run.testRunId !== runId || run.status !== "RUNNING" || run.evidence?.workflowStep !== "NORMAL_ASSERTION_VERIFIED") throw new Error("V3.3 normal results assertion was not persisted on the same TestRun");
+    console.log(JSON.stringify({ normalVerification: verified, ...run }, null, 2));
+    process.exitCode = runExitCode(run);
+    return;
+  }
   if (["normal", "rejection", "recovery"].includes(scenario)) {
     const created = await request("/api/v1/acceptance/v3/v3.3/runs", { method: "POST", body: JSON.stringify({ scenarioId: scenario, seed: Number(value("--seed") ?? 20260907), ...(value("--source-v31-run") ? { sourceV31TestRunId: value("--source-v31-run") } : {}), ...(value("--promotion-request") ? { promotionRequestId: value("--promotion-request") } : {}) }) });
     if (typeof created.testRunId !== "string") throw new Error("V3.3 readiness run creation returned no testRunId");
+    if (has("--reserve-experiment")) await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(created.testRunId)}/experiment`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-experiment-command-v1", confirmation: "CREATE_V33_FIXTURE_EXPERIMENT" }) });
+    if (has("--dispatch-runner")) {
+      if (!has("--reserve-experiment")) throw new Error("--dispatch-runner requires --reserve-experiment in the same command");
+      await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(created.testRunId)}/dispatch`, { method: "POST", body: JSON.stringify({ schemaVersion: "v3.3-scenario-dispatch-command-v1", confirmation: "DISPATCH_V33_FIXTURE_RUNNER" }) });
+    }
     const run = await request(`/api/v1/acceptance/v3/v3.3/runs/${encodeURIComponent(created.testRunId)}`);
     console.log(JSON.stringify(run, null, 2));
     process.exit(runExitCode(run));
   }
-  console.error("V3.3 preparation supports --suite code; business scenarios remain WAITING until V3.1/V3.2 prerequisites and the V3.3 workflow are accepted and implemented");
+  console.error("V3.3 supports --suite code, --scenario normal|rejection|recovery, --run RUN_ID --verify-rejection, --run RUN_ID --verify-recovery or --verify-normal after reconciliation, optional --reserve-experiment and --dispatch-runner for normal/recovery, --run RUN_ID --reconcile-runner-results after both jobs complete, or --run RUN_ID --check-only; these assertions do not complete human acceptance");
   process.exit(2);
 }
 
@@ -262,8 +322,9 @@ async function main() {
   if (stage === 'V1.4') {
     if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
     if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
-    if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
-    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
+    if (!['normal','rejection','recovery','market-restrictions','historical-fees'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery|market-restrictions|historical-fees, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
+    const policy = scenario === 'historical-fees' ? { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500, marketFeeSchedule: { scheduleId: 'CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27', commissionRatePartsPerBillion: 2_000_000, minimumCommissionCents: 500 }, sellOrder: { signalDate: '2023-08-24', executionDate: '2023-08-25', quantity: 100 } } : undefined;
+    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907), ...(policy ? { policy } : {}) }) }); const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.3') {
     if (value('--suite') === 'code') {
@@ -277,8 +338,9 @@ async function main() {
   }
   if (stage === 'V1.2') {
     if (value('--suite') === 'code') {
-      for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) {
-        const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode);
+      for (const [command, commandArgs, commandEnv] of codeSuiteCommands(stage)) {
+        console.log(`\n[V1.2 code suite] ${command} ${commandArgs.join(" ")}`);
+        const exitCode = runCommand(command, commandArgs, commandEnv); if (exitCode !== 0) process.exit(exitCode);
       }
       return;
     }

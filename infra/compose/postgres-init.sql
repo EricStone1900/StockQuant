@@ -1,18 +1,27 @@
-CREATE ROLE platform_api LOGIN;
+\getenv platform_api_password STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API
+CREATE ROLE platform_api LOGIN PASSWORD :'platform_api_password';
 CREATE DATABASE platform_api OWNER platform_api;
-CREATE ROLE portfolio_risk LOGIN;
+\getenv portfolio_risk_password STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK
+CREATE ROLE portfolio_risk LOGIN PASSWORD :'portfolio_risk_password';
 CREATE DATABASE portfolio_risk OWNER portfolio_risk;
-CREATE ROLE trade_execution LOGIN;
+\getenv trade_execution_password STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION
+CREATE ROLE trade_execution LOGIN PASSWORD :'trade_execution_password';
 CREATE DATABASE trade_execution OWNER trade_execution;
-CREATE ROLE trade_execution_test LOGIN;
+\getenv trade_execution_test_password STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST
+CREATE ROLE trade_execution_test LOGIN PASSWORD :'trade_execution_test_password';
 CREATE DATABASE trade_execution_test OWNER trade_execution_test;
-CREATE ROLE historical_replay LOGIN;
+\getenv historical_replay_password STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY
+CREATE ROLE historical_replay LOGIN PASSWORD :'historical_replay_password';
 CREATE DATABASE historical_replay OWNER historical_replay;
-CREATE ROLE decision_governance LOGIN;
+\getenv decision_governance_password STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE
+CREATE ROLE decision_governance LOGIN PASSWORD :'decision_governance_password';
 CREATE DATABASE decision_governance OWNER decision_governance;
-CREATE ROLE quant_research LOGIN;
+\getenv quant_research_password STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH
+CREATE ROLE quant_research LOGIN PASSWORD :'quant_research_password';
 CREATE DATABASE quant_research OWNER quant_research;
-CREATE ROLE research_automation LOGIN;
+\getenv research_automation_password STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION
+CREATE ROLE research_automation LOGIN PASSWORD :'research_automation_password';
 CREATE DATABASE research_automation OWNER research_automation;
-CREATE ROLE market_data LOGIN;
+\getenv market_data_password STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA
+CREATE ROLE market_data LOGIN PASSWORD :'market_data_password';
 CREATE DATABASE market_data OWNER market_data;

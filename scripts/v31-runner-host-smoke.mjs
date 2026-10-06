@@ -5,8 +5,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
-const imageRef = process.env.STOCKQUANT_RUNNER_IMAGE_REF ?? "stockquant-v31-runner:rd-agent-v0.8.0-qlib-3e72593";
-const expectedImageId = process.env.STOCKQUANT_RUNNER_IMAGE_ID ?? "sha256:8cd6db4ae88cab7a1fb485613a67fb15a4d4e08460c28deb81510c1fa1861dfb";
+const imageRef = process.env.STOCKQUANT_RUNNER_IMAGE_REF ?? "stockquant-v31-runner:rd-agent-v0.8.0-qlib-3e72593-full-deps";
+const expectedImageId = process.env.STOCKQUANT_RUNNER_IMAGE_ID ?? "sha256:eb9030b8107c79c3554dabc68322814b81c04564bb0a1e5a9841bd603a67ccf1";
 const marker = "__STOCKQUANT_RUNNER_RESULT__:";
 const maxLogBytes = 8 * 1024 * 1024;
 const temporaryRoots = [];
@@ -99,7 +99,7 @@ async function normalCase() {
   try {
     if (!task.reachedMarker || task.hostTimedOut || task.outputLimit) throw new Error(`normal task did not finish cleanly: ${task.stderr}`);
     const { exitCode, envelope } = decodeEnvelope(task.stdout);
-    if (exitCode !== 0 || envelope.status !== "COMPLETED" || envelope.exit_code !== 0) throw new Error("normal task returned an unexpected Runner envelope");
+    if (exitCode !== 0 || envelope.status !== "COMPLETED" || envelope.exit_code !== 0) throw new Error(`normal task returned an unexpected Runner envelope: ${JSON.stringify({ exitCode, envelope, runnerOutput: task.stdout.slice(-4000), runnerError: task.stderr.slice(-2000) })}`);
     const copied = syncDocker(["exec", task.containerName, "python", "-c", outputExtractor], 48 * 1024 * 1024);
     if (copied.status !== 0) throw new Error(`bounded output extraction failed: ${copied.stderr}`);
     const transfer = JSON.parse(copied.stdout);
@@ -114,6 +114,8 @@ async function normalCase() {
     }
     const output = JSON.parse(readFileSync(join(outputRoot, "smoke.json"), "utf8"));
     if (output.qlib !== "0.9.6.99") throw new Error(`unexpected qlib version: ${output.qlib}`);
+    if (output.rdagent !== "0.8.0" || output.litellm !== "1.83.0" || output.openai !== "3.22.1") throw new Error(`unexpected RD-Agent model runtime: ${JSON.stringify({ rdagent: output.rdagent, litellm: output.litellm, openai: output.openai })}`);
+    if (![output.litellm_path, output.openai_path].every((path) => typeof path === "string" && path.startsWith("/usr/local/lib/python3.11/site-packages/"))) throw new Error("model client was not installed into the locked Python environment");
     return { name: "normal-output-copy", status: "PASS", containerName: task.containerName };
   } finally { removeContainer(task.containerName); }
 }

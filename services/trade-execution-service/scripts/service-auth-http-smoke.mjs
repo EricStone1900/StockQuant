@@ -6,6 +6,7 @@ import { createServer as createNetServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { resolve } from "node:path";
 import { Pool } from "pg";
+import { PostgresFakeBrokerRepository } from "../dist/adapters/postgres-fake-broker-repository.js";
 
 const databaseUrl = process.env.TRADE_EXECUTION_TEST_DATABASE_URL ?? "postgresql://trade_execution_test@127.0.0.1:5433/trade_execution_test";
 const parsed = new URL(databaseUrl);
@@ -99,6 +100,9 @@ try {
   const replayQuery = await request(`/internal/v1/orders/${orderId}`, "GET", "historical-replay-worker", tokens.replay);
   const platformCannotExecute = await request("/internal/v1/historical-orders/execute", "POST", "platform-api-service", tokens.platform, {});
   const replayCannotCancel = await request(`/internal/v1/orders/${orderId}/cancel`, "POST", "historical-replay-worker", tokens.replay, {});
+  const replayCannotRecordCancelResult = await request(`/internal/v1/orders/${orderId}/cancel-result`, "POST", "historical-replay-worker", tokens.replay, { outcome: "ACCEPTED", reason: "smoke", sequence: 1 });
+  const invalidCancelResult = await request(`/internal/v1/orders/${orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "UNKNOWN", reason: "smoke", sequence: 1 });
+  const unmatchedCancelResult = await request(`/internal/v1/orders/${orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "smoke", sequence: 1 });
   assert.equal(noIdentity.status, 403);
   assert.equal(forgedToken.status, 403);
   assert.equal(unknownIdentity.status, 403);
@@ -106,6 +110,9 @@ try {
   assert.equal(replayQuery.status, 404);
   assert.equal(platformCannotExecute.status, 403);
   assert.equal(replayCannotCancel.status, 403);
+  assert.equal(replayCannotRecordCancelResult.status, 403);
+  assert.equal(invalidCancelResult.status, 422);
+  assert.equal(unmatchedCancelResult.status, 409);
   assert.equal(governanceValidationCalls, 0, "route-scope rejection must stop before governance lookup");
 
   const deniedCommand = {
@@ -147,7 +154,23 @@ try {
   assert.equal(governanceIdentityVerified, true);
   const order = await request(`/internal/v1/orders/${executionBody.result.orderId}`, "GET", "historical-replay-worker", tokens.replay);
   assert.equal(order.status, 200);
-  runStatus = { noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, rejectedZeroVolume: executionBody.result.rejectionReason, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
+  const cancelCommand = {
+    namespace, accountId: randomUUID(), clientOrderId: `cancel-${randomUUID()}`, security: "600000.SH", side: "SELL", currency: "CNY",
+    requestedQuantity: 100, bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 500 },
+    reservation: { reservationId: randomUUID(), ownerId: "auth-smoke-owner", testRunId: randomUUID(), clientOrderId: "pending" }
+  };
+  cancelCommand.reservation.clientOrderId = cancelCommand.clientOrderId;
+  const simulated = await new PostgresFakeBrokerRepository(pool).execute(cancelCommand);
+  assert.equal(simulated.result.status, "PARTIALLY_FILLED");
+  const cancelRequest = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel`, "POST", "platform-api-service", tokens.platform, {});
+  const cancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1 });
+  const cancelResultBody = await cancelResult.json();
+  const pendingRelease = await pool.query("SELECT count(*)::int AS count FROM fake_broker_outbox WHERE order_id=$1 AND event_type='RESERVATION_RESOLVE'", [simulated.result.orderId]);
+  assert.equal(cancelRequest.status, 202);
+  assert.equal(cancelResult.status, 200);
+  assert.equal(cancelResultBody.status, "CANCELLED");
+  assert.equal(pendingRelease.rows[0].count, 0, "reservation release waits until the partial Fill has been posted");
+  runStatus = { noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, rejectedZeroVolume: executionBody.result.rejectionReason, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
   console.log(JSON.stringify({ status: "PASS", namespace, evidence: runStatus }));
 } finally {
   if (service.exitCode === null) {
@@ -162,6 +185,8 @@ try {
       await client.query("DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1", [namespace]);
+      await client.query("DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
+      await client.query("DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_orders WHERE namespace=$1", [namespace]);
       const remaining = await client.query("SELECT count(*)::int AS count FROM fake_broker_orders WHERE namespace=$1", [namespace]);
       assert.equal(remaining.rows[0].count, 0);

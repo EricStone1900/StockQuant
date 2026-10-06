@@ -20,9 +20,13 @@ if (quarantineFlag >= 0 && !maintenanceConfirmed) throw new Error("quarantine re
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 try {
   const refs = new PgArtifactRefRepository(pool);
-  const report = await inspectArtifactOrphans(artifactRoot, await refs.listAll(), { minAgeMs: minAgeHours * 60 * 60 * 1000 });
+  const initialRefs = await refs.listAll();
+  const observedAt = new Date();
+  const report = await inspectArtifactOrphans(artifactRoot, initialRefs, { minAgeMs: minAgeHours * 60 * 60 * 1000, now: observedAt });
   if (quarantineRoot) {
-    const moved = await quarantineArtifactOrphans(report, artifactRoot, quarantineRoot);
+    // Re-read owner metadata after the scan so a newly published reference invalidates stale orphan candidates.
+    const currentRefs = await refs.listAll();
+    const moved = await quarantineArtifactOrphans(report, artifactRoot, quarantineRoot, currentRefs, observedAt);
     console.log(JSON.stringify({ mode: "QUARANTINE", report, moved }, null, 2));
   } else {
     console.log(JSON.stringify({ mode: "CHECK_ONLY", report }, null, 2));

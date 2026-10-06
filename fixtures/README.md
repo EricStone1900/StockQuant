@@ -36,7 +36,7 @@ fixtures/<version>/<stage>/      后续阶段固定输入
 
 ## 来源、许可与隐私
 
-Manifest 必须记录来源种类、说明、许可/授权和采集时间。用户文件标 `USER_PROVIDED`，不推断转授权。新闻正文和供应商原始数据只按许可留存；凭据、真实账户标识和个人信息不得进入 Fixture。
+Manifest 必须记录来源种类、说明、许可/授权和采集时间。`RECORDED`/`REAL` 数据必须附 `source.authorizationRef`（仓库内许可/授权记录路径）、对应的 `source.authorizationSha256`、`source.authorizedUse`（仅 `RESEARCH` 和/或 `SIMULATION`）及非空 `source.retrievedAt`；`pnpm fixtures:check`会检查授权记录存在且哈希匹配。Fixture 必须标 `SYNTHETIC`。`PRODUCTION_ELIGIBLE` 只能用于带授权引用的 `REAL` 数据，仍不代表允许真实券商交易。用户文件标 `USER_PROVIDED`，不推断转授权。新闻正文和供应商原始数据只按许可留存；凭据、真实账户标识和个人信息不得进入 Fixture。
 
 ## V1.1 基线
 
@@ -55,3 +55,15 @@ Manifest 必须记录来源种类、说明、许可/授权和采集时间。用�
 V3.2另有可复算开发输入 [`v3.2-independent-validation-v1`](./v3/v3.2-independent-validation-v1/manifest.json)：两只合成A股、每只180个weekday sessions的日线，以及固定SMA交叉候选和PIT/OOS/成本/容量验证设计。市场日历、公司行动、退市证券和收益能力均未建模；数据仅`RESEARCH_ONLY`。它是独立复算实现的冻结测试输入，不是实测报告或真实市场证据。`pnpm fixtures:check`同时核对Manifest文件Hash与确定性生成器输出；内容变化应另建新版本，不覆盖此版本。
 
 The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-research-service v32:fixture-recompute`; the V3.2 code suite runs it automatically. It produces an in-memory `FIXTURE` report from a separately implemented allowlisted SMA reference and does not execute candidate source or persist a business TestRun. `ELIGIBLE_FOR_REVIEW` in that output is a deterministic fixture assertion only; it is not a real-candidate V3.2 acceptance.
+
+## V3.3 研究编排场景输入
+
+[`v3.3-research-orchestration-1`](./v3/v3.3-research-orchestration-v1/manifest.json) freezes deterministic `normal`, `rejection`, and `recovery` inputs, integer-cent budgets, expected ledger/job/artifact outcomes, and the ordered recovery fault sequence. Its scenario-plan instance is checked with [`v3.3-research-orchestration-scenarios.schema.json`](./manifests/v3.3-research-orchestration-scenarios.schema.json); this Fixture-only schema does not generate service DTOs. The data is synthetic orchestration metadata only: it contains no market data, recorded model response, credentials, or provider permission. On 2026-10-06 the isolated V3.3 code suite and cross-service Platform/Research Automation/Runner workflow verified normal settlement, rejection with zero side effects, and checkpoint recovery; see [`V3.3 full code suite audit`](../evidence/audits/2026-10-06-w7-v33-current-full-code-suite-after-executor-assertion.md). Those Fixture results are runtime evidence only for the isolated workflow. They do not establish real RD-Agent/provider behavior, Paper continuity, Ubuntu acceptance, external data authorization, or human acceptance. Changes require a new fixture version and updated SHA-256 manifest.
+
+## V1.4 合成停牌与限制价用例
+
+`v1/v1.4/market-restrictions-manifest.json` 冻结了一组独立的 `SIMULATION_ONLY` 合成输入，包含显式 `trading_status` 与 Fixture 定义的上下限价四个确定性用例。当前只用于验证 Quant 域规则辅助函数：停牌拒绝、整根 OHLC 锁在上限时拒绝 BUY、整根 OHLC 锁在下限时拒绝 SELL。原有日线收盘价/成交量 Fixture 保持不变。该输入不是交易所行情，不按证券类别/生效日期推导涨跌幅，也不能证明盘中排队位置或真实成交；并已连接Quant Fixture API、正式Web选择器及同一TestRun的CLI `--check-only`路径；隔离HTTP/PG/Web端到端验收尚待通过，这也不构成真实交易所规则验收。
+
+## V2.3 锁版 Qlib 拟合输入
+
+`v2/v2.3/qlib-fit/manifest.json` 冻结了 `qlib-fit-input.json`（120行、5个合成特征、合成标签与逐行时间可用性，训练/验证/测试切分为 `[0,72)`/`[72,96)`/`[96,120)`）。Platform TestRun 直接读取该文件并在使用前重算 Manifest SHA-256。该 Fixture 只用于验证锁版 Qlib 训练、预测及时间切分拒绝路径；不是行情/收益数据、真实市场 PIT 证据或独立模型验证。

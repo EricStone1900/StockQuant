@@ -3,6 +3,40 @@
   "info": { "title": "StockQuant Platform V3.2 owner-scoped promotion actions", "version": "v1" },
   "servers": [{ "url": "http://platform-api-service:3000" }],
   "paths": {
+    "/api/v1/acceptance/v3/v3.2/runs": {
+      "post": {
+        "operationId": "createV32ReadinessTestRun",
+        "summary": "Persist an owner-scoped WAITING preparation run; it executes no candidate and performs no Registry or Paper mutation",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v32-readiness-run-request.schema.json" } } } },
+        "responses": {
+          "202": { "description": "Readiness metadata persisted with business assertions NOT_RUN", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v32-readiness-run-result.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Optional V3.1 source run is not owned or is not a normal run" },
+          "422": { "description": "Invalid scenario, seed, or source TestRun ID" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.2/runs/{testRunId}": {
+      "get": {
+        "operationId": "readV32ReadinessTestRun",
+        "summary": "Read the same owner-scoped V3.2 readiness run without executing business work",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Persisted preparation run", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v32-readiness-run-result.schema.json" } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" },
+          "404": { "description": "Run is not owned by this user or is not a V3.2 run" },
+          "422": { "description": "Malformed TestRun ID" }
+        }
+      }
+    },
     "/api/v1/acceptance/v3/v3.2/promotions/{promotionRequestId}": {
       "get": {
         "operationId": "readOwnedPromotionEvidence",

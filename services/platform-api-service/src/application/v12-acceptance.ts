@@ -1,4 +1,5 @@
-import type { PostgresStageRunRepository, StoredStageRun } from "../adapters/postgres-stage-run-repository.js";
+import type { StageRunRepository, StoredStageRun } from "../ports/stage-run-repository.js";
+import type { V12FixturePreview } from "../contracts/generated-types.js";
 
 export const V12_SCENARIOS = [
   { scenarioId: "normal", version: "1.0.0", title: "正常数据与 Qlib 因子", expected: "6 bars、2 securities、Qlib READY" },
@@ -16,19 +17,20 @@ type Assertion = {
   evidence: Record<string, unknown>;
 };
 
-type FixtureResponse = {
-  barCount?: number;
-  securityCount?: number;
-  quality?: { status?: string; errors?: Array<{ code?: string }> };
-};
+export interface V12FixtureReader {
+  getV12NormalFixturePreview(): Promise<V12FixturePreview>;
+  getV12FutureFixturePreview(): Promise<V12FixturePreview>;
+}
+export interface V12ResearchReader {
+  getV12QlibProbe(): Promise<{ probe?: { status?: string } }>;
+  getV12FactorPreview(): Promise<{ ranking?: unknown[] }>;
+}
 
 export class V12AcceptanceService {
   constructor(
-    private readonly repository: PostgresStageRunRepository,
-    private readonly marketUrl: string,
-    private readonly quantUrl: string,
-    private readonly quantToken = "",
-    private readonly marketDataToken = ""
+    private readonly repository: StageRunRepository,
+    private readonly marketData: V12FixtureReader,
+    private readonly quantResearch: V12ResearchReader
   ) {}
 
   async create(ownerId: string, scenarioId: V12Scenario, seed: number) {
@@ -57,10 +59,10 @@ export class V12AcceptanceService {
   async execute(run: Omit<StoredStageRun, "createdAt" | "completedAt" | "namespace"> & { namespace: string }): Promise<void> {
     try {
       const [normal, bad, probe, factor] = await Promise.all([
-        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/normal/preview`, this.marketDataHeaders()),
-        this.fetchJson<FixtureResponse>(`${this.marketUrl}/v1/fixtures/bad-future/preview`, this.marketDataHeaders()),
-        this.fetchJson<{ probe?: { status?: string } }>(`${this.quantUrl}/v1/qlib/probe`),
-        this.fetchJson<{ ranking?: unknown[] }>(`${this.quantUrl}/v1/factors/preview`)
+        this.marketData.getV12NormalFixturePreview(),
+        this.marketData.getV12FutureFixturePreview(),
+        this.quantResearch.getV12QlibProbe(),
+        this.quantResearch.getV12FactorPreview()
       ]);
       const assertions = this.assertions(run.scenarioId as V12Scenario, normal, bad, probe, factor);
       await this.repository.save({
@@ -79,7 +81,7 @@ export class V12AcceptanceService {
     }
   }
 
-  private assertions(scenarioId: V12Scenario, normal: FixtureResponse, bad: FixtureResponse, probe: { probe?: { status?: string } }, factor: { ranking?: unknown[] }): Assertion[] {
+  private assertions(scenarioId: V12Scenario, normal: V12FixturePreview, bad: V12FixturePreview, probe: { probe?: { status?: string } }, factor: { ranking?: unknown[] }): Assertion[] {
     if (scenarioId === "normal") {
       return [
         this.assertion("V1.2-DATA-NORMAL-001", { barCount: 6, securityCount: 2, quality: "READY" }, { barCount: normal.barCount, securityCount: normal.securityCount, quality: normal.quality?.status }, { source: "normal fixture" }),
@@ -105,13 +107,4 @@ export class V12AcceptanceService {
     return { assertionId, status: pass ? "PASS" : "FAIL", expected, actual, evidence };
   }
 
-  private marketDataHeaders() {
-    return { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.marketDataToken}` };
-  }
-
-  private async fetchJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
-    const response = await fetch(url, { headers: headers ?? (url.startsWith(this.quantUrl) ? { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.quantToken}` } : undefined) });
-    if (!response.ok) throw new Error(`${url} returned ${response.status}`);
-    return response.json() as Promise<T>;
-  }
 }

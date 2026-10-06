@@ -56,6 +56,15 @@ export class PgRunnerJobStore implements RunnerJobStore {
     return mapRow(result.rows[0]);
   }
 
+  async createIfAbsent(record: RunnerJobRecord): Promise<RunnerJobRecord> {
+    const inserted = await this.pool.query<Row>(`INSERT INTO research_runner_jobs(job_id,job,status,submitted_at,started_at,completed_at,execution,artifact_refs,attempt,retry_of)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(job_id) DO NOTHING RETURNING *`, [record.jobId, record.job, record.status, record.submittedAt, record.startedAt, record.completedAt, record.execution, JSON.stringify(record.artifacts), record.attempt, record.retryOf]);
+    if (inserted.rows[0]) return mapRow(inserted.rows[0]);
+    const existing = await this.get(record.jobId);
+    if (!existing) throw new Error("Runner job insert conflicted but the existing record could not be read");
+    return existing;
+  }
+
   async get(jobId: string): Promise<RunnerJobRecord | null> {
     const result = await this.pool.query<Row>("SELECT * FROM research_runner_jobs WHERE job_id=$1", [jobId]);
     return result.rows[0] ? mapRow(result.rows[0]) : null;

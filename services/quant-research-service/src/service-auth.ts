@@ -40,6 +40,7 @@ export function authorizeQuantResearchRequest(input: { method: string; pathname:
   if (input.pathname.startsWith("/v1/registry/versions/")) return (caller === "platform-api-service" || caller === "decision-governance-service") && input.method === "GET" && /^\/v1\/registry\/versions\/[a-f0-9]{64}$/i.test(input.pathname);
   if (input.pathname === "/v1/promotions" || input.pathname.startsWith("/v1/promotions/")) return caller === "platform-api-service" && input.method === "GET";
   if (input.pathname === "/v1/research/qlib/fit-fixture") return caller === "platform-api-service" && input.method === "POST";
+  if (input.pathname === "/v1/research/backtests/daily-fixture") return caller === "platform-api-service" && input.method === "POST";
   return caller === "platform-api-service" && input.pathname.startsWith("/v1/");
 }
 import { timingSafeEqual } from "node:crypto";

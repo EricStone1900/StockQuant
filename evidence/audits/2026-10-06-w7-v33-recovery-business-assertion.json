@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-06",
+  "stage": "V3.3",
+  "scope": "same-TestRun checkpoint recovery business assertion, persistence, and Web/CLI paths",
+  "status": "PASS_SUBTASK_ONLY",
+  "assertion": {
+    "id": "V3.3_CHECKPOINT_RECOVERY_001",
+    "status": "PASS",
+    "testRunId": "0f6cbdf8-4c76-4d1c-9966-d75b859b6877",
+    "experimentId": "fd3f2da8-8446-49f3-aaac-acd7bbeae72c",
+    "roundIndex": 1,
+    "checkpointSequences": [1, 2],
+    "checkpointStateCursors": [1, 2],
+    "checkpointStateSha256": [
+      "19db4286f66ee3f31ebb53ec056c964d8d3b7d723c6d5bfbc9bcd9c55f4fa5e0",
+      "a4e85d746ee09222e48e87b0562d4f5c37d113ffd34d6f599055c85f99754d2f"
+    ],
+    "hostTakeoverFence": 2,
+    "staleFencePublishHttpStatus": 409,
+    "resumedMetrics": {
+      "resumedFromSequence": 1,
+      "checkpointSequence": 2,
+      "cursor": 2
+    },
+    "stageRunStatus": "RUNNING",
+    "humanAcceptance": "NOT_RUN"
+  },
+  "verification": {
+    "fullSuiteCommand": "pnpm verify:stage -- --stage V3.3 --suite code",
+    "fullSuiteExitCode": 0,
+    "researchUnit": "218/218",
+    "researchPostgresIntegration": "32/32",
+    "platformUnit": "197/197",
+    "platformPostgresIntegration": "8/8",
+    "cliSameRunTest": "PASS",
+    "webE2e": "4/4",
+    "contractsAndBaseline": "PASS",
+    "isolatedCrossServicePostgresSmoke": "PASS",
+    "externalProviderCalls": 0,
+    "marketDataCalls": 0,
+    "paperCalls": 0,
+    "brokerCalls": 0,
+    "activeServicesConnected": false,
+    "temporaryResourcesCleaned": true
+  },
+  "limitations": [
+    "Normal-scenario business assertion remains NOT_RUN",
+    "Formal same-TestRun structured evidence export and independent recomputation remain open",
+    "Paper continuity, Ubuntu acceptance, V3.3 human sign-off, O1/O2 observation, and final version acceptance remain open",
+    "The recovery result is a Fixture engineering acceptance, not evidence of strategy profitability or real-provider billing"
+  ],
+  "logs": {
+    "finalFullSuite": "evidence/audits/2026-10-06-w7-v33-recovery-business-assertion-full-suite-rerun.log",
+    "initialFixtureHashFailure": "evidence/audits/2026-10-06-w7-v33-recovery-business-assertion-full-suite.log"
+  }
+}

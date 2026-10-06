@@ -18,4 +18,14 @@ const partitionSmoke = spawnSync(process.execPath, ["services/market-data-servic
   stdio: "inherit",
   env: { ...process.env, MARKET_DATA_TEST_DATABASE_URL: connectionString },
 });
-process.exit(partitionSmoke.status ?? 1);
+if ((partitionSmoke.status ?? 1) !== 0) process.exit(partitionSmoke.status ?? 1);
+const marketDataBuild = spawnSync("pnpm", ["--filter", "@stockquant/market-data-service", "build"], {
+  stdio: "inherit",
+  env: process.env,
+});
+if ((marketDataBuild.status ?? 1) !== 0) process.exit(marketDataBuild.status ?? 1);
+const projectDeliverySmoke = spawnSync("pnpm", ["--filter", "@stockquant/platform-api-service", "dc06:project-delivery-http-smoke"], {
+  stdio: "inherit",
+  env: { ...process.env, MARKET_DATA_TEST_DATABASE_URL: connectionString },
+});
+process.exit(projectDeliverySmoke.status ?? 1);

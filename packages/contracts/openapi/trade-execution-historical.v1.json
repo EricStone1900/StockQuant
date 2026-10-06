@@ -1,23 +1,300 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "StockQuant Historical Fake Execution Internal API", "version": "v1", "description": "Historical replay only. All execution is through the isolated FakeBroker; real brokers and LIVE execution are excluded." },
-  "servers": [{ "url": "http://trade-execution-service:3005" }],
-  "security": [{ "ServiceBearer": [] }],
-  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "info": {
+    "title": "StockQuant Trade Execution Historical and V2.4 Paper API",
+    "version": "v1",
+    "description": "Historical replay only. All execution is through the isolated FakeBroker; real brokers and LIVE execution are excluded."
+  },
+  "servers": [
+    {
+      "url": "http://trade-execution-service:3005"
+    }
+  ],
+  "security": [
+    {
+      "ServiceBearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
   "paths": {
     "/internal/v1/historical-orders/execute": {
       "post": {
         "operationId": "executeHistoricalFakeOrder",
-        "security": [{ "ServiceBearer": [] }],
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
         "summary": "Authorize and execute one idempotent historical order through FakeBroker",
-        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "historical-replay-worker" } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-command.schema.json" } } }, "description": "The authorizationId is validated by Governance before any FakeBroker write. Reuse namespace/clientOrderId only with the identical semantic payload." },
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "historical-replay-worker"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-command.schema.json"
+              }
+            }
+          },
+          "description": "The authorizationId is validated by Governance before any FakeBroker write. Reuse namespace/clientOrderId only with the identical semantic payload."
+        },
         "responses": {
-          "200": { "description": "Persisted FakeBroker result or idempotent replay", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-result.schema.json" } } } },
-          "403": { "description": "Service identity or governance authorization rejected" },
-          "409": { "description": "Idempotency identity reused with a different payload" },
-          "422": { "description": "Invalid execution command or failed ledger delivery" }
+          "200": {
+            "description": "Persisted FakeBroker result or idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/historical-fake-execution-result.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Service identity or governance authorization rejected"
+          },
+          "409": {
+            "description": "Idempotency identity reused with a different payload"
+          },
+          "422": {
+            "description": "Invalid execution command or failed ledger delivery"
+          }
         }
+      }
+    },
+    "/internal/v1/orders/{orderId}": {
+      "get": {
+        "operationId": "readHistoricalFakeOrderById",
+        "summary": "Read the original FakeBroker order state for UNKNOWN recovery without resending it",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "enum": ["historical-replay-worker", "platform-api-service"] } }
+        ],
+        "responses": {
+          "200": { "description": "Persisted original FakeBroker order state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-order-state.schema.json" } } } },
+          "403": { "description": "Service identity rejected" }, "404": { "description": "Original order not found" }
+        }
+      }
+    },
+    "/internal/v1/v24/paper-orders/execute-snapshot": {
+      "post": {
+        "operationId": "executeV24FixtureSnapshotOrder",
+        "summary": "Authorize, reserve, persist, Fill and reconcile one run-scoped PAPER/FAKE Fixture order using the first qualifying SNAPSHOT",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Bearer establishes the caller identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v24-paper-execution-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent replay of the exact command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-execution-result.schema.json"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Order, Fill, Outbox delivery and Portfolio ledger persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-execution-result.schema.json"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Order persisted but Outbox reconciliation is still pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-execution-result.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Platform identity or Governance grant rejected"
+          },
+          "409": {
+            "description": "Stale snapshot, insufficient resources or conflicting idempotency key"
+          },
+          "413": {
+            "description": "Request exceeds 64 KiB"
+          },
+          "422": {
+            "description": "Invalid mode, policy, Mandate, risk, or snapshot input"
+          },
+          "503": {
+            "description": "Portfolio or Governance dependency unavailable"
+          }
+        }
+      }
+    },
+    "/internal/v1/orders/by-client-id": {
+      "get": {
+        "operationId": "readV24FakeOrderByClientIdentity",
+        "summary": "Recover the original FakeBroker order after an uncertain acceptance response",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "clientOrderId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Bearer establishes the caller identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Original order state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "rejection_reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Service identity rejected"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "422": {
+            "description": "Missing order identity"
+          },
+          "503": {
+            "description": "FakeBroker store unavailable"
+          }
+        }
+      }
+    },
+    "/internal/v1/reconciliation/summary": {
+      "get": {
+        "operationId": "readV24PaperReconciliationSummary",
+        "summary": "Read namespace-scoped FakeBroker facts and external-only reconciliation discrepancies",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" }, "description": "Bearer establishes the caller identity." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation counts for one isolated namespace",
+            "content": { "application/json": { "schema": {
+              "type": "object",
+              "required": ["namespace", "brokerMode", "order_count", "unresolved_order_count", "fill_count", "pending_outbox_count", "externalOnlyOrderCount", "discrepancies"],
+              "properties": {
+                "namespace": { "type": "string" },
+                "brokerMode": { "const": "FAKE" },
+                "order_count": { "type": "integer", "minimum": 0 },
+                "unresolved_order_count": { "type": "integer", "minimum": 0 },
+                "fill_count": { "type": "integer", "minimum": 0 },
+                "pending_outbox_count": { "type": "integer", "minimum": 0 },
+                "externalOnlyOrderCount": { "type": "integer", "minimum": 0 },
+                "discrepancies": { "type": "array", "items": { "type": "object", "required": ["kind", "externalOrderId", "security", "requestedQuantity", "status", "evidenceRef", "observedAt"], "properties": { "kind": { "const": "EXTERNAL_ORDER_MISSING_LOCALLY" }, "externalOrderId": { "type": "string" }, "clientOrderId": { "type": ["string", "null"] }, "security": { "type": "string" }, "requestedQuantity": { "type": "integer", "minimum": 1 }, "status": { "type": "string" }, "evidenceRef": { "type": "string" }, "observedAt": { "type": "string", "format": "date-time" } }, "additionalProperties": false } }
+              },
+              "additionalProperties": false
+            } } }
+          },
+          "403": { "description": "Service identity or route scope rejected" },
+          "503": { "description": "FakeBroker store unavailable" }
+        }
+      }
+    },
+    "/internal/v1/fake-broker/external-orders": {
+      "post": {
+        "operationId": "recordSimulatedFakeBrokerExternalOrder",
+        "summary": "Record an independently observed order in the isolated FakeBroker ledger",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "../schemas/trade-execution/fake-broker-external-order.schema.json" } } } },
+        "responses": { "201": { "description": "External order observation recorded" }, "200": { "description": "Idempotent replay" }, "403": { "description": "Service identity rejected" }, "409": { "description": "Conflicting observation for the same external order" }, "422": { "description": "Invalid observation" } }
       }
     }
   }

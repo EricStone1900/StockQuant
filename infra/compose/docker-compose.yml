@@ -25,11 +25,22 @@ services:
 
   postgres:
     restart: unless-stopped
-    image: postgres:16.9-alpine
+    image: postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7
     environment:
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD:-}"
+      STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API: "${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API:-}"
+      STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK: "${STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK:-}"
+      STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION: "${STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION:-}"
+      STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST: "${STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST:-}"
+      STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY: "${STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY:-}"
+      STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE: "${STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE:-}"
+      STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH: "${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:-}"
+      STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION: "${STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION:-}"
+      STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA: "${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA:-}"
     volumes:
       - postgres-v11:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
@@ -40,7 +51,7 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
-    networks: [internal]
+    networks: [internal, research-backplane]
 
   portfolio-risk-service:
     restart: unless-stopped
@@ -50,7 +61,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3001
-      STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk@postgres:5432/portfolio_risk
+      STOCKQUANT_DATABASE_URL: "postgresql://portfolio_risk:${STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK:-}@postgres:5432/portfolio_risk"
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
       STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:-}"
       STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
@@ -74,20 +85,28 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3000
-      STOCKQUANT_DATABASE_URL: postgresql://platform_api@postgres:5432/platform_api
+      STOCKQUANT_DATABASE_URL: "postgresql://platform_api:${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API:-}@postgres:5432/platform_api"
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_MARKET_DATA_URL: http://market-data-service:3002
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
       STOCKQUANT_RESEARCH_AUTOMATION_URL: http://research-automation-service:3008
+      STOCKQUANT_V33_FIXTURE_RUNNER_IMAGE_DIGEST: ${STOCKQUANT_V33_FIXTURE_RUNNER_IMAGE_DIGEST:-}
       STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
       STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: http://historical-replay-worker:3006
       STOCKQUANT_PROJECT_ROOT: /workspace
+      STOCKQUANT_ARTIFACT_CONTENT_ROOT: /var/lib/stockquant/research-artifacts
+      STOCKQUANT_DC06_PROJECT_ID: "${STOCKQUANT_DC06_PROJECT_ID:-dc06-web}"
+      STOCKQUANT_DC06_PROJECT_TOKEN: "${STOCKQUANT_DC06_PROJECT_TOKEN:-}"
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
       STOCKQUANT_V11_RUN_STORAGE: ${STOCKQUANT_V11_RUN_STORAGE:-legacy}
-      STOCKQUANT_V24_AUTO_START: "true"
+      STOCKQUANT_V24_AUTO_START: "false"
+      STOCKQUANT_V24_SAMPLING_INTERVAL_MINUTES: ${STOCKQUANT_V24_SAMPLING_INTERVAL_MINUTES:-30}
+      STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED: "false"
+      STOCKQUANT_V24_QUOTE_SOURCE_AUTHORIZATION_REF: "${STOCKQUANT_V24_QUOTE_SOURCE_AUTHORIZATION_REF:-}"
+      STOCKQUANT_V24_QUOTE_DATA_VERSION: "${STOCKQUANT_V24_QUOTE_DATA_VERSION:-}"
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
       STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: "${STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION:-}"
       STOCKQUANT_NATS_URL: nats://nats:4222
@@ -95,6 +114,8 @@ services:
       STOCKQUANT_TEMPORAL_ADDRESS: temporal:7233
       STOCKQUANT_TEMPORAL_TASK_QUEUE: stockquant-v1-5
       STOCKQUANT_TEMPORAL_INJECT_FAILURE: "true"
+    volumes:
+      - research-artifacts-v1:/var/lib/stockquant/research-artifacts
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +138,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [internal]
+    networks: [internal, research-backplane]
 
   trade-execution-service:
     restart: unless-stopped
@@ -127,7 +148,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3005
-      STOCKQUANT_DATABASE_URL: postgresql://trade_execution@postgres:5432/trade_execution
+      STOCKQUANT_DATABASE_URL: "postgresql://trade_execution:${STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION:-}@postgres:5432/trade_execution"
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
@@ -156,7 +177,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3007
-      STOCKQUANT_DATABASE_URL: postgresql://decision_governance@postgres:5432/decision_governance
+      STOCKQUANT_DATABASE_URL: "postgresql://decision_governance:${STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE:-}@postgres:5432/decision_governance"
       STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
       STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: "${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:-}"
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
@@ -182,7 +203,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3006
-      STOCKQUANT_DATABASE_URL: postgresql://historical_replay@postgres:5432/historical_replay
+      STOCKQUANT_DATABASE_URL: "postgresql://historical_replay:${STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY:-}@postgres:5432/historical_replay"
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_TRADE_EXECUTION_URL: http://trade-execution-service:3005
       STOCKQUANT_GOVERNANCE_URL: http://decision-governance-service:3007
@@ -207,6 +228,11 @@ services:
 
   market-data-service:
     restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
     cpus: "1.0"
     mem_limit: 1g
     # Load local collection credentials for direct `docker compose` commands.
@@ -223,13 +249,29 @@ services:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3002
       STOCKQUANT_PROJECT_ROOT: /workspace
-      STOCKQUANT_DATABASE_URL: postgresql://market_data@postgres:5432/market_data
+      STOCKQUANT_DATABASE_URL: "postgresql://market_data:${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA:-}@postgres:5432/market_data"
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
+      STOCKQUANT_PROJECT_TOKENS: "${STOCKQUANT_PROJECT_TOKENS:-}"
       # Kept disabled until DC-00 freezes a real-source capability report and
       # DC-08A creates the approved subscription.  Enabling either is an
       # explicit operational action, never a side effect of `stack:up`.
       STOCKQUANT_COLLECTION_PROJECT_ID: stockquant-local
-      STOCKQUANT_COLLECTION_DATA_VERSION: cn-5m-raw-v1
+      STOCKQUANT_COLLECTION_DATA_VERSION: "${STOCKQUANT_COLLECTION_DATA_VERSION:-cn-5m-raw-v1}"
+      STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "${STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED:-false}"
+      STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF: "${STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF:-}"
+      STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS: "${STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS:-}"
+      STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED: "${STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED:-false}"
+      STOCKQUANT_MARKET_RESEARCH_SOURCE_AUTHORIZATION_REF: "${STOCKQUANT_MARKET_RESEARCH_SOURCE_AUTHORIZATION_REF:-}"
+      STOCKQUANT_MARKET_RESEARCH_DATA_VERSION: "${STOCKQUANT_MARKET_RESEARCH_DATA_VERSION:-}"
+      STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS: "${STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS:-}"
+      STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED: "${STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED:-false}"
+      STOCKQUANT_MARKET_QUOTE_SOURCE_AUTHORIZATION_REF: "${STOCKQUANT_MARKET_QUOTE_SOURCE_AUTHORIZATION_REF:-}"
+      STOCKQUANT_MARKET_QUOTE_DATA_VERSION: "${STOCKQUANT_MARKET_QUOTE_DATA_VERSION:-}"
+      STOCKQUANT_MARKET_QUOTE_AUTHORIZED_SOURCE_IDS: "${STOCKQUANT_MARKET_QUOTE_AUTHORIZED_SOURCE_IDS:-}"
+      STOCKQUANT_MARKET_NEWS_SOURCE_USE_AUTHORIZED: "${STOCKQUANT_MARKET_NEWS_SOURCE_USE_AUTHORIZED:-false}"
+      STOCKQUANT_MARKET_NEWS_SOURCE_AUTHORIZATION_REF: "${STOCKQUANT_MARKET_NEWS_SOURCE_AUTHORIZATION_REF:-}"
+      STOCKQUANT_MARKET_NEWS_DATA_VERSION: "${STOCKQUANT_MARKET_NEWS_DATA_VERSION:-}"
+      STOCKQUANT_MARKET_NEWS_AUTHORIZED_SOURCE_IDS: "${STOCKQUANT_MARKET_NEWS_AUTHORIZED_SOURCE_IDS:-}"
       STOCKQUANT_COLLECTION_TIMEOUT_MS: "${STOCKQUANT_COLLECTION_TIMEOUT_MS:-180000}"
       STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS: "${STOCKQUANT_COLLECTION_SOURCE_TIMEOUT_SECONDS:-20}"
       STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS: "${STOCKQUANT_COLLECTION_SOURCE_MAX_ATTEMPTS:-2}"
@@ -257,6 +299,9 @@ services:
 
   quant-research-service:
     restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     build:
       context: ../..
       dockerfile: services/quant-research-service/Dockerfile
@@ -267,7 +312,7 @@ services:
       QLIB_IMAGE: stockquant-v12-qlib-probe
       QLIB_WORKER_URL: http://qlib-worker:3004
       STOCKQUANT_RESEARCH_AUTOMATION_URL: http://research-automation-service:3008
-      STOCKQUANT_DATABASE_URL: postgresql://quant_research@postgres:5432/quant_research
+      STOCKQUANT_DATABASE_URL: "postgresql://quant_research:${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:-}@postgres:5432/quant_research"
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: "${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:-}"
       STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: "${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:-}"
       STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: "${STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION:-}"
@@ -288,7 +333,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [internal]
+    networks: [internal, research-backplane]
 
   research-automation-service:
     restart: unless-stopped
@@ -298,12 +343,16 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3008
-      STOCKQUANT_DATABASE_URL: postgresql://research_automation@postgres:5432/research_automation
+      STOCKQUANT_DATABASE_URL: "postgresql://research_automation:${STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION:-}@postgres:5432/research_automation"
       STOCKQUANT_PLATFORM_API_URL: http://platform-api-service:3000
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
       STOCKQUANT_RESEARCH_ARTIFACT_ROOT: /var/lib/stockquant/research-artifacts
       STOCKQUANT_RUNNER_MODE: NOT_CONFIGURED
       STOCKQUANT_MODEL_GATEWAY_MODE: NOT_CONFIGURED
+      STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED: ${STOCKQUANT_MODEL_PROVIDER_CALLS_AUTHORIZED:-false}
+      STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS: ${STOCKQUANT_RESEARCH_MAX_EXPERIMENT_BUDGET_CENTS:-1000}
+      STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS: ${STOCKQUANT_RESEARCH_MAX_TEST_RUN_BUDGET_CENTS:-1000}
+      STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS: ${STOCKQUANT_RESEARCH_STAGE_BUDGET_CENTS:-3000}
       STOCKQUANT_RESEARCH_EMBEDDING_MODEL: "${STOCKQUANT_RESEARCH_EMBEDDING_MODEL:-litellm_proxy/Qwen/Qwen3-Embedding-4B}"
       STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS: "${STOCKQUANT_RESEARCH_EMBEDDING_DIMENSIONS:-1024}"
       # Explicit secret pass-through. Values come from the ignored `.env.local`
@@ -327,11 +376,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [internal]
+    networks: [research-backplane]
+
+  research-egress-proxy:
+    profiles: [research-egress]
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: services/research-automation-service/Dockerfile
+    command: ["node", "services/research-automation-service/dist/egress-proxy.js"]
+    environment:
+      STOCKQUANT_RESEARCH_EGRESS_PROXY_TOKEN: "${STOCKQUANT_RESEARCH_EGRESS_PROXY_TOKEN:-}"
+      STOCKQUANT_RESEARCH_EGRESS_ALLOWED_HOSTS: api.deepseek.com,api.siliconflow.cn
+      STOCKQUANT_RESEARCH_EGRESS_PROXY_PORT: "3128"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3128/').then(r=>process.exit(r.status===405?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [research-backplane, research-egress]
 
   qlib-worker:
     restart: unless-stopped
     platform: linux/amd64
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
     build:
       context: ../../services/quant-research-service
       dockerfile: qlib-worker.Dockerfile
@@ -365,6 +437,9 @@ services:
 
 networks:
   internal: {}
+  research-backplane:
+    internal: true
+  research-egress: {}
 
 volumes:
   nats-jetstream-v1:

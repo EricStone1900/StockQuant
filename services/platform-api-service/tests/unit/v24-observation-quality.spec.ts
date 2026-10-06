@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ObservationRecord } from "../../src/adapters/postgres-v24-observation-repository.js";
 import { calculateObservationDayQuality, V24_EXPECTED_SAMPLING_SLOTS } from "../../src/application/v24-observation-quality.js";
+import { v24SamplingSlots } from "../../src/application/v24-scheduler.js";
 
 const date = "2026-09-25";
 const event = (eventKind: string, time: string, options: { symbols?: string[]; missing?: string[]; stale?: string[] } = {}) => {
@@ -16,7 +17,7 @@ const event = (eventKind: string, time: string, options: { symbols?: string[]; m
     samplingEvery30Minutes: true, enteredExecutionWindow: eventKind === "EXECUTION_WINDOW",
     signalStatus: "HOLD", simulatedOrderStatus: "NONE", fillStatus: "NONE", reconciliationStatus: "UNKNOWN",
     outageStatus: "NONE", testRunId: "00000000-0000-4000-8000-000000000001", errors: [], recoveryActions: [],
-    evidence: { eventKind, scheduledFor, scheduledDelaySeconds: 0, recordedAt: scheduledFor, sourceProbe: { requestedSymbols: symbols, securities } },
+    evidence: { eventKind, scheduledFor, scheduledDelaySeconds: 0, samplingIntervalMinutes: 30, recordedAt: scheduledFor, sourceProbe: { requestedSymbols: symbols, securities } },
   } as ObservationRecord;
   return { eventKind, record };
 };
@@ -29,6 +30,27 @@ function completeDay() {
 }
 
 describe("V2.4 observation window and security quality", () => {
+  it("schedules and qualifies all fourteen windows under the frozen 20-minute policy", () => {
+    expect(v24SamplingSlots(20)).toHaveLength(14);
+    const rows = v24SamplingSlots(20).map((slot) => {
+      const row = event("SAMPLING_SLOT", slot.slice(0, 5));
+      row.record.evidence.samplingIntervalMinutes = 20;
+      row.record.samplingEvery30Minutes = false;
+      return row;
+    });
+    rows.push(event("EXECUTION_WINDOW", "09:31"));
+    const quality = calculateObservationDayQuality(date, rows);
+    expect(quality).toMatchObject({ samplingIntervalMinutes: 20, samplingEvents: 14, uniqueSamplingWindows: 14, missingSamplingWindows: [], invalidSamplingEvents: 0, errors: [] });
+  });
+
+  it("rejects a day that mixes sampling policies", () => {
+    const rows = completeDay();
+    rows[0].record.evidence.samplingIntervalMinutes = 20;
+    const quality = calculateObservationDayQuality(date, rows);
+    expect(quality.samplingIntervalMinutes).toBeNull();
+    expect(quality.invalidSamplingEvents).toBeGreaterThan(0);
+  });
+
   it("requires all ten distinct scheduled sample windows and a fresh quote for every requested security", () => {
     const quality = calculateObservationDayQuality(date, completeDay());
     expect(quality).toMatchObject({ samplingEvents: 10, uniqueSamplingWindows: 10, missingSamplingWindows: [], executionEvents: 1, uniqueExecutionWindows: 1, expectedSecuritySamples: 22, validSecuritySamples: 22, invalidSecuritySamples: 0, invalidSamplingEvents: 0, invalidExecutionEvents: 0, errors: [] });

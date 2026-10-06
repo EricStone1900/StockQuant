@@ -5,17 +5,17 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CollectionRunConflict, CollectionRunRepository } from "../../src/application/collection-run-repository.js";
-import { CollectionScheduleRepository } from "../../src/application/collection-schedule-repository.js";
+import { CollectionRunConflict, CollectionRunRepository } from "../../src/adapters/postgres-collection-run-repository.js";
+import { CollectionScheduleRepository } from "../../src/adapters/postgres-collection-schedule-repository.js";
 import { CollectionScheduler } from "../../src/application/collection-scheduler.js";
 import { PersistentCollectionSchedulerWorker } from "../../src/application/persistent-collection-scheduler.js";
-import { BackfillConflict, CoverageRepository } from "../../src/application/coverage-repository.js";
-import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/application/project-access-repository.js";
-import { ArtifactDeliveryRepository } from "../../src/application/artifact-delivery-repository.js";
+import { BackfillConflict, CoverageRepository } from "../../src/adapters/postgres-coverage-repository.js";
+import { ProjectAccessRepository, ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../../src/adapters/postgres-project-access-repository.js";
+import { ArtifactDeliveryRepository } from "../../src/adapters/postgres-artifact-delivery-repository.js";
 import { DataVersionConflict, ProjectAccessDenied } from "../../src/application/project-delivery.js";
-import { AlertOutboxRepository } from "../../src/application/alert-outbox-repository.js";
-import { MinuteImportRepository } from "../../src/application/minute-import-repository.js";
-import { MINUTE_UPLOAD_CHUNK_BYTES, MinuteUploadConflict, MinuteUploadQuotaExceeded, MinuteUploadRepository, type MinuteUploadMetadata } from "../../src/application/minute-upload-repository.js";
+import { AlertOutboxRepository } from "../../src/adapters/postgres-alert-outbox-repository.js";
+import { MinuteImportRepository } from "../../src/adapters/postgres-minute-import-repository.js";
+import { MINUTE_UPLOAD_CHUNK_BYTES, MinuteUploadConflict, MinuteUploadQuotaExceeded, MinuteUploadRepository, type MinuteUploadMetadata } from "../../src/adapters/postgres-minute-upload-repository.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
 const describeIfDatabase = connectionString ? describe : describe.skip;
@@ -33,6 +33,8 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const suffix = Date.now().toString();
   const minuteImportHashes: string[] = [];
   const minuteUploadIds: string[] = [];
+  const artifactTaskIds: string[] = [];
+  const alertIds: string[] = [];
 
   beforeAll(async () => {
     await repository.migrate();
@@ -46,6 +48,9 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   });
 
   afterAll(async () => {
+    if (artifactTaskIds.length) await pool.query("DELETE FROM market_data_task_artifacts WHERE task_id=ANY($1::text[])", [artifactTaskIds]);
+    if (artifactTaskIds.length) await pool.query("DELETE FROM market_data_artifact_tasks WHERE task_id=ANY($1::text[])", [artifactTaskIds]);
+    if (alertIds.length) await pool.query("DELETE FROM market_data_alert_outbox WHERE alert_id=ANY($1::uuid[])", [alertIds]);
     if (minuteUploadIds.length) await pool.query("DELETE FROM market_data_minute_uploads WHERE upload_id=ANY($1::uuid[])", [minuteUploadIds]);
     if (minuteImportHashes.length) await pool.query("DELETE FROM market_data_minute_imports WHERE source_sha256=ANY($1::text[])", [minuteImportHashes]);
     await pool.query("UPDATE market_data_collection_schedules SET enabled=false WHERE subscription_id LIKE $1", [`%${suffix}`]);
@@ -179,6 +184,74 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(minuteImports.page(version, 0, 1001)).rejects.toThrow("between 1 and 1000");
   });
 
+  it("streams 1200 synthetic rows into PostgreSQL partitions and reads the complete version by bounded pages", async () => {
+    const sessions: string[] = [];
+    const day = new Date("2024-01-02T00:00:00.000Z");
+    while (sessions.length < 60) {
+      const weekday = day.getUTCDay();
+      if (weekday !== 0 && weekday !== 6) sessions.push(day.toISOString().slice(0, 10));
+      day.setUTCDate(day.getUTCDate() + 1);
+    }
+    const bars = sessions.flatMap((session, sessionIndex) => Array.from({ length: 20 }, (_, securityIndex) => {
+      const securityId = `${String(600000 + securityIndex).padStart(6, "0")}.SH`;
+      const price = 10 + securityIndex / 100 + sessionIndex / 1000;
+      return {
+        securityId, market: "CN_A", frequency: "5m",
+        barStart: `${session}T09:30:00+08:00`, barEnd: `${session}T09:35:00+08:00`, availableAt: `${session}T09:35:01+08:00`,
+        open: price, high: price + 0.02, low: price - 0.02, close: price + 0.01, volume: 100 + securityIndex, amount: (100 + securityIndex) * price, adjustment: "RAW",
+      };
+    }));
+    expect(bars).toHaveLength(1200);
+    const sourceBytes = Buffer.from(JSON.stringify(bars));
+    const sourceSha256 = createHash("sha256").update(sourceBytes).digest("hex");
+    const importKeySha256 = createHash("sha256").update(`synthetic-postgres-scale-${suffix}-${sourceSha256}`).digest("hex");
+    minuteImportHashes.push(sourceSha256);
+    const manifest = {
+      mapping: { securityId: "securityId", barStart: "barStart" },
+      semantics: { market: "CN_A", frequency: "5m", timezone: "Asia/Shanghai", sample: "one synthetic bar per security per weekday session" },
+      provenance: { sourceName: "synthetic PostgreSQL scale integration fixture", sourceReference: null, licenseStatement: "Generated test data; contains no market-source observations.", licenseVerification: "UNCONFIRMED" as const, acquiredAt: "2026-10-01T00:00:00.000+08:00" },
+      researchUseAllowed: false,
+    };
+    const stream = () => minuteImports.publishStream({
+      expectedSha256: sourceSha256,
+      manifest,
+      importKeyForSha: () => importKeySha256,
+      parse: async (writeBarsBatch) => {
+        for (let offset = 0; offset < bars.length; offset += 200) await writeBarsBatch(bars.slice(offset, offset + 200));
+        return { sourceSha256, accepted: bars.length, errors: [] };
+      },
+    });
+    const published = await stream();
+    expect(published.idempotent).toBe(false);
+    expect(published.record).toMatchObject({ status: "PUBLISHED", accepted: 1200, sha256: sourceSha256, manifest: { researchUseAllowed: false } });
+    expect((await stream()).idempotent).toBe(true);
+    const version = published.record.version;
+    const loaded: typeof bars = [];
+    let cursor = 0;
+    let pageCount = 0;
+    for (;;) {
+      const page = await minuteImports.page(version, cursor, 333);
+      loaded.push(...page.items);
+      pageCount += 1;
+      if (page.nextCursor === null) break;
+      cursor = Number(page.nextCursor);
+    }
+    expect(pageCount).toBe(4);
+    expect(loaded).toHaveLength(1200);
+    expect(new Set(loaded.map(bar => `${bar.securityId}|${bar.barStart}`)).size).toBe(1200);
+    expect(new Set(loaded.map(bar => bar.securityId)).size).toBe(20);
+    expect(new Set(loaded.map(bar => bar.barStart.slice(0, 10))).size).toBe(60);
+    for (const securityId of new Set(loaded.map(bar => bar.securityId))) {
+      expect(loaded.filter(bar => bar.securityId === securityId)).toHaveLength(60);
+    }
+    await expect(minuteImports.page(version, 0, 1000, "600000.SH")).resolves.toMatchObject({ items: { length: 60 }, nextCursor: null });
+    await expect(minuteImports.page(`${version}-other`, 0, 10)).resolves.toMatchObject({ items: [], nextCursor: null });
+    await expect(minuteImports.find(version)).resolves.toMatchObject({ accepted: 1200, sha256: sourceSha256 });
+    const persisted = await pool.query<{ count: number; security_count: number; session_count: number }>(
+      "SELECT count(*)::int AS count,count(DISTINCT security_id)::int AS security_count,count(DISTINCT (bar_start AT TIME ZONE 'Asia/Shanghai')::date)::int AS session_count FROM market_data_minute_import_bars_by_day WHERE version=$1", [version]);
+    expect(persisted.rows[0]).toEqual({ count: 1200, security_count: 20, session_count: 60 });
+  });
+
   it("reads legacy rows during additive migration and backfills them into daily partitions idempotently", async () => {
     const sourceSha256 = createHash("sha256").update(`legacy-partition-${suffix}`).digest("hex");
     const importKeySha256 = createHash("sha256").update(`legacy-partition-key-${suffix}`).digest("hex");
@@ -247,6 +320,18 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(repository.cancel(quotaOwner, openA)).resolves.toMatchObject({ status: "CANCELLED", receivedBytes: 0 });
     await expect(repository.cancel(quotaOwner, openA)).resolves.toMatchObject({ status: "CANCELLED" });
     await expect(repository.create({ uploadId: rejected, ownerId: quotaOwner, expectedSha256: oneByteHash, expectedBytes: 1, metadata })).resolves.toMatchObject({ progress: { status: "OPEN" } });
+
+    const concurrentOwner = `${ownerId}-concurrent-quota`;
+    const concurrentIds = [randomUUID(), randomUUID(), randomUUID()];
+    minuteUploadIds.push(...concurrentIds);
+    const concurrentCreates = await Promise.allSettled(concurrentIds.map(uploadId => repository.create({ uploadId, ownerId: concurrentOwner, expectedSha256: oneByteHash, expectedBytes: 1, metadata })));
+    expect(concurrentCreates.filter(result => result.status === "fulfilled")).toHaveLength(2);
+    expect(concurrentCreates.filter(result => result.status === "rejected" && result.reason instanceof MinuteUploadQuotaExceeded)).toHaveLength(1);
+    const admitted = concurrentCreates.flatMap((result, index) => result.status === "fulfilled" ? [concurrentIds[index]] : []);
+    expect(admitted).toHaveLength(2);
+    await repository.cancel(concurrentOwner, admitted[0]);
+    const initiallyRejected = concurrentIds.find(uploadId => !admitted.includes(uploadId))!;
+    await expect(repository.create({ uploadId: initiallyRejected, ownerId: concurrentOwner, expectedSha256: oneByteHash, expectedBytes: 1, metadata })).resolves.toMatchObject({ progress: { status: "OPEN" } });
   });
 
   it("keeps same CSV bytes distinct when its explicit field mapping changes", async () => {
@@ -423,18 +508,127 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     expect(await artifacts.publishRows(projectId, artifactId, "data-v1", [{ row: 1 }, { row: 2 }, { row: 3 }])).toBe(3);
   });
 
+  it("persists artifact task cancellation across repository restart and makes cancellation idempotent", async () => {
+    const taskId = `artifact-task-${suffix}`;
+    artifactTaskIds.push(taskId);
+    const queued = await artifacts.createTask(taskId, "v1.2-market-data-1");
+    expect(queued.status).toBe("QUEUED");
+
+    const restartedRepository = new ArtifactDeliveryRepository(pool);
+    expect(await restartedRepository.findTask(taskId)).toEqual(queued);
+    const cancelled = await restartedRepository.cancelTask(taskId);
+    expect(cancelled).toMatchObject({ taskId, status: "CANCELLED" });
+    expect(await artifacts.findTask(taskId)).toEqual(cancelled);
+    expect(await artifacts.cancelTask(taskId)).toEqual(cancelled);
+    expect(await artifacts.findTask(`missing-${taskId}`)).toBeNull();
+  });
+
+  it("publishes immutable Artifact bytes and completion state in one transaction", async () => {
+    const taskId = `artifact-publish-${suffix}`;
+    artifactTaskIds.push(taskId);
+    const sourceBytes = Buffer.from(`frozen-fixture:${suffix}`);
+    const sha256 = createHash("sha256").update(sourceBytes).digest("hex");
+    await artifacts.createTask(taskId, "v1.2-market-data-1");
+    const claim = await artifacts.claimTask(`worker-${suffix}`, 30_000);
+    expect(claim).toMatchObject({ taskId, status: "RUNNING", fence: 1 });
+
+    const completed = await artifacts.publishTask(taskId, claim!.fence, sourceBytes, sha256);
+    expect(completed).toMatchObject({ taskId, status: "COMPLETED", sha256 });
+    expect(await artifacts.readTaskArtifact(taskId)).toMatchObject({ taskId, sha256, bytes: sourceBytes });
+    expect(await pool.query("SELECT status FROM market_data_artifact_tasks WHERE task_id=$1", [taskId])).toMatchObject({ rows: [{ status: "COMPLETED" }] });
+  });
+
+  it("linearizes cancellation against publication and never exposes partial bytes", async () => {
+    const taskId = `artifact-race-${suffix}`;
+    artifactTaskIds.push(taskId);
+    const sourceBytes = Buffer.from(`race-fixture:${suffix}`);
+    const sha256 = createHash("sha256").update(sourceBytes).digest("hex");
+    await artifacts.createTask(taskId, "v1.2-market-data-1");
+    const claim = await artifacts.claimTask(`race-worker-${suffix}`, 30_000);
+    expect(claim).toMatchObject({ taskId, status: "RUNNING", fence: 1 });
+
+    const [, publishedOrFenced] = await Promise.all([
+      artifacts.cancelTask(taskId),
+      artifacts.publishTask(taskId, claim!.fence, sourceBytes, sha256),
+    ]);
+    const finalTask = await artifacts.findTask(taskId);
+    const artifact = await artifacts.readTaskArtifact(taskId);
+    expect(finalTask?.status === "COMPLETED" || finalTask?.status === "CANCELLED").toBe(true);
+    if (finalTask?.status === "COMPLETED") {
+      expect(artifact).toMatchObject({ taskId, sha256, bytes: sourceBytes });
+      expect(cancelledOrCompleted?.status).toBe("COMPLETED");
+      expect(publishedOrFenced?.status).toBe("COMPLETED");
+    } else {
+      expect(artifact).toBeNull();
+      expect(cancelledOrCompleted?.status).toBe("CANCELLED");
+      expect(publishedOrFenced?.status).toBe("CANCELLED");
+    }
+  });
+
+  it("recovers an abandoned task lease and fences the stale worker before publication", async () => {
+    const taskId = `artifact-recovery-${suffix}`;
+    artifactTaskIds.push(taskId);
+    const sourceBytes = Buffer.from(`recovered-fixture:${suffix}`);
+    const sha256 = createHash("sha256").update(sourceBytes).digest("hex");
+    await artifacts.createTask(taskId, "v1.2-market-data-1");
+    const firstWorker = await artifacts.claimTask(`abandoned-worker-${suffix}`, 30_000);
+    expect(firstWorker).toMatchObject({ taskId, status: "RUNNING", fence: 1 });
+    await pool.query("UPDATE market_data_artifact_tasks SET lease_until=now()-interval '1 second' WHERE task_id=$1", [taskId]);
+
+    const recoveredWorker = await artifacts.claimTask(`recovered-worker-${suffix}`, 30_000);
+    expect(recoveredWorker).toMatchObject({ taskId, status: "RUNNING", fence: 2 });
+    expect(await artifacts.publishTask(taskId, firstWorker!.fence, sourceBytes, sha256)).toMatchObject({ status: "RUNNING", fence: 2 });
+    expect(await artifacts.readTaskArtifact(taskId)).toBeNull();
+    expect(await artifacts.publishTask(taskId, recoveredWorker!.fence, sourceBytes, sha256)).toMatchObject({ status: "COMPLETED", fence: 2, sha256 });
+    expect(await artifacts.readTaskArtifact(taskId)).toMatchObject({ taskId, sha256, bytes: sourceBytes });
+  });
+
   it("deduplicates alert events and retains failed delivery for retry", async () => {
     const key = `alert-${suffix}`;
     const first = await alerts.enqueue(key, "SOURCE_UNAVAILABLE", "CRITICAL", { sourceId: "baostock", runId: suffix });
+    alertIds.push(first.alertId);
     const duplicate = await alerts.enqueue(key, "SOURCE_UNAVAILABLE", "CRITICAL", { sourceId: "baostock", runId: suffix });
     expect(first.created).toBe(true);
     expect(duplicate).toEqual({ alertId: first.alertId, created: false });
-    expect(await alerts.pending()).toHaveLength(1);
+    expect((await alerts.pending()).filter((item) => item.alertId === first.alertId)).toHaveLength(1);
     await alerts.markFailed(first.alertId, "notification endpoint unavailable");
     expect((await alerts.pending()).find((item) => item.alertId === first.alertId)).toBeUndefined();
     await pool.query("UPDATE market_data_alert_outbox SET next_attempt_at=now() WHERE alert_id=$1", [first.alertId]);
     expect((await alerts.pending()).find((item) => item.alertId === first.alertId)?.attempts).toBe(1);
     await alerts.markSent(first.alertId);
     expect((await alerts.pending()).find((item) => item.alertId === first.alertId)).toBeUndefined();
+  });
+
+  it("deduplicates active alert incidents, acknowledges, resolves, and creates a new incident on recurrence", async () => {
+    const key = `collection-run:${suffix}:INTRADAY_WINDOW`;
+    const first = await alerts.raiseIncident(key, "COLLECTION_RUN_FAILED", "CRITICAL", { runId: `failed-${suffix}` });
+    const repeated = await alerts.raiseIncident(key, "COLLECTION_RUN_FAILED", "CRITICAL", { runId: `retry-${suffix}` });
+    expect(first.created).toBe(true);
+    expect(repeated.created).toBe(false);
+    expect(repeated.incident.incidentId).toBe(first.incident.incidentId);
+    expect(repeated.incident.state).toBe("OPEN");
+    expect(repeated.incident.payload).toMatchObject({ runId: `retry-${suffix}` });
+    expect((await alerts.activeIncidents()).filter((item) => item.alertKey === key)).toHaveLength(1);
+
+    const acknowledged = await alerts.acknowledgeIncident(first.incident.incidentId, "operator-1");
+    expect(acknowledged).toMatchObject({ state: "ACKNOWLEDGED", acknowledgedBy: "operator-1" });
+    const repeatedAcknowledgement = await alerts.acknowledgeIncident(first.incident.incidentId, "operator-2");
+    expect(repeatedAcknowledgement).toMatchObject({ state: "ACKNOWLEDGED", acknowledgedBy: "operator-1" });
+
+    const resolved = await alerts.resolveIncident(key);
+    expect(resolved).toMatchObject({ incidentId: first.incident.incidentId, state: "RESOLVED" });
+    expect(await alerts.resolveIncident(key)).toBeNull();
+    expect((await alerts.activeIncidents()).filter((item) => item.alertKey === key)).toHaveLength(0);
+
+    const recurrence = await alerts.raiseIncident(key, "COLLECTION_RUN_FAILED", "CRITICAL", { runId: `next-${suffix}` });
+    expect(recurrence.created).toBe(true);
+    expect(recurrence.incident.incidentId).not.toBe(first.incident.incidentId);
+    expect(recurrence.incident.state).toBe("OPEN");
+    const lifecycleEvents = (await alerts.pending(10_000)).filter((item) => item.payload.alertKey === key);
+    expect(lifecycleEvents.map((item) => item.alertKey).sort()).toEqual([
+      `${first.incident.incidentId}:OPEN`,
+      `${first.incident.incidentId}:RESOLVED`,
+      `${recurrence.incident.incidentId}:OPEN`,
+    ].sort());
   });
 });

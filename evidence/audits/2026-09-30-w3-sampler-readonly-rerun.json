@@ -1,0 +1,36 @@
+{
+  "audit": "w3-paper-sampler-readonly-rerun",
+  "observedAt": "2026-09-30T10:05:37Z",
+  "decision": "NO_TRADE",
+  "containerInventory": {
+    "platformApi": {
+      "name": "stockquant-v12-platform-api-service-1",
+      "imageReference": "2d3b6d1c18fd",
+      "state": "running",
+      "health": "unhealthy"
+    },
+    "database": {
+      "name": "stockquant-v12-postgres-1",
+      "state": "running",
+      "health": "healthy"
+    }
+  },
+  "readOnlyQuery": {
+    "transaction": "BEGIN READ ONLY / ROLLBACK",
+    "table": "platform_api.v24_scheduler_state",
+    "row": {
+      "status": "STOPPED",
+      "tickCount": 231,
+      "mode": "PAPER",
+      "brokerMode": "FAKE",
+      "updatedAt": "2026-09-30T06:42:52.982405Z"
+    }
+  },
+  "actions": [],
+  "activeServicesModified": false,
+  "notes": [
+    "Only docker ps and one explicit read-only SQL transaction were used.",
+    "The sampler state remains stopped. The Platform API container is still running but unhealthy; no restart, credential change, or data write was attempted.",
+    "This does not prove that a future container recreation cannot restore a different scheduler state."
+  ]
+}

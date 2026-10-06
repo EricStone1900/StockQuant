@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "stockquant-version-gate-refresh-v1",
+  "capturedAt": "2026-09-30T11:57:15.812Z",
+  "command": "node scripts/verify-version.mjs --version V1|V2|V3",
+  "results": [
+    {
+      "version": "V1",
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "unresolvedStages": [
+        {
+          "stageId": "V1.1",
+          "status": "PARTIALLY_IMPLEMENTED（2026-09-09既有范围自动与人工验收保留；截至2026-09-27公共Schema/TS-Python生成、账户详情/双市场幂等初始化、隔离stage存储Web/CLI同run均有工程证据；本轮补齐A股Calendar响应Schema/Fixture/兼容规则/OpenAPI及Market Data/Platform生成类型和真实日期校验；完整OpenAPI/客户端覆盖、通用Artifact交付、活动API切换/回退及新增范围用户验收仍未完成；详见阶段复核与P3记录）"
+        }
+      ],
+      "missingAcceptance": [],
+      "unexpectedAcceptance": [],
+      "versionSummaryIncomplete": true,
+      "uncheckedVersionGate": true
+    },
+    {
+      "version": "V2",
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "unresolvedStages": [
+        {
+          "stageId": "V2.3",
+          "status": "PARTIALLY_IMPLEMENTED（回放/模拟撮合历史用户确认保留；2026-09-27锁定容器内真实Qlib `LGBModel.fit/predict` 合成数据冒烟已纳入V2.3代码套件并通过；生产研究路由、冻结市场数据、独立模型验证与新研究Web/CLI验收仍待完成；不含LIVE或容量观察门禁）"
+        },
+        {
+          "stageId": "V2.4",
+          "status": "PARTIALLY_IMPLEMENTED（调度/观察基础及若干领域准备切片已验证；2026-09-27审计发现旧Paper normal/rejection/recovery静态制造PASS，不能证明快照至FakeBroker业务链；当前场景为WAITING/NOT_RUN。数据库历史8/20计数与2026-09-11签署保留，但不作为修复后执行链证据；新链验收/人工确认待完成）"
+        },
+        {
+          "stageId": "V2.5",
+          "status": "PARTIALLY_IMPLEMENTED（20×60 Fixture 及 BaoStock 真实 5 分钟切片、真实归档回放、Mac 50/80/100 监控池质量、BaoStock 5/100/500/5219 标的日线容量及归档/隔离恢复已验证；BaoStock 有界稳定性与恢复探针已通过；分钟级全量、真实交易时段长期稳定性、60 日备用免费源与 V2.4 观察门禁待完成）"
+        }
+      ],
+      "missingAcceptance": [],
+      "unexpectedAcceptance": [],
+      "versionSummaryIncomplete": true,
+      "uncheckedVersionGate": true
+    },
+    {
+      "version": "V3",
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "unresolvedStages": [
+        {
+          "stageId": "V3.1",
+          "status": "NOT_RUN"
+        },
+        {
+          "stageId": "V3.2",
+          "status": "NOT_RUN"
+        },
+        {
+          "stageId": "V3.3",
+          "status": "NOT_RUN"
+        },
+        {
+          "stageId": "V3.4",
+          "status": "NOT_RUN"
+        }
+      ],
+      "missingAcceptance": [],
+      "unexpectedAcceptance": [],
+      "versionSummaryIncomplete": true,
+      "uncheckedVersionGate": true
+    }
+  ],
+  "interpretation": "Markdown gate snapshot only; not business verification, observation evidence or human sign-off."
+}

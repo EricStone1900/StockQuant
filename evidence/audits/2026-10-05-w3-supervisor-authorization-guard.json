@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "w3-supervisor-authorization-guard-v1",
+  "capturedAt": "2026-10-05",
+  "finding": "repair mode could set collection worker flags without first checking source authorization",
+  "change": "activation and supervisor share the same explicit minute-source authorization evaluator; repair blocks before Compose when any required field is missing",
+  "checks": {
+    "activation": { "passed": 10, "failed": 0, "exitCode": 0 },
+    "supervisor": { "passed": 6, "failed": 0, "exitCode": 0 },
+    "sharedConfiguration": { "passed": 3, "failed": 0, "exitCode": 0 },
+    "marketDataRuntimeAuthorization": { "passed": 4, "failed": 0, "exitCode": 0 }
+  },
+  "liveRepairInvoked": false,
+  "composeCalls": 0,
+  "providerCalls": 0,
+  "databaseAccess": 0,
+  "serviceRestarts": 0,
+  "sourceAuthorizationStatus": "NONE",
+  "scope": "offline code/tests only; no real source access, deployment, observation, or W3 acceptance"
+}

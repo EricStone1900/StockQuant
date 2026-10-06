@@ -8,34 +8,35 @@ import test from "node:test";
 import { inspectBackupDirectory, runBackupRetention } from "./backup-retention.mjs";
 import { producePairedBackup } from "./paired-backup.mjs";
 
-const backupCli = fileURLToPath(new URL("./create-paired-backup.mjs", import.meta.url));
+const backupCli = fileURLToPath(new URL("./create-cluster-paired-backup.mjs", import.meta.url));
 
 function runBackupCli(env, args = []) {
   return spawnSync(process.execPath, [backupCli, ...args], { cwd: process.cwd(), env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: tmpdir(), ...env }, encoding: "utf8", timeout: 5000 });
 }
 
-test("backup CLI fails closed before Docker unless quiescence and exact source identities are supplied", async () => {
+test("cluster backup CLI fails closed before Docker unless quiescence and an exact Artifact volume are supplied", async () => {
   const root = await mkdtemp(join(tmpdir(), "stockquant-backup-cli-preflight-"));
   try {
-    const unacknowledged = runBackupCli({ STOCKQUANT_BACKUP_DIR: root, STOCKQUANT_BACKUP_DATABASE: "research_automation_test", STOCKQUANT_BACKUP_ARTIFACT_VOLUME: "research-artifacts-test", STOCKQUANT_BACKUP_WRITES_QUIESCED: "YES" });
+    const volume = "research-artifacts-test";
+    const unacknowledged = runBackupCli({ STOCKQUANT_BACKUP_DIR: root, STOCKQUANT_BACKUP_ARTIFACT_VOLUME: volume }, []);
     assert.notEqual(unacknowledged.status, 0);
     assert.match(unacknowledged.stderr, /stop all database writers and artifact publishers/u);
     assert.doesNotMatch(unacknowledged.stderr, /docker command failed/u);
 
-    const missingSource = runBackupCli({ STOCKQUANT_BACKUP_DIR: root }, ["--confirm-writes-quiesced=research_automation_test/research-artifacts-test"]);
-    assert.notEqual(missingSource.status, 0);
-    assert.match(missingSource.stderr, /exact STOCKQUANT_BACKUP_DATABASE and STOCKQUANT_BACKUP_ARTIFACT_VOLUME/u);
-    assert.doesNotMatch(missingSource.stderr, /docker command failed/u);
+    const missingVolume = runBackupCli({ STOCKQUANT_BACKUP_DIR: root }, ["--confirm-writes-quiesced=cluster/research-artifacts-test"]);
+    assert.notEqual(missingVolume.status, 0);
+    assert.match(missingVolume.stderr, /exact STOCKQUANT_BACKUP_ARTIFACT_VOLUME/u);
+    assert.doesNotMatch(missingVolume.stderr, /docker command failed/u);
 
-    const env = { STOCKQUANT_BACKUP_DATABASE: "research_automation_test", STOCKQUANT_BACKUP_ARTIFACT_VOLUME: "research-artifacts-test" };
-    const mismatched = runBackupCli({ STOCKQUANT_BACKUP_DIR: root, ...env }, ["--confirm-writes-quiesced=other_db/other-volume"]);
+    const env = { STOCKQUANT_BACKUP_ARTIFACT_VOLUME: volume };
+    const mismatched = runBackupCli({ STOCKQUANT_BACKUP_DIR: root, ...env }, ["--confirm-writes-quiesced=cluster/other-volume"]);
     assert.notEqual(mismatched.status, 0);
-    assert.match(mismatched.stderr, /pass --confirm-writes-quiesced=research_automation_test\/research-artifacts-test/u);
+    assert.match(mismatched.stderr, /pass --confirm-writes-quiesced=cluster\/research-artifacts-test/u);
     assert.doesNotMatch(mismatched.stderr, /docker command failed/u);
 
-    const missingRoot = runBackupCli({ STOCKQUANT_BACKUP_DIR: join(root, "absent"), ...env }, ["--confirm-writes-quiesced=research_automation_test/research-artifacts-test"]);
+    const missingRoot = runBackupCli({ STOCKQUANT_BACKUP_DIR: join(root, "absent"), ...env }, ["--confirm-writes-quiesced=cluster/research-artifacts-test"]);
     assert.notEqual(missingRoot.status, 0);
-    assert.match(missingRoot.stderr, /must already exist as a real directory/u);
+    assert.match(missingRoot.stderr, /must already exist as a real owner-only directory/u);
     assert.doesNotMatch(missingRoot.stderr, /docker command failed/u);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

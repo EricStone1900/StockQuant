@@ -50,6 +50,36 @@
         }
       }
     },
+    "/api/v1/acceptance/v2/v2.4/runs/{testRunId}/recover": {
+      "post": {
+        "operationId": "recoverOwnedV24PaperRecoveryRun",
+        "summary": "Recover a failed owner-scoped V2.4 recovery TestRun after querying its original FakeBroker client order identity",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "202": { "description": "Recovered, still UNKNOWN, or waiting on the original order/outbox", "content": { "application/json": { "schema": { "type": "object", "required": ["accepted", "testRunId", "status", "executionResent"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "enum": ["COMPLETED", "FAILED", "UNKNOWN"] }, "executionResent": { "type": "boolean" }, "recoveredOrderId": { "type": "string", "format": "uuid" }, "resourceReservation": { "type": "string" } } } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing or outside the owner scope" },
+          "409": { "description": "The run is not a failed V2.4 recovery TestRun or lacks its persisted original command" },
+          "503": { "description": "A domain service is unavailable before recovery can be safely recorded" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.4/runs/{testRunId}/history": {
+      "get": {
+        "operationId": "listOwnedV24PaperRecoveryHistory",
+        "summary": "List immutable prior status and evidence revisions for an owned V2.4 recovery TestRun",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Prior run evidence revisions, oldest first", "content": { "application/json": { "schema": { "type": "object", "required": ["testRunId", "revisions"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "revisions": { "type": "array", "items": { "type": "object", "required": ["revisionId", "status", "assertions", "evidence", "recordedAt"], "properties": { "revisionId": { "type": "integer" }, "status": { "type": "string" }, "assertions": { "type": "array" }, "evidence": { "type": "object" }, "recordedAt": { "type": "string", "format": "date-time" } } } } } } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing, unowned, or not a V2.4 recovery run" }
+        }
+      }
+    },
     "/api/v1/acceptance/v2/v2.4/runs/{testRunId}/revisions": {
       "get": {
         "operationId": "listV24ObservationRunRevisions",

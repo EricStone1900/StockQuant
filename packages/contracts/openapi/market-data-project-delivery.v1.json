@@ -1,0 +1,41 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Market Data Project Delivery API", "version": "1.0.0" },
+  "servers": [{ "url": "http://market-data-service:3002" }],
+  "components": {
+    "securitySchemes": {
+      "ProjectToken": { "type": "apiKey", "in": "header", "name": "x-stockquant-project-token" }
+    }
+  },
+  "paths": {
+    "/v2/data/page": {
+      "post": {
+        "operationId": "pageProjectData",
+        "summary": "Read a page from a project-owned immutable data version",
+        "security": [{ "ProjectToken": [] }],
+        "parameters": [{ "name": "x-stockquant-project-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/market-data/project-data-page-request.schema.json" } } } },
+        "responses": {
+          "200": { "description": "A page of data locked to the requested version", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/market-data/project-data-page.schema.json" } } } },
+          "401": { "description": "Missing project credential or request identity" },
+          "403": { "description": "Project or DATA_READ scope mismatch" },
+          "409": { "description": "Requested data version is no longer available" }
+        }
+      }
+    },
+    "/v2/data/export": {
+      "post": {
+        "operationId": "exportProjectData",
+        "summary": "Export redacted project data with a content hash",
+        "security": [{ "ProjectToken": [] }],
+        "parameters": [{ "name": "x-stockquant-project-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/market-data/project-data-export-request.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Redacted export with SHA-256 manifest", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/market-data/project-data-export.schema.json" } } } },
+          "401": { "description": "Missing project credential or request identity" },
+          "403": { "description": "Project or DATA_EXPORT scope mismatch" }
+        }
+      }
+    }
+  }
+}

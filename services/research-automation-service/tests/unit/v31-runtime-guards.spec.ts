@@ -43,6 +43,49 @@ describe("V3.1 runtime guards", () => {
   expect(ledger.reject("exp-3").status).toBe("REJECTED");
     expect(() => ledger.reject("exp-3")).toThrow("only a reserved budget");
   });
+  it("enforces the cumulative TestRun cap while counting UNKNOWN as reserved and SETTLED as actual spend", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80, 12, 100);
+    ledger.reserve("exp-run-a", 60, "run-a");
+    ledger.settle("exp-run-a", 20);
+    expect(() => ledger.reserve("exp-run-b", 81, "run-a")).toThrow("TestRun budget exhausted");
+    expect(ledger.reserve("exp-run-b", 80, "run-a").status).toBe("RESERVED");
+    ledger.settle("exp-run-b", "UNKNOWN");
+    expect(() => ledger.reserve("exp-run-c", 1, "run-a")).toThrow("TestRun budget exhausted");
+    expect(ledger.reserve("exp-other-run", 100, "run-b").status).toBe("RESERVED");
+  });
+  it("binds an immutable lower budget cap to one TestRun before any over-cap reservation", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80, 12, 100);
+    const testRunId = "b1205560-6ca0-4d6c-b3d5-d292dae4a8dd";
+    expect(ledger.configureTestRunBudget(testRunId, 50)).toBe(50);
+    expect(ledger.configureTestRunBudget(testRunId, 50)).toBe(50);
+    ledger.reserve("prior-settled", 20, testRunId);
+    ledger.settle("prior-settled", 20);
+    ledger.reserve("prior-reserved", 20, testRunId);
+    const before = ledger.get("prior-reserved");
+    expect(() => ledger.reserve("over-cap", 15, testRunId)).toThrow("TestRun budget exhausted");
+    expect(ledger.get("over-cap")).toBeNull();
+    expect(ledger.get("prior-reserved")).toEqual(before);
+    expect(() => ledger.configureTestRunBudget(testRunId, 51)).toThrow("immutable");
+    expect(() => ledger.configureTestRunBudget("invalid-id", 50)).toThrow("invalid");
+    const overcommittedRunId = "c1205560-6ca0-4d6c-b3d5-d292dae4a8dd";
+    ledger.reserve("preexisting", 40, overcommittedRunId);
+    expect(() => ledger.configureTestRunBudget(overcommittedRunId, 30)).toThrow("below its existing commitment");
+    expect(ledger.reserve("preexisting", 40, overcommittedRunId).status).toBe("RESERVED");
+  });
+  it("partitions experiment budget by one-based round and keeps UNKNOWN cost inside its round", () => {
+    const ledger = new BudgetLedger(3000, 1000, 80, 12, 1000);
+    ledger.reserve("exp-rounds", 100, undefined, 2);
+    expect(() => ledger.reserveModelCall("exp-rounds", "missing-round", "a".repeat(64), 1)).toThrow("roundIndex is required");
+    const first = ledger.reserveModelCall("exp-rounds", "round-one", "b".repeat(64), 40, 1);
+    expect(first.reservation.roundIndex).toBe(1);
+    ledger.dispatchModelCall("exp-rounds", "round-one");
+    ledger.markModelCallUnknown("exp-rounds", "round-one");
+    expect(() => ledger.reserveModelCall("exp-rounds", "round-one-retry", "c".repeat(64), 11, 1)).toThrow("round model-call budget exhausted");
+    const second = ledger.reserveModelCall("exp-rounds", "round-two", "d".repeat(64), 50, 2);
+    expect(second.reservation.roundIndex).toBe(2);
+    expect(() => ledger.reserveModelCall("exp-rounds", "round-two-extra", "e".repeat(64), 1, 3)).toThrow("roundIndex is outside");
+    expect(() => ledger.reserveModelCall("exp-rounds", "round-one", "b".repeat(64), 40, 2)).toThrow("reused with different");
+  });
 
   it("reserves each model request before dispatch and keeps UNKNOWN request cost inside the experiment cap", () => {
     const ledger = new BudgetLedger(3000, 1000, 80);
@@ -53,6 +96,11 @@ describe("V3.1 runtime guards", () => {
     expect(() => ledger.reserveModelCall("exp-calls", "model-run-1", "b".repeat(64), 60)).toThrow("reused with different");
 
     ledger.dispatchModelCall("exp-calls", "model-run-1");
+    const providerEvidence = { provider: "siliconflow", model: "Qwen/Qwen3-Embedding-4B", requestId: "req-123", inputTokens: 64, outputTokens: 0, tariffVersion: "2026-09-30", costBasis: "ESTIMATE" as const, invoiceReconciliation: "NOT_PERFORMED" as const };
+    expect(ledger.recordModelCallEvidence("exp-calls", "model-run-1", providerEvidence)).toMatchObject({ providerEvidence });
+    expect(ledger.recordModelCallEvidence("exp-calls", "model-run-1", providerEvidence)).toMatchObject({ providerEvidence });
+    expect(() => ledger.recordModelCallEvidence("exp-calls", "model-run-1", { ...providerEvidence, requestId: "different" })).toThrow("cannot be changed");
+    expect(() => ledger.recordModelCallEvidence("exp-calls", "model-run-1", { ...providerEvidence, inputTokens: -1 })).toThrow("usage");
     expect(ledger.markModelCallUnknown("exp-calls", "model-run-1").status).toBe("UNKNOWN");
     expect(() => ledger.dispatchModelCall("exp-calls", "model-run-1")).toThrow("only be dispatched from RESERVED");
     expect(() => ledger.settle("exp-calls", 0)).toThrow("model call budget remains unresolved");
@@ -66,7 +114,7 @@ describe("V3.1 runtime guards", () => {
     expect(() => ledger.settleModelCall("exp-calls", "model-run-1", 41)).toThrow("cannot be changed");
     expect(() => ledger.settleModelCall("exp-calls", "model-run-2", 21)).toThrow("outside the reservation");
     expect(ledger.reserveModelCall("exp-calls", "model-run-3", "d".repeat(64), 25).created).toBe(true);
-    expect(ledger.getModelCall("exp-calls", "model-run-1")).toMatchObject({ status: "SETTLED", requestedCents: 60, spentCents: 40 });
+    expect(ledger.getModelCall("exp-calls", "model-run-1")).toMatchObject({ status: "SETTLED", requestedCents: 60, spentCents: 40, providerEvidence, });
     ledger.rejectModelCall("exp-calls", "model-run-3");
     expect(() => ledger.settle("exp-calls", 54)).toThrow("below its settled model call costs");
     expect(ledger.settle("exp-calls", 55)).toMatchObject({ status: "SETTLED", spentCents: 55 });
@@ -92,7 +140,7 @@ describe("V3.1 runtime guards", () => {
     ledger.dispatchModelCall("exp-snapshot", "unknown");
     ledger.markModelCallUnknown("exp-snapshot", "unknown");
     expect(ledger.snapshot(["exp-snapshot", "missing"])).toEqual([{
-      experimentId: "exp-snapshot", requestedCents: 100, reservedCents: 100, spentCents: 0, status: "RESERVED",
+      experimentId: "exp-snapshot", rounds: 1, requestedCents: 100, reservedCents: 100, spentCents: 0, status: "RESERVED",
       modelCallSettledCents: 23, modelCallUnknownReservedCents: 30,
     }]);
   });

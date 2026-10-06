@@ -1,0 +1,27 @@
+{
+  "date":"2026-10-05",
+  "workPackage":"W5",
+  "status":"BLOCKED_FOR_REAL_PROVIDER_RECONCILIATION",
+  "method":"read-only review of public official documentation",
+  "providerCalls":0,
+  "accountAccess":false,
+  "credentialsRead":false,
+  "findings":[
+    {
+      "provider":"DeepSeek",
+      "balanceEndpoint":"GET /user/balance",
+      "balanceEndpointScope":"current balance by currency and granted/topped-up balance",
+      "requestUsage":"single-response token usage documented",
+      "requestLevelInvoiceReconciliation":"not documented in reviewed public API contracts"
+    },
+    {
+      "provider":"SiliconFlow",
+      "requestUsage":"Chat Completions response documents per-request usage and trace header",
+      "legacyUserInfo":"official release note says /user/info stopped on 2026-08-14 and replacement account API would be provided later",
+      "requestLevelInvoiceReconciliation":"not documented in reviewed public API contracts"
+    }
+  ],
+  "interpretation":"Current balance snapshots and per-response usage are distinct evidence and cannot reconcile each request to actual account charges, especially when the request response is lost.",
+  "scopeLimit":"No claim is made that private or account-specific endpoints do not exist; the finding is limited to reviewed public official documentation.",
+  "decision":"Keep real Provider experiments blocked; preserve UNKNOWN requests and their full budget reservation until an authoritative charge reconciliation source is available."
+}

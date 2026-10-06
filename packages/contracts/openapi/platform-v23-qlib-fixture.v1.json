@@ -1,0 +1,37 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Platform V2.3 Qlib Fixture TestRun", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "paths": {
+    "/api/v1/acceptance/v2/v2.3/research/qlib-fixture/runs": {
+      "post": {
+        "operationId": "createV23QlibFixtureTestRun",
+        "summary": "Persist an owner-scoped V2.3 TestRun and execute the isolated synthetic Qlib Fixture fit",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "maxProperties": 0 } } } },
+        "responses": {
+          "201": { "description": "Completed or failed persisted TestRun with a durable owner-scoped model/prediction artifact on success; independent model validation remains NOT_RUN", "content": { "application/json": { "schema": { "type": "object", "required": ["accepted", "testRunId", "status"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "enum": ["COMPLETED", "FAILED"] } }, "additionalProperties": false } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "User is outside the local acceptance scope" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.3/runs/{testRunId}/artifacts/{artifactId}": {
+      "get": {
+        "operationId": "readV23QlibFixtureArtifact",
+        "summary": "Read the immutable model and prediction artifact for an owned V2.3 Qlib Fixture TestRun",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Integrity-checked immutable artifact", "content": { "application/json": { "schema": { "type": "object", "required": ["artifactId", "testRunId", "ownerId", "mediaType", "sha256", "payload"], "properties": { "artifactId": { "type": "string" }, "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string" }, "mediaType": { "const": "application/vnd.stockquant.qlib-fixture-model+json" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "payload": { "type": "object", "required": ["schemaVersion", "modelBase64", "predictions"], "properties": { "schemaVersion": { "const": "v2.3-qlib-fixture-artifact-v1" }, "modelBase64": { "type": "string" }, "predictions": { "type": "array", "items": { "type": "number" } } } } }, "additionalProperties": false } } } },
+          "404": { "description": "Artifact does not belong to the requested owner and TestRun" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "stockquant_session" } } }
+}

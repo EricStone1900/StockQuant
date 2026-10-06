@@ -80,6 +80,12 @@
   `v24-conservative-hold-v1`，执行窗口记录`HOLD`、无模拟订单及无成交，符合PAPER+FAKE约束。
 - 当前日终最终有效观察日为8/20（2026-09-15～2026-09-18、2026-09-21～2026-09-24）；2026-09-14仍因原始盘中超时错误保持不计数，恢复检查事件不能覆盖日终结论。
 
+## 2026-10-03 恢复缺口窗口校正
+
+- 恢复检查按已配置的20/30分钟采样槽识别漏采，不再使用固定31分钟阈值；午休跨段不误报，计划采样当前槽不算作之前错过的窗口，跨日交由启动恢复条件处理。
+- Platform API单测180/180、类型检查通过；完整`pnpm verify:stage -- --stage V2.4 --suite code`受控隔离运行退出0，`activeServicesTouched=false`。首次普通沙箱运行因Qlib Worker绑定临时loopback端口EPERM退出非零，原始失败保留。
+- 代码、测试及最终套件JSON的SHA-256见[增量清单](../evidence/audits/2026-10-03-w3-recovery-slot-gap.sha256)。未部署活动服务、未授权或请求行情，NO_TRADE及O2暂停状态不变。
+
 ## 2026-09-22 计数口径与运行复核补充
 
 - 当前 `dc08a-20260917-20-v1` 订阅的证据汇总为连续稳定日4、恢复后完整日1、观察日5、剩余15；恢复日计入观察总数，连续稳定日和恢复日的分类仍分别保留。数据库 V2.4 日终总记录的8/20包含此前订阅的有效日期，两个数字不混用。
@@ -91,3 +97,23 @@
 - V2.4 仍为 `WAITING`，尚余12个实际交易日；DC-08A 独立观察仍为 `WAITING`，尚余15个观察日。
 - 修复 `dc08a-observation-summary-v2` 的剩余天数和通过条件，使其统一按 `observedDays`（连续稳定日+恢复后完整日）计算；回归测试4/4通过。
 - `pnpm verify:stage -- --stage V2.4 --suite code` 退出0；`pnpm v24:preflight` 五项 PASS；`dc08a-health-v3` 实际报告 `HEALTHY`。当前运行仍为 `PAPER + FAKE`，BaoStock 盘中恢复切回和20日真实观察尚未完成。
+
+## 2026-09-30 W3 来源与启动门禁更正
+
+- 项目所有者确认 `NO_TRADE`，并确认目前没有为 V2.4 Paper 新用途授权行情来源。历史 `LIVE_SOURCE` 记录仅保留为其当时运行与来源用途的证据，不表示本次已批准的策略输入或当前活动部署状态。
+- 新代码默认令 `STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED=false`；关闭时，报价观察器不调用 Market Data quote endpoint，记录 `NOT_AUTHORIZED`/`NOT_CONNECTED` 且不计有效观察日。Compose 的 `STOCKQUANT_V24_AUTO_START` 与来源读取授权也都默认为 `false`。二者尚未部署到活动容器；既有活动服务未重启或变更。
+- 默认关闭单元测试、Platform 构建、Compose 配置解析及 `pnpm verify:stage -- --stage V2.4 --suite code` 均通过，隔离 Smoke 报告 `activeServicesTouched=false`。本次证据与限制见[W3 source-gate validation](../evidence/audits/2026-09-30-w3-source-gate-validation.md)。
+- 依据本次授权范围，新的真实行情采集、活动策略、订单和 O2 观察保持关闭/未开始；当前阶段只允许 NO_TRADE 只读页面及隔离 Fixture 工程。来源权限、活动部署和人工阶段验收仍未完成。
+
+
+### 活动环境调度状态与历史记录资格
+
+- 2026-09-30只读检查发现活动Platform旧容器仍以`STOCKQUANT_V24_AUTO_START=true`运行V2.4采样器。按项目所有者`NO_TRADE`且无来源授权的决定，通过调度Stop API停止后复查为`STOPPED`，tickCount=231且`nextSampleAt=null`；所有服务容器继续运行，未重启、部署、请求行情或触发订单。DC-08A独立采集器未改动。
+- V2.4数据库保留10条旧`observationCounted=true`记录，但无逐证券报价证据（sourceAvailable/lastSnapshotAt/dataAgeSeconds均为空，且无sourceProbe）。它们不能满足新增的授权引用、数据版本、十个采样窗口及日终核验规则，因此UI显示为历史待补证，严格合格天数为0/20；未回写或删除旧记录。
+- 工作区Compose已改为AUTO_START=false、来源批准=false、授权引用和数据版本为空，但没有部署到活动旧容器。其restart policy可能使旧自动启动行为在将来容器重启时恢复；W8备份、维护窗口和回滚预演前不重启或替换该容器。细节及命令结果见[W3运行采样停止审计](../evidence/audits/2026-09-30-w3-live-paper-stop.md)。
+
+## 2026-10-01 当前来源授权边界复核
+
+历史2026-09-11的`LIVE_SOURCE`预检与行情探针仅代表当时运行，不是当前来源授权。当前Market Data `/ready`仅在quote用途的开关、决定引用、数据版本及source ID白名单齐备时报告`LIVE_SOURCE`；否则为`NOT_AUTHORIZED`。用户当前决定为`NO_TRADE`且无来源授权。2026-10-01无授权认证HTTP smoke确认行情、新闻与来源Smoke均返回403，Provider请求数为0；没有请求外部数据或修改活动服务。来源门禁的实现与完整V2.4 code suite证据见[W3运行门禁审计](../evidence/audits/2026-10-01-w3-market-source-runtime-gate.md)。20日观察仍为8/20历史有效日且处于暂停状态，不能由代码套件或历史探针续计。
+
+2026-10-03当前工作树完整V2.4 code suite及告警浏览器集成：完整阶段入口exit 0，真实浏览器读取/确认隔离Market Data告警后，PostgreSQL核实ACKNOWLEDGED及Cookie owner；行情/provider调用0，采集器关闭，五库导出并由Harness验证临时容器/网络清理，活动服务未触碰。详见[隔离全套审计](../evidence/audits/2026-10-03-v24-paper-smoke-ce6b0c6569f74286889aff48e622d63c.json)与[SHA-256](../evidence/audits/2026-10-03-v24-paper-smoke-ce6b0c6569f74286889aff48e622d63c.sha256)。

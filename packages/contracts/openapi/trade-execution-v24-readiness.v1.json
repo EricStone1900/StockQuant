@@ -1,26 +1,275 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "StockQuant Trade Execution V2.4 Readiness API", "version": "1.0.0" },
-  "servers": [{ "url": "http://trade-execution-service:3005" }],
-  "security": [{ "ServiceBearer": [] }],
+  "info": {
+    "title": "StockQuant Trade Execution V2.4 Internal API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://trade-execution-service:3005"
+    }
+  ],
+  "security": [
+    {
+      "ServiceBearer": []
+    }
+  ],
   "paths": {
     "/internal/v1/v24/paper-readiness": {
       "get": {
         "operationId": "getV24PaperExecutionReadiness",
         "summary": "Read fail-closed V2.4 policy and Mandate readiness without evaluating risk or reserving resources",
-        "security": [{ "ServiceBearer": [] }],
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
         "parameters": [
-          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
-          { "name": "market", "in": "query", "required": true, "schema": { "enum": ["CN_A", "US_EQUITY"] } }
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "market",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "CN_A",
+                "US_EQUITY"
+              ]
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Read-only readiness; order submission remains disabled", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-readiness.schema.json" } } } },
-          "400": { "description": "Unsupported market or malformed query" },
-          "403": { "description": "Service identity or route scope is not allowed" },
-          "503": { "description": "Readiness policy or mandate contract is unavailable" }
+          "200": {
+            "description": "Read-only readiness; order submission remains disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v24-paper-readiness.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsupported market or malformed query"
+          },
+          "403": {
+            "description": "Service identity or route scope is not allowed"
+          },
+          "503": {
+            "description": "Readiness policy or mandate contract is unavailable"
+          }
+        }
+      }
+    },
+    "/internal/v1/orders/{orderId}/cancel-result": {
+      "post": {
+        "operationId": "recordFakeBrokerCancellationResult",
+        "summary": "Record a sequenced simulated authoritative FakeBroker cancel result; buffer until prior order events arrive",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/trade-execution/fake-broker-cancellation-result.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Cancellation result durably buffered because an earlier authoritative sequence is missing"
+          },
+          "200": {
+            "description": "Cancellation result reduced in sequence order and any reservation release durably enqueued"
+          },
+          "403": {
+            "description": "Service identity or route scope is not allowed"
+          },
+          "409": {
+            "description": "No cancellation is awaiting an authoritative result"
+          },
+          "413": {
+            "description": "Request exceeds 8 KiB"
+          },
+          "422": {
+            "description": "Invalid cancellation result"
+          }
+        }
+      }
+    },
+    "/internal/v1/orders/{orderId}/fills/{externalFillId}/fee-corrections": {
+      "post": {
+        "operationId": "recordFakeBrokerFillFeeCorrection",
+        "summary": "Record a versioned simulated FakeBroker fill-fee correction and enqueue Portfolio ledger adjustment",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "externalFillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/fill-fee-correction-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent replay of an existing correction"
+          },
+          "202": {
+            "description": "Correction and durable Outbox event committed"
+          },
+          "403": {
+            "description": "Service identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Order or original Fill not found"
+          },
+          "409": {
+            "description": "Stale, conflicting or prior correction still pending"
+          },
+          "413": {
+            "description": "Request exceeds 8 KiB"
+          },
+          "422": {
+            "description": "Invalid fee correction"
+          }
+        }
+      }
+    },
+    "/internal/v1/orders/{orderId}/simulated-fill-reports": {
+      "post": {
+        "operationId": "recordFakeBrokerSimulatedFillReport",
+        "summary": "Record a sequence-checked simulated cumulative FakeBroker fill report and enqueue only its new quantity increment",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/trade-execution/fake-broker-simulated-fill-report.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent report replay or a report with no new filled quantity"
+          },
+          "202": {
+            "description": "Report and any positive fill increment durably recorded"
+          },
+          "403": {
+            "description": "Service identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "409": {
+            "description": "Out of order, regressing, excessive, conflicting or terminal-order report"
+          },
+          "413": {
+            "description": "Request exceeds 8 KiB"
+          },
+          "422": {
+            "description": "Invalid cumulative report"
+          }
         }
       }
     }
   },
-  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
 }

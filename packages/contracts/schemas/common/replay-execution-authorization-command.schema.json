@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/replay-execution-authorization-command.schema.json",
+  "title": "ReplayExecutionAuthorizationCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["namespace", "accountId", "environmentMode", "brokerMode", "command"],
+  "properties": {
+    "namespace": { "type": "string", "minLength": 1 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "environmentMode": { "const": "BACKTEST" },
+    "brokerMode": { "const": "FAKE" },
+    "command": {
+      "type": "object", "additionalProperties": false,
+      "required": ["namespace", "accountId", "clientOrderId", "security", "requestedQuantity", "bar"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 }, "accountId": { "type": "string", "format": "uuid" },
+        "clientOrderId": { "type": "string", "minLength": 1 }, "security": { "type": "string", "minLength": 1 }, "requestedQuantity": { "type": "integer", "minimum": 1 },
+        "bar": { "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"], "properties": { "timestamp": { "type": "string", "format": "date-time" }, "open": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 } } }
+      }
+    }
+  }
+}

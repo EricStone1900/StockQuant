@@ -1,0 +1,106 @@
+{
+  "$schema": "../../manifests/v3.3-research-orchestration-scenarios.schema.json",
+  "schemaVersion": "v3.3-research-orchestration-scenarios-v1",
+  "stageId": "V3.3",
+  "fixtureVersion": "v3.3-research-orchestration-1",
+  "environment": {
+    "dataMode": "FIXTURE",
+    "runnerMode": "ISOLATED_CONTAINER",
+    "providerCalls": 0,
+    "marketDataCalls": 0,
+    "paperCalls": 0,
+    "brokerCalls": 0,
+    "liveTrading": false,
+    "clock": "FIXED_AT_2026-09-07T09:30:00.000Z",
+    "seed": 20260907,
+    "maxConcurrentJobs": 1,
+    "currency": "USD",
+    "budgetUnit": "integer cents"
+  },
+  "scenarios": [
+    {
+      "scenarioId": "normal",
+      "description": "Persist a TestRun-bound two-round research experiment, execute each round through the deterministic isolated Runner Fixture, and publish one immutable result per round.",
+      "testRunBudgetCents": 100,
+      "experimentBudgetCents": 80,
+      "roundBudgetsCents": [40, 40],
+      "expected": {
+        "testRunStatus": "COMPLETED",
+        "roundStatuses": ["COMPLETED", "COMPLETED"],
+        "runnerJobsCreated": 2,
+        "roundResultArtifacts": 2,
+        "workflowSummaryArtifacts": 1,
+        "publishedArtifactsTotal": 3,
+        "duplicatePublications": 0,
+        "roundSettledCents": [23, 23],
+        "testRunSettledCents": 46,
+        "testRunUnknownCents": 0,
+        "releasedReservationCents": 34,
+        "remainingTestRunBudgetCents": 54
+      },
+      "assertions": [
+        "Both round jobs are bound to the same owner, TestRun, Experiment and explicit round index.",
+        "Each round consumes only its own 40-cent reservation; unused round budget cannot transfer.",
+        "Each deterministic Fixture model call settles 23 cents against its own 40-cent round cap; the aggregate is exactly 46 cents.",
+        "Each round publishes one content-addressed immutable artifact and retries do not publish duplicates.",
+        "Web and CLI inspect the same TestRun and independently recompute the same assertions."
+      ]
+    },
+    {
+      "scenarioId": "rejection",
+      "description": "Reject an experiment whose requested reservation exceeds the TestRun's remaining cap before persisting the Experiment or creating a Runner Job.",
+      "testRunBudgetCents": 50,
+      "existingSettledCents": 20,
+      "existingReservedCents": 20,
+      "requestedExperimentBudgetCents": 15,
+      "expected": {
+        "testRunStatus": "COMPLETED",
+        "scenarioAssertionStatus": "PASS",
+        "operationResult": "REJECTED",
+        "rejectionCode": "TEST_RUN_BUDGET_EXCEEDED",
+        "experimentCreated": false,
+        "runnerJobsCreated": 0,
+        "additionalProviderCalls": 0,
+        "ledgerMutation": false,
+        "paperStateMutation": false
+      },
+      "assertions": [
+        "The projected 55-cent commitment is rejected against the exact 50-cent TestRun cap.",
+        "The rejection is persisted as scenario evidence while Experiment and budget ledgers remain unchanged.",
+        "No Runner Job, model/provider call, market-data call, Paper call or broker call occurs.",
+        "A repeated request with the same idempotency identity returns the same rejection without side effects."
+      ]
+    },
+    {
+      "scenarioId": "recovery",
+      "description": "Fail after round 1 checkpoint persistence, take over the expired isolated Runner lease, resume from the exact checkpoint, and reject stale-fence publication.",
+      "testRunBudgetCents": 100,
+      "experimentBudgetCents": 80,
+      "roundBudgetsCents": [40, 40],
+      "faultSequence": [
+        { "sequence": 1, "event": "ROUND_1_CHECKPOINT_COMMITTED", "checkpointSequence": 1 },
+        { "sequence": 2, "event": "RUNNER_HOST_SIGKILL", "fence": 1 },
+        { "sequence": 3, "event": "LEASE_EXPIRED" },
+        { "sequence": 4, "event": "LEASE_TAKEOVER", "fence": 2 },
+        { "sequence": 5, "event": "RESUME_FROM_CHECKPOINT", "checkpointSequence": 1 }
+      ],
+      "expected": {
+        "testRunStatus": "COMPLETED",
+        "runnerJobsCreated": 2,
+        "checkpointResumeSequence": 1,
+        "currentFence": 2,
+        "staleFencePublishStatus": 409,
+        "duplicatePublications": 0,
+        "round1Settlements": 1,
+        "dataAtRisk": false
+      },
+      "assertions": [
+        "Recovery uses the original TestRun, Experiment, round/job identity and exact stored checkpoint hash.",
+        "The lease takeover increments the fencing token and the previous fence cannot publish an artifact.",
+        "Already settled round work is not charged or published a second time.",
+        "Every injected fault is recorded in sequence; the seed alone is not treated as fault evidence.",
+        "Web and CLI inspect the same recovered TestRun and independently recompute recovery assertions."
+      ]
+    }
+  ]
+}

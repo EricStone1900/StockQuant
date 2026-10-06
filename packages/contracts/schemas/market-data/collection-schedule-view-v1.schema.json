@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/collection-schedule-view-v1.schema.json",
+  "title": "CollectionScheduleView",
+  "type": "object",
+  "required": ["subscriptionId", "subscriptionVersion", "fromDate", "toDate", "calendarVersion", "enabled", "version"],
+  "properties": {
+    "subscriptionId": { "type": "string", "minLength": 1 },
+    "subscriptionVersion": { "type": "integer", "minimum": 1 },
+    "fromDate": { "type": "string", "format": "date" },
+    "toDate": { "type": "string", "format": "date" },
+    "calendarVersion": { "type": "string", "minLength": 1 },
+    "enabled": { "type": "boolean" },
+    "version": { "type": "integer", "minimum": 1 }
+  },
+  "additionalProperties": true
+}

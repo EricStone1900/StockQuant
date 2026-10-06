@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/source-circuit-state-v1.schema.json",
+  "title": "MarketDataSourceCircuitState",
+  "type": "object",
+  "required": ["sourceId", "circuit", "failures"],
+  "properties": {"sourceId": {"type": "string"}, "circuit": {"enum": ["OPEN", "HEALTHY"]}, "failures": {"type": "integer", "minimum": 0}},
+  "additionalProperties": false
+}

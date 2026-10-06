@@ -1,9 +1,9 @@
-import type { AccountSnapshot, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
-import { PostgresAccountRepository } from "../adapters/postgres-account-repository.js";
+import type { AccountSnapshot, CorrectFillFeeCommand, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
+import type { AccountRepository } from "../ports/account-repository.js";
 
 export class AccountService {
   private fillFailuresRemaining = 0;
-  constructor(private readonly repository: PostgresAccountRepository) {}
+  constructor(private readonly repository: AccountRepository) {}
 
   injectFillFailures(count: number) { this.fillFailuresRemaining = Math.max(0, Math.min(10, Math.trunc(count))); return this.fillFailuresRemaining; }
 
@@ -22,6 +22,10 @@ export class AccountService {
   recordFill(command: RecordFillCommand) {
     if (this.fillFailuresRemaining > 0) { this.fillFailuresRemaining -= 1; throw new Error("INJECTED_LEDGER_UNAVAILABLE"); }
     return this.repository.recordFill(command);
+  }
+
+  correctFillFee(command: CorrectFillFeeCommand) {
+    return this.repository.correctFillFee(command);
   }
 
   reserveResource(command: ReserveResourceCommand & { accountId: string }) {

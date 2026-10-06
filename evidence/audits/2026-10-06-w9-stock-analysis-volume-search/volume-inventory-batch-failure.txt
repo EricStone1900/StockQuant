@@ -1,0 +1,6 @@
+Metadata-only inventory attempt:
+
+Command: docker volume inspect <all names returned by docker volume ls -q>
+Result: Docker daemon returned `404 page not found`.
+
+A smaller batch containing the first ten names then succeeded. The initial shell was zsh; an unquoted scalar holding the full name list was passed as one argument, which caused the 404. The issue was command argument splitting, not a daemon or volume failure. A complete metadata inventory was later produced with `xargs -n 8` and retained under `volume-inventory/`.

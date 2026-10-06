@@ -4,36 +4,51 @@ import { V24AcceptanceController } from "../../src/bootstrap/app.module.js";
 describe("V2.4 observation revision access", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("persists V2.4 scenario checks as WAITING without fetching or inventing Paper evidence", async () => {
+  it("rejects a stale Fixture snapshot before any order, Fill or Outbox can be created", async () => {
     const save = vi.fn(async (value: any) => value);
+    const accountId = "22222222-2222-4222-8222-222222222222";
     const controller = new V24AcceptanceController({
       scheduler: {},
-      stageRuns: { save },
+      stageRuns: { save, newId: () => "11111111-1111-4111-8111-111111111111" },
+      portfolioApiUrl: "http://portfolio.test",
+      governanceUrl: "http://governance.test",
+      executionUrl: "http://execution.test",
+      portfolioToken: "p".repeat(40),
+      portfolioHeaders: () => ({}),
       v24Observation: { listRunRevisions: vi.fn(), listObservationsForOwner: vi.fn() }
     } as any);
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/internal/v1/accounts/initialize")) return new Response(JSON.stringify({ snapshot: { accountId } }), { status: 201 });
+      if (url.endsWith("/internal/v1/paper-authorizations")) return new Response(JSON.stringify({ error: "snapshot is stale" }), { status: 422 });
+      if (url.endsWith(`/internal/v1/accounts/${accountId}/snapshot`)) return new Response(JSON.stringify({ ledgerEntryCount: 1, cash: { amount: "10000.0000" }, positions: [] }), { status: 200 });
+      if (url.endsWith("/internal/v1/reconciliation/summary?namespace=v24-paper-v2-11111111-1111-4111-8111-111111111111")) return new Response(JSON.stringify({ order_count: 0, fill_count: 0, pending_outbox_count: 0 }), { status: 200 });
+      throw new Error(`unexpected request ${url}`);
+    });
 
     expect(() => controller.preview(undefined, undefined)).toThrow("local session is required");
     await expect(controller.create(undefined, undefined, { scenarioId: "normal" })).rejects.toThrow("local session is required");
     expect(save).not.toHaveBeenCalled();
 
-    const result = await controller.create("sq_session=acceptance-owner-1", undefined, { scenarioId: "normal" });
-    expect(result.status).toBe("WAITING");
-    expect(save).toHaveBeenCalledOnce();
-    expect(save.mock.calls[0][0]).toMatchObject({
-      status: "WAITING",
+    const result = await controller.create("sq_session=acceptance-owner-1", undefined, { scenarioId: "rejection" });
+    expect(result.status).toBe("COMPLETED");
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1][0]).toMatchObject({
+      status: "COMPLETED",
       evidence: {
-        dataMode: "NOT_CONNECTED",
-        executionPolicy: "PREPARATION_ONLY",
-        mandate: { status: "PREPARATION_ONLY" },
-        source: { status: "NOT_RUN" },
+        source: { status: "FIXTURE_REJECTED" },
+        governance: { status: "REJECTED", httpStatus: 422 },
         orders: [],
         fills: [],
-        reconciliation: { status: "NOT_RUN" },
-        assertions: [{ status: "WAITING", actual: "NOT_RUN" }]
+        reconciliation: { order_count: 0, fill_count: 0, pending_outbox_count: 0 },
+        assertions: [
+          { assertionId: "V2.4-REJECTION-001", status: "PASS" },
+          { assertionId: "V2.4-REJECTION-002", status: "PASS" },
+          { assertionId: "V2.4-REJECTION-003", status: "PASS" }
+        ]
       }
     });
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it("returns revisions only after owner-scoped TestRun lookup", async () => {

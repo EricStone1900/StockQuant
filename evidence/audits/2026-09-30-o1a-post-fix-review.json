@@ -1,0 +1,58 @@
+{
+  "audit": "o1a-post-fix-natural-observation-review",
+  "reviewedAt": "2026-09-30T10:05:37Z",
+  "repairSource": {
+    "path": "scripts/dc08a-operations.mjs",
+    "sha256": "e08a240931ece37267c40890b66c899a6b2a947bb8e17d2e23caf249ccf6d159",
+    "modifiedAtLocal": "2026-09-29T23:38:10+08:00",
+    "change": "Adds Shanghai-time end-of-day eligibility guard, WAITING before 15:15, and per-day lock."
+  },
+  "september29": {
+    "eodLocalTranscriptCount": 14,
+    "lastTranscriptCapturedAtLocal": "2026-09-29T15:30:42+08:00",
+    "sourceModifiedAfterTranscripts": true,
+    "countedAsPostFixObservationDay": false,
+    "reason": "All archived EOD transcripts predate the current repair source modification time; their runs cannot verify the repaired implementation."
+  },
+  "september30": {
+    "morningInitialWindow": {
+      "capturedAt": "2026-09-30T01:31:22.153Z",
+      "health": "HEALTHY",
+      "sourceFreshnessState": "WAITING_INITIAL_WINDOW"
+    },
+    "afternoonInitialWindow": {
+      "capturedAt": "2026-09-30T05:02:23.843Z",
+      "health": "HEALTHY",
+      "sourceFreshnessState": "WAITING_INITIAL_WINDOW"
+    },
+    "postWindow": {
+      "capturedAt": "2026-09-30T05:16:21.089Z",
+      "health": "HEALTHY",
+      "sourceFreshnessState": "REQUIRED"
+    },
+    "dailyReport": {
+      "path": "evidence/dc08a/dc-t19/2026-09-30/daily-report.json",
+      "modifiedAtLocal": "2026-09-30T15:22:26+08:00",
+      "expectedBars": 960,
+      "actualBars": 960,
+      "artifacts": 48,
+      "openGaps": 0,
+      "pendingOutbox": 0,
+      "status": "PASS"
+    },
+    "observation": {
+      "path": "evidence/dc08a/dc-t19/2026-09-30/observation-2026-09-30T07-22-22-613Z.json",
+      "capturedAt": "2026-09-30T07:22:22.613Z",
+      "observationCounted": true,
+      "finalized": true
+    },
+    "directEodCommandTranscript": false,
+    "countedAsPostFixObservationDay": "PROVISIONAL"
+  },
+  "status": "WAITING",
+  "remainingEvidence": [
+    "Direct scheduled EOD command output and exit code for the repaired implementation.",
+    "A second complete actual trading day with first-window wait behavior, after-close finalization exactly once, and timeout classification evidence."
+  ],
+  "activeServicesModified": false
+}

@@ -34,7 +34,7 @@ async function get(path, service, token) {
 }
 let ready;
 for (let i = 0; i < 90; i += 1) {
-  try { ready = await fetch(base + "/ready"); if (ready.ok) break; } catch {}
+  try { ready = await fetch(base + "/ready", { signal: AbortSignal.timeout(2_000) }); if (ready.ok) break; } catch {}
   await new Promise((resolve) => setTimeout(resolve, 250));
 }
 if (!ready?.ok) throw new Error("Trade Execution container did not become ready");
@@ -58,8 +58,8 @@ try {
   docker(["run", "--detach", "--name", postgresName, "--network", network, "--network-alias", "postgres", "--tmpfs", "/var/lib/postgresql/data:size=256m", "--tmpfs", "/tmp:size=16m", "--security-opt", "no-new-privileges", "--pids-limit", "64", "--env", "POSTGRES_USER=trade_execution_test", "--env", "POSTGRES_DB=trade_execution_test", "--env", "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:16.4-alpine"], { quiet: true });
   let databaseReady = false;
   for (let i = 0; i < 80; i += 1) {
-    const check = spawnSync("docker", ["exec", postgresName, "pg_isready", "-U", "trade_execution_test", "-d", "trade_execution_test"], { encoding: "utf8", timeout: 5000 });
-    if (check.status === 0) { databaseReady = true; break; }
+    const check = spawnSync("docker", ["exec", postgresName, "psql", "-U", "trade_execution_test", "-d", "trade_execution_test", "-Atqc", "SELECT 1"], { encoding: "utf8", timeout: 5000 });
+    if (check.status === 0 && check.stdout.trim() === "1") { databaseReady = true; break; }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   assert.equal(databaseReady, true, "isolated PostgreSQL container must become ready");

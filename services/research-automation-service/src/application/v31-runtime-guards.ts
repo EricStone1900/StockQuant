@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
+import type { ArtifactRef } from "../domain/artifact-ref.js";
+export { validateArtifactRef, type ArtifactRef } from "../domain/artifact-ref.js";
 
 export type RunnerJob = {
   schemaVersion: "v3.1-runner-job-v1";
   testRunId: string;
   experimentId: string;
+  /** Immutable budget tranche for this durable Runner Job; required when Experiment has multiple rounds. */
+  roundIndex?: number;
   imageDigest: string;
   inputArtifact: string;
   outputNamespace: string;
@@ -11,18 +15,10 @@ export type RunnerJob = {
   networkPolicy: { mode: "DENY" | "ALLOWLIST"; allowlist: string[] };
 };
 
-export type ArtifactRef = {
-  schemaVersion: "v3.1-artifact-ref-v1";
-  artifactId: string;
-  kind: "INPUT" | "GENERATED_CODE" | "RUN_LOG" | "METRICS" | "ERROR" | "CANDIDATE" | "OUTPUT";
-  namespace: string;
-  sha256: string;
-  status: "PENDING" | "PUBLISHED" | "FAILED" | "RETAINED";
-  sourceRef: string;
-};
-
 export type BudgetReservation = {
   experimentId: string;
+  testRunId?: string;
+  rounds: number;
   requestedCents: number;
   reservedCents: number;
   spentCents: number;
@@ -34,12 +30,42 @@ export type BudgetSnapshotRow = BudgetReservation & { modelCallSettledCents: num
 export type ModelCallBudgetReservation = {
   experimentId: string;
   modelRunId: string;
+  roundIndex: number;
   requestFingerprint: string;
   requestedCents: number;
   reservedCents: number;
   spentCents: number;
   status: "RESERVED" | "DISPATCHED" | "UNKNOWN" | "SETTLED" | "REJECTED";
+  providerEvidence: ProviderCallEvidence | null;
 };
+
+/** Usage metadata only; deliberately excludes credentials, prompts, and raw provider responses. */
+export type ProviderCallEvidence = {
+  provider: string;
+  model: string;
+  requestId: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  tariffVersion: string | null;
+  costBasis: "FIXTURE" | "ESTIMATE" | "PROVIDER_REPORTED";
+  invoiceReconciliation: "NOT_PERFORMED";
+};
+
+export function validateProviderCallEvidence(evidence: ProviderCallEvidence): void {
+  if (!evidence || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(evidence.provider)
+    || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(evidence.model)) throw new Error("provider evidence identity is invalid");
+  if (evidence.requestId !== null && (typeof evidence.requestId !== "string" || evidence.requestId.length > 256 || /[\r\n\0]/.test(evidence.requestId))) throw new Error("provider request ID is invalid");
+  for (const value of [evidence.inputTokens, evidence.outputTokens]) if (value !== null && (!Number.isSafeInteger(value) || value < 0)) throw new Error("provider token usage is invalid");
+  if (evidence.tariffVersion !== null && (typeof evidence.tariffVersion !== "string" || evidence.tariffVersion.length > 128 || /[\r\n\0]/.test(evidence.tariffVersion))) throw new Error("provider tariff version is invalid");
+  if (!["FIXTURE", "ESTIMATE", "PROVIDER_REPORTED"].includes(evidence.costBasis) || evidence.invoiceReconciliation !== "NOT_PERFORMED") throw new Error("provider evidence status is invalid");
+}
+
+export function sameProviderCallEvidence(left: ProviderCallEvidence, right: ProviderCallEvidence): boolean {
+  return left.provider === right.provider && left.model === right.model && left.requestId === right.requestId
+    && left.inputTokens === right.inputTokens && left.outputTokens === right.outputTokens
+    && left.tariffVersion === right.tariffVersion && left.costBasis === right.costBasis
+    && left.invoiceReconciliation === right.invoiceReconciliation;
+}
 
 export type ModelCallReservationResult = { reservation: ModelCallBudgetReservation; created: boolean };
 
@@ -47,12 +73,12 @@ const DIGEST = /^sha256:[a-f0-9]{64}$/;
 const HASH = /^[a-f0-9]{64}$/;
 const INPUT = /^research\/[^/]+\/[^/]+\/inputs\/[a-f0-9]{64}$/;
 const OUTPUT = /^research\/[^/]+\/[^/]+\/outputs$/;
-const NAMESPACE = /^research\/([^/]+)\/([^/]+)\/(inputs|outputs)$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const RESOURCE_LIMITS = { cpuMilli: 2000, memoryMiB: 4096, timeoutSeconds: 3600, pidsLimit: 128 } as const;
 
 export function validateRunnerJob(job: RunnerJob): void {
   if (job.schemaVersion !== "v3.1-runner-job-v1") throw new Error("unsupported runner job schema");
+  if (job.roundIndex !== undefined && (!Number.isInteger(job.roundIndex) || job.roundIndex < 1 || job.roundIndex > 3)) throw new Error("runner job roundIndex must be an integer from 1 to 3");
   if (!SAFE_ID.test(job.testRunId) || !SAFE_ID.test(job.experimentId) || job.testRunId === "." || job.testRunId === ".." || job.experimentId === "." || job.experimentId === "..") throw new Error("runner job requires safe testRunId and experimentId identifiers");
   if (!DIGEST.test(job.imageDigest)) throw new Error("runner imageDigest must be an immutable sha256 digest");
   if (!INPUT.test(job.inputArtifact)) throw new Error("runner inputArtifact must be a content-addressed input artifact");
@@ -71,37 +97,56 @@ export function validateRunnerJob(job: RunnerJob): void {
   if (job.networkPolicy.mode === "ALLOWLIST" && job.networkPolicy.allowlist.length === 0) throw new Error("ALLOWLIST runner network policy requires domains");
 }
 
-export function validateArtifactRef(ref: ArtifactRef): void {
-  if (ref.schemaVersion !== "v3.1-artifact-ref-v1") throw new Error("unsupported artifact schema");
-  if (!ref.artifactId || !HASH.test(ref.sha256) || !ref.sourceRef) throw new Error("artifact reference is incomplete");
-  const match = NAMESPACE.exec(ref.namespace);
-  if (!match) throw new Error("artifact namespace is outside the research boundary");
-  if (ref.kind === "INPUT" && match[3] !== "inputs") throw new Error("input artifact must use the inputs namespace");
-  if (ref.kind !== "INPUT" && match[3] !== "outputs") throw new Error("output artifact must use the outputs namespace");
-}
-
 export function sha256(content: string | Uint8Array): string { return createHash("sha256").update(content).digest("hex"); }
+
+export const V31_MAX_MODEL_CALLS_PER_EXPERIMENT = 12;
 
 export class BudgetLedger {
   private readonly reservations = new Map<string, BudgetReservation>();
   private readonly modelCalls = new Map<string, ModelCallBudgetReservation>();
-  constructor(private readonly stageBudgetCents: number, private readonly maxExperimentBudgetCents: number, private readonly warningPercent = 80) {}
+  private readonly testRunBudgets = new Map<string, number>();
+  constructor(private readonly stageBudgetCents: number, private readonly maxExperimentBudgetCents: number, private readonly warningPercent = 80, private readonly maxModelCallsPerExperiment = V31_MAX_MODEL_CALLS_PER_EXPERIMENT, private readonly maxTestRunBudgetCents = maxExperimentBudgetCents) {
+    if (!Number.isInteger(maxModelCallsPerExperiment) || maxModelCallsPerExperiment < 1 || maxModelCallsPerExperiment > 64) throw new Error("maxModelCallsPerExperiment must be between 1 and 64");
+    if (!Number.isInteger(maxTestRunBudgetCents) || maxTestRunBudgetCents < 1 || maxTestRunBudgetCents > stageBudgetCents) throw new Error("maxTestRunBudgetCents is invalid");
+  }
 
-  reserve(experimentId: string, requestedCents: number): BudgetReservation {
+  reserve(experimentId: string, requestedCents: number, testRunId?: string, rounds = 1): BudgetReservation {
     if (!SAFE_ID.test(experimentId) || experimentId === "." || experimentId === ".." || !Number.isInteger(this.stageBudgetCents) || this.stageBudgetCents < 1 || !Number.isInteger(this.maxExperimentBudgetCents) || this.maxExperimentBudgetCents < 1) throw new Error("budget ledger configuration or experimentId is invalid");
     if (!Number.isInteger(requestedCents) || requestedCents < 1 || requestedCents > this.maxExperimentBudgetCents) throw new Error("experiment budget exceeds the configured hard limit");
+    if (!Number.isInteger(rounds) || rounds < 1 || rounds > 3 || requestedCents < rounds) throw new Error("experiment rounds must each receive at least one cent of budget");
     const current = this.reservations.get(experimentId);
     if (current) {
-      if (current.requestedCents !== requestedCents) throw new Error("experiment already has a different budget reservation");
+      if (current.requestedCents !== requestedCents || current.testRunId !== testRunId || current.rounds !== rounds) throw new Error("experiment already has a different budget reservation");
       if (current.status === "UNKNOWN") throw new Error("budget status is UNKNOWN; reconcile the original experiment before retrying");
       if (current.status === "REJECTED") throw new Error("rejected budget cannot be reserved again");
       return current;
     }
     const used = [...this.reservations.values()].reduce((sum, item) => sum + (item.status === "SETTLED" ? item.spentCents : item.status === "REJECTED" ? 0 : item.reservedCents), 0);
     if (used + requestedCents > this.stageBudgetCents) throw new Error("stage budget exhausted");
-    const reservation = { experimentId, requestedCents, reservedCents: requestedCents, spentCents: 0, status: "RESERVED" as const };
+    if (testRunId) {
+      const runUsed = [...this.reservations.values()].filter((item) => item.testRunId === testRunId).reduce((sum, item) => sum + (item.status === "SETTLED" ? item.spentCents : item.status === "REJECTED" ? 0 : item.reservedCents), 0);
+      if (runUsed + requestedCents > (this.testRunBudgets.get(testRunId) ?? this.maxTestRunBudgetCents)) throw new Error("TestRun budget exhausted");
+    }
+    const reservation = { experimentId, ...(testRunId ? { testRunId } : {}), rounds, requestedCents, reservedCents: requestedCents, spentCents: 0, status: "RESERVED" as const };
     this.reservations.set(experimentId, reservation);
     return reservation;
+  }
+
+  configureTestRunBudget(testRunId: string, budgetCents: number): number {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(testRunId)
+      || !Number.isInteger(budgetCents) || budgetCents < 1 || budgetCents > this.maxTestRunBudgetCents) {
+      throw new Error("TestRun budget limit is invalid");
+    }
+    const existing = this.testRunBudgets.get(testRunId);
+    if (existing !== undefined) {
+      if (existing !== budgetCents) throw new Error("TestRun budget limit is immutable once configured");
+      return existing;
+    }
+    const used = [...this.reservations.values()].filter((item) => item.testRunId === testRunId)
+      .reduce((sum, item) => sum + (item.status === "SETTLED" ? item.spentCents : item.status === "REJECTED" ? 0 : item.reservedCents), 0);
+    if (used > budgetCents) throw new Error("TestRun budget limit is below its existing commitment");
+    this.testRunBudgets.set(testRunId, budgetCents);
+    return budgetCents;
   }
 
   settle(experimentId: string, spentCents: number | "UNKNOWN"): BudgetReservation {
@@ -140,20 +185,29 @@ export class BudgetLedger {
     });
   }
 
-  reserveModelCall(experimentId: string, modelRunId: string, requestFingerprint: string, requestedCents: number): ModelCallReservationResult {
+  reserveModelCall(experimentId: string, modelRunId: string, requestFingerprint: string, requestedCents: number, requestedRoundIndex?: number): ModelCallReservationResult {
     if (!SAFE_ID.test(experimentId) || !SAFE_ID.test(modelRunId) || experimentId === "." || experimentId === ".." || modelRunId === "." || modelRunId === ".." || !HASH.test(requestFingerprint)) throw new Error("model call identity or request fingerprint is invalid");
     if (!Number.isInteger(requestedCents) || requestedCents < 1) throw new Error("model call reservation must be a positive integer number of cents");
     const experiment = this.reservations.get(experimentId);
     if (!experiment || experiment.status !== "RESERVED") throw new Error("experiment budget is unavailable for a model call");
+    if (experiment.rounds > 1 && requestedRoundIndex === undefined) throw new Error("roundIndex is required for a multi-round experiment");
+    const roundIndex = requestedRoundIndex ?? 1;
+    if (!Number.isInteger(roundIndex) || roundIndex < 1 || roundIndex > experiment.rounds) throw new Error("roundIndex is outside the experiment round range");
     const key = `${experimentId}\0${modelRunId}`;
     const existing = this.modelCalls.get(key);
     if (existing) {
-      if (existing.requestFingerprint !== requestFingerprint || existing.requestedCents !== requestedCents) throw new Error("modelRunId was reused with different request or budget");
+      if (existing.requestFingerprint !== requestFingerprint || existing.requestedCents !== requestedCents || existing.roundIndex !== roundIndex) throw new Error("modelRunId was reused with different request, budget, or round");
       return { reservation: existing, created: false };
     }
-    const used = [...this.modelCalls.values()].filter((item) => item.experimentId === experimentId).reduce((sum, item) => sum + (item.status === "RESERVED" || item.status === "DISPATCHED" || item.status === "UNKNOWN" ? item.reservedCents : item.status === "SETTLED" ? item.spentCents : 0), 0);
+    const experimentCalls = [...this.modelCalls.values()].filter((item) => item.experimentId === experimentId && item.status !== "REJECTED");
+    if (experimentCalls.length >= this.maxModelCallsPerExperiment) throw new Error("experiment model-call count limit exhausted");
+    const used = experimentCalls.reduce((sum, item) => sum + (item.status === "RESERVED" || item.status === "DISPATCHED" || item.status === "UNKNOWN" ? item.reservedCents : item.status === "SETTLED" ? item.spentCents : 0), 0);
     if (used + requestedCents > experiment.requestedCents) throw new Error("experiment model-call budget exhausted");
-    const reservation: ModelCallBudgetReservation = { experimentId, modelRunId, requestFingerprint, requestedCents, reservedCents: requestedCents, spentCents: 0, status: "RESERVED" };
+    const roundCalls = experimentCalls.filter((item) => item.roundIndex === roundIndex);
+    const roundUsed = roundCalls.reduce((sum, item) => sum + (item.status === "RESERVED" || item.status === "DISPATCHED" || item.status === "UNKNOWN" ? item.reservedCents : item.status === "SETTLED" ? item.spentCents : 0), 0);
+    const roundCap = Math.floor(experiment.requestedCents / experiment.rounds) + (roundIndex <= experiment.requestedCents % experiment.rounds ? 1 : 0);
+    if (roundUsed + requestedCents > roundCap) throw new Error("experiment round model-call budget exhausted");
+    const reservation: ModelCallBudgetReservation = { experimentId, modelRunId, roundIndex, requestFingerprint, requestedCents, reservedCents: requestedCents, spentCents: 0, status: "RESERVED", providerEvidence: null };
     this.modelCalls.set(key, reservation);
     return { reservation, created: true };
   }
@@ -169,6 +223,14 @@ export class BudgetLedger {
     if (current.status === "UNKNOWN") return current;
     if (current.status !== "DISPATCHED") throw new Error("only a dispatched model call can become UNKNOWN");
     return this.updateModelCall({ ...current, status: "UNKNOWN" });
+  }
+
+  recordModelCallEvidence(experimentId: string, modelRunId: string, evidence: ProviderCallEvidence): ModelCallBudgetReservation {
+    validateProviderCallEvidence(evidence);
+    const current = this.requireModelCall(experimentId, modelRunId);
+    if (current.status !== "DISPATCHED" && current.status !== "UNKNOWN") throw new Error("provider evidence requires a dispatched model call");
+    if (current.providerEvidence && !sameProviderCallEvidence(current.providerEvidence, evidence)) throw new Error("provider evidence cannot be changed");
+    return this.updateModelCall({ ...current, providerEvidence: evidence });
   }
 
   settleModelCall(experimentId: string, modelRunId: string, spentCents: number): ModelCallBudgetReservation {

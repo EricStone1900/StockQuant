@@ -1,0 +1,9 @@
+# W8 shared Artifact backup and recovery regression
+
+Date: 2026-10-01 (Asia/Shanghai). Result: PASS for isolated synthetic recovery only.
+
+The paired-backup producer smoke now creates three synthetic databases (`postgres`, `research_automation`, `platform_api`) and three database-backed published ArtifactRefs: a content-addressed Research artifact, a legacy-layout Research artifact, and a Qlib artifact whose bytes are external to PostgreSQL. It exercises `stockquant.paired-backup.cluster.v2` end to end, restores into a separate PostgreSQL container, and checks every restored reference against the corresponding archived bytes and SHA-256. The run restored all three databases and all three references; manifest method was `ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256`. Backup ID: `cluster-paired-2026-10-01T12-36-51-899Z-7157769f`; isolated Compose project: `sq-backup-smoke-867b42942ebf`.
+
+The source PostgreSQL used `network_mode: none`, no published ports, and only the exact random test database and Artifact volumes. The independent restore container also used `NetworkMode=none`, had no Compose label, no volume mounts or port bindings, and only explicit tmpfs mounts. The PostgreSQL image was pinned to `postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7`. Cleanup removed the exact random Compose project, volumes, restore container and temporary workspace; read-only Docker inventory found no matching leftovers. No production resources were touched.
+
+This regression closes the backup verifier blind spot introduced by the shared content layout for the tested reference shapes. It does not verify the active 48-database cluster, off-host copies, production writer quiescence, RPO/RTO, retention, maintenance migration, Ubuntu recovery, or user acceptance. W8 remains open pending those gates.

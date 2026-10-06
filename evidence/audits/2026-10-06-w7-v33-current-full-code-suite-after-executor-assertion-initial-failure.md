@@ -1,0 +1,3 @@
+# V3.3 suite attempt before controlled loopback rerun
+
+On 2026-10-06, `pnpm verify:stage -- --stage V3.3 --suite code` first ran in the default sandbox. Research Automation unit tests had 213 passing tests and five failures in `restricted-egress-proxy.spec.ts` and `restricted-provider-fetch.spec.ts`; each failed because binding local `127.0.0.1` returned `EPERM`. No assertion mismatch was reported. Per the established V3.3 workflow, the exact command was rerun with controlled local loopback access. The initial environment failure is retained and is not counted as a pass; see the final full transcript at [controlled rerun](./2026-10-06-w7-v33-current-full-code-suite-after-executor-assertion.log).

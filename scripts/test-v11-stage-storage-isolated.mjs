@@ -7,7 +7,19 @@ const project = `sq-v11-stage-${randomBytes(10).toString("hex")}`;
 const hostPort = 20000 + randomBytes(2).readUInt16BE(0) % 30000;
 const webPort = 50000 + randomBytes(2).readUInt16BE(0) % 10000;
 const composeFile = "infra/compose/docker-compose.v11-integration.yml";
-const composeEnv = { ...process.env, COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(hostPort) };
+const databaseRoleEnvNames = [
+  "STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API",
+  "STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK",
+  "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION",
+  "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST",
+  "STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY",
+  "STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE",
+  "STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH",
+  "STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION",
+  "STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA",
+];
+const isolatedDatabasePasswords = Object.fromEntries(databaseRoleEnvNames.map((name) => [name, randomBytes(32).toString("hex")]));
+const composeEnv = { ...process.env, ...isolatedDatabasePasswords, COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(hostPort) };
 const compose = (args, env = composeEnv, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "-f", composeFile, ...args], { env: { ...env, COMPOSE_PROJECT_NAME: project }, encoding: "utf8", stdio });
 let started = false;
 let webServer;
@@ -18,7 +30,7 @@ try {
   const up = compose(["up", "-d", "--build"]);
   assert.equal(up.status, 0, "isolated V1.1 Compose stack failed to start");
 
-  const expectedPortfolio = compose(["ps", "-q", "portfolio-risk-service"], process.env, "pipe");
+  const expectedPortfolio = compose(["ps", "-q", "portfolio-risk-service"], composeEnv, "pipe");
   assert.equal(expectedPortfolio.status, 0);
   const expectedId = expectedPortfolio.stdout.trim();
   assert.ok(expectedId, "isolated Portfolio container is missing");
@@ -36,7 +48,7 @@ try {
   }
   assert.equal(ready, true, "isolated Platform API did not become live");
 
-  const apiContainer = compose(["ps", "-q", "platform-api-service"], process.env, "pipe");
+  const apiContainer = compose(["ps", "-q", "platform-api-service"], composeEnv, "pipe");
   assert.equal(apiContainer.status, 0);
   const config = spawnSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", apiContainer.stdout.trim()], { encoding: "utf8" });
   assert.equal(config.status, 0, config.stderr);
@@ -90,6 +102,22 @@ try {
   const networks = spawnSync("docker", ["network", "ls", "-q", "--filter", `label=com.docker.compose.project=${project}`], { encoding: "utf8" });
   assert.equal(networks.status, 0, networks.stderr);
   assert.equal(networks.stdout.trim(), "", `isolated networks remain for ${project}`);
+  const imageRefs = spawnSync("docker", ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"], { encoding: "utf8" });
+  assert.equal(imageRefs.status, 0, imageRefs.stderr);
+  const projectImages = imageRefs.stdout.split(/\r?\n/u).filter((ref) => [
+    `${project}-platform-api-service:latest`,
+    `${project}-portfolio-risk-service:latest`,
+  ].includes(ref));
+  if (projectImages.length > 0) {
+    const removedImages = spawnSync("docker", ["image", "rm", ...projectImages], { encoding: "utf8" });
+    assert.equal(removedImages.status, 0, removedImages.stderr);
+  }
+  const remainingImages = spawnSync("docker", ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"], { encoding: "utf8" });
+  assert.equal(remainingImages.status, 0, remainingImages.stderr);
+  assert.deepEqual(remainingImages.stdout.split(/\r?\n/u).filter((ref) => [
+    `${project}-platform-api-service:latest`,
+    `${project}-portfolio-risk-service:latest`,
+  ].includes(ref)), [], `isolated images remain for ${project}`);
 }
 
-console.log(JSON.stringify({ status: "PASS", suite: "V1.1 code", storageMode: "stage", isolatedProject: project, recoveryRestartTargetVerified: true, exactContainersAndVolumesRemoved: true }));
+console.log(JSON.stringify({ status: "PASS", suite: "V1.1 code", storageMode: "stage", isolatedProject: project, recoveryRestartTargetVerified: true, exactContainersAndVolumesRemoved: true, exactImagesRemoved: true, resourcesRemoved: ["containers", "volumes", "networks", "images"] }));

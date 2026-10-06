@@ -1,0 +1,35 @@
+# W3 source-use gate and V2.4 regression validation
+
+Date: 2026-09-30 (Asia/Shanghai)
+
+## Source-use gate
+
+The project owner confirmed `NO_TRADE` and no source authorization for the W3 Paper path. `STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED` defaults to `false` in the Platform runtime and Compose configuration; `STOCKQUANT_V24_AUTO_START` is also `false` in Compose. When a quote-observation tick occurs while the source-use flag is false, the observation handler records `NOT_AUTHORIZED` / `NOT_CONNECTED`, does not call Market Data `/v2/quote/preview`, and does not count a real observation day. The boolean is an operational guard only; it does not prove a license or replace source-owner approval.
+
+Validation: `pnpm --filter @stockquant/platform-api-service test -- tests/unit/v24-live-observation.spec.ts` ran the package unit suite, 24 files / 85 tests, PASS. `pnpm --filter @stockquant/platform-api-service build` PASS. The default-off test asserts there is no quote endpoint request. `docker compose --env-file .env.example -f infra/compose/docker-compose.yml config --format json` parsed successfully and reported both `STOCKQUANT_V24_AUTO_START=false` and `STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED=false`. `pnpm verify:stage -- --stage V2.4 --suite code` completed with exit 0 after the first sandbox attempt was unable to bind the loopback socket required by the Qlib Worker boundary test (`PermissionError: Operation not permitted`). The controlled rerun with loopback permission passed; this was an environment restriction, not a product test failure.
+
+The full suite covered baseline docs/contracts/fixtures, repository build/lint/typecheck/unit tests, service-auth and PostgreSQL integration, 61 Market Data Adapter tests, Ops tests, Platform/Governance/Portfolio/Trade HTTP and Chromium flows, same-TestRun read-only CLI checks, and the isolated readiness Linux container. The Paper smoke report has `status=PASS` and `activeServicesTouched=false`: [2026-09-30 V2.4 Paper Smoke](./2026-09-30-v24-paper-smoke.json). API TestRuns: normal `1216c947-5473-46fb-b979-15c54bb55984`, rejection `5fd558e1-806d-499e-a889-5b8f431fec62`, recovery `601af9a5-468d-4a1e-8509-ee463bd1a4b9`; browser TestRuns and their evidence remain in the report. Four isolated database snapshots were exported and SHA-256 recorded before cleanup.
+
+## Operational boundary
+
+No real quote request, Paper start, active deployment, or service restart was performed by this validation. The source gate is present in the workspace and Compose defaults but has not been deployed to the active environment. Current DC-08A observation evidence remains independent: the latest saved summary is 7/20 (6 continuously complete plus 1 recovered day), and 2026-09-30 is not finalized and is not counted; the saved health report at 06:17Z is HEALTHY with 38/39 runs completed and one queued. These are historical snapshots, not a live status probe.
+
+## Workspace snapshot
+
+Content Manifest: [2026-09-30 W3 source-gate content manifest](./2026-09-30-w3-source-gate-content-manifest.sha256), 4,444 files; manifest SHA-256 `c3970ab5d21efdd18aa55dd3ec7f4c6ccc2be30d6a0f41e99293e747f09afbca`. The manifest excludes itself and this audit; the earlier W0 snapshot remains unchanged. `pnpm-lock.yaml` SHA-256 `2923aaab18250dfe782a6efc3ccb898721ac3464567ccc0fad90242e76971493`.
+
+W3 is still in progress. This evidence closes only the source-read fail-closed code check and the V2.4 code regression run; it does not authorize real data use or satisfy SystemClock observation, source license, daily-bar signal causality, deployment, O2, or human acceptance requirements.
+
+## Additional provenance and strict historical qualification
+
+The source gate now requires three independent operator inputs before the Platform can call Market Data: `STOCKQUANT_V24_QUOTE_SOURCE_USE_APPROVED=true`, a non-empty `STOCKQUANT_V24_QUOTE_SOURCE_AUTHORIZATION_REF`, and a non-empty `STOCKQUANT_V24_QUOTE_DATA_VERSION`. Compose supplies false/empty defaults for all three and `STOCKQUANT_V24_AUTO_START=false`. This is a fail-closed software control, not legal approval. Compose parsing reported exactly those safe values. Platform unit tests/build, Web build/unit, focused Chromium E2E (2/2), and the complete V2.4 code suite passed after this change; the suite includes contracts/fixtures, full repository build/lint/typecheck/unit, service auth and database integration, Python adapter (61), Ops (135), Paper API/Web/CLI normal/rejection/recovery same-run checks and isolated container readiness. The V2.4 smoke report recorded `activeServicesTouched=false`.
+
+The observation repository now retains historical database marks without treating them as qualified evidence. It counts a day only with final EOD evidence, trading-day status, reconciliation PASS, zero errors, authorized/versioned source-use provenance, ten distinct valid sample windows, one execution window and no missing/invalid samples. The UI separates strict accepted days from historical marks awaiting evidence. This prevents prior boolean flags from satisfying O2 retroactively.
+
+## Active runtime scheduler stop
+
+The active Platform was inspected read-only on 2026-09-30. Its container `stockquant-v12-platform-api-service-1` was still running the older image/configuration with `STOCKQUANT_V24_AUTO_START=true`; quote-source approval env was absent. The authenticated V2.4 scheduler status was `RUNNING` (tickCount 231; last tick 06:29:59.947Z; next tick 07:00:00Z). The owner’s explicit `NO_TRADE` and no-source-authorization decision was applied through the scheduler stop API. The response and follow-up status were `STOPPED`, `nextSampleAt=null`, tickCount 231. All inspected service containers remained running; there was no service restart, image replacement, database write, source request, order, or Paper account activation. The independent DC-08A Market Data collector was left untouched.
+
+A read-only summary of the V2.4 observation table showed ten legacy rows marked `observationCounted=true` (2026-09-15–18, 21–24, 28–29) and two false rows (2026-09-19, 25). The ten marked rows had `sourceAvailable=null`, `lastSnapshotAt=null`, `dataAgeSeconds=null`, `dataMode=LIVE_SOURCE`, and no `sourceProbe`; the later daily summaries showed ten sampling events but did not contain per-security quote proof. They are preserved as legacy records but do not satisfy the stricter source-provenance/sample qualification and do not count toward the new O2 gate. The independent DC-08A evidence remains 7/20 in its saved snapshot; it is not conflated with V2.4 or O2.
+
+Operational residual: because the active old Platform image still has auto-start enabled and a restart policy, a future Platform restart could start the old scheduler again. Workspace Compose is now default-off but has not been deployed. Do not restart, rebuild or deploy the active Platform until the W8 backup, maintenance window, exact image/digest and rollback prerequisites are reviewed. The scheduler stop itself requires operational monitoring until the configuration is safely migrated.

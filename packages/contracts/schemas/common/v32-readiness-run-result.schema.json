@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v32-readiness-run-result.schema.json",
+  "title": "V32ReadinessRunResult",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "status", "seed", "assertions", "evidence"],
+  "properties": {
+    "accepted": { "const": true },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V3.2" },
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "scenarioVersion": { "const": "v3.2-readiness-v1" },
+    "status": { "const": "WAITING" },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "assertions": { "type": "array" },
+    "evidence": { "type": "object" }
+  }
+}

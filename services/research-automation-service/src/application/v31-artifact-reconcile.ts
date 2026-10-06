@@ -20,6 +20,26 @@ async function regularFiles(directory: string): Promise<string[]> {
   return paths;
 }
 
+type ResearchArtifactPath = { namespace: string; artifactId: string; contentSha256?: string };
+const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
+
+/** Only V3.1-owned `{run}/{experiment}/{inputs|outputs}` paths belong to this reconciler. */
+function researchArtifactPath(researchRoot: string, path: string): ResearchArtifactPath | null {
+  const relativePath = relative(researchRoot, path);
+  if (!relativePath || relativePath.startsWith(`..${sep}`) || relativePath === "..") return null;
+  const parts = relativePath.split(sep);
+  const contentAddressed = parts.length === 5 && SHA256.test(parts[3] ?? "");
+  const legacy = parts.length === 4;
+  if (!contentAddressed && !legacy) return null;
+  if (!SAFE_SEGMENT.test(parts[0]) || !SAFE_SEGMENT.test(parts[1]) || !["inputs", "outputs"].includes(parts[2]) || !SAFE_SEGMENT.test(parts.at(-1)!)) return null;
+  return {
+    namespace: `research/${parts.slice(0, 3).join("/")}`,
+    artifactId: parts.at(-1)!,
+    ...(contentAddressed ? { contentSha256: parts[3] } : {}),
+  };
+}
+
 export async function inspectArtifactOrphans(rootPath: string, refs: ArtifactRef[], options: { minAgeMs: number; now?: Date }): Promise<ArtifactReconcileReport> {
   if (!Number.isSafeInteger(options.minAgeMs) || options.minAgeMs < 0) throw new Error("minAgeMs must be a non-negative safe integer");
   const rootInput = resolve(rootPath);
@@ -31,19 +51,22 @@ export async function inspectArtifactOrphans(rootPath: string, refs: ArtifactRef
   const refByIdentity = new Map(refs.map((ref) => [`${ref.namespace}\0${ref.artifactId}`, ref]));
   const researchInfo = await lstat(researchRoot).catch((error: NodeJS.ErrnoException) => error.code === "ENOENT" ? null : Promise.reject(error));
   if (researchInfo && (!researchInfo.isDirectory() || researchInfo.isSymbolicLink())) throw new Error("artifact research root must be a real directory");
-  const files = await regularFiles(researchRoot);
+  const files = (await regularFiles(researchRoot)).filter((path) => researchArtifactPath(researchRoot, path) !== null);
   const found = new Set<string>();
   const report: ArtifactReconcileReport = { scanned: files.length, referenced: 0, missingPublishedFiles: [], hashMismatches: [], recentUnreferenced: 0, orphans: [] };
   for (const path of files) {
     const info = await lstat(path);
     if (!info.isFile()) continue;
-    const parts = relative(researchRoot, path).split(sep);
-    if (parts.length < 2 || parts.some((part) => part === ".." || part === "")) continue;
-    const namespace = `research/${parts.slice(0, -1).join("/")}`;
-    const artifactId = parts.at(-1)!;
+    const parsedPath = researchArtifactPath(researchRoot, path);
+    if (!parsedPath) continue;
+    const { namespace, artifactId, contentSha256 } = parsedPath;
     const identity = `${namespace}\0${artifactId}`;
     const content = await readFile(path);
     const digest = createHash("sha256").update(content).digest("hex");
+    if (contentSha256 && digest !== contentSha256) {
+      report.hashMismatches.push({ namespace, artifactId, expectedSha256: contentSha256, actualSha256: digest });
+      continue;
+    }
     const ref = refByIdentity.get(identity);
     if (ref) {
       report.referenced++;
@@ -61,7 +84,10 @@ export async function inspectArtifactOrphans(rootPath: string, refs: ArtifactRef
 }
 
 /** Moves explicitly approved, age-gated orphan candidates to a same-filesystem quarantine and records their hashes. */
-export async function quarantineArtifactOrphans(report: ArtifactReconcileReport, rootPath: string, quarantinePath: string): Promise<string[]> {
+export async function quarantineArtifactOrphans(report: ArtifactReconcileReport, rootPath: string, quarantinePath: string, currentRefs: ArtifactRef[], now: Date = new Date()): Promise<string[]> {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error("quarantine time is invalid");
+  if (!Array.isArray(currentRefs)) throw new Error("quarantine requires a fresh ArtifactRef snapshot taken after the check-only report");
+  const currentRefIdentities = new Set(currentRefs.map((ref) => `${ref.namespace}\0${ref.artifactId}`));
   const rootInput = resolve(rootPath);
   const rootInfo = await lstat(rootInput);
   if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) throw new Error("artifact root must be a real directory");
@@ -74,12 +100,15 @@ export async function quarantineArtifactOrphans(report: ArtifactReconcileReport,
   const researchRoot = join(rootReal, "research");
   const researchInfo = await lstat(researchRoot).catch((error: NodeJS.ErrnoException) => error.code === "ENOENT" ? null : Promise.reject(error));
   if (researchInfo && (!researchInfo.isDirectory() || researchInfo.isSymbolicLink())) throw new Error("artifact research root must be a real directory");
-  const batchId = `${new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-")}-${randomUUID()}`;
+  const observedAt = now.toISOString();
+  const batchId = `${observedAt.replaceAll(":", "-").replaceAll(".", "-")}-${randomUUID()}`;
   const moved: string[] = [];
   for (const candidate of report.orphans) {
+    if (currentRefIdentities.has(`${candidate.namespace}\0${candidate.artifactId}`)) throw new Error("candidate gained an ArtifactRef after check-only; rerun check-only after publishers are paused");
     const path = resolve(candidate.path);
     const relativePath = relative(researchRoot, path);
-    if (!relativePath || relativePath.startsWith(`..${sep}`) || relativePath === ".." || resolve(researchRoot, relativePath) !== path) throw new Error("candidate path escapes artifact research root");
+    const parsedPath = researchArtifactPath(researchRoot, path);
+    if (!parsedPath || resolve(researchRoot, relativePath) !== path || parsedPath.namespace !== candidate.namespace || parsedPath.artifactId !== candidate.artifactId || (parsedPath.contentSha256 && parsedPath.contentSha256 !== candidate.sha256)) throw new Error("candidate path escapes artifact research root or is outside Research-owned Artifact namespaces or does not match its reference");
     let ancestor = researchRoot;
     const parts = relativePath.split(sep);
     for (const part of parts.slice(0, -1)) {
@@ -95,7 +124,7 @@ export async function quarantineArtifactOrphans(report: ArtifactReconcileReport,
     const destination = join(quarantineReal, batchId, relativePath);
     await mkdir(dirname(destination), { recursive: true });
     await rename(path, destination);
-    const manifest = { schemaVersion: "v3.1-artifact-orphan-quarantine-v1", observedAt: new Date().toISOString(), originalPath: path, namespace: candidate.namespace, artifactId: candidate.artifactId, sizeBytes: candidate.sizeBytes, sha256: candidate.sha256, modifiedAt: candidate.modifiedAt };
+    const manifest = { schemaVersion: "v3.1-artifact-orphan-quarantine-v1", observedAt, originalPath: path, namespace: candidate.namespace, artifactId: candidate.artifactId, sizeBytes: candidate.sizeBytes, sha256: candidate.sha256, modifiedAt: candidate.modifiedAt };
     await writeFile(`${destination}.manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
     moved.push(destination);
   }

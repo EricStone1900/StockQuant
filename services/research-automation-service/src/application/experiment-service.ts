@@ -2,7 +2,7 @@ import { cancelExperiment, createExperiment, validateRequest, type Experiment } 
 import type { ExperimentRepository } from "../ports/experiment-repository.js";
 
 export type ExperimentBudgetLedger = {
-  reserve(experimentId: string, requestedCents: number): Promise<unknown> | unknown;
+  reserve(experimentId: string, requestedCents: number, testRunId?: string, rounds?: number): Promise<unknown> | unknown;
   get?(experimentId: string): Promise<unknown> | unknown;
   settle?(experimentId: string, spentCents: number | "UNKNOWN"): Promise<unknown> | unknown;
   reject?(experimentId: string): Promise<unknown> | unknown;
@@ -15,8 +15,15 @@ export class ExperimentIdempotencyConflict extends Error {
   }
 }
 
+export interface ExperimentClock { now(): Date }
+
 export class ExperimentService {
-  constructor(private readonly repository: ExperimentRepository, private readonly maxBudgetCents = 1000, private readonly budgetLedger: ExperimentBudgetLedger | null = null) {}
+  constructor(
+    private readonly repository: ExperimentRepository,
+    private readonly clock: ExperimentClock,
+    private readonly maxBudgetCents = 1000,
+    private readonly budgetLedger: ExperimentBudgetLedger | null = null,
+  ) {}
 
   async create(input: unknown): Promise<{ experiment: Experiment; existing: boolean }> {
     const request = validateRequest(input, this.maxBudgetCents);
@@ -31,11 +38,11 @@ export class ExperimentService {
         && existing.environmentMode === request.environmentMode
         && existing.brokerMode === request.brokerMode;
       if (!same) throw new ExperimentIdempotencyConflict();
-      if (this.budgetLedger?.get && !(await this.budgetLedger.get(existing.experimentId))) await this.budgetLedger.reserve(existing.experimentId, existing.budgetCents);
+      if (this.budgetLedger?.get && !(await this.budgetLedger.get(existing.experimentId))) await this.budgetLedger.reserve(existing.experimentId, existing.budgetCents, existing.testRunId, existing.rounds);
       return { experiment: existing, existing: true };
     }
-    const experiment = createExperiment(request);
-    if (this.budgetLedger) await this.budgetLedger.reserve(experiment.experimentId, experiment.budgetCents);
+    const experiment = createExperiment(request, this.clock.now());
+    if (this.budgetLedger) await this.budgetLedger.reserve(experiment.experimentId, experiment.budgetCents, experiment.testRunId, experiment.rounds);
     try {
       return { experiment: await this.repository.save(experiment), existing: false };
     } catch (error) {
@@ -49,7 +56,7 @@ export class ExperimentService {
   async cancel(experimentId: string): Promise<Experiment | null> {
     const experiment = await this.repository.findById(experimentId);
     if (!experiment) return null;
-    const cancelled = await this.repository.save(cancelExperiment(experiment));
+    const cancelled = await this.repository.save(cancelExperiment(experiment, this.clock.now()));
     // This service has no model-call path while an experiment is
     // PENDING_PREREQUISITES, so a still-RESERVED amount is known unused.
     // UNKNOWN and already settled reservations are deliberately untouched.

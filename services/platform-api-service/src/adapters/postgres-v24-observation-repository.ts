@@ -1,8 +1,9 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
 import { ConflictException } from "@nestjs/common";
-import { calculateObservationDayQuality, type ObservationDayQuality } from "../application/v24-observation-quality.js";
-export type { ObservationDayQuality } from "../application/v24-observation-quality.js";
+import { calculateObservationDayQuality } from "../application/v24-observation-quality.js";
+import type { ObservationDayQuality, ObservationRecord, ObservationRepository } from "../ports/observation-repository.js";
+export type { ObservationDayQuality, ObservationRecord } from "../ports/observation-repository.js";
 
 export type PersistedSchedulerState = {
   status: "STOPPED" | "RUNNING";
@@ -15,30 +16,14 @@ export type PersistedSchedulerState = {
   brokerMode: "FAKE";
 };
 
-export type ObservationRecord = {
-  observationDate: string;
-  sourceAvailable: boolean | null;
-  lastSnapshotAt: string | null;
-  dataAgeSeconds: number | null;
-  samplingEvery30Minutes: boolean | null;
-  enteredExecutionWindow: boolean | null;
-  signalStatus: "UNKNOWN" | "HOLD" | "SIGNAL" | "NOT_IMPLEMENTED";
-  simulatedOrderStatus: "UNKNOWN" | "NONE" | "CREATED" | "NOT_IMPLEMENTED";
-  fillStatus: "UNKNOWN" | "NONE" | "FILLED" | "NOT_IMPLEMENTED";
-  reconciliationStatus: "UNKNOWN" | "PASS" | "FAIL" | "NOT_IMPLEMENTED";
-  outageStatus: "NONE" | "DISCONNECTED" | "SLEEP" | "STALE" | "UNKNOWN";
-  testRunId: string | null;
-  errors: string[];
-  recoveryActions: string[];
-  evidence: Record<string, unknown>;
-};
-
 export type ObservationFinalization = {
   observationDate: string;
   finalizedAt: string;
   observationCounted: boolean;
   record: ObservationRecord;
   sourceEventId: string;
+  evidenceQualification?: "QUALIFIED" | "UNVERIFIED" | "NOT_COUNTED";
+  qualificationErrors?: string[];
 };
 
 export type StageRunRevision = {
@@ -56,24 +41,58 @@ export type StageRunRevision = {
 
 export type ObservationSummary = {
   targetDays: number;
+  /** Days whose immutable finalization also meets the current source/provenance quality gate. */
   countedDays: number;
+  /** Historical finalization flags retained exactly as recorded. */
+  recordedCountedDays: number;
+  /** Previously counted days whose retained evidence cannot establish the current gate. */
+  unverifiedCountedDays: number;
   remainingDays: number;
   status: "WAITING" | "PASS";
   dates: ObservationFinalization[];
 };
 
 export function summarizeObservationFinalizations(dates: ObservationFinalization[], targetDays = 20): ObservationSummary {
-  const countedDays = dates.filter((item) => item.observationCounted).length;
+  const qualifiedDates = dates.map((item): ObservationFinalization => {
+    if (!item.observationCounted) return { ...item, evidenceQualification: "NOT_COUNTED", qualificationErrors: [] };
+    const errors: string[] = [];
+    const record = item.record;
+    const evidence = record?.evidence ?? {};
+    const usage = evidence.sourceUsage as Record<string, unknown> | undefined;
+    const quality = evidence.observationQuality as Partial<ObservationDayQuality> | undefined;
+    if (evidence.eventKind !== "END_OF_DAY") errors.push("FINALIZATION_EVENT_INVALID");
+    if (evidence.actualTradingDay !== "TRADING") errors.push("TRADING_DAY_NOT_VERIFIED");
+    if (record?.reconciliationStatus !== "PASS") errors.push("RECONCILIATION_NOT_PASSED");
+    if (!Array.isArray(record?.errors) || record.errors.length > 0) errors.push("OBSERVATION_ERRORS_PRESENT_OR_UNKNOWN");
+    if (evidence.dataMode !== "LIVE_SOURCE") errors.push("LIVE_SOURCE_MODE_NOT_VERIFIED");
+    if (usage?.status !== "CONFIGURED_WITH_APPROVAL_REFERENCE"
+      || typeof usage.authorizationEvidenceRef !== "string" || usage.authorizationEvidenceRef.trim().length === 0
+      || typeof usage.dataVersion !== "string" || usage.dataVersion.trim().length === 0) errors.push("SOURCE_AUTHORIZATION_OR_DATA_VERSION_MISSING");
+    if (!quality) errors.push("OBSERVATION_QUALITY_MISSING");
+    else {
+      const expectedSamplingEvents = quality.samplingIntervalMinutes === 20 ? 14 : quality.samplingIntervalMinutes === 30 ? 10 : -1;
+      if (expectedSamplingEvents < 0 || quality.samplingEvents !== expectedSamplingEvents || quality.uniqueSamplingWindows !== expectedSamplingEvents || quality.missingSamplingWindows?.length !== 0) errors.push("SAMPLING_WINDOW_COVERAGE_INVALID");
+      if (quality.executionEvents !== 1 || quality.uniqueExecutionWindows !== 1) errors.push("EXECUTION_WINDOW_COVERAGE_INVALID");
+      if (quality.invalidSamplingEvents !== 0 || quality.invalidExecutionEvents !== 0 || quality.invalidSecuritySamples !== 0) errors.push("INVALID_MARKET_DATA_SAMPLES_PRESENT");
+      if (!(typeof quality.expectedSecuritySamples === "number" && quality.expectedSecuritySamples > 0 && quality.validSecuritySamples === quality.expectedSecuritySamples)) errors.push("MARKET_DATA_SAMPLE_EVIDENCE_INCOMPLETE");
+      if (!Array.isArray(quality.errors) || quality.errors.length > 0) errors.push("MARKET_DATA_QUALITY_ERRORS_PRESENT_OR_UNKNOWN");
+    }
+    return { ...item, evidenceQualification: errors.length === 0 ? "QUALIFIED" : "UNVERIFIED", qualificationErrors: errors };
+  });
+  const recordedCountedDays = qualifiedDates.filter((item) => item.observationCounted).length;
+  const countedDays = qualifiedDates.filter((item) => item.evidenceQualification === "QUALIFIED").length;
   return {
     targetDays,
     countedDays,
+    recordedCountedDays,
+    unverifiedCountedDays: recordedCountedDays - countedDays,
     remainingDays: Math.max(0, targetDays - countedDays),
     status: countedDays >= targetDays ? "PASS" : "WAITING",
-    dates,
+    dates: qualifiedDates,
   };
 }
 
-export class PostgresV24ObservationRepository {
+export class PostgresV24ObservationRepository implements ObservationRepository {
   constructor(private readonly pool: Pool) {}
 
   async migrate(): Promise<void> {

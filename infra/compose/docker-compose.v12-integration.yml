@@ -1,0 +1,132 @@
+services:
+  postgres:
+    image: postgres:16.9-alpine
+    environment:
+      STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API: ${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK: ${STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION: ${STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST: ${STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY: ${STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE: ${STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH: ${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION: ${STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION:?isolated test password is required}
+      STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA: ${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA:?isolated test password is required}
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - v12-integration-postgres:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+  market-data-service:
+    build:
+      context: ../..
+      dockerfile: services/market-data-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3002
+      STOCKQUANT_PROJECT_ROOT: /workspace
+      STOCKQUANT_DATABASE_URL: postgresql://market_data:${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA}@postgres:5432/market_data
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated service token is required}
+      STOCKQUANT_COLLECTION_EXECUTOR: "0"
+      STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "false"
+      STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED: "false"
+      STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED: "false"
+      STOCKQUANT_MARKET_NEWS_SOURCE_USE_AUTHORIZED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+  qlib-worker:
+    platform: linux/amd64
+    build:
+      context: ../../services/quant-research-service
+      dockerfile: qlib-worker.Dockerfile
+    environment:
+      QLIB_BIND_HOST: 0.0.0.0
+      QLIB_PORT: 3004
+      STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: ${STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE:?isolated service token is required}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,urllib.request; r=urllib.request.Request('http://127.0.0.1:3004/probe',headers={'authorization':'Bearer '+os.environ['STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE'],'x-stockquant-service-id':'quant-research-service'}); urllib.request.urlopen(r)\""]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    networks: [integration]
+
+  quant-research-service:
+    build:
+      context: ../..
+      dockerfile: services/quant-research-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3003
+      STOCKQUANT_DATABASE_URL: postgresql://quant_research:${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH}@postgres:5432/quant_research
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated service token is required}
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: ${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:?isolated service token is required}
+      STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: ${STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE:?isolated service token is required}
+      QLIB_WORKER_URL: http://qlib-worker:3004
+      STOCKQUANT_CODE_VERSION: ${STOCKQUANT_CODE_VERSION:-v1.2-isolated-e2e}
+      STOCKQUANT_LIVE_TRADING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qlib-worker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3003/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+  platform-api-service:
+    build:
+      context: ../..
+      dockerfile: services/platform-api-service/Dockerfile
+    environment:
+      STOCKQUANT_BIND_HOST: 0.0.0.0
+      STOCKQUANT_PORT: 3000
+      STOCKQUANT_DATABASE_URL: postgresql://platform_api:${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API}@postgres:5432/platform_api
+      STOCKQUANT_MARKET_DATA_URL: http://market-data-service:3002
+      STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated service token is required}
+      STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE: ${STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE:?isolated service token is required}
+      STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
+      STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
+      STOCKQUANT_LIVE_TRADING_ENABLED: "false"
+      STOCKQUANT_BROKER_MODE: FAKE
+      STOCKQUANT_V11_RUN_STORAGE: stage
+      STOCKQUANT_V24_AUTO_START: "false"
+    ports:
+      - "127.0.0.1:${V12_HOST_PORT:?random isolated Platform host port is required}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      market-data-service:
+        condition: service_healthy
+      quant-research-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+networks:
+  integration: {}
+
+volumes:
+  v12-integration-postgres:

@@ -12,16 +12,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin runner
 
-COPY services/research-automation-service/runner/requirements.lock /tmp/requirements.lock
-RUN sed \
-      -e '/^pyqlib @ git+/d' \
-      -e '/^rdagent @ git+/d' \
-      /tmp/requirements.lock > /tmp/requirements-pypi.lock \
-    && python -m pip install --no-cache-dir --require-hashes --requirement /tmp/requirements-pypi.lock \
-    && python -m pip install --no-cache-dir --no-deps \
-      git+https://github.com/microsoft/qlib.git@${QLIB_COMMIT} \
-      git+https://github.com/microsoft/RD-Agent.git@${RD_AGENT_COMMIT} \
-    && rm -f /tmp/requirements.lock /tmp/requirements-pypi.lock
+COPY services/research-automation-service/runner/requirements.rdagent.lock /tmp/requirements.rdagent.lock
+RUN python -m pip install --no-cache-dir --require-hashes --requirement /tmp/requirements.rdagent.lock \
+    && rm -f /tmp/requirements.rdagent.lock
 
 RUN git clone --filter=blob:none --no-checkout https://github.com/microsoft/RD-Agent.git /opt/rd-agent \
     && cd /opt/rd-agent \
@@ -30,6 +23,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/microsoft/RD-A
     && git clone --filter=blob:none --no-checkout https://github.com/microsoft/qlib.git /opt/qlib \
     && cd /opt/qlib \
     && git checkout --detach ${QLIB_COMMIT} \
+    && python -m pip install --no-cache-dir --no-deps /opt/qlib /opt/rd-agent \
     && chown -R runner:runner /opt/rd-agent /opt/qlib
 
 COPY services/research-automation-service/runner/runner.py /opt/stockquant/runner.py
@@ -38,6 +32,7 @@ RUN chown -R runner:runner /opt/stockquant \
     && chmod 0555 /opt/stockquant/runner.py \
     && python -c "import qlib, rdagent; print('qlib', qlib.__version__); print('rdagent', rdagent.__file__)"
 
+ENV LITELLM_LOCAL_MODEL_COST_MAP=True
 USER runner:runner
 WORKDIR /run/input
 ENTRYPOINT ["python", "/opt/stockquant/runner.py"]

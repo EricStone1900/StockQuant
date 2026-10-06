@@ -12,11 +12,10 @@ import sys
 from typing import Any
 
 from .failover import AllSourcesFailed, FailoverCollector, NormalizedBar, SourceError
+from .authorization import missing_collection_source_authorization
 from .providers import BaoStockMinuteClient, EastmoneyMinuteClient, SinaMinuteClient, TdxMinuteClient
 
 ALLOWED_SOURCES = frozenset(("baostock", "sina", "eastmoney", "tdx"))
-
-
 def source_ids_from_request(request: dict[str, Any]) -> list[str]:
     """Resolve and validate source order without silently replacing explicit input."""
     if "sources" in request:
@@ -35,6 +34,13 @@ def source_ids_from_request(request: dict[str, Any]) -> list[str]:
     ):
         raise SourceError("INVALID_REQUEST", "sources must be a unique list of baostock,sina,eastmoney,tdx", retryable=False)
     return source_ids
+
+
+def ensure_source_use_authorized(source_ids: list[str], env: dict[str, str] | None = None) -> None:
+    """Fail closed at the adapter boundary before constructing network clients."""
+    missing = missing_collection_source_authorization(source_ids, env)
+    if missing:
+        raise SourceError("SOURCE_NOT_AUTHORIZED", "minute source use is not authorized; missing: " + ",".join(missing), retryable=False)
 
 
 def wire_bar(bar: NormalizedBar) -> dict[str, Any]:
@@ -69,6 +75,7 @@ def main() -> int:
         if not isinstance(start, str) or not isinstance(end, str) or len(start) != 10 or len(end) != 10:
             raise SourceError("INVALID_REQUEST", "startDate and endDate must be ISO local dates", retryable=False)
         source_ids = source_ids_from_request(request)
+        ensure_source_use_authorized(source_ids)
         clients: dict[str, Any] = {}
         if "baostock" in source_ids:
             clients["baostock"] = BaoStockMinuteClient(float(request.get("baostockIntervalSeconds", request.get("perSecurityIntervalSeconds", 0.0))), batch_size=int(request.get("baostockBatchSize", 5)))
@@ -100,7 +107,10 @@ def main() -> int:
             print(json.dumps({"status": "COMPLETED", "operation": "RECOVERY_PROBE", "attempts": attempts}, separators=(",", ":")))
             return 0
         source_id, bars, attempts = collector.collect(security_ids, start, end)
-        print(json.dumps({"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}, separators=(",", ":")))
+        response: dict[str, Any] = {"status": "COMPLETED", "sourceId": source_id, "bars": [wire_bar(bar) for bar in bars], "attempts": attempts}
+        if request.get("includeProviderDiagnostics") is True and "tdx" in clients:
+            response["providerDiagnostics"] = {"tdxBoundaryTimestamps": clients["tdx"].last_timestamp_samples}
+        print(json.dumps(response, separators=(",", ":")))
         return 0
     except AllSourcesFailed as error:
         print(json.dumps({"status": "WAITING_RETRY", "code": error.code, "attempts": error.attempts}, separators=(",", ":")))

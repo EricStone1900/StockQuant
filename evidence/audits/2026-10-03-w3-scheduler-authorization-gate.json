@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "w3-scheduler-authorization-gate-v1",
+  "capturedAt": "2026-10-03T08:53:38Z",
+  "status": "PASS",
+  "change": {
+    "behavior": "Collection Scheduler creation now requires the same precise minute-source authorization as Collection Executor.",
+    "authorizationRequirements": ["exact true purpose flag", "nonempty authorization reference", "nonempty data version", "all configured source IDs explicitly allowlisted"],
+    "activeDeployment": "NOT_DEPLOYED"
+  },
+  "verification": {
+    "marketDataUnit": "71/71",
+    "marketDataTypecheck": "PASS",
+    "marketDataIntegration": "24/24",
+    "v24FullCodeSuite": {"command": "pnpm verify:stage -- --stage V2.4 --suite code", "exitCode": 0, "wrapper": "disposable PostgreSQL admin container"},
+    "unauthorizedWorkerReadiness": {"schedulerAndExecutorRequested": true, "collectionSourceAuthorization": "NOT_AUTHORIZED", "collectionSchedulerWorker": "DISABLED", "collectionExecutor": "DISABLED"},
+    "apiScenarios": ["9b630e9e-e918-4efe-9fed-1ac225311c7d", "a2008e16-bcbc-4434-92f4-a68758b916a6", "1cc24ae6-7109-4802-9f27-765cdf6e76c7", "b0ba7b77-e912-4594-a17d-a7a11f717f8d"],
+    "browserTestRuns": ["30606ca9-09ce-42bb-aedc-d7f22e73691b", "aa675c4f-9aae-470a-bc1b-e9c04f0c1ee6", "915eba60-30df-4544-b3af-5a3b71a48c3a", "e29dcb6d-1649-42ae-b131-cff25a1f00a1"],
+    "sameRunCli": true
+  },
+  "isolation": {
+    "sourceRequests": 0,
+    "providerCalls": 0,
+    "brokerMode": "FAKE",
+    "dataMode": "FIXTURE",
+    "activeServicesTouched": false,
+    "temporaryDatabaseExports": 5,
+    "temporaryPostgresContainerAndNetwork": "REMOVED_AND_VERIFIED",
+    "temporaryWebContainerAndImage": "REMOVED_AND_VERIFIED"
+  },
+  "o1o2": {"tradeMode": "NO_TRADE", "sourceAuthorization": "NONE", "observationDaysAdded": 0}
+}

@@ -1,0 +1,29 @@
+{
+  "auditId": "W1-V1.2-ARTIFACT-TASK-PERSISTENCE-2026-10-06",
+  "observedAt": "2026-10-06T18:19:03+08:00",
+  "status": "ENGINEERING_SLICE_PASS",
+  "stageAcceptance": "NOT_RUN",
+  "checks": {
+    "fullV12CodeSuite": { "status": "PASS", "exitCode": 0, "webApiCliTestRuns": ["6211c858-15e0-466f-a82b-e017b1d4a7a2", "deb1cc85-8a26-437b-9cbd-91cbc5f96a7d", "2c56e44d-9eed-4088-ae9d-29a09613e75d"], "isolatedComposeCleanup": "verified" },
+    "httpProcessRestart": { "status": "PASS", "taskId": "29b9d742-3265-44b1-8756-fcaec1e7ef32", "cancelledStateReadableAfterRestart": true, "anonymousCreate": 401, "anonymousCancel": 401, "missingTask": 404, "externalRequests": 0, "containerCleanup": "verified" },
+    "marketDataTypecheck": "PASS",
+    "marketDataBuild": "PASS",
+    "marketDataUnit": { "status": "PASS", "files": 18, "tests": 71 },
+    "contractsCheck": "PASS",
+    "serviceAuthHttpSmoke": "PASS",
+    "isolatedPostgresIntegration": { "status": "PASS", "tests": 25, "activeServices": "NOT_CONNECTED", "cleanup": "container and network removed and verified" },
+    "repositoryInstancePersistence": "PASS",
+    "cancelIdempotency": "PASS",
+    "unauthenticatedHttp": "401",
+    "authenticatedWithoutDatabase": "503"
+  },
+  "limitations": [
+    "Task creation records RUNNING but starts no executor",
+    "No progress, failure, or publication terminal state",
+    "Task cancellation is not transactionally coupled to artifact writes or atomic publication",
+    "Process-crash recovery is not implemented",
+    "No stage acceptance or human signoff"
+  ],
+  "authorization": { "tradeMode": "NO_TRADE", "dataSourceAuthorization": "NONE", "externalMarketRequests": 0, "brokerRequests": 0 },
+  "sandboxFailuresRetained": ["HTTP loopback listen EPERM", "Docker socket permission denied"]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-scenario-dispatch-result.schema.json",
+  "title": "V3.3 Scenario Fixture Runner Dispatch Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "status", "workflowStep", "idempotent", "runnerJobsCreated", "runnerJobIds", "rounds", "externalModelCalls"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-scenario-dispatch-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "RUNNING" },
+    "workflowStep": { "const": "RUNNER_JOBS_QUEUED" },
+    "idempotent": { "type": "boolean" },
+    "runnerJobsCreated": { "const": 2 },
+    "runnerJobIds": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string", "minLength": 1 } },
+    "rounds": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "object" } },
+    "externalModelCalls": { "const": 0 }
+  }
+}

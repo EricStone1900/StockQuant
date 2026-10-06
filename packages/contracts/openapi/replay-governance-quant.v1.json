@@ -1,0 +1,44 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Historical Replay Governance and Research API", "version": "v1" },
+  "servers": [{ "url": "http://decision-governance-service:3007" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/authorizations": {
+      "post": {
+        "operationId": "authorizeHistoricalReplayExecution",
+        "summary": "Issue a short-lived BACKTEST/FAKE authorization for an exact replay command",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "historical-replay-worker" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/replay-execution-authorization-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Exact command authorization", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/replay-execution-authorization-result.schema.json" } } } },
+          "403": { "description": "Caller identity rejected" }, "422": { "description": "Only BACKTEST/FAKE is permitted" }, "503": { "description": "Authorization store unavailable" }
+        }
+      }
+    },
+    "/internal/v1/authorizations/validate": {
+      "post": {
+        "operationId": "validateHistoricalReplayExecution",
+        "summary": "Consume or idempotently revalidate an exact replay execution authorization",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "trade-execution-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/replay-execution-authorization-validation.schema.json" } } } },
+        "responses": { "200": { "description": "Exact authorization consumed or replayed", "content": { "application/json": { "schema": { "type": "object", "required": ["valid", "replayed"], "properties": { "valid": { "const": true }, "replayed": { "type": "boolean" } }, "additionalProperties": false } } } }, "403": { "description": "No active grant matches the exact command" }, "422": { "description": "Invalid validation request" }, "503": { "description": "Authorization store unavailable" } }
+      }
+    },
+    "/v1/research/multi-bar": {
+      "post": {
+        "operationId": "summarizeHistoricalReplayBars",
+        "summary": "Produce deterministic Fixture-only research summary for replay bars and executions",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "historical-replay-worker" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/multi-bar-research-command.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Fixture-only research summary", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/multi-bar-research-result.schema.json" } } } },
+          "422": { "description": "Invalid research request" }, "503": { "description": "Qlib probe unavailable" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "stockquant-v24-event-order-suite-audit-v1",
+  "date": "2026-10-03",
+  "stage": "V2.4",
+  "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+  "exitCode": 0,
+  "tradeUnit": {
+    "files": 15,
+    "tests": 67
+  },
+  "p57TestRunId": "8bf3220a-a2fc-4f5f-8421-d0b33d08b3da",
+  "eventOrdering": {
+    "cancelSequenceBufferedFirst": true,
+    "cancelStateWhileGapOpen": "CANCEL_REQUESTED",
+    "gapSurvivedTradeRestart": true,
+    "reservationHeldWhileGapOpen": true,
+    "fillSequenceDrainedThrough": 2,
+    "cancelReplayIdempotent": true,
+    "simulatedCumulativeQuantity": 75,
+    "incrementalQuantity": 25,
+    "idempotentReplay": true,
+    "unauthorizedReplayRejected": true,
+    "finalOrder": "CANCELLED",
+    "portfolioFills": {
+      "fill_count": 2,
+      "total_quantity": "75"
+    },
+    "cashAfterBothFills": "8230.9685",
+    "reservation": {
+      "status": "RELEASED",
+      "captured_cash_amount": "766.0305"
+    }
+  },
+  "portfolio": {
+    "cash": "8996.9990",
+    "capturedReservation": "1003.0010"
+  },
+  "paperScenarios": {
+    "apiTestRunIds": [
+      "1efe73bb-13ea-48f6-a7ff-fa52a669c7ba",
+      "564dbb25-d980-474f-92f9-993446dab698",
+      "5142df56-d3e3-4b95-9711-8fc0bb4cdf0e",
+      "a7722d21-bdf1-4748-97eb-a996ec7f04a5"
+    ],
+    "webTestRunIds": [
+      "365b1e7d-b33f-4e6c-b0e5-4fd287794827",
+      "f1928955-01d3-4a87-a72e-2e1c81648826",
+      "1e8e2d39-4213-4aec-bf73-4dee77fe50e6",
+      "cf478989-6326-41e8-adaa-f92d4478ab45"
+    ],
+    "sameRunCliVerified": true,
+    "activeServicesTouched": false
+  },
+  "externalProviderCalls": 0,
+  "limitations": [
+    "FakeBroker protocol only; no real broker behavior asserted",
+    "user acceptance, source authorization, O1/O2, and Ubuntu remain incomplete"
+  ],
+  "files": {
+    "evidence/audits/2026-10-03-w2-fakebroker-event-sequence-full-v24-suite.md": "b18226d806eb8ba523d65e3bc3ea09c45df211773acf2015f509f524d6361d9c",
+    "evidence/audits/2026-10-03-w2-fakebroker-event-sequence-full-v24-suite.log": "df1bb1f800cb0109d7496cd8e2f4b2a36298a84fa3b3217374d795c75b62317f"
+  }
+}

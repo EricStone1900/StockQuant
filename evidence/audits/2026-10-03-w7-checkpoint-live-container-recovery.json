@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "stockquant.w7-checkpoint-live-container-recovery.v1",
+  "date": "2026-10-03",
+  "status": "PASS",
+  "change": "stream bounded checkpoint files from the live Runner container tmpfs into the fence-scoped Host managed directory; heartbeat persists changed state through the authenticated Runner Host HTTP API",
+  "standaloneSmoke": {
+    "status": "PASS",
+    "testRunId": "cac4d03f-9c34-4445-9098-2e57fb4a9789",
+    "jobId": "cac4d03f-9c34-4445-9098-2e57fb4a9789:09037922-5705-46b2-81ce-c9530f997b23:round-1",
+    "firstHostPersistedSequence": 1,
+    "leaseTakeoverFencingToken": 2,
+    "reclaimedHostPersistedSequence": 2,
+    "restoredState": { "cursor": 2 },
+    "stateSha256": "a4e85d746ee09222e48e87b0562d4f5c37d113ffd34d6f599055c85f99754d2f",
+    "datasetRows": 1000,
+    "modelProviderCalls": 0,
+    "stalePublishHttpStatus": 409,
+    "temporaryRowsAndFilesCleaned": true
+  },
+  "fullCodeSuite": {
+    "status": "PASS",
+    "exitCode": 0,
+    "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+    "testRunId": "667e6da8-0bb0-4482-a247-6bdd9ebaeb3c",
+    "firstHostPersistedSequence": 1,
+    "reclaimedHostPersistedSequence": 2,
+    "researchUnit": "216/216",
+    "researchPostgresIntegration": "29/29",
+    "platformUnit": "169/169",
+    "platformPostgresIntegration": "6/6",
+    "webPlaywright": "3/3",
+    "modelProviderCalls": 0,
+    "paperCalls": 0,
+    "logPath": "evidence/audits/2026-10-03-w7-v33-checkpoint-recovery-current-suite.log",
+    "logSha256": "f38c8d85d8ee63ade67b53083c54a1b10949bdc8dd125013cbe6d427f51349e7"
+  },
+  "scope": {
+    "v33Stage": "NOT_RUN",
+    "businessWorkflow": "NOT_IMPLEMENTED",
+    "paperContinuity": "NOT_CHECKED",
+    "businessValidation": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN",
+    "activeServicesTouched": false,
+    "observationDaysAdded": 0
+  }
+}

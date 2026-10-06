@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-06T00:00:00+08:00",
+  "workPackage": "W1 / V1.2 three-scenario Web/API/CLI same-TestRun regression",
+  "engineeringSuite": {
+    "command": "pnpm verify:stage -- --stage V1.2 --suite code",
+    "exitCode": 0,
+    "log": "evidence/audits/2026-10-06-w1-v12-full-code-suite-three-scenarios.log"
+  },
+  "baseline": {
+    "includedInEngineeringSuite": true,
+    "markdownLinksAtSuiteStart": 4488,
+    "linkFailures": 0
+  },
+  "scenarios": [
+    {
+      "scenario": "normal",
+      "testRunId": "7e7b0687-c73a-4717-8190-cdc8724c39a8",
+      "sameRunCliCheck": "PASS"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "0ae8f719-0f2b-4941-9b6a-9a287c7373b6",
+      "sameRunCliCheck": "PASS"
+    },
+    {
+      "scenario": "recovery-probe",
+      "testRunId": "cc5a3650-ab50-4dd6-bf37-2e2e358a911e",
+      "sameRunCliCheck": "PASS",
+      "limitation": "Qlib READY probe only; no injected failure, cancellation or recovery"
+    }
+  ],
+  "isolation": {
+    "collectionEnabled": false,
+    "liveTradingEnabled": false,
+    "marketSourceCalls": 0,
+    "modelCalls": 0,
+    "brokerCalls": 0,
+    "randomProjectCleanup": "PASS"
+  },
+  "versionGates": {
+    "V1": {
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "evidenceAudit": "PASS",
+      "evidenceReferences": 114,
+      "unresolvedStages": 5
+    },
+    "V2": {
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "evidenceAudit": "PASS",
+      "evidenceReferences": 324,
+      "unresolvedStages": 5
+    },
+    "V3": {
+      "status": "INCOMPLETE",
+      "exitCode": 2,
+      "evidenceAudit": "PASS",
+      "evidenceReferences": 389,
+      "unresolvedStages": 4
+    }
+  },
+  "humanAcceptance": "NOT_CHANGED",
+  "ubuntuAcceptance": "NOT_RUN"
+}

@@ -4,6 +4,23 @@
   "servers": [{ "url": "http://research-automation-service:3008" }],
   "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
   "paths": {
+    "/v1/artifacts/publish": {
+      "post": {
+        "operationId": "publishRunnerOutputArtifact",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-publish-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "Output Artifact bytes and reference were durably published under the current fenced lease", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-artifact-publish-result.schema.json" } } } },
+          "401": { "description": "Runner Host Bearer identity is missing or invalid" },
+          "403": { "description": "Caller identity or route scope is not allowed" },
+          "409": { "description": "Runner lease lost, expired, or cancelled" },
+          "413": { "description": "Artifact exceeds 8 MiB" },
+          "422": { "description": "Invalid ArtifactRef, content hash, or lease proof" },
+          "503": { "description": "Persistent lease store or Runner Host identity is unavailable" }
+        }
+      }
+    },
     "/v1/runner/jobs/claim": {
       "post": {
         "operationId": "claimRunnerJob",
@@ -44,6 +61,24 @@
         "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-complete-command.schema.json" } } } },
         "responses": { "200": { "description": "Job completion persisted under the current lease", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-job-record.schema.json" } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "404": { "description": "Runner Job not found" }, "409": { "description": "Lease lost or expired" }, "422": { "description": "Invalid execution result or ArtifactRef" }, "503": { "description": "Runner Host identity is not configured" } }
+      }
+    },
+    "/v1/runner/jobs/{jobId}/checkpoint": {
+      "post": {
+        "operationId": "persistRunnerCheckpoint",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-command.schema.json" } } } },
+        "responses": { "200": { "description": "Checkpoint durably stored or idempotently replayed", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-result.schema.json" } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "409": { "description": "Lease lost, sequence conflict, or experiment/TestRun binding mismatch" }, "413": { "description": "Checkpoint exceeds the 256 KiB state limit" }, "422": { "description": "Invalid checkpoint state" }, "503": { "description": "Persistent checkpoint store or Runner Host identity is unavailable" } }
+      }
+    },
+    "/v1/runner/jobs/{jobId}/checkpoint/read": {
+      "post": {
+        "operationId": "readRunnerCheckpoint",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "runner-host" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-request.schema.json" } } } },
+        "responses": { "200": { "description": "Latest checkpoint for this exact TestRun, experiment, and round", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-read-result.schema.json" } } } }, "401": { "description": "Runner Host Bearer identity is missing or invalid" }, "403": { "description": "Caller identity or route scope rejected" }, "409": { "description": "Lease lost, expired, or cancelled" }, "422": { "description": "Invalid lease proof" }, "503": { "description": "Persistent checkpoint store or Runner Host identity is unavailable" } }
       }
     }
   }

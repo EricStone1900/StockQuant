@@ -1,0 +1,17 @@
+# V3.3 full code suite and executor assertion correction (2026-10-06)
+
+The current `pnpm verify:stage -- --stage V3.3 --suite code` completed with exit 0 using the controlled isolated loopback test path. The first default-sandbox attempt's five `127.0.0.1` `EPERM` failures are separately retained and were not counted as a pass.
+
+The run exercised the current Platform and Research Automation sources against isolated PostgreSQL databases, two same-TestRun Fixture Runner rounds in pinned no-network containers, artifact-byte/Hash/metrics verification, checkpoint recovery after a simulated Host `SIGKILL`, fence takeover and stale-publish rejection, derived 46-cent ledger settlement, budget rejection with zero side effects, and same-TestRun normal/recovery/rejection business assertions and structured evidence export. The final V3.3 report is PASS for the code suite; Paper continuity remains NOT_CHECKED and human acceptance remains NOT_RUN. No external Provider, market-data, Paper, or Broker calls were made; active services were not connected.
+
+The evidence exposed and this run verified a correction to the required `V3.3_EXECUTOR` assertion: readiness now starts at `NOT_RUN` with an accurate pending-verification reason; the owner-scoped normal, recovery, or rejection route changes it to PASS only after that workflow's independent assertion passes, and to FAIL when it does not. Platform V3.3 focused tests passed 24/24 before the full suite; the full suite includes current Platform tests, Research Automation tests/integrations, cross-service smoke, Runner Host recovery, and Web E2E.
+
+Three latest business TestRuns were exported and their manifests checked:
+
+- Normal `faaed2e8-70a4-4395-9be7-106d0cae8602`: `V3.3_EXECUTOR` and `V3.3_NORMAL_RESULTS_001` PASS; business validation PASS; human acceptance NOT_RUN.
+- Recovery `0f064e6c-cfff-4254-85a2-92ceea5944bd`: `V3.3_EXECUTOR` and `V3.3_CHECKPOINT_RECOVERY_001` PASS; business validation PASS; human acceptance NOT_RUN.
+- Rejection `2eb910b8-8a33-4753-968a-9834b1719170`: `V3.3_EXECUTOR` and `V3.3_REJECTION_NO_SIDE_EFFECTS` PASS; business validation PASS; human acceptance NOT_RUN.
+
+After registering the three latest bundles in the V3.3 acceptance evidence column, the current V3 evidence-integrity gate passed (395 references, 58 active manifests, 120 active entries, 14 historical manifests skipped, zero missing/hash failures); the formal gate verifies all nine exact V3.3 TestRun exports with zero unresolved associations. The formal V3 version gate remains INCOMPLETE, with V3.1–V3.4 not signed off. These Fixture runs do not establish real RD-Agent/provider behavior, Paper continuity, Ubuntu acceptance, prerequisite approvals, or human acceptance.
+
+Full suite transcript: [log](./2026-10-06-w7-v33-current-full-code-suite-after-executor-assertion.log). The adjacent SHA-256 list is a historical execution snapshot; subsequent work changed `services/platform-api-service/src/bootstrap/app.module.ts`, so its original digest is preserved as history rather than used as the current source hash. The initial sandbox failure is recorded in [attempt note](./2026-10-06-w7-v33-current-full-code-suite-after-executor-assertion-initial-failure.md). Bundle paths: [normal](../local/V3.3/faaed2e8-70a4-4395-9be7-106d0cae8602/evidence.json), [recovery](../local/V3.3/0f064e6c-cfff-4254-85a2-92ceea5944bd/evidence.json), [rejection](../local/V3.3/2eb910b8-8a33-4753-968a-9834b1719170/evidence.json).

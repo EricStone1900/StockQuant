@@ -13,6 +13,11 @@ export class GeneratedResearchQueueClient {
     this.baseUrl = baseUrl.replace(/\/+$/u, "");
   }
 
+  async configureV33TestRunBudgetLimit(body: Contracts.V33TestRunBudgetLimitCommand): Promise<Contracts.V33TestRunBudgetLimitResult> {
+    const url = new URL("/v1/runner/budgets/test-run/limit", this.baseUrl);
+    return this.send<Contracts.V33TestRunBudgetLimitResult>(url, "POST", body);
+  }
+
   async createV31Experiment(body: Contracts.V31ExperimentRequest): Promise<Contracts.V31ExperimentResult> {
     const url = new URL("/v1/experiments", this.baseUrl);
     return this.send<Contracts.V31ExperimentResult>(url, "POST", body);
@@ -56,6 +61,20 @@ export class GeneratedResearchQueueClient {
     return this.send<Contracts.V31RunnerJobDispatchResult>(url, "POST");
   }
 
+  async readCompleteTestRunBudgetSummary(testRunId: string, offset?: number, limit?: number, afterCursor?: string): Promise<Contracts.V33TestRunExperimentBudgetSummary> {
+    const url = new URL("/v1/runner/budgets/test-run", this.baseUrl);
+    url.searchParams.set("testRunId", String(testRunId));
+    if (offset !== undefined) url.searchParams.set("offset", String(offset));
+    if (limit !== undefined) url.searchParams.set("limit", String(limit));
+    if (afterCursor !== undefined) url.searchParams.set("afterCursor", String(afterCursor));
+    return this.send<Contracts.V33TestRunExperimentBudgetSummary>(url, "GET");
+  }
+
+  async settleV31ExperimentBudgetFromModelCalls(experimentId: string, body: Contracts.V33ExperimentLedgerSettlementCommand): Promise<Contracts.V33ExperimentLedgerSettlementResult> {
+    const url = new URL("/v1/experiments/{experimentId}/budget/settle-from-model-calls".replace("{experimentId}", encodeURIComponent(experimentId)), this.baseUrl);
+    return this.send<Contracts.V33ExperimentLedgerSettlementResult>(url, "POST", body);
+  }
+
   async readRunnerBudgetForTestRun(testRunId: string, offset?: number, limit?: number): Promise<Contracts.V33RunnerBudget> {
     const url = new URL("/v1/runner/budgets", this.baseUrl);
     url.searchParams.set("testRunId", String(testRunId));
@@ -85,6 +104,14 @@ export class GeneratedResearchQueueClient {
     if (afterCursor !== undefined) url.searchParams.set("afterCursor", String(afterCursor));
     if (limit !== undefined) url.searchParams.set("limit", String(limit));
     return this.send<Contracts.V33RunnerCursorQueue>(url, "GET");
+  }
+
+  async listV33RunnerCheckpoints(testRunId: string, experimentId: string, roundIndex: number): Promise<Contracts.V33RunnerCheckpointHistory> {
+    const url = new URL("/v1/runner/checkpoints", this.baseUrl);
+    url.searchParams.set("testRunId", String(testRunId));
+    url.searchParams.set("experimentId", String(experimentId));
+    url.searchParams.set("roundIndex", String(roundIndex));
+    return this.send<Contracts.V33RunnerCheckpointHistory>(url, "GET");
   }
 
   private async send<T>(url: URL, method: string, body?: unknown, timeoutMs = 5000): Promise<T> {

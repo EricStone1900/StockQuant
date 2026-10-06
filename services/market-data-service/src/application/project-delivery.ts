@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 
-export type ProjectScope = "DATA_READ" | "DATA_WRITE" | "DATA_EXPORT";
+import type { ProjectScope, ProjectPolicy } from "../domain/project-access.js";
+import { ProjectAccessDenied, DataVersionConflict } from "../domain/project-delivery-errors.js";
+export type { ProjectScope, ProjectPolicy } from "../domain/project-access.js";
+export { ProjectAccessDenied, DataVersionConflict } from "../domain/project-delivery-errors.js";
 export type ProjectActor = { projectId: string; scopes: Set<ProjectScope> };
-export type ProjectPolicy = { projectId: string; maxConcurrentRuns: number; maxSecuritiesPerSubscription: number };
 
-export class ProjectAccessDenied extends Error { constructor(message: string) { super(message); this.name = "ProjectAccessDenied"; } }
+
 export class ProjectQuotaExceeded extends Error { constructor(message: string) { super(message); this.name = "ProjectQuotaExceeded"; } }
-export class DataVersionConflict extends Error { constructor(message: string) { super(message); this.name = "DataVersionConflict"; } }
 
 export function assertProjectAccess(actor: ProjectActor, resourceProjectId: string, scope: ProjectScope): void {
   if (actor.projectId !== resourceProjectId) throw new ProjectAccessDenied("project scope does not match resource owner");

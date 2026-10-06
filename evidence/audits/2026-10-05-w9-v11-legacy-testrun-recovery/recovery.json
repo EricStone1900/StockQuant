@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "w9-v11-legacy-test-run-recovery-v1",
+  "source": "isolated copy of Docker Compose volume stockquant-v11_postgres-v11; PostgreSQL 16.9; no source-volume writes",
+  "sourceRowsPath": "evidence/audits/2026-10-05-w9-v11-legacy-testrun-recovery/legacy-v11-test-run-rows.jsonl",
+  "sourceRowsSha256": "72a422629c4694f949459a4b1756bd6302445b6cef95145afc43778080a7b255",
+  "recovered": [
+    {
+      "testRunId": "24276340-2e5a-4516-a7d0-20f92851754b",
+      "scenarioId": "rejection",
+      "assertionCount": 2,
+      "manualConclusion": "NOT_RUN",
+      "evidenceSha256": "391913196cb0cdf4a9557823a59b4812843df15ae15396edaba9430d745d9cdd"
+    },
+    {
+      "testRunId": "bdb53484-19b4-4363-a130-eee94761df54",
+      "scenarioId": "recovery",
+      "assertionCount": 2,
+      "manualConclusion": "NOT_RUN",
+      "evidenceSha256": "cd2d99c114ecedd1a55c6c6a4374784a9834fa869ac95638e034e59d7bbe0add"
+    }
+  ],
+  "limitations": [
+    "This is a structured recovery from exact legacy PostgreSQL rows, not an original Platform API export.",
+    "The source rows contain no human acceptance records; manualConclusion remains NOT_RUN.",
+    "No Web screenshot, CLI check-only result, or external domain-service facts are inferred.",
+    "The source volume was mounted read-only for copying; only the isolated copy was started for read-only queries."
+  ]
+}

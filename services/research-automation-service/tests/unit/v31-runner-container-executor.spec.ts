@@ -24,6 +24,26 @@ describe("V3.1 Runner container supervisor", () => {
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
+  it("streams the bounded checkpoint through the host callback while the container is running", async () => {
+    const root = mkdtempSync(join(tmpdir(), "stockquant-runner-checkpoint-transfer-"));
+    const outputRoot = join(root, "output"); mkdirSync(outputRoot);
+    const checkpoint = Buffer.from(JSON.stringify({ schemaVersion: "v3.3-research-checkpoint-v1", testRunId: "22222222-2222-4222-8222-222222222222", roundIndex: 1, sequence: 1, state: { cursor: 4 } }));
+    const readCheckpoint = vi.fn(async () => checkpoint);
+    const onCheckpoint = vi.fn(async () => undefined);
+    const dockerCommand = vi.fn(async (args: string[]) => ({ exitCode: 0, stderr: "", stdout: args[0] === "exec" ? JSON.stringify({ files: [] }) : "" }));
+    const executePlan = async (_plan: RunnerLaunchPlan, options: { completionMarker?: string }) => {
+      if (!options.completionMarker) return { ...finished, exitCode: 0, stdout: "container-id\n" };
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      return finished;
+    };
+    try {
+      await executeRunnerContainer({ ...plan, outputRoot }, { executePlan, dockerCommand, readCheckpoint, onCheckpoint, checkpointPollIntervalMs: 1 });
+      expect(readCheckpoint).toHaveBeenCalledWith("sqrunner-test", undefined);
+      expect(onCheckpoint).toHaveBeenCalledOnce();
+      expect(onCheckpoint).toHaveBeenCalledWith(checkpoint);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
   it("rejects traversal in the container output transfer", async () => {
     const root = mkdtempSync(join(tmpdir(), "stockquant-runner-traversal-"));
     const outputRoot = join(root, "output"); mkdirSync(outputRoot);

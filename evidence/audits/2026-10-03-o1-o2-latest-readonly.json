@@ -1,0 +1,39 @@
+{
+  "capturedAt": "2026-10-03T05:29:46.323Z",
+  "mode": "NO_TRADE",
+  "sourceAuthorization": "NONE",
+  "collection": {
+    "enabledScheduleCount": 0,
+    "marketDataRequests": 0,
+    "businessWrites": 0
+  },
+  "health": {
+    "status": "UNHEALTHY",
+    "calendar": "CLOSED",
+    "nextExecutionAt": null,
+    "lastSuccessfulTickAt": "2026-10-03T05:29:22.249Z",
+    "openGaps": 0,
+    "pendingOutbox": 0,
+    "reason": "nextTriggerRecorded=false"
+  },
+  "observation": {
+    "status": "WAITING",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "targetDays": 20,
+    "remainingDays": 12,
+    "latestCountedDate": "2026-09-30",
+    "newObservationDay": false
+  },
+  "o2": "NOT_STARTED",
+  "checks": [
+    { "command": "pnpm dc08a:active-subscription -- --field enabled-count", "exitCode": 0, "result": "0" },
+    { "command": "pnpm dc08a:health-report", "exitCode": 1, "result": "UNHEALTHY" },
+    { "command": "pnpm dc08a:observation-summary", "exitCode": 2, "result": "WAITING" }
+  ],
+  "sourceReports": {
+    "healthReportSha256": "a8f1708d3c277cb61498a0960c036adf30f2f5032cae3c9d66c10b6743e0c0ac",
+    "observationSummarySha256": "7a91e45f4c888e5e4b6a7d3a910d11af0830db90cfd2a2a94df456765e9b87b6"
+  }
+}

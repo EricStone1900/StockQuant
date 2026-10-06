@@ -106,6 +106,7 @@ describe("createQuantPromotionSubmitter", () => {
     const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       expect(init?.method).toBe("POST");
       expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${"r".repeat(40)}`);
+      expect(new Headers(init?.headers).get("x-stockquant-service-id")).toBe("research-automation-service");
       expect(JSON.parse(String(init?.body))).toEqual(request);
       return Response.json({ schemaVersion: "v3.2-promotion-request-result-v1", promotionRequestId: request.promotionRequestId, testRunId: request.testRunId, status: "AWAITING_INDEPENDENT_VALIDATION", createdAt: "2026-09-27T00:00:00.000Z", idempotent: true }, { status: 200 });
     });

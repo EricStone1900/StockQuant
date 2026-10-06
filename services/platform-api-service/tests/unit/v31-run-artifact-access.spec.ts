@@ -24,4 +24,9 @@ describe("V3.1 owner/run-scoped Artifact lookup", () => {
     expect(findV31RunArtifactRef({ run, requestedArtifactId: "unlisted", runnerRecord })).toBeNull();
     expect(findV31RunArtifactRef({ run: { ...run, evidence: { orchestration: { ...run.evidence.orchestration, inputRef: { ...inputRef, status: "PENDING" } } } }, requestedArtifactId: inputRef.artifactId, runnerRecord })).toBeNull();
   });
+
+  it("does not expose an EXPIRED Artifact even while its historical ref remains on the run", () => {
+    const expiredRun = { ...run, evidence: { orchestration: { ...run.evidence.orchestration, inputRef: { ...inputRef, status: "EXPIRED" } } } };
+    expect(findV31RunArtifactRef({ run: expiredRun, requestedArtifactId: inputRef.artifactId, runnerRecord })).toBeNull();
+  });
 });

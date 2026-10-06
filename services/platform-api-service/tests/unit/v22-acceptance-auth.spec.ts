@@ -23,7 +23,7 @@ describe("V2.2 Acceptance page identity", () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ fixtureVersion: "v2.2-minute-bars-1", rows: 6 }), { status: 200 }));
     vi.stubGlobal("fetch", fetch);
     const result = await controller().preview("sq_session=acceptance-owner-1", undefined);
-    expect(fetch).toHaveBeenCalledWith("http://market-data/v2/minute/preview", { headers: identityHeaders });
+    expect(fetch).toHaveBeenCalledWith("http://market-data/v2/minute/preview", expect.objectContaining({ method: "GET", headers: identityHeaders, signal: expect.any(AbortSignal) }));
     expect(result).toEqual({ fixtureVersion: "v2.2-minute-bars-1", rows: 6 });
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

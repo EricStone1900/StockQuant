@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "stockquant.w1-artifact-rollback-audit.v1",
+  "date": "2026-10-02",
+  "change": "On uncertain ArtifactRef lookup after failed Runner output publication, preserve content bytes; remove only after successful lookup confirms absence.",
+  "focusedUnitTests": {
+    "passed": 3,
+    "failed": 0
+  },
+  "researchUnitTests": {
+    "files": 35,
+    "passed": 194,
+    "failed": 0
+  },
+  "researchIntegrationTests": {
+    "files": 4,
+    "passed": 27,
+    "failed": 0
+  },
+  "researchBuild": "PASS",
+  "researchTypecheck": "PASS",
+  "fullStageSuite": {
+    "command": "pnpm verify:stage -- --stage V3.1 --suite code",
+    "exitCode": 0,
+    "researchImage": "sha256:b1284722462e36ad840282058eea7f375c7d9d34da410a1550d148c7bfdc6410",
+    "externalProviderCalls": 0,
+    "activeServicesTouched": false
+  },
+  "temporaryImage": {
+    "tag": "stockquant-v31-artifact-rollback-20261002-b8672933bd",
+    "removed": true,
+    "dependentContainers": 0
+  },
+  "safetyBoundaries": {
+    "marketSourceCalls": 0,
+    "paperOrBrokerCalls": 0,
+    "humanSignoffChanged": false,
+    "noTrade": true,
+    "sourceAuthorization": "NONE",
+    "OD013": "OPEN"
+  },
+  "limitations": [
+    "no retention policy or expiry scheduler",
+    "no physical expiry cleanup",
+    "V3.1 business acceptance and human sign-off remain NOT_RUN"
+  ]
+}

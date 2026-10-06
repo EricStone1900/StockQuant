@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "stockquant-w3-scheduler-poll-v24-suite-audit-v1",
+  "capturedAt": "2026-10-02T18:07:22Z",
+  "change": {
+    "schedulerStatusFields": {
+      "nextPollAt": "next background scheduler poll",
+      "nextExecutionAt": "next planned collection window"
+    },
+    "sourceAuthorization": "UNCHANGED",
+    "activeDeployment": "NOT_DEPLOYED"
+  },
+  "verification": {
+    "focusedMarketDataTests": "PASS; 18 files / 71 tests",
+    "marketDataTypecheck": "PASS",
+    "v24CodeSuite": {
+      "command": "pnpm verify:stage -- --stage V2.4 --suite code",
+      "defaultSandboxAttempt": "FAIL: existing Qlib Worker test could not bind loopback port (EPERM)",
+      "controlledLoopbackRetry": "PASS; exit 0",
+      "paperMode": "PAPER + FAKE",
+      "dataMode": "FIXTURE",
+      "providerCalls": 0,
+      "activeServicesTouched": false,
+      "apiTestRuns": {
+        "normal": "c72f8024-81c4-4c2a-9bfb-30691354d968",
+        "rejection": "acc966b8-0dc8-43e1-9e8d-89d1850d0968",
+        "recovery": "723c68e3-dd6c-469c-b153-0b1f2812d396",
+        "external-reconciliation": "5b9b8a8c-fe9c-4ff8-8066-96c58892dc4f"
+      },
+      "webTestRuns": {
+        "normal": "0b4fab80-57a6-4c61-80ca-002ff46255cc",
+        "rejection": "5811064d-e6f7-4a03-9a43-3de08cb72cd7",
+        "recovery": "c6c47759-7a9e-4f0d-b69d-ebe24bb38e30",
+        "external-reconciliation": "698c2296-9ed9-42a2-8d8f-15869d8e0af4"
+      },
+      "webCliReadOnlyFactsUnchanged": true,
+      "droppedExecutionResponses": 3,
+      "temporaryDatabaseExportedBeforeCleanup": true,
+      "activeServicesTouched": false,
+      "businessScope": "isolated Fixture/FakeBroker acceptance only; no live source, real broker, active Paper or user sign-off"
+    },
+    "docsLinks": "PASS; 2790 local Markdown links",
+    "gitDiffCheck": "PASS"
+  },
+  "acceptance": {
+    "v24Stage": "INCOMPLETE",
+    "sourceAuthorization": "NONE",
+    "tradeMode": "NO_TRADE",
+    "o1O2ObservationDaysAdded": 0,
+    "humanAcceptance": "NOT_RUN"
+  }
+}

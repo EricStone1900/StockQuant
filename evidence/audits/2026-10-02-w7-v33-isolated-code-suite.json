@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "stockquant.w7-v33-isolated-code-suite.v1",
+  "date": "2026-10-02",
+  "stageId": "V3.3",
+  "suite": "code",
+  "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+  "status": "PASS",
+  "exitCode": 0,
+  "attempts": [
+    {
+      "number": 1,
+      "status": "FAIL",
+      "failure": "Concurrent integration migrations raced creating the shared acceptance_stage_runs table and its implicit PostgreSQL row type.",
+      "database": "disposable random-loopback PostgreSQL; discarded"
+    },
+    {
+      "number": 2,
+      "status": "PASS",
+      "database": "fresh disposable random-loopback PostgreSQL; wrapper removed container on exit",
+      "fix": "PostgresStageRunRepository.migrate now wraps shared table creation in a transaction-scoped advisory lock."
+    }
+  ],
+  "checks": {
+    "markdownLinks": { "checked": 2344, "failures": 0 },
+    "contracts": { "jsonFiles": 211, "schemas": 146, "fixtures": 36, "failures": 0 },
+    "researchAutomation": { "unitFiles": 34, "unitTests": 191, "integrationFiles": 4, "integrationTests": 27 },
+    "budgetPaginationProbe": { "status": "PASS", "syntheticExperiments": 66100, "maxRowsInTestRun": 50000 },
+    "runnerRecovery": { "status": "PASS", "rounds": 2, "syntheticInputRows": 1000, "hostKill": "SIGKILL", "leaseTakeover": true, "fencingToken": 2, "stalePublishHttpStatus": 409, "cpuMilli": 500, "memoryMiB": 512, "pidsLimit": 32 },
+    "platform": { "typecheck": "PASS", "unitFiles": 45, "unitTests": 156, "integrationFiles": 4, "integrationTests": 5 },
+    "web": { "typecheck": "PASS", "playwrightPassed": 3, "playwrightFailed": 0 },
+    "externalCalls": { "marketData": 0, "modelProvider": 0, "paper": 0, "broker": 0 },
+    "activeServicesTouched": false,
+    "sharedPostgres5433Touched": false
+  },
+  "acceptance": {
+    "businessWorkflow": "NOT_IMPLEMENTED",
+    "businessValidation": "NOT_RUN",
+    "paperContinuity": "NOT_CHECKED",
+    "humanAcceptance": "NOT_RUN",
+    "stageStatus": "NOT_RUN"
+  },
+  "limits": [
+    "Synthetic hot-cache pagination probe is not production capacity evidence.",
+    "Fixture Runner recovery does not prove real RD-Agent/provider billing, Paper continuity, Ubuntu behavior, or human acceptance."
+  ]
+}

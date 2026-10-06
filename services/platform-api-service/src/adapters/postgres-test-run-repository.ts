@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import type { ScenarioId, TestAssertion, TestRun, TestRunStatus } from "../domain/test-run.js";
 import { assertLegacyTestRunShadowParity } from "./postgres-legacy-test-run-migration.js";
+import type { TestRunRepository } from "../ports/test-run-repository.js";
 
 export type V11RunStorageMode = "legacy" | "stage";
 
@@ -41,7 +42,7 @@ interface StageRunRow {
   completed_at: Date | null;
 }
 
-export class PostgresTestRunRepository {
+export class PostgresTestRunRepository implements TestRunRepository {
   constructor(private readonly pool: Pool, readonly storageMode: V11RunStorageMode = configuredV11RunStorageMode()) {}
 
   async assertStorageReady(): Promise<void> {

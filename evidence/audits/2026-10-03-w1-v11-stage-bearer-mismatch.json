@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-03",
+  "stageId": "V1.1",
+  "area": "W1 stage-mode isolated storage and Web/CLI recovery",
+  "result": "PASS",
+  "command": "pnpm test:integration:v11-stage-storage",
+  "exitCode": 0,
+  "priorFailure": {
+    "command": "pnpm test:integration:v11-stage-storage",
+    "exitCode": 1,
+    "cause": "Portfolio Risk returned HTTP 401",
+    "mismatch": {
+      "platformCallerToken": "v11-isolated-platform-token",
+      "portfolioTrustedToken": "v14-isolated-platform-token"
+    }
+  },
+  "fixedConfiguration": "infra/compose/docker-compose.v11-integration.yml aligns Portfolio's trusted Platform token with the V1.1 Platform caller",
+  "codeSuite": "PASS within the isolated harness",
+  "chromium": {
+    "passed": 3,
+    "failed": 0,
+    "scenarios": {
+      "normal": "7900770e-fa92-4eee-8308-4ded349b82dd",
+      "rejection": "fd362ede-57c1-409a-bf69-564e5c2dd281",
+      "recovery": "8de524fc-7781-42e3-8f8b-7507d53ac636"
+    },
+    "webCliSameRun": true
+  },
+  "isolation": {
+    "randomComposeProject": "sq-v11-stage-6a359432455973ee84dd",
+    "recoveryRestartTargetVerified": true,
+    "exactContainersVolumesNetworksAndImageTagsRemoved": true,
+    "externalMarketProviderBrokerCalls": 0,
+    "activePaperCalls": 0
+  },
+  "scopeLimitations": [
+    "Does not perform active API cutover or rollback",
+    "Does not resolve historic RUNNING/WAITING records",
+    "Does not add user sign-off or change V1.1 acceptance status"
+  ]
+}

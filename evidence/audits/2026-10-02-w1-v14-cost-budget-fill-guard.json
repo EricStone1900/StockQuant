@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "stockquant.w1-v14-cost-budget-fill-guard.v1",
+  "date": "2026-10-02",
+  "stage": "V1.4",
+  "fixture": {
+    "path": "fixtures/v1/v1.4/backtest_daily.csv",
+    "sha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+    "changed": false
+  },
+  "policy": {
+    "initialCashCents": 1000000,
+    "targetQuantity": 100,
+    "participationRateBasisPoints": 100,
+    "slippageBasisPoints": 0,
+    "fixedFeeCents": 500,
+    "currency": "CNY"
+  },
+  "handChecks": [
+    {
+      "case": "adverse-buy-slippage-and-affordability",
+      "initialCashCents": 102000,
+      "slippageBasisPoints": 100,
+      "expectedFillPriceCents": 1021,
+      "expectedQuantity": 99,
+      "expectedFixedFeeCents": 500,
+      "expectedFinalCashCents": 421,
+      "status": "PASS"
+    },
+    {
+      "case": "participation-below-one-share",
+      "executionVolume": 99,
+      "participationRateBasisPoints": 100,
+      "expectedQuantity": 0,
+      "expectedRejectedOrders": 1,
+      "expectedUnfilledQuantity": 100,
+      "expectedFeeCents": 0,
+      "status": "PASS"
+    },
+    {
+      "case": "cash-only-covers-fixed-fee",
+      "initialCashCents": 500,
+      "expectedQuantity": 0,
+      "expectedRejectedOrders": 1,
+      "expectedUnfilledQuantity": 100,
+      "expectedFeeCents": 0,
+      "expectedFinalCashCents": 500,
+      "status": "PASS"
+    },
+    {
+      "case": "unrepresentable-nav-fails-closed",
+      "status": "PASS"
+    },
+    {
+      "case": "drawdown-high-water-uses-run-initial-cash",
+      "initialCashCents": 102000,
+      "expectedDrawdownBasisPoints": 156,
+      "status": "PASS"
+    }
+  ],
+  "commands": [
+    {
+      "command": "pnpm --filter @stockquant/platform-api-service exec vitest run tests/unit/v14-backtest.spec.ts",
+      "exitCode": 0,
+      "testsPassed": 7
+    },
+    {
+      "command": "pnpm --filter @stockquant/platform-api-service build",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm --filter @stockquant/platform-api-service lint",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm verify:stage -- --stage V1.4 --suite code",
+      "exitCode": 0,
+      "platformUnitTests": 159,
+      "quantWorkerPythonTests": 13
+    },
+    {
+      "command": "pnpm verify:stage -- --stage V1.4 --suite code",
+      "exitCode": 0,
+      "purpose": "final rerun after run-scoped drawdown high-water correction",
+      "platformUnitTests": 159,
+      "quantWorkerPythonTests": 13
+    }
+  ],
+  "failedAttemptsPreserved": [
+    "default-sandbox full code suite stopped at Qlib Worker ephemeral loopback bind with EPERM; same isolated suite later exited 0 under controlled local execution",
+    "initial new focused tests failed due assumptions of mandatory trade rows and a hard-coded drawdown; test/engine assertions were corrected and final focused suite passed"
+  ],
+  "activeServicesTouched": false,
+  "marketSourceCalls": 0,
+  "paperOrBrokerCalls": 0,
+  "modelProviderCalls": 0,
+  "businessTestRunCreated": false,
+  "stageStatusChanged": false,
+  "scope": "Fixture-only cost/slippage/participation/cash guard. Does not establish V1.4 completion, SELL/T+1 or settlement correctness, suspensions/price limits/corporate actions, Qlib parity, production Web workflow, observation, or human acceptance."
+}

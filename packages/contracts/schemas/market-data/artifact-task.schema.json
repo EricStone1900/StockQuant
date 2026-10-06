@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/market-data/artifact-task.schema.json",
+  "title": "Market Data Artifact Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["taskId", "artifactId", "fixtureVersion", "status", "sha256", "error", "fence", "createdAt", "updatedAt"],
+  "properties": {
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "fixtureVersion": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"] },
+    "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "error": { "type": ["string", "null"] },
+    "fence": { "type": "integer", "minimum": 0 },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

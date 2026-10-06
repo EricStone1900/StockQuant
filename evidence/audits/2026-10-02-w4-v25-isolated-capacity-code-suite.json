@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-02",
+  "workstream": "W4",
+  "stageId": "V2.5",
+  "command": "pnpm verify:stage -- --stage V2.5 --suite code",
+  "status": "PASS",
+  "exitCode": 0,
+  "testDatabase": {
+    "type": "disposable PostgreSQL container",
+    "image": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+    "randomLoopbackPort": true,
+    "readOnlyRoot": true,
+    "tmpfsData": true,
+    "randomCredential": true,
+    "cleanup": "PASS"
+  },
+  "suite": {
+    "baseline": "PASS",
+    "build": "PASS",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "unitTests": "PASS",
+    "tradePersistenceAndServiceAuth": "PASS",
+    "tradeReadiness": "PASS",
+    "p57OutboxRecovery": "PASS",
+    "portfolioIntegrationAndServiceAuth": "PASS",
+    "marketDataAdapterPythonTests": {"passed": 69, "status": "PASS"},
+    "opsTests": "PASS",
+    "marketDataIntegration": {"tests": 23, "status": "PASS"},
+    "projectDeliveryHttpSmoke": "PASS",
+    "parquetLinuxArm64Capacity": "PASS"
+  },
+  "capacityProbe": {
+    "imageId": "sha256:953ff108a91ef6584fb264e342a35eb0ce8bc7068354749b38bbaafa5525cb0b",
+    "platform": "Docker Linux/arm64",
+    "fixture": {"rows": 100000, "securities": 500, "tradingDays": 5, "bytes": 289616, "compression": "zstd", "sha256": "0c5abdfcc0f4939af34941c11a479743d3ed95ce5e58173aa63223037f11f1a5", "provenance": "synthetic"},
+    "query": {"pageSize": 1000, "pageCount": 100, "queriedRows": 100000, "uniqueQueriedBars": 100000, "filteredRows": 40, "filteredPages": 2},
+    "persistence": {"rows": 100000, "databaseBytes": 72561123, "sourceHashMatch": true},
+    "behavior": {"idempotentRetry": true, "crossInstanceExclusion": true, "corruptParquetRejected": true, "corruptUploadCancelled": true, "corruptRowsPublished": 0},
+    "resources": {"peakServiceRssKiB": 197636, "memoryLimitGiB": 2, "cpuLimit": 2, "pidsLimit": 128},
+    "externalSources": 0,
+    "modelCalls": 0,
+    "brokerCalls": 0,
+    "cleanup": "PASS"
+  },
+  "activeServicesTouched": false,
+  "activeDatabasePortTouched": false,
+  "humanAcceptance": "NOT_RUN",
+  "ubuntuValidation": "NOT_RUN",
+  "limitations": ["Synthetic fixture only", "Does not prove 60-day source coverage or long real-session stability", "Does not validate real PIT history or real market-data authorization", "Mac-hosted Linux/arm64 containers are not Ubuntu host validation"]
+}

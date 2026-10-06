@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "stockquant.w8.cluster-backup-smoke.v1",
+  "status": "PASS",
+  "observedAt": "2026-09-30T09:28:25Z",
+  "backupId": "cluster-paired-2026-09-30T09-28-25-709Z-9eba8467",
+  "command": "node services/research-automation-service/scripts/paired-backup-producer-smoke.mjs",
+  "source": {
+    "composeProject": "sq-backup-smoke-2e79fb790b13",
+    "databases": [
+      "postgres",
+      "research_automation"
+    ],
+    "globalRoles": [
+      "postgres"
+    ],
+    "artifactVolume": "sq-backup-smoke-artifacts-2e79fb790b134ff1b01e5b91fd368ef3",
+    "publishedArtifactRefs": 1,
+    "artifactSha256": "edafdfd64a9bf8cf0ad674b701830109bf787111b60efe545c5ca18426682103",
+    "expectedRolePasswordIncluded": false
+  },
+  "backup": {
+    "format": "stockquant.paired-backup.cluster.v2",
+    "payloadFiles": 4,
+    "rolePasswordsIncluded": false,
+    "databaseInventoryMatchedBeforeAndAfterCapture": true
+  },
+  "restore": {
+    "status": "PASS",
+    "method": "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256",
+    "restoredDatabases": [
+      "postgres",
+      "research_automation"
+    ],
+    "restoredGlobalRoles": 1,
+    "publishedArtifactRefsMatched": 1,
+    "readOnlyIdentityQueriesPassedForEveryRestoredDatabase": true,
+    "restoredRolePasswordsPresent": 0,
+    "artifactFileHashMatched": true,
+    "networkMode": "none",
+    "publishedPorts": [],
+    "composeProjectLabel": null,
+    "dockerVolumeMounts": [],
+    "tmpfsMounts": [
+      "/tmp",
+      "/var/lib/postgresql/data",
+      "/var/run/postgresql"
+    ]
+  },
+  "images": {
+    "postgresImage": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+    "postgresImageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+    "helperImageId": "sha256:ce165dcca6608664c518ae71c86ed3fce33da1d1e88b5dee2504fc0cbff55beb",
+    "platform": "linux/arm64"
+  },
+  "cleanup": {
+    "exactTemporaryComposeProjectRemoved": true,
+    "temporaryRestoreContainerRemoved": true,
+    "readOnlyInventoryFoundNoMatchingContainersOrVolumes": true
+  },
+  "productionResourcesTouched": false,
+  "verification": {
+    "clusterBackupUnitTests": "5/5",
+    "legacyPairingAndCliTests": "5/5",
+    "retentionTests": "3/3",
+    "scheduledBackupTests": "8/8",
+    "opsSuite": "144/144",
+    "workspaceTests": "PASS",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "contracts": "PASS",
+    "fixtures": "PASS",
+    "markdownLinks": "1013 checked, 0 failed"
+  },
+  "limitations": [
+    "This was a synthetic two-database smoke, not a backup or restore of the active 48-database cluster.",
+    "No external backup copy, retention duration, production RPO/RTO, Ubuntu target, or maintenance window was tested."
+  ]
+}

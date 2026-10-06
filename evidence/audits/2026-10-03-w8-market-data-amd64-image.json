@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "w8-market-data-amd64-image-v1",
+  "capturedAt": "2026-10-03",
+  "status": "BUILT_NOT_DEPLOYED",
+  "command": "docker buildx build --platform linux/amd64 --load --tag stockquant-market-data:w3-scheduler-auth-20261003 --file services/market-data-service/Dockerfile .",
+  "builder": "desktop-linux",
+  "hostArchitecture": "macOS/ARM64",
+  "targetPlatform": "linux/amd64 (emulated)",
+  "image": {
+    "tag": "stockquant-market-data:w3-scheduler-auth-20261003",
+    "imageId": "sha256:bafa9c440b902c3e3f3f380c0770a117145a84630480a8a8e801d0eac562a242",
+    "sizeBytes": 1016254348
+  },
+  "buildInputs": {
+    "nodeBase": "node:24.1.0-bookworm-slim@sha256:5ae787590295f944e7dc200bf54861bac09bf21b5fdb4c9b97aee7781b6d95a2",
+    "pythonBase": "python:3.11-slim-bookworm@sha256:a36c24f9cbdf4fd0f52d67f0823eeac19c2028c637cecc392d97f980d4fec56b",
+    "pyarrow": "18.1.0",
+    "tdxOptionalDependency": "NOT_INSTALLED",
+    "buildContextApproxMiB": 1.47
+  },
+  "checks": {
+    "marketDataTypeScriptBuild": "PASS",
+    "imageInspectArchitecture": "linux/amd64",
+    "dotenvExcludedFromBuildContext": true
+  },
+  "notPerformed": {
+    "containerStarted": false,
+    "registryPush": false,
+    "activeDeployment": false,
+    "databaseConnection": false,
+    "marketSourceCalls": 0,
+    "paperCalls": 0,
+    "ubuntuHostValidation": false
+  }
+}

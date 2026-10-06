@@ -4,6 +4,7 @@ import { PlatformController } from "../../src/bootstrap/app.module.js";
 const portfolioToken = "platform_secret_0123456789abcdefghijklmnop";
 const portfolioContainer = (extra: Record<string, unknown> = {}) => ({
   portfolioApiUrl: "http://portfolio",
+  portfolioToken,
   portfolioHeaders: (headers: Record<string, string> = {}) => ({ ...headers, "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${portfolioToken}` }),
   ...extra,
 });

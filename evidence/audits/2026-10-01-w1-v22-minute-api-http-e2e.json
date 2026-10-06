@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-01",
+  "status": "PASS",
+  "command": "pnpm --filter @stockquant/platform-api-service v22:upload-web-http-smoke",
+  "exitCode": 0,
+  "scope": "Isolated local HTTP+Chromium browser-to-Platform-to-Market-Data-to-PostgreSQL test. Randomly named platform/market test databases on asserted local test endpoint 127.0.0.1:5433. Does not touch active containers or volumes.",
+  "testRuns": {
+    "normal": "a918dcfb-b8b5-4e63-a21c-3f764935e2bd",
+    "uploadedCsv": "7215bf8a-bf95-426d-83d5-23a3a86884d3",
+    "assertionId": "V2.2-CSV-UPLOAD-001",
+    "cliCheckOnlyExitCode": 0,
+    "cliCheckOnlyNoMutation": true
+  },
+  "minuteApiCoverage": [
+    "CSV upload create",
+    "CSV upload progress",
+    "CSV chunk PUT",
+    "CSV upload preview",
+    "CSV upload finalize",
+    "CSV upload cancel",
+    "CSV semantic import preview/import",
+    "Parquet upload create/progress/chunk/preview/finalize",
+    "immutable import detail",
+    "import bar pagination"
+  ],
+  "cancel": {
+    "uploadId": "35c9c4f7-020d-497f-9821-1348d9ac76b7",
+    "ownerStatus": "CANCELLED",
+    "foreignOwnerStatus": 403
+  },
+  "data": {
+    "frozenSourceFiles": 3,
+    "bars": 8640,
+    "market": "CN_A",
+    "frequency": "5m",
+    "timestampSemantics": "BAR_END",
+    "combinedSha256": "ab9b0822e27a40155522e2936a516addb36d9f6d4a6e2e9f8e2800c3376f950a2",
+    "researchUseAllowed": false,
+    "parquetRows": 2,
+    "parquetSha256": "f494f73db4d972d2a8a569766fb8b291ca6dee0d91d514ade96172c548cf2bbb"
+  },
+  "ownerAuthorization": {
+    "anonymousImportDetails": 401,
+    "ownerImportDetails": 200,
+    "ownerBars": 200,
+    "foreignOwnerImportDetails": 403,
+    "foreignCsvUpload": 403,
+    "foreignParquetUpload": 403,
+    "foreignFrozenArchiveUpload": 403
+  },
+  "brokerMode": "FAKE",
+  "externalDataCalls": 0,
+  "cleanup": "Process exited 0. The script finally block terminates child services/browser, removes exact test TestRuns and upload/import rows, drops only its randomized test databases, and asserts none remain.",
+  "limitations": [
+    "Frozen archived inputs only; source license remains unconfirmed and researchUseAllowed=false.",
+    "Does not prove real-source authorization, Ubuntu, production capacity, active API rollout or new human acceptance.",
+    "One initial post-change run exposed a test-harness response-body double-read before browser startup; fixed by reading JSON once. The successful retry passed."
+  ]
+}

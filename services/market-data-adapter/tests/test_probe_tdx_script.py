@@ -23,6 +23,22 @@ def test_probe_status_exit_codes_preserve_pass_and_fail():
     assert MODULE.exit_code_for_status("FAIL") == 1
 
 
+def test_permission_denial_is_classified_as_an_execution_environment_failure():
+    assert MODULE.adapter_failure({"code": "TCP_PERMISSION_DENIED", "retryable": False, "message": "do not expose"}) == {
+        "code": "TCP_PERMISSION_DENIED",
+        "retryable": False,
+        "category": "EXECUTION_ENVIRONMENT",
+    }
+
+
+def test_other_adapter_failures_remain_distinct_from_permissions():
+    assert MODULE.adapter_failure({"code": "TCP_CONNECTION_FAILED", "retryable": True}) == {
+        "code": "TCP_CONNECTION_FAILED",
+        "retryable": True,
+        "category": "ADAPTER_OR_SOURCE",
+    }
+
+
 def test_integrity_requires_full_window_for_each_security():
     expected = MODULE.expected_bar_ends("2026-09-24", "2026-09-24", "full")
     assert len(expected) == 48

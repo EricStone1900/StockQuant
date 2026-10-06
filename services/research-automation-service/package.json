@@ -7,8 +7,10 @@
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests/unit",
+    "egress:proxy": "node dist/egress-proxy.js",
     "test:integration": "vitest run tests/integration",
     "model-gateway:fixture-http-smoke": "pnpm build && node scripts/model-gateway-fixture-http-smoke.mjs",
+    "budget:settlement-production-http-smoke": "pnpm build && node scripts/budget-settlement-production-http-smoke.mjs",
     "runner:host": "node dist/runner-host.js",
     "runner:host-http-smoke": "node scripts/v31-runner-host-http-smoke.mjs",
     "v32:promotion-prepare-http-smoke": "node scripts/v32-promotion-prepare-http-smoke.mjs",
@@ -19,7 +21,10 @@
     "v31:service-bearer-http-smoke": "pnpm build && node scripts/v31-service-bearer-http-smoke.mjs",
     "v33:research-queue-http-smoke": "pnpm build && node scripts/v31-service-bearer-http-smoke.mjs",
     "v33:experiment-binding-http-smoke": "pnpm build && node scripts/v33-experiment-binding-http-smoke.mjs",
+    "v33:runner-host-rounds-recovery-http-smoke": "pnpm build && STOCKQUANT_RUNNER_HOST_SMOKE_ROUNDS=2 STOCKQUANT_RUNNER_HOST_SMOKE_DATA_ROWS=1000 STOCKQUANT_RUNNER_SMOKE_REQUIRE_RESOURCE_METRICS=true node scripts/v31-runner-host-http-smoke.mjs",
+    "v33:test-run-budget-summary-http-smoke": "pnpm build && node scripts/v33-test-run-budget-summary-http-smoke.mjs",
     "v33:queue-capacity-probe": "pnpm build && node scripts/v33-queue-capacity-probe.mjs",
+    "v33:test-run-budget-summary-capacity-probe": "pnpm build && node scripts/v33-test-run-budget-summary-capacity-probe.mjs",
     "backup:paired-smoke": "pnpm build && node scripts/paired-backup-producer-smoke.mjs",
     "v31:fixed-pipeline-http-smoke": "pnpm build && node scripts/v31-fixed-pipeline-http-smoke.mjs",
     "v31:fixed-pipeline-failure-http-smoke": "pnpm build && STOCKQUANT_V31_PIPELINE_SMOKE_MODE=runner-failure node scripts/v31-fixed-pipeline-http-smoke.mjs",
@@ -29,6 +34,7 @@
     "v31:fixed-pipeline-cancel-http-smoke": "pnpm build && STOCKQUANT_V31_PIPELINE_SMOKE_MODE=runner-cancel node scripts/v31-fixed-pipeline-http-smoke.mjs"
   },
   "dependencies": {
+    "@stockquant/artifact-content-store": "workspace:*",
     "pg": "8.23.0"
   },
   "devDependencies": {

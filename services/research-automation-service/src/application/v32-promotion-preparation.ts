@@ -3,6 +3,8 @@ import type { Experiment } from "../domain/experiment.js";
 import type { V31ResearchArtifactRef, V32PromotionRequest, V32PromotionValidationPlan } from "../contracts/generated-types.js";
 import type { RunnerJobRecord } from "./v31-runner-jobs.js";
 import type { ArtifactRef, BudgetReservation } from "./v31-runtime-guards.js";
+import type { ArtifactContentStore } from "../ports/artifact-content-store.js";
+import type { ArtifactRefRepository } from "../ports/artifact-ref-repository.js";
 import { sha256 } from "./v31-runtime-guards.js";
 import { parseRunnerInputBundle } from "./v31-runner-input-bundle.js";
 import { buildPromotionRequest } from "./v32-promotion-producer.js";
@@ -11,8 +13,8 @@ export type V32PromotionEvidencePorts = {
   experiment: { get(experimentId: string): Promise<Experiment | null> };
   runnerJob: { get(jobId: string): Promise<RunnerJobRecord | null> };
   budget: { get(experimentId: string): Promise<BudgetReservation | null> };
-  artifactRefs: { get(namespace: string, artifactId: string): Promise<ArtifactRef | null> };
-  artifactContent: { read(ref: ArtifactRef): Promise<Uint8Array> };
+  artifactRefs: Pick<ArtifactRefRepository, "get">;
+  artifactContent: Pick<ArtifactContentStore, "read">;
 };
 
 export type V32PromotionPreparationResult =

@@ -1,17 +1,19 @@
 import { createHash } from "node:crypto";
-import { CollectionRunRepository } from "./collection-run-repository.js";
-import { CollectionScheduleRepository, type CollectionSchedule } from "./collection-schedule-repository.js";
+import type { CollectionRunPort } from "../ports/collection-run.js";
+import type { CollectionSchedulePort } from "../ports/collection-schedule.js";
+import type { CollectionSchedule } from "../domain/collection-schedule.js";
 import { CollectionScheduler } from "./collection-scheduler.js";
 
 export class PersistentCollectionSchedulerWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastSuccessfulTickAt: string | null = null;
   private nextExecutionAt: string | null = null;
+  private nextPollAt: string | null = null;
   private lastSubmitted = 0;
-  constructor(private readonly schedules: CollectionScheduleRepository, private readonly runs: CollectionRunRepository, private readonly planner: CollectionScheduler, private readonly ownerId: string) {}
+  constructor(private readonly schedules: CollectionSchedulePort, private readonly runs: CollectionRunPort, private readonly planner: CollectionScheduler, private readonly ownerId: string) {}
 
-  status(): { enabled: boolean; lastSuccessfulTickAt: string | null; nextExecutionAt: string | null; lastSubmitted: number } {
-    return { enabled: this.timer !== null, lastSuccessfulTickAt: this.lastSuccessfulTickAt, nextExecutionAt: this.nextExecutionAt, lastSubmitted: this.lastSubmitted };
+  status(): { enabled: boolean; lastSuccessfulTickAt: string | null; nextPollAt: string | null; nextExecutionAt: string | null; lastSubmitted: number } {
+    return { enabled: this.timer !== null, lastSuccessfulTickAt: this.lastSuccessfulTickAt, nextPollAt: this.nextPollAt, nextExecutionAt: this.nextExecutionAt, lastSubmitted: this.lastSubmitted };
   }
 
   async tick(): Promise<{ leaseAcquired: boolean; schedules: number; submitted: number }> {
@@ -44,13 +46,18 @@ export class PersistentCollectionSchedulerWorker {
     // Establish a real post-restart health snapshot immediately. Waiting for
     // the first interval made a healthy worker appear stale after every
     // container restart, even though the durable schedule was available.
-    this.timer = setInterval(() => { void this.tick(); }, intervalMs);
+    this.nextPollAt = new Date(Date.now() + intervalMs).toISOString();
+    this.timer = setInterval(() => {
+      this.nextPollAt = new Date(Date.now() + intervalMs).toISOString();
+      void this.tick();
+    }, intervalMs);
     void this.tick();
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.nextPollAt = null;
   }
 }
 

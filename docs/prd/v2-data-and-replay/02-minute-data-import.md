@@ -1,6 +1,6 @@
 # V2.2 历史分钟数据导入与校验
 
-状态：PASS（用户人工验收及复验通过，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（2026-09-09历史验收及2025-09-25后续导入增量保留；当前第2节分钟语义/单位、Parquet流式存储、历史股票池与MarketRuleSet关联、阶段交接手册等必需项未完成，新范围未重新签署）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -9,6 +9,8 @@ V1数据Artifact可用，V2.1来源及用途标签规则已冻结。
 本阶段所有订单、券商资产和成交均来自隔离模拟环境。真实业务数据库、Qlib或RD-Agent在声明“已验证”时必须真正执行；替身需独立标注。
 
 ## 2. 开发任务
+
+2026-10-01架构维护增量：Market Data已将PostgreSQL访问与导入持久化放入`adapters/`、业务形状/错误放入`domain/`、用例依赖放入`ports/`，服务入口组装移至`bootstrap/`；分层规则纳入`baseline:check`。本增量为结构维护，不替代本阶段人工验收，也不改变以下业务交付状态。证据：[Market Data分层审计](../../../evidence/audits/2026-10-01-w1-market-data-layer-boundary-increment.md)。
 
 - [ ] 定义MinuteBar：securityId/market/frequency/barStart/barEnd/availableAt、时区、RAW OHLCV/amount、单位、来源/版本、适用状态及限制价引用；明确时间戳代表开端还是结束。
 - [ ] 支持用户CSV/Parquet文件字段映射、导入预览、错误行、分区存储和断点续传/续导；同输入幂等，修订发布新版本。
@@ -49,6 +51,8 @@ V1数据Artifact可用，V2.1来源及用途标签规则已冻结。
 
 受限CSV实现补充（2026-09-25）：V2.2页面`/acceptance/v2/v2.2`新增小文件CSV上传、列映射、预览/逐行错误和确认导入，API为`POST /api/v1/acceptance/v2/v2.2/csv/preview`与`/csv/import`。当前仅接收CN_A、1m、RAW，强制Asia/Shanghai、BAR_START、SHARES、CNY语义，上限700 KB/10,000行；导入复用PostgreSQL持久仓储，以原始内容SHA-256实现同内容幂等，页面/API要求本地用户会话。冻结的有效/无效合成输入在`fixtures/v2/v2.2-csv-smoke/`，`pnpm fixtures:check`核对Hash。市场数据服务40项单测与临时HTTP→专用`market_data_test` PostgreSQL→进程重启→分页读取/幂等烟测通过（有效两行SHA-256 `86a4fcbb29d97f27925753c132c8d95ee1971c5f1c7583da6be2278be1c747d8`；无效文件逐行拒绝并持久保存）；平台/API与Web构建、类型检查及隔离Mock Playwright页面流程通过。CSV上传请求Schema、OpenAPI和消费者兼容规则已登记。尚未支持Parquet、分块流式大文件、断点续传、按日期物理分区、完整Web→平台API→市场服务同run场景证据；第2节任务与第7节交付清单保持未完成，原2026-09-09人工签署未被改写。见[P6 CSV小文件导入审计](../../../evidence/audits/2026-09-25-p6-csv-minute-import.md)。
 
+固定Fixture和上传进度生成客户端增量（2026-10-01）：V2.2预览、Fixture导入及uploaded-csv owner-scoped上传进度均由Market Data minute生成客户端访问；422 bad Fixture仍映射为拒绝业务记录。owner读取接线后的完整V2.2 code suite通过；隔离Platform→Market Data→PostgreSQL/Chromium验证匿名拒绝、冻结Fixture六行预览、正常导入、重复幂等、bad Fixture拒绝、上传TestRun业务断言及同ID CLI只读核验；随机数据库已清理。真实数据、其他阶段要求及用户人工验收仍依本阶段门禁评估；详见[本次增量审计](../../../evidence/audits/2026-10-01-w1-v22-minute-fixture-client.md)。
+
 导入身份修复（2026-09-25）：持久导入唯一键现在包含原文SHA-256、规范列映射与冻结的市场/频率/复权/时区/时间戳/单位语义；同字节不同映射得到不同DataVersion，同解释重试仍幂等。`market_data_test`完成旧主键数据回填/迁移、19/19 PostgreSQL集成和临时真实HTTP服务重启读取；不同映射分别恢复正确证券，旧原文Hash继续作为数据来源校验值。Parquet、流式/续传、配额/取消、日期分区和完整浏览器链仍未完成。详见[导入身份审计](../../../evidence/audits/2026-09-25-p6-csv-import-identity.md)。
 
 来源与许可追踪增量（2026-09-25）：CSV上传现在要求明确来源名称、可选引用、许可声明、操作者确认状态及取得时间，并把这些字段纳入导入身份和持久版本Manifest。操作者未确认时仍可保留原始导入记录，但`researchUseAllowed=false`；确认状态只是操作者声明，不代表系统验证了许可或替代人工审查。旧导入迁移为来源未知、研究使用关闭。市场数据服务构建/41项单测、专用PostgreSQL集成20/20、三种实际HTTP导入（不同映射及相同映射不同许可声明）幂等/重启回读烟测通过；确认许可返回allowed，未知许可返回blocked。Web单项Playwright 1/1、Web类型检查及合同/Fixture基线通过。2026-09-09原人工验收未改写；Finalize流式读取已补，Parquet、有界批次处理、日期分区及完整Web→平台→业务服务同TestRun闭环仍未完成。详见[P6导入身份审计](../../../evidence/audits/2026-09-25-p6-csv-import-identity.md)。
@@ -78,56 +82,53 @@ Docker Desktop ARM64补充验证（2026-09-26）：以当前Market Data Dockerfi
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（2026-09-09；Docker Compose、API、导入和 Web E2E 已实测）。
+手册状态：DRAFT_NOT_EXECUTABLE。2026-10-06 已执行隔离代码套件及 CSV/Parquet Chromium→Platform→Market Data→PostgreSQL 上传路径；本手册中真实数据授权、完整故障恢复步骤和用户人工验收仍未验证。下列局部代码 smoke 命令已执行通过，不代表本阶段验收通过。
 
-实测入口：`docker compose -f infra/compose/docker-compose.yml --profile web up -d`；Web `http://127.0.0.1:8080/acceptance/v2/v2.2`；预览 `GET http://127.0.0.1:3000/api/v1/acceptance/v2/v2.2/preview`；统一场景 `POST /api/v1/acceptance/v2/v2.2/runs`，参数 `normal|rejection|recovery`；代码 `pnpm build && pnpm test`；浏览器 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm --filter @stockquant/web test:e2e`。
+已验证入口：从仓库根目录运行`pnpm verify:stage -- --stage V2.2 --suite code`；它执行冻结代码/合同/Fixture/数据库检查，并调用`v22:upload-web-http-smoke`。该 smoke 由`run-isolated-postgres-command.mjs --admin-env STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL`提供一次性PostgreSQL容器、随机loopback端口、随机测试库和精确清理；不可把该命令改指共享或活动数据库。Chromium smoke 会输出当前随机 Web 路由、Platform API 与 Market Data 地址，页面路由为`/acceptance/v2/v2.2`。直接独立运行的历史入口要求本机专用测试PostgreSQL `127.0.0.1:5433/postgres`；完整 stage suite 使用前述一次性容器，不使用5433。
 
-前置服务：数据服务、真实存储/分区索引、导入Worker、Web列映射与质量页面。
+前置条件：仓库根目录、冻结依赖已安装、Playwright Chromium与Docker可用；服务以独立进程运行，FakeBroker，禁用LIVE写入；真实行情源、采集Scheduler和Executor均不启动。Chromium smoke 的本地测试身份为`acceptance-owner-1`，只通过隔离Platform进程的测试身份开关建立；不需要也不接受真实账户凭证。
 
-固定输入：3～5只、5～10交易日CSV/Parquet样本；记录具体文件Hash、列映射、barStart/barEnd时区、量额单位及日线对照。
+固定输入：小型Parquet文件`fixtures/v2/v2.2-parquet-smoke-mapped/minute-upload.parquet`（SHA-256 `f494f73db4d972d2a8a569766fb8b291ca6dee0d91d514ade96172c548cf2bbb`），映射`instrument/bar_time/o/h/l/c/qty_shares/turnover_cny`；本地冻结归档目录`data/local/baostock-minute-500x60-2024-01-02-2024-04-02-v1/`的Manifest SHA-256为`59e677807518ff37a4571494b66738b71f86fe9da270468e4e7ef3719cee90e3`。验收 smoke 合并3个冻结证券的8,640行5m `BAR_END` CSV，当前代码套件运行时Hash为`ab9b0822e27a40155522e2936a516addb36d9f6d4a6e2e9f8e280c3376f950a2`。归档来源许可保持`UNCONFIRMED`，Run设置`researchUseAllowed=false`；不要将其用于研究/策略结论或伪称外部源已验证。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 待实现后填写 |
-| 项目根目录、Node/pnpm/Python/uv及Docker版本 | 待实现后填写 |
-| Web基础URL/身份登录或会话建立方式 | 待实现后填写；不记录密码/token |
-| 本阶段Web路由 | `/acceptance/v2/v2.2`（目标） |
-| 正式页面的真实入口/跳转链接 | 待实现后填写，按8.3逐项核实 |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 待实现后填写；不能只写“小样本” |
-| 配置文件及必需环境变量名/非秘密测试值 | 待实现后填写；凭证只记录引用方式 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | 待实现后填写；不适用项注明理由 |
-| 预期耗时、轮询超时、实际观察期/预算 | 待实现后填写，不用无限等待或假成功 |
+| Git基线/当前工作区证据 | HEAD `3fdf2c9c693e1bc013601926865634a49a625ff4`；当次V2.2运行代码与手册变更见[W4历史执行快照 SHA-256 Manifest](../../../evidence/audits/2026-10-06-w4-v22-upload-code-suite.sha256)；该Manifest仅覆盖列出的文件，不是全工作树快照。验证日期2026-10-06。 |
+| 项目根目录、Node/pnpm/Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node `v24.1.0`；pnpm `10.34.5`；Docker CLI `28.0.4`；daemon版本本轮未采集。 |
+| Web基础URL/身份登录方式 | 2026-10-06定向复跑为`http://127.0.0.1:56400/acceptance/v2/v2.2`；Platform API `http://127.0.0.1:56399`、Market Data `http://127.0.0.1:56398`。端口每次随机，仅进程存活期间有效；隔离测试会话`acceptance-owner-1`，不使用密码/token。 |
+| 本阶段Web路由 | `/acceptance/v2/v2.2`。 |
+| 正式页面实际入口 | smoke实际URL加`/acceptance/v2/v2.2`；登录前先运行8.2命令，端口只在本次smoke进程运行期间有效。 |
+| Fixture/日期/Hash/语义 | Parquet及冻结BaoStock本地归档、日期、映射、Hash、BAR_END/5m、SHARES/CNY和许可状态见8.1固定输入说明及相邻SHA Manifest。 |
+| 配置/非秘密测试值 | 一次性PG连接变量由隔离包装脚本临时注入`STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL`，容器名标记`STOCKQUANT_ISOLATED_PG_CONTAINER`；Smoke生成独立随机服务Bearer，Market Data Scheduler/Executor关闭，Platform `LIVE_TRADING_ENABLED=false`、`BROKER_MODE=FAKE`、隔离测试身份开关开启。 |
+| 故障/恢复及清理 | 2026-10-06定向复跑覆盖bad Fixture拒绝、异主403、CSV取消与同Run CLI无写核对；日志确认临时数据库、容器和网络已清理，`activeServices=NOT_CONNECTED`。服务中断后续传恢复不在本次smoke内，仍NOT_RUN；历史验证见8.3。 |
+| 耗时/超时/观察预算 | 完整V2.2 code suite约数分钟；定向smoke于2026-10-06通过。smoke服务健康轮询最多120×100ms并含单请求超时，上传步骤等待20～30秒；本次不满足历史归档观察或V2.4 20交易日观察。 |
 
-### 8.2 初始化与启动（目标命令，待实现）
+### 8.2 初始化与启动（已验证的隔离代码流程）
 
-在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。首次开发由开发者生成锁文件和脚本，验收者不负责补建环境。环境变量按上表配置；保持FAKE券商与模拟账户，真实模型仅在本阶段明确要求且预算已配置的场景调用。
+在项目根目录运行。不要先启动共享Compose Stack；V2.2上传smoke自建随机测试数据库、Market Data、Platform API、Vite与Chromium进程，并在结束时清理本次创建的精确资源。
 
 ```bash
-# 终端A：先确认实际执行目录为项目根目录
+# 从仓库根目录执行；包括代码质量检查和真实Chromium上传smoke。
+# wrapper临时注入一次性PostgreSQL连接和容器身份。
 pwd
-pnpm install --frozen-lockfile
-pnpm stack:up -- --stage V2.2
-
-# 终端B：同一项目根目录，保持开发服务器运行
-pnpm dev:web
+pnpm verify:stage -- --stage V2.2 --suite code
 ```
 
-预期：安装与stack入口退出0；stack输出本阶段服务、端口、健康/迁移及持久卷状态。依赖不可用应非零并说明原因；不能删除旧业务卷重试。Web服务器持续运行并输出基础URL，尚在运行不要求退出码0。若已使用容器化Web，则填写已验证入口并避免重复占用端口。Ubuntu部署必须补齐实际镜像拉取/启动/迁移命令，不能仅用dev:web代替发布验证。
-
-初始化在验收中心“准备隔离运行”完成；CLI场景入口也负责同样的准备，两者调用同一业务API。准备后记录testRunId、accountId、namespace及Fixture/DataVersion；初始化业务本身是测试对象时不得预先完成被测动作。缺源/凭证/历史数据时显示缺项，不静默换成Fake并报真实场景通过。
+预期：退出码0；日志包含一次性PG容器/随机loopback端口、Market Data与Platform就绪、实际V2.2 Web URL、Fixture/CSV/Parquet/归档断言，以及最终`activeServices=NOT_CONNECTED`和容器/网络清理确认。受限沙箱若在Qlib worker临时loopback监听处报EPERM，保留失败并在受控本机隔离测试环境重跑；不可改连活动数据库。此代码套件不启动在线来源、采集worker或Paper，也不验证Ubuntu发布。
 
 ### 8.3 Web逐步操作及预期结果
 
-1. 登录上表实际Web地址，进入“开发验收中心→V2→V2.2”；检查页面版本、模拟模式、服务能力与固定输入。
-2. 每个场景点击“准备隔离运行”，核对参数后记下testRunId；正常/异常/恢复使用独立运行，场景内部的重复或恢复操作继续使用原运行及业务幂等键。
-3. 按下表执行。操作按钮为目标交互，交付时开发者必须换成实际页面名称/按钮及路由；预期必须从业务明细读取，不能只看“任务完成”。
+1. 执行8.2命令，从日志打开本次随机URL下的`/acceptance/v2/v2.2`；Smoke使用隔离测试owner `acceptance-owner-1`，不输入真实凭证。
+2. 浏览器先点击“运行正常”并记下TestRun ID。上传选择“CSV 或 Parquet 文件”，填写映射/来源元数据后点击“上传并预览”及“确认并导入”；CSV完成后点击“将此CSV导入记入验收运行”，再从业务明细核对断言。
+3. 下表区分本轮实测与尚未重跑的恢复路径，不因共享脚本或历史审计而推断本轮通过。
 
 | 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
 |---|---|---|---|
-| normal | 分钟导入 | 选择文件真实频率(1m/5m)和时间戳语义(BAR_START/BAR_END)，上传固定小文件→映射字段/单位/时区→预览→确认导入→按股票日期查询分钟页。BaoStock 5m文件用紧凑`YYYYMMDDHHmmssSSS`源时间、`BAR_END`和证券列映射。 | 导入行数与源文件/错误行报告可核对；价格未复权，频率、barStart/barEnd、许可用途明确；数据版本可查。 |
-| rejection | 坏行校验 | 分别上传单位错误、重复冲突、午休记录、缺分钟样本；查看错误行并尝试发布。 | 异常原因定位至字段/行；不填造可成交价；必要证据不足不发布合格回放数据。 |
-| recovery | 导入恢复 | 重复导入相同文件；再在中途按限定步骤重启导入Worker，续跑后上传修订版。 | 同输入幂等、重启无重复行/版本；修订为新版本且旧版本可读。 |
-| uploaded-csv | 已上传CSV TestRun | 大文件导入PUBLISHED后，点击“将此CSV导入记入验收运行”；记录的uploadId必须归属当前用户且状态为COMPLETED。 | 同一TestRun断言和证据绑定uploadId、importId、DataVersion、SHA-256、接收行数和许可用途标记；异主查询拒绝；CLI check-only读取相同TestRun且无写副作用。 |
+| normal | 固定分钟Fixture | 点击“运行正常”；同轮检查匿名/已登录预览、normal导入、重复幂等与bad Fixture拒绝。 | 正常TestRun完成；Fixture为`v2.2-minute-bars-1`，重复导入幂等，bad Fixture为REJECTED且0 accepted。 |
+| CSV/Parquet upload | 分块文件导入 | 上传CSV并完成映射、预览、Finalize；再映射`minute-upload.parquet`并Finalize；读取导入详情与Bar页。 | 本轮CSV 16,000合成行、Parquet 2行；匿名401、owner 200、foreign owner 403。来源许可按输入声明记录。 |
+| archived uploaded-csv | 冻结归档与同Run检查 | 上传8.1列出的三证券/8,640行5m归档，声明`BAR_END`并保持许可未确认；Finalize后创建uploaded-csv TestRun。 | 日志Run `a1a6fd26-b3e2-4274-8943-60a99a39624d`断言PASS，CLI同Run `--check-only`退出0且TestRun计数不变；该随机数据库已清理，ID仅供日志核对，不是活动Run。 |
+| 2026-10-06 targeted smoke | 复验端点日志与清理 | 从仓库根目录运行隔离PostgreSQL包装命令；自动打开随机端口Web页面并执行CSV/Parquet/归档上传。 | 退出0；Web `http://127.0.0.1:56400/acceptance/v2/v2.2`，Platform `56399`，Market Data `56398`；normal Run `fdae6e5e-6d2c-4871-8bba-2d0b228a20d1`和归档Run `490be364-44ab-416f-9e38-bb8537369cf9`均为临时库记录，已随随机库删除。CLI `--check-only`退出0；8,640行/2行Parquet、取消、匿名401/owner 200/foreign 403通过。见[定向smoke完整日志](../../../evidence/audits/2026-10-06-w4-v22-upload-targeted-smoke.log)。 |
+| rejection | 许可/Owner拒绝 | 核对bad Fixture拒绝和异主Run/upload/import读取。 | bad Fixture不发布；异主403；未确认许可时`researchUseAllowed=false`。 |
+| recovery | 中断后续传 | 按历史可续传审计的故障步骤执行；本轮完整suite未重新注入服务中断。 | 当前NOT_RUN，不能从正常上传推断进程重启恢复通过。 |
 
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
@@ -181,13 +182,17 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 
 ### 8.6 验收记录与收尾
 
+下表记录截至2026-10-06已取得的当前工作树证据。局部代码套件与本阶段完整验收分开记录；隔离数据库已清理的TestRun ID只用于日志追溯，不能作为当前可查询的活动Run。旧版本人工签署保留为历史事实，不代表对后续增量的重新签收。
+
 | 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
 |---|---|---|---|---|
-| normal | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| rejection（含全部子场景） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| recovery（含实际外部动作） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| Web同run只读核对与证据导出 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 本阶段代码测试/实际观察适用项 | 待执行 | 待执行 | 待执行 | NOT_RUN |
+| normal Fixture路径 | Chromium实际点击“运行正常”；最新复跑未保存截图，TestRun在清理临时库时删除 | `node scripts/run-isolated-postgres-command.mjs --admin-env STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL -- pnpm --filter @stockquant/platform-api-service v22:upload-web-http-smoke`，exit 0；[完整日志](../../../evidence/audits/2026-10-06-w4-v22-upload-targeted-smoke.log) | `fdae6e5e-6d2c-4871-8bba-2d0b228a20d1`（临时、已删除） | smoke中PASS；阶段验收NOT_RUN |
+| rejection（已覆盖子项） | bad Fixture拒绝、匿名401、异主403；未覆盖的拒绝场景不推断 | 同上，exit 0；日志含`badFixtureStatus=REJECTED`及owner边界状态 | bad Fixture和请求ID见日志；临时库已删除 | 已覆盖断言PASS；完整rejection场景NOT_RUN |
+| recovery（中断后续传/进程恢复） | 本次未注入服务中断；无截图 | 当前定向smoke未执行恢复场景；历史审计见8.3 | 未产生本轮恢复Run | NOT_RUN |
+| CSV/Parquet与归档同Run CLI核对 | Chromium真实上传；未保存截图 | 定向smoke exit 0；CLI `--check-only` exit 0；共8,640行冻结5m BAR_END归档、2行Parquet；许可UNCONFIRMED，研究用途关闭 | 归档Run `490be364-44ab-416f-9e38-bb8537369cf9`（临时、已删除）；upload IDs见日志 | 本次软件断言PASS；来源/许可验收NOT_RUN |
+| 完整V2.2代码套件 | 完整套件经受控隔离环境通过；其Chromium smoke无截图留存 | `pnpm verify:stage -- --stage V2.2 --suite code` exit 0，详见[完整套件日志](../../../evidence/audits/2026-10-06-w4-v22-upload-complete-code-suite.log)；受限沙箱失败另存[失败日志](../../../evidence/audits/2026-10-06-w4-v22-upload-complete-code-suite-sandbox-failure.log) | 套件生成的随机测试Run清理，不作为活动Run | 代码套件PASS；V2.2阶段NOT_RUN |
+| Web同run只读核对与结构化证据导出 | 本次smoke验证CLI只读核对；未对清理后TestRun执行单独导出 | 同Run `--check-only` exit 0；结构化阶段导出及历史Run补档未完成 | 本轮临时Run已删除；历史六个缺失导出仍由V2门禁报告 | 部分通过；完整要求NOT_RUN |
+| 实际来源观察/用户人工验收 | 未获来源授权；无新用户验收 | 不运行采集或真实来源探测；历史观察和签署按版本Acceptance表记录 | 不适用 | WAITING / NOT_RUN |
 | 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
@@ -209,3 +214,10 @@ Parquet增量（2026-09-26）：Web支持Parquet八个目标字段逐项映射�
 服务身份加固（2026-09-27）：平台代理的Fixture导入、CSV预览/导入及CSV/Parquet分块上传、状态、预览、Finalize、取消、uploaded-csv状态、持久导入详情和Bar分页读取均先验证用户会话；转发到Market Data时附带`platform-api-service` Bearer与适用的owner范围。Market Data以Bearer Token识别服务；可选`x-stockquant-service-id`只能作为一致性检查，并在获取P6跨实例导入闸门前验证重型导入路由。真实Chromium→Vite→Platform API→Market Data→双随机PG Web smoke验证匿名导入读取401、用户详情/Bar页200、异主403，以及CSV/Parquet/5m归档上传、同run TestRun与CLI只读核对。缺失/伪造Bearer及错配身份拒绝，Bearer-only请求可通过服务身份。其他行情/日历读取仍允许内网直连；活动部署、密钥轮换和阶段人工验收仍待完成。详见[P7.2服务身份审计](../../../evidence/audits/2026-09-25-p7-2-service-identity.md)及[分钟导入边界审计](../../../evidence/audits/2026-09-27-p6-minute-import-boundary.md)。
 
 2026-09-27 路由收口续记：Market Data采集订阅/运行/缺口/回填状态、来源健康GET与固定Fixture分钟预览，以及质量/覆盖计算POST现要求平台Bearer；V2.2 Platform scenarios/Fixture preview先校验用户Session，Fixture代理加服务身份。运维脚本分别读取Bearer与采集控制令牌。扩展HTTP smoke/Platform代理单测和完整V2.1、V2.2 code suites通过；V2.2 CSV浏览器测试3/3通过（Mock API，不算服务端阶段场景验收）。日历与容器`/live`、`/ready`仍可读；本轮服务源码未部署到活动采集实例，长期观察继续依托原运行实例。详见[P7.2采集读取身份审计](../../../evidence/audits/2026-09-27-p7-2-market-data-collection-read-identity.md)。
+
+
+## 2026-10-01 当前工作树隔离复验
+
+新增真实双服务HTTP/Chromium回归：CSV/Parquet上传生命周期、取消、导入详情与分页Bar读取经Platform ServiceBearer/owner代理进入Market Data和随机隔离PostgreSQL；三类上传Owner边界及同run CLI `--check-only`通过。数据为冻结归档且用途未确认，不影响真实数据与人工验收状态。证据见[V2.2跨服务回归](../../../evidence/audits/2026-10-01-w1-v22-minute-api-http-e2e.md)及其[机器报告](../../../evidence/audits/2026-10-01-w1-v22-minute-api-http-e2e.json)。
+
+2026-10-06 V2.2代码套件补齐：完整`pnpm verify:stage -- --stage V2.2 --suite code`现包含上述实际Chromium上传Web/API smoke，套件通过；新增测试数据库由资源受限一次性PostgreSQL容器和随机端口提供，确认容器/网络/随机数据库已清理。执行覆盖normal Fixture预览/导入/幂等/bad拒绝、CSV分块与Parquet上传/Finalize、取消、owner隔离、导入分页读取及`uploaded-csv` TestRun的CLI同Run `--check-only`。8,640行本地冻结5m BAR_END输入只用于软件验证，许可保持UNCONFIRMED、研究使用关闭、外部来源调用0。普通沙箱loopback EPERM与受控重跑均保留；V2.2第2/7节整体任务、操作手册残余占位、历史TestRun证据、Ubuntu/生产容量及人工验收仍未完成。详情见[代码套件覆盖审计](../../../evidence/audits/2026-10-06-w4-v22-upload-code-suite.md)、[成功日志](../../../evidence/audits/2026-10-06-w4-v22-upload-complete-code-suite.log)、[沙箱失败日志](../../../evidence/audits/2026-10-06-w4-v22-upload-complete-code-suite-sandbox-failure.log)和[历史执行快照 SHA-256 Manifest](../../../evidence/audits/2026-10-06-w4-v22-upload-code-suite.sha256)。该Manifest保留当次V2.2运行输入哈希；后续文档变更由当前活动清单与本轮审计记录。

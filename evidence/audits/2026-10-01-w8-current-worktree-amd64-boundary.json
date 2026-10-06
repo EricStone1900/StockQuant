@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-01",
+  "status": "PASS",
+  "host": "Mac M1 Docker Desktop",
+  "target": "linux/amd64 emulation",
+  "composeProject": "stockquant-w8-20261001-current",
+  "servicesStarted": false,
+  "activeResourcesTouched": false,
+  "containerBoundary": {
+    "status": "PASS",
+    "checked": 10,
+    "networkNone": true,
+    "readOnlyRoot": true,
+    "nonRoot": true,
+    "webAndResearchAutomationDockerSocketAbsent": true,
+    "webAndResearchAutomationNonemptySecretEnvironmentAbsent": true,
+    "marketDataPersistentVolumeWrite": true,
+    "qlib": "0.9.6",
+    "lightgbm": "4.7.0"
+  },
+  "postgresScram": {
+    "status": "PASS",
+    "image": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+    "network": "none",
+    "hostPortsPublished": false,
+    "roles": 9,
+    "validPasswordsAccepted": 9,
+    "passwordlessConnectionsRejected": 9,
+    "invalidPasswordsRejected": 9,
+    "passwordEncryption": "scram-sha-256"
+  },
+  "serviceBearers": {
+    "status": "PASS",
+    "configuredIndependentIdentities": 8,
+    "duplicates": 0,
+    "envFileMode": "0600",
+    "secretsPrinted": false,
+    "appliedToActiveServices": false,
+    "unitTests": "3/3 PASS"
+  },
+  "images": [
+    {"service":"platform-api-service","image":"stockquant-w8-20261001-current-platform-api-service","digest":"sha256:4d00b835b9907b077dd8e8786e31860b9ff173543958e9c510cd51d141fa1a3d","user":"node"},
+    {"service":"market-data-service","image":"stockquant-w8-20261001-current-market-data-service","digest":"sha256:b3e05b06b512ebdf986559db19cefd7d347b953a55bbe857126bb3cb01f9552b","user":"node"},
+    {"service":"portfolio-risk-service","image":"stockquant-w8-20261001-current-portfolio-risk-service","digest":"sha256:52831c87b71a9edfcb07d69da9aee0a8f5f71039aaa0dc8bb03c7afd6b5f8de4","user":"node"},
+    {"service":"trade-execution-service","image":"stockquant-w8-20261001-current-trade-execution-service","digest":"sha256:efe1855c64186f3aa96a29290f94f20114122ad027989dcd631a236c3d54a008","user":"node"},
+    {"service":"decision-governance-service","image":"stockquant-w8-20261001-current-decision-governance-service","digest":"sha256:1f90f494ccbdbe47f1b840e869f4e400166adf91ad1855befe06854674b8ac3","user":"node"},
+    {"service":"historical-replay-worker","image":"stockquant-w8-20261001-current-historical-replay-worker","digest":"sha256:b5956c8d0c8d4d0c984f46449f84145a5e87363d9aa70935b4cf7011f02e8b6d","user":"node"},
+    {"service":"quant-research-service","image":"stockquant-w8-20261001-current-quant-research-service","digest":"sha256:e437c0963d15d510d5054c46075fad7d417c82e88698b0ee6949cbc7901967a7","user":"node"},
+    {"service":"research-automation-service","image":"stockquant-w8-20261001-current-research-automation-service","digest":"sha256:e9995fbe2be964206acf8ba91dc53d49c1a03100cef983b37c79392197986ba0","user":"node"},
+    {"service":"web","image":"stockquant-w8-20261001-current-web","digest":"sha256:5268992ff441199c9534a4e2cf38822f1923add5cf1f00459d5d00669eef5a90","user":"node"},
+    {"service":"qlib-worker","image":"stockquant-w8-20261001-current-qlib-worker","digest":"sha256:5b3161127767bfe033f386ba32ff4dd881a56dce08fa6eb2e0f4d57bd8f41768","user":"10001:10001"}
+  ],
+  "gatesStillOpen": ["Ubuntu x86_64 host acceptance","active 48-database paired backup/migration","active Bearer rotation/monitoring","Ubuntu five-trading-day observation","human acceptance"],
+  "tradingMode": "NO_TRADE",
+  "sourceAuthorization": "NONE"
+}

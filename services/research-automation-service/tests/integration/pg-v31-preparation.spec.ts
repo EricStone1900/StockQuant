@@ -9,8 +9,8 @@ import { PgBudgetLedger } from "../../src/adapters/pg-budget-ledger.js";
 import { PgExperimentRepository } from "../../src/adapters/pg-experiment-repository.js";
 import { PgRunnerJobStore } from "../../src/adapters/pg-runner-job-store.js";
 import { ExperimentService } from "../../src/application/experiment-service.js";
-import { FileArtifactStore } from "../../src/application/v31-artifact-store.js";
-import { inspectArtifactOrphans } from "../../src/application/v31-artifact-reconcile.js";
+import { FileArtifactStore } from "../../src/adapters/file-artifact-content-store.js";
+import { inspectArtifactOrphans, quarantineArtifactOrphans } from "../../src/application/v31-artifact-reconcile.js";
 import { RunnerJobCoordinator, type RunnerJobRecord } from "../../src/application/v31-runner-jobs.js";
 import { sha256, type ArtifactRef } from "../../src/application/v31-runtime-guards.js";
 
@@ -28,6 +28,7 @@ run("PostgreSQL V3.1 preparation persistence", () => {
   const otherRunJobId = `pg-${suffix}:other-run`;
   const cancelJobId = `pg-${suffix}:cancel`;
   const cancelRaceJobId = `pg-${suffix}:cancel-race`;
+  const submissionRaceJobId = `pg-${suffix}-submission-race:exp-1:round-2`;
   const attemptsJobId = `pg-${suffix}:fenced-attempts`;
   const capacityJobIds = [`pg-${suffix}:capacity-a`, `pg-${suffix}:capacity-b`, `pg-${suffix}:legacy-no-lease`];
   const cursorRunId = `cursor-${suffix}`;
@@ -36,12 +37,14 @@ run("PostgreSQL V3.1 preparation persistence", () => {
   const raceTestRunId = `pg-${suffix}-publish-race`;
   const raceNamespace = `research/${raceTestRunId}/exp-1/outputs`;
   const attemptsNamespace = `research/${raceTestRunId}/attempts/outputs`;
+  const lateReferencedArtifactId = `late-reference-${suffix}`;
   const stageId = `cancel-${suffix}`;
   const cancelledExperimentIds: string[] = [];
   const job: RunnerJobRecord["job"] = {
     schemaVersion: "v3.1-runner-job-v1",
     testRunId: `pg-${suffix}`,
     experimentId: "exp-1",
+    roundIndex: 2,
     imageDigest: `sha256:${"a".repeat(64)}`,
     inputArtifact: `research/pg-${suffix}/exp-1/inputs/${"b".repeat(64)}`,
     outputNamespace: namespace,
@@ -50,16 +53,18 @@ run("PostgreSQL V3.1 preparation persistence", () => {
   };
   const record: RunnerJobRecord = { jobId, job, status: "QUEUED", submittedAt: new Date().toISOString(), startedAt: null, completedAt: null, execution: null, artifacts: [], attempt: 1, retryOf: null, lease: null };
   const ref: ArtifactRef = { schemaVersion: "v3.1-artifact-ref-v1", artifactId: "run-log", kind: "RUN_LOG", namespace, sha256: "c".repeat(64), status: "PUBLISHED", sourceRef: `runner:${jobId}` };
+  const lifecycleRef: ArtifactRef = { ...ref, artifactId: "lifecycle-log", expiresAt: "2026-09-01T00:00:00.000Z" };
+  const futureExpiryRef: ArtifactRef = { ...ref, artifactId: "future-expiry-log", expiresAt: "2099-01-01T00:00:00.000Z" };
   const jobs = new PgRunnerJobStore(pool);
   const artifacts = new PgArtifactRefRepository(pool);
   const experiments = new PgExperimentRepository(pool);
   const budget = new PgBudgetLedger(pool, 1000, 1000, 80, stageId);
-  const experimentService = new ExperimentService(experiments, 1000, budget);
+  const experimentService = new ExperimentService(experiments, { now: () => new Date("2026-10-03T00:00:00.000Z") }, 1000, budget);
 
   beforeAll(async () => { await jobs.initialize(); await artifacts.initialize(); await experiments.initialize(); await budget.initialize(); });
   afterAll(async () => {
-    await pool.query("DELETE FROM research_runner_jobs WHERE job_id = ANY($1::text[])", [[jobId, otherRunJobId, cancelJobId, cancelRaceJobId, attemptsJobId, `${attemptsJobId}:retry-2`, `${jobId}:lease`, ...capacityJobIds, ...cursorJobIds]]);
-    await pool.query("DELETE FROM research_artifact_refs WHERE (namespace=$1 AND artifact_id=$2) OR namespace=ANY($3::text[])", [namespace, ref.artifactId, [raceNamespace, attemptsNamespace]]);
+    await pool.query("DELETE FROM research_runner_jobs WHERE job_id = ANY($1::text[])", [[jobId, otherRunJobId, cancelJobId, cancelRaceJobId, submissionRaceJobId, attemptsJobId, `${attemptsJobId}:retry-2`, `${jobId}:lease`, ...capacityJobIds, ...cursorJobIds]]);
+    await pool.query("DELETE FROM research_artifact_refs WHERE (namespace=$1 AND artifact_id=ANY($2::text[])) OR namespace=ANY($3::text[])", [namespace, [ref.artifactId, lifecycleRef.artifactId, futureExpiryRef.artifactId, lateReferencedArtifactId], [raceNamespace, attemptsNamespace]]);
     await pool.query("DELETE FROM research_experiments WHERE experiment_id = ANY($1::uuid[])", [cancelledExperimentIds]);
     await pool.query("DELETE FROM research_budget_allocations WHERE stage_id=$1", [stageId]);
     await pool.query("DELETE FROM research_budget_stage_limits WHERE stage_id=$1", [stageId]);
@@ -69,9 +74,50 @@ run("PostgreSQL V3.1 preparation persistence", () => {
   it("persists runner status and artifact refs for later process reads", async () => {
     await jobs.save(record);
     await artifacts.save(ref);
-    await expect(jobs.get(jobId)).resolves.toMatchObject({ jobId, status: "QUEUED", job: { testRunId: job.testRunId } });
+    await expect(jobs.get(jobId)).resolves.toMatchObject({ jobId, status: "QUEUED", job: { testRunId: job.testRunId, roundIndex: 2 } });
     await expect(artifacts.get(namespace, ref.artifactId)).resolves.toMatchObject({ artifactId: ref.artifactId, status: "PUBLISHED", sha256: ref.sha256 });
     await expect(artifacts.listAll()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ namespace, artifactId: ref.artifactId, sha256: ref.sha256 })]));
+  });
+
+  it("persists separate round-bound Jobs for the same TestRun and Experiment", async () => {
+    const testRunId = `pg-${suffix}-rounds`;
+    const experimentId = "exp-rounds";
+    const coordinator = new RunnerJobCoordinator(jobs);
+    const makeRound = (roundIndex: number): RunnerJobRecord["job"] => ({
+      ...job,
+      testRunId,
+      experimentId,
+      roundIndex,
+      inputArtifact: `research/${testRunId}/${experimentId}/inputs/${"b".repeat(64)}`,
+      outputNamespace: `research/${testRunId}/${experimentId}/outputs`,
+    });
+    const roundOne = await coordinator.submit(makeRound(1));
+    const roundTwo = await coordinator.submit(makeRound(2));
+    try {
+      expect(roundOne.jobId).toBe(`${testRunId}:${experimentId}:round-1`);
+      expect(roundTwo.jobId).toBe(`${testRunId}:${experimentId}:round-2`);
+      await expect(coordinator.submit(makeRound(1))).resolves.toEqual(roundOne);
+      await expect(jobs.listForTestRun(testRunId, 0, 10)).resolves.toMatchObject([
+        { jobId: roundOne.jobId, job: { roundIndex: 1 } },
+        { jobId: roundTwo.jobId, job: { roundIndex: 2 } },
+      ]);
+    } finally {
+      await pool.query("DELETE FROM research_runner_jobs WHERE job_id = ANY($1::text[])", [[roundOne.jobId, roundTwo.jobId]]);
+    }
+  });
+
+  it("atomically preserves the first Runner payload and conflicts concurrent changed submissions", async () => {
+    const coordinator = new RunnerJobCoordinator(jobs);
+    const runId = `${job.testRunId}-submission-race`;
+    const original = { ...job, testRunId: runId, inputArtifact: `research/${runId}/exp-1/inputs/${"f".repeat(64)}`, outputNamespace: `research/${runId}/exp-1/outputs` };
+    const changed = { ...original, imageDigest: `sha256:${"d".repeat(64)}` };
+    const results = await Promise.allSettled([coordinator.submit(original), coordinator.submit(changed)]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const stored = await jobs.get(submissionRaceJobId);
+    expect(stored?.job.imageDigest).toBe((results.find((result) => result.status === "fulfilled") as PromiseFulfilledResult<RunnerJobRecord>).value.job.imageDigest);
+    await expect(coordinator.submit(stored!.job)).resolves.toMatchObject({ status: "QUEUED", job: { imageDigest: stored!.job.imageDigest } });
+    await expect(coordinator.submit({ ...stored!.job, imageDigest: `sha256:${"e".repeat(64)}` })).rejects.toThrow("runner job identity was reused");
   });
 
   it("lists only the requested TestRun queue page in deterministic order", async () => {
@@ -114,6 +160,24 @@ run("PostgreSQL V3.1 preparation persistence", () => {
       const report = await inspectArtifactOrphans(root, await artifacts.listAll(), { minAgeMs: 0, now: new Date(Date.now() + 2_000) });
       expect(report.orphans).toContainEqual(expect.objectContaining({ namespace, artifactId: orphanRef.artifactId, sha256: orphanRef.sha256, sizeBytes: bytes.byteLength }));
     } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("refuses stale orphan reports when a PostgreSQL ArtifactRef appears before quarantine", async () => {
+    const root = mkdtempSync(join(tmpdir(), "stockquant-artifact-stale-report-"));
+    const quarantine = mkdtempSync(join(tmpdir(), "stockquant-artifact-stale-quarantine-"));
+    try {
+      const bytes = new TextEncoder().encode(`late-reference-${suffix}`);
+      const candidate: ArtifactRef = { schemaVersion: "v3.1-artifact-ref-v1", artifactId: lateReferencedArtifactId, kind: "OUTPUT", namespace, sha256: sha256(bytes), status: "PUBLISHED", sourceRef: `runner:late-reference:${suffix}` };
+      await new FileArtifactStore(root).publish(candidate, bytes);
+      const staleReport = await inspectArtifactOrphans(root, await artifacts.listAll(), { minAgeMs: 0, now: new Date(Date.now() + 2_000) });
+      expect(staleReport.orphans).toContainEqual(expect.objectContaining({ namespace, artifactId: lateReferencedArtifactId }));
+      await artifacts.save(candidate);
+      await expect(quarantineArtifactOrphans(staleReport, root, quarantine, await artifacts.listAll())).rejects.toThrow("gained an ArtifactRef after check-only");
+      expect(await new FileArtifactStore(root).read(candidate)).toEqual(Buffer.from(bytes));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(quarantine, { recursive: true, force: true });
+    }
   });
 
   it("atomically claims jobs and fences stale workers after lease takeover", async () => {
@@ -200,7 +264,9 @@ run("PostgreSQL V3.1 preparation persistence", () => {
     expect(completed?.artifacts).toEqual([{ ...firstRef, status: "PUBLISHED" }, { ...secondRef, status: "PUBLISHED" }]);
 
     const coordinator = new RunnerJobCoordinator(jobs);
-    const retry = await coordinator.retry(attemptsJobId);
+    const retryResults = await Promise.all([coordinator.retry(attemptsJobId), coordinator.retry(attemptsJobId)]);
+    const retry = retryResults[0];
+    expect(retryResults[1]).toEqual(retry);
     expect(retry).toMatchObject({ jobId: `${attemptsJobId}:retry-2`, attempt: 2, retryOf: attemptsJobId, status: "QUEUED", artifacts: [] });
     await expect(coordinator.retry(attemptsJobId)).resolves.toEqual(retry);
     const retryLease = await jobs.claim("attempt-three", new Date(secondNow.getTime() + 2), 30_000, attemptsTestRunId);
@@ -243,6 +309,19 @@ run("PostgreSQL V3.1 preparation persistence", () => {
     await expect(artifacts.save({ ...ref, sha256: "d".repeat(64) })).rejects.toThrow("artifact reference identity is immutable");
     await expect(artifacts.save({ ...ref, sourceRef: "runner:other-job" })).rejects.toThrow("artifact reference identity is immutable");
     await expect(artifacts.get(namespace, ref.artifactId)).resolves.toMatchObject({ sha256: ref.sha256, sourceRef: ref.sourceRef });
+  });
+
+  it("persists EXPIRED as a terminal lifecycle status without allowing resurrection", async () => {
+    await artifacts.save(lifecycleRef);
+    await artifacts.save({ ...lifecycleRef, status: "EXPIRED" });
+    await expect(artifacts.get(namespace, lifecycleRef.artifactId)).resolves.toMatchObject({ artifactId: lifecycleRef.artifactId, status: "EXPIRED", sha256: lifecycleRef.sha256 });
+    await expect(artifacts.save(lifecycleRef)).rejects.toThrow("EXPIRED -> PUBLISHED is not allowed");
+  });
+
+  it("does not persist EXPIRED before the immutable retention timestamp", async () => {
+    await artifacts.save(futureExpiryRef);
+    await expect(artifacts.save({ ...futureExpiryRef, status: "EXPIRED" })).rejects.toThrow("artifact reference identity is immutable");
+    await expect(artifacts.get(namespace, futureExpiryRef.artifactId)).resolves.toMatchObject({ status: "PUBLISHED", expiresAt: futureExpiryRef.expiresAt });
   });
 
   it("settles cancelled, never-started experiments at zero and keeps UNKNOWN reservations", async () => {

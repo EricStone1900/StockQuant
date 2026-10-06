@@ -1,8 +1,11 @@
 import hashlib
 import hmac
+import base64
 import json
 import math
 import os
+import re
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 MAX_BODY_BYTES = 1_048_576
@@ -10,8 +13,46 @@ MAX_ROWS = 10_000
 MAX_FEATURES = 16
 
 
+def _timestamp(value, field):
+    if not isinstance(value, str) or not value.endswith("Z") and not re.search(r"[+-]\d{2}:\d{2}$", value):
+        raise ValueError(f"{field} must be an ISO-8601 timestamp with an explicit UTC offset")
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError as exc:
+        raise ValueError(f"{field} must be a valid ISO-8601 timestamp") from exc
+
+
+def validate_temporal_metadata(metadata, ranges):
+    if metadata is None:
+        return "NOT_RUN"
+    if not isinstance(metadata, list) or not metadata:
+        raise ValueError("temporalMetadata must contain one row per sample")
+    parsed = []
+    for index, row in enumerate(metadata):
+        if not isinstance(row, dict) or set(row) != {"decisionAt", "featureAvailableAt", "labelAvailableAt"}:
+            raise ValueError(f"temporalMetadata[{index}] fields are invalid")
+        decision = _timestamp(row["decisionAt"], f"temporalMetadata[{index}].decisionAt")
+        feature_available = _timestamp(row["featureAvailableAt"], f"temporalMetadata[{index}].featureAvailableAt")
+        label_available = _timestamp(row["labelAvailableAt"], f"temporalMetadata[{index}].labelAvailableAt")
+        if feature_available > decision:
+            raise ValueError(f"feature data is not available at decision for row {index}")
+        if label_available < decision:
+            raise ValueError(f"label availability precedes decision for row {index}")
+        if parsed and decision <= parsed[-1][0]:
+            raise ValueError("decisionAt timestamps must be strictly increasing")
+        parsed.append((decision, label_available))
+    if ranges[-1][1] != len(parsed):
+        raise ValueError("temporalMetadata row count must match featureRows")
+    for prior, following in ((ranges[0], ranges[1]), (ranges[1], ranges[2])):
+        cutoff = parsed[following[0]][0]
+        if any(parsed[index][1] >= cutoff for index in range(prior[0], prior[1])):
+            raise ValueError("prior split labels are not strictly available before the next split begins")
+    return "PASS"
+
+
 def parse_fit_fixture(value):
-    if not isinstance(value, dict) or set(value) != {"schemaVersion", "sourceMode", "featureRows", "labels", "splits"}:
+    required = {"schemaVersion", "sourceMode", "featureRows", "labels", "splits"}
+    if not isinstance(value, dict) or not required.issubset(value) or set(value) - required - {"temporalMetadata"}:
         raise ValueError("fit request fields are invalid")
     if value["schemaVersion"] != "qlib-fit-fixture-v1" or value["sourceMode"] != "FIXTURE":
         raise ValueError("only the versioned FIXTURE model-fit path is enabled")
@@ -41,11 +82,13 @@ def parse_fit_fixture(value):
         raise ValueError("splits must be contiguous, ordered, non-overlapping, and cover all rows")
     if ranges[0][1] < 20 or ranges[1][1] - ranges[1][0] < 5 or ranges[2][1] - ranges[2][0] < 5:
         raise ValueError("train requires at least 20 rows; valid and test require at least 5 rows each")
+    validate_temporal_metadata(value.get("temporalMetadata"), ranges)
     return features, labels, ranges
 
 
 def fit_fixture_with_qlib(body):
     features, labels, ranges = parse_fit_fixture(body)
+    temporal_validation = validate_temporal_metadata(body.get("temporalMetadata"), ranges)
     import numpy as np
     import pandas as pd
     import qlib
@@ -86,12 +129,14 @@ def fit_fixture_with_qlib(body):
         serialized_model = model.model.model_to_string().encode("utf-8")
     if len(predictions) != ranges[2][1] - ranges[2][0] or not np.isfinite(predictions).all():
         raise RuntimeError("Qlib returned an invalid test prediction vector")
+    prediction_json = json.dumps(predictions.tolist(), separators=(",", ":"), allow_nan=False)
     return {
         "schemaVersion": "qlib-fit-fixture-result-v1",
         "status": "COMPLETED",
         "sourceMode": "FIXTURE",
         "modelTraining": "PASS",
         "modelValidation": "NOT_RUN",
+        "temporalValidation": temporal_validation,
         "candidateSourceExecution": "NOT_PERFORMED",
         "qlibVersion": getattr(qlib, "__version__", "unknown"),
         "lightgbmVersion": lightgbm.__version__,
@@ -99,8 +144,11 @@ def fit_fixture_with_qlib(body):
         "segments": {name: {"start": bounds[0], "end": bounds[1], "rows": bounds[1] - bounds[0]} for name, bounds in zip(("train", "valid", "test"), ranges)},
         "testPredictionCount": int(len(predictions)),
         "testPredictionsFinite": True,
-        "testPredictionsSha256": hashlib.sha256(json.dumps(predictions.tolist(), separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest(),
+        "testPredictionsSha256": hashlib.sha256(prediction_json.encode("utf-8")).hexdigest(),
         "modelSha256": hashlib.sha256(serialized_model).hexdigest(),
+        "modelArtifactBase64": base64.b64encode(serialized_model).decode("ascii"),
+        "testPredictionsCanonicalJson": prediction_json,
+        "testPredictions": [float(value) for value in predictions.tolist()],
         "evaluationMetrics": evaluation,
         "tracking": "temporary SQLite under /tmp; removed with the worker container",
         "profitabilityClaim": "NOT_MADE",

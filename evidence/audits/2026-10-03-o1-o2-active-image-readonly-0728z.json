@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "stockquant-o1-o2-readonly-audit-v1",
+  "capturedAt": "2026-10-03T07:28:53.010Z",
+  "timezone": "Asia/Shanghai",
+  "authorization": {
+    "tradeMode": "NO_TRADE",
+    "dataSourceAuthorization": "NONE"
+  },
+  "health": {
+    "path": "evidence/dc08a/health-report.json",
+    "sha256": "04ddb49005ca55deccc661ecc9d706f415edf7754662948eba24a03387526666",
+    "status": "UNHEALTHY",
+    "calendar": "CLOSED",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "recentTick": true,
+    "openGaps": 0,
+    "pendingOutbox": 0,
+    "readinessScheduler": "ENABLED",
+    "readinessExecutor": "ENABLED"
+  },
+  "observation": {
+    "path": "evidence/dc08a/observation-summary.json",
+    "sha256": "7a91e45f4c888e5e4b6a7d3a910d11af0830db90cfd2a2a94df456765e9b87b6",
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "observedDays": 8,
+    "targetDays": 20,
+    "remainingDays": 12,
+    "lastEligibleDate": "2026-09-30",
+    "status": "WAITING"
+  },
+  "enabledSubscriptionCount": 0,
+  "marketDataRuntime": {
+    "container": "stockquant-v12-market-data-service-1",
+    "imageId": "sha256:e18e7956c1838ab7def0e7c185cc70ae76ecdf652fdf6d04a4d155dedecb9687",
+    "imageName": "stockquant-v12-market-data-service",
+    "health": "healthy",
+    "flags": {
+      "STOCKQUANT_COLLECTION_EXECUTOR": "1",
+      "STOCKQUANT_SCHEDULER_WORKER": "1",
+      "STOCKQUANT_COLLECTION_SOURCES": "sina,baostock"
+    },
+    "missingAuthorizationKeys": [
+      "STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED",
+      "STOCKQUANT_EXTERNAL_SOURCE_USE_AUTHORIZED",
+      "STOCKQUANT_COLLECTION_AUTHORIZATION_REF",
+      "STOCKQUANT_COLLECTION_ALLOWED_SOURCES"
+    ],
+    "secretValuesRead": false
+  },
+  "runningContainers": [
+    {
+      "id": "65268b486181",
+      "name": "stockquant-v12-market-data-service-1",
+      "image": "stockquant-v12-market-data-service",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "eeec2b1ffce7",
+      "name": "stockquant-v12-postgres-1",
+      "image": "postgres:16.9-alpine",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "3e916ee0f059",
+      "name": "stockquant-v12-platform-api-service-1",
+      "image": "stockquant-v12-platform-api-service",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "f11691bca12e",
+      "name": "stockquant-v12-research-automation-service-1",
+      "image": "82cd446a3193",
+      "status": "Up 8 days (healthy)"
+    },
+    {
+      "id": "d19db6634482",
+      "name": "stockquant-v12-web-1",
+      "image": "af081c98a0b8",
+      "status": "Up 8 days"
+    },
+    {
+      "id": "de65c37630e3",
+      "name": "stockquant-v12-portfolio-risk-service-1",
+      "image": "d23d340fa21f",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "d8a24f70f1c0",
+      "name": "stockquant-v12-historical-replay-worker-1",
+      "image": "55382131c3d6",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "6a1daf992d31",
+      "name": "stockquant-v12-trade-execution-service-1",
+      "image": "4d5398acba7d",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "be6d78f3b554",
+      "name": "stockquant-v12-decision-governance-service-1",
+      "image": "5955073e4859",
+      "status": "Up 2 days (healthy)"
+    },
+    {
+      "id": "d42a79970466",
+      "name": "stockquant-v12-temporal-1",
+      "image": "temporalio/temporal:1.8.3",
+      "status": "Up 9 days"
+    },
+    {
+      "id": "d74dbdf74779",
+      "name": "stockquant-v12-nats-1",
+      "image": "nats:2.10.29-alpine3.22",
+      "status": "Up 9 days"
+    },
+    {
+      "id": "97654b089d12",
+      "name": "stockquant-v12-quant-research-service-1",
+      "image": "456e4adee46e",
+      "status": "Up 10 days (healthy)"
+    },
+    {
+      "id": "04a6c52dd34f",
+      "name": "stockquant-v12-qlib-worker-1",
+      "image": "4135861adbf3",
+      "status": "Up 13 days (healthy)"
+    }
+  ],
+  "activity": {
+    "providerRequests": 0,
+    "collectionJobsSubmitted": 0,
+    "paperRunsStarted": 0,
+    "brokerCalls": 0
+  },
+  "mutations": {
+    "activeServicesChanged": false,
+    "containersRestarted": false,
+    "subscriptionsChanged": false,
+    "configurationChanged": false,
+    "ordersOrLedgersWritten": false
+  },
+  "restrictedAttemptFailures": [
+    "enabled-subscription GET initially failed EPERM in default sandbox; controlled read-only rerun returned 0",
+    "docker ps initially denied in default sandbox; controlled read-only rerun inventoried 13 containers"
+  ],
+  "finding": "The active Market Data image reports scheduler/executor ENABLED while the deployed environment lacks explicit source-authorization gate keys. No schedule is enabled and no job was submitted. Workspace fail-closed source behavior is not evidence that the active older image contains the fix. Resolve through an authorized W3 maintenance/deploy/rollback process; no service change was made."
+}

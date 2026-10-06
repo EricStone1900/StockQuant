@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { lstat, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,7 @@ import { Pool } from "pg";
 import { PostgresStageRunRepository } from "../dist/adapters/postgres-stage-run-repository.js";
 import { PgArtifactRefRepository } from "../../research-automation-service/dist/adapters/pg-artifact-ref-repository.js";
 import { PgRunnerJobStore } from "../../research-automation-service/dist/adapters/pg-runner-job-store.js";
-import { FileArtifactStore } from "../../research-automation-service/dist/application/v31-artifact-store.js";
+import { FileArtifactStore } from "../../research-automation-service/dist/adapters/file-artifact-content-store.js";
 
 const serviceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const repositoryRoot = resolve(serviceRoot, "../..");
@@ -29,6 +29,9 @@ const content = Buffer.from(JSON.stringify({ source: "V3.1 owner/run read scope"
 const sha256 = createHash("sha256").update(content).digest("hex");
 const artifactId = sha256;
 const ref = { schemaVersion: "v3.1-artifact-ref-v1", artifactId, kind: "INPUT", namespace, sha256, status: "PENDING", sourceRef: "artifact-owner-scope-http-smoke" };
+const outputContent = Buffer.from(JSON.stringify({ metric: "fixture-score", score: 0.75, testRunId }));
+const outputSha256 = createHash("sha256").update(outputContent).digest("hex");
+const outputRef = { schemaVersion: "v3.1-artifact-ref-v1", artifactId: outputSha256, kind: "OUTPUT", namespace: `research/${testRunId}/${experimentId}/outputs`, sha256: outputSha256, status: "PENDING", sourceRef: "artifact-owner-scope-http-smoke" };
 const platformToken = `platform-${randomUUID()}-${randomUUID()}`.replaceAll("-", "_");
 const runnerToken = `runner-${randomUUID()}-${randomUUID()}`.replaceAll("-", "_");
 const researchToken = `research-${randomUUID()}-${randomUUID()}`.replaceAll("-", "_");
@@ -41,6 +44,7 @@ const artifactStore = new FileArtifactStore(artifactRoot);
 let platformRunCreated = false;
 let runnerJobCreated = false;
 let artifactRefCreated = false;
+let exportEvidenceSummary;
 let researchChild;
 let platformChild;
 const services = [];
@@ -104,23 +108,37 @@ try {
   });
   await waitLive(researchChild, researchBaseUrl);
 
-  const publishedRef = await artifactStore.publish(ref, content);
   artifactRefCreated = true;
+  const publishedRef = await artifactStore.publish(ref, content);
+  const publishedOutputRef = await artifactStore.publish(outputRef, outputContent);
   await artifactRefs.save(publishedRef);
+  await artifactRefs.save(publishedOutputRef);
+  const artifactPathSegments = [artifactRoot, ...namespace.split("/"), sha256, artifactId];
+  for (let index = 0; index < artifactPathSegments.length - 1; index += 1) {
+    const currentPath = resolve(...artifactPathSegments.slice(0, index + 1));
+    const info = await lstat(currentPath);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(`locally published Artifact parent is unsafe at ${currentPath}`);
+  }
+  const researchArtifactRead = await fetch(`http://127.0.0.1:${researchPort}/v1/artifacts/read`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${platformToken}` },
+    body: JSON.stringify({ namespace, artifactId }),
+  });
+  if (!researchArtifactRead.ok) throw new Error(`Research direct Artifact read failed for ${artifactRoot}: HTTP ${researchArtifactRead.status} ${await researchArtifactRead.text()}\n${researchChild.output}`);
   const job = {
     schemaVersion: "v3.1-runner-job-v1", testRunId, experimentId,
     imageDigest: `sha256:${"a".repeat(64)}`, inputArtifact: `${namespace}/${artifactId}`,
-    outputNamespace: `research/${testRunId}/${experimentId}/outputs`,
+    outputNamespace: outputRef.namespace,
     resources: { cpuMilli: 500, memoryMiB: 512, timeoutSeconds: 60, pidsLimit: 32 },
     networkPolicy: { mode: "DENY", allowlist: [] },
   };
   const jobId = `${testRunId}:${experimentId}`;
-  const runnerRecord = await runnerJobs.save({ jobId, job, status: "COMPLETED", submittedAt: new Date().toISOString(), startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), execution: null, artifacts: [], attempt: 1, retryOf: null, lease: null });
+  const runnerRecord = await runnerJobs.save({ jobId, job, status: "COMPLETED", submittedAt: new Date().toISOString(), startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), execution: null, artifacts: [publishedOutputRef], attempt: 1, retryOf: null, lease: null });
   runnerJobCreated = true;
   await stageRuns.save({
     testRunId, stageId: "V3.1", scenarioId: "normal", scenarioVersion: "1.0.0", ownerId,
     status: "COMPLETED", seed: 20260907, assertions: [{ assertionId: "V3.1-REAL-MODEL-001", status: "PASS" }, { assertionId: "V3.1-RUNNER-001", status: "PASS" }],
-    evidence: { environmentMode: "RESEARCH", brokerMode: "FAKE", experiment: { experimentId }, modelCall: { providerMode: "LIVE", modelRunId: `synthetic-${testRunId}`, responseSha256: "c".repeat(64), actualCostCents: 23 }, orchestration: { inputRef: publishedRef, inputArtifact: `${namespace}/${artifactId}`, runnerJob: { ...runnerRecord, artifacts: [{ status: "PUBLISHED", sha256: "d".repeat(64) }] } } },
+    evidence: { environmentMode: "RESEARCH", brokerMode: "FAKE", experiment: { experimentId }, modelCall: { providerMode: "LIVE", modelRunId: `synthetic-${testRunId}`, responseSha256: "c".repeat(64), actualCostCents: 23 }, orchestration: { inputRef: publishedRef, inputArtifact: `${namespace}/${artifactId}`, runnerJob: runnerRecord } },
     namespace: `v3-1-normal-${testRunId}`,
   });
   platformRunCreated = true;
@@ -141,6 +159,27 @@ try {
   const authorized = await fetch(artifactUrl, { headers: { "x-stockquant-user": ownerId } });
   const authorizedBody = await authorized.json();
   if (!authorized.ok || authorizedBody.ref?.namespace !== namespace || Buffer.from(authorizedBody.contentBase64 ?? "", "base64").compare(content) !== 0) throw new Error(`owner-scoped Artifact read failed: HTTP ${authorized.status} ${JSON.stringify(authorizedBody)}`);
+
+  const session = await fetch(`${platformBaseUrl}/api/v1/session`);
+  const sessionCookie = session.headers.get("set-cookie")?.split(";")[0];
+  if (!session.ok || sessionCookie !== `sq_session=${ownerId}`) throw new Error("Platform local owner session was unavailable for evidence export");
+  const exportDirectory = resolve(baseDir, "evidence-export");
+  await mkdir(exportDirectory, { recursive: true });
+  const exportProcess = spawn(process.execPath, [resolve(repositoryRoot, "scripts/evidence-export.mjs"), "--stage", "V3.1", "--run", testRunId], {
+    cwd: exportDirectory,
+    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: process.env.HOME ?? "/tmp", STOCKQUANT_PLATFORM_API_URL: platformBaseUrl, STOCKQUANT_EVIDENCE_SESSION_COOKIE: sessionCookie },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let exportStdout = ""; let exportStderr = "";
+  exportProcess.stdout.setEncoding("utf8").on("data", (chunk) => { exportStdout += chunk; });
+  exportProcess.stderr.setEncoding("utf8").on("data", (chunk) => { exportStderr += chunk; });
+  const exportStatus = await new Promise((resolveClose, reject) => { exportProcess.once("error", reject); exportProcess.once("close", resolveClose); });
+  if (exportStatus !== 0) throw new Error(`owner-scoped V3.1 evidence export failed: ${exportStderr || exportStdout}`);
+  const exportedArtifact = await readFile(resolve(exportDirectory, `evidence/local/V3.1/${testRunId}/v31-input-${sha256}.bin`));
+  const exportedOutputArtifact = await readFile(resolve(exportDirectory, `evidence/local/V3.1/${testRunId}/v31-output-${outputSha256}.bin`));
+  const exportedManifest = await readFile(resolve(exportDirectory, `evidence/local/V3.1/${testRunId}/manifest.sha256`), "utf8");
+  if (exportedArtifact.compare(content) !== 0 || exportedOutputArtifact.compare(outputContent) !== 0 || !exportedManifest.includes(`${sha256}  v31-input-${sha256}.bin`) || !exportedManifest.includes(`${outputSha256}  v31-output-${outputSha256}.bin`)) throw new Error("V3.1 TestRun evidence export did not preserve the exact owner-scoped Artifact bytes and manifest hash");
+  exportEvidenceSummary = { testRunId, inputArtifactSha256: sha256, outputArtifactSha256: outputSha256, manifestSha256: createHash("sha256").update(exportedManifest).digest("hex"), exactBytesVerified: true };
 
   const missingIdentity = await fetch(artifactUrl);
   if (missingIdentity.status !== 401) throw new Error(`missing session should return 401, got ${missingIdentity.status}`);
@@ -182,19 +221,20 @@ try {
   const platformSubmitBody = await platformSubmit.json();
   if (platformSubmit.status !== 202 || platformSubmitBody.status !== "WAITING" || platformSubmitBody.humanAcceptance !== "NOT_CHANGED") throw new Error(`Platform user submission proxy failed closed: HTTP ${platformSubmit.status} ${JSON.stringify(platformSubmitBody)}`);
 
-  console.log(JSON.stringify({ status: "PASS", testRunId, ownerId, artifactId, authorizedRead: authorized.status, missingIdentity: missingIdentity.status, foreignOwner: foreignOwner.status, unlistedArtifact: unlisted.status, gateAnonymous: gateAnonymous.status, gateWrongToken: gateWrongToken.status, ownerGateBefore: ownerGateBeforeBody.humanAcceptance, serviceGateBefore: gateBeforeBody.humanAcceptance, syntheticAcceptance: acceptedBody.status, identicalReplay: replay.status, changedNote: changedNote.status, ownerGateAfter: ownerGateAfterBody.humanAcceptance, serviceGateAfter: gateAfterBody.humanAcceptance, platformUserSubmit: platformSubmitBody.status, userAcceptanceChangedBySubmit: platformSubmitBody.humanAcceptance, acceptanceIsSyntheticTestData: true, activeServicesTouched: false }));
+  console.log(JSON.stringify({ status: "PASS", testRunId, ownerId, artifactId, evidenceExport: exportEvidenceSummary, authorizedRead: authorized.status, missingIdentity: missingIdentity.status, foreignOwner: foreignOwner.status, unlistedArtifact: unlisted.status, gateAnonymous: gateAnonymous.status, gateWrongToken: gateWrongToken.status, ownerGateBefore: ownerGateBeforeBody.humanAcceptance, serviceGateBefore: gateBeforeBody.humanAcceptance, syntheticAcceptance: acceptedBody.status, identicalReplay: replay.status, changedNote: changedNote.status, ownerGateAfter: ownerGateAfterBody.humanAcceptance, serviceGateAfter: gateAfterBody.humanAcceptance, platformUserSubmit: platformSubmitBody.status, userAcceptanceChangedBySubmit: platformSubmitBody.humanAcceptance, acceptanceIsSyntheticTestData: true, activeServicesTouched: false }));
 } finally {
   await stopServices();
   await platformPool.query("DELETE FROM v31_acceptance_records WHERE test_run_id=$1", [testRunId]);
   if (platformRunCreated) await platformPool.query("DELETE FROM acceptance_stage_runs WHERE test_run_id=$1 AND owner_id=$2", [testRunId, ownerId]);
   if (runnerJobCreated) await researchPool.query("DELETE FROM research_runner_jobs WHERE job_id=$1", [`${testRunId}:${experimentId}`]);
-  if (artifactRefCreated) await researchPool.query("DELETE FROM research_artifact_refs WHERE namespace=$1 AND artifact_id=$2 AND source_ref=$3", [namespace, artifactId, ref.sourceRef]);
-  const [runs, jobs, refs] = await Promise.all([
+  if (artifactRefCreated) await researchPool.query("DELETE FROM research_artifact_refs WHERE (namespace=$1 AND artifact_id=$2 AND source_ref=$3) OR (namespace=$4 AND artifact_id=$5 AND source_ref=$3)", [namespace, artifactId, ref.sourceRef, outputRef.namespace, outputRef.artifactId]);
+  const [runs, jobs, refs, outputRefs] = await Promise.all([
     platformPool.query("SELECT count(*)::int AS count FROM acceptance_stage_runs WHERE test_run_id=$1", [testRunId]),
     researchPool.query("SELECT count(*)::int AS count FROM research_runner_jobs WHERE job_id=$1", [`${testRunId}:${experimentId}`]),
     researchPool.query("SELECT count(*)::int AS count FROM research_artifact_refs WHERE namespace=$1 AND artifact_id=$2", [namespace, artifactId]),
+    researchPool.query("SELECT count(*)::int AS count FROM research_artifact_refs WHERE namespace=$1 AND artifact_id=$2", [outputRef.namespace, outputRef.artifactId]),
   ]);
-  if (Number(runs.rows[0].count) || Number(jobs.rows[0].count) || Number(refs.rows[0].count)) throw new Error("Artifact owner-scope smoke exact database cleanup failed");
+  if (Number(runs.rows[0].count) || Number(jobs.rows[0].count) || Number(refs.rows[0].count) || Number(outputRefs.rows[0].count)) throw new Error("Artifact owner-scope smoke exact database cleanup failed");
   await Promise.all([platformPool.end(), researchPool.end()]);
   await rm(baseDir, { recursive: true, force: true });
 }

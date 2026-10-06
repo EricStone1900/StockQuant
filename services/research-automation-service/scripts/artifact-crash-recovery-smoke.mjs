@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { Pool } from "pg";
 import { PgArtifactRefRepository } from "../dist/adapters/pg-artifact-ref-repository.js";
 import { PgRunnerJobStore } from "../dist/adapters/pg-runner-job-store.js";
-import { FileArtifactStore } from "../dist/application/v31-artifact-store.js";
+import { FileArtifactStore } from "../dist/adapters/file-artifact-content-store.js";
 import { inspectArtifactOrphans } from "../dist/application/v31-artifact-reconcile.js";
 
 const connectionString = process.env.RESEARCH_AUTOMATION_DATABASE_URL ?? "postgresql://research_automation@127.0.0.1:5433/research_automation_test";

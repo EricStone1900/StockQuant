@@ -1,5 +1,9 @@
-import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
+import type { TestRunRepository } from "../ports/test-run-repository.js";
 import type { ScenarioId, TestAssertion, TestRun } from "../domain/test-run.js";
+import { GeneratedPortfolioAccountClient, PortfolioAccountClientError } from "../contracts/generated-portfolio-account-client.js";
+import type { InitializeAccountCommand } from "../contracts/generated-types.js";
+
+type InitializeResult = Awaited<ReturnType<GeneratedPortfolioAccountClient["initializeAccount"]>>;
 
 interface AccountSnapshot {
   accountId: string;
@@ -10,20 +14,14 @@ interface AccountSnapshot {
   testRunId: string;
 }
 
-interface InitializeResult {
-  snapshot: AccountSnapshot;
-  replayed: boolean;
-}
-
 export class ScenarioRunner {
+  private readonly portfolio: GeneratedPortfolioAccountClient;
   constructor(
-    private readonly repository: PostgresTestRunRepository,
+    private readonly repository: TestRunRepository,
     private readonly portfolioApiUrl: string,
     private readonly portfolioToken = ""
-  ) {}
-
-  private portfolioHeaders(extra: Record<string, string> = {}) {
-    return { ...extra, "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${this.portfolioToken}` };
+  ) {
+    this.portfolio = new GeneratedPortfolioAccountClient(portfolioApiUrl, "platform-api-service", portfolioToken);
   }
 
   async start(testRunId: string, ownerId: string): Promise<void> {
@@ -94,17 +92,21 @@ export class ScenarioRunner {
         { accountId }
       ));
     } else {
-      const conflictResponse = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/initialize`, {
-        method: "POST",
-        headers: this.portfolioHeaders({ "content-type": "application/json" }),
-        body: JSON.stringify(this.commandFor(run, "20000.00"))
-      });
+      let conflictStatus = 0;
+      let conflictBody: unknown = null;
+      try {
+        await this.initialize(this.commandFor(run, "20000.00"));
+      } catch (error) {
+        if (!(error instanceof PortfolioAccountClientError)) throw error;
+        conflictStatus = error.status;
+        conflictBody = error.body;
+      }
       const snapshot = await this.snapshot(accountId, run.ownerId);
       assertions.push(this.assertion(
         "V1.1-ACCOUNT-CONFLICT-001",
         { httpStatus: 409, cash: { amount: "10000.0000", currency: "CNY" }, ledgerEntryCount: 1 },
-        { httpStatus: conflictResponse.status, cash: snapshot.cash, ledgerEntryCount: snapshot.ledgerEntryCount },
-        { accountId, conflictBody: await conflictResponse.json().catch(() => null) }
+        { httpStatus: conflictStatus, cash: snapshot.cash, ledgerEntryCount: snapshot.ledgerEntryCount },
+        { accountId, conflictBody }
       ));
       assertions.push(this.assertion(
         "V1.1-ACCOUNT-AUTHORIZATION-001",
@@ -129,7 +131,7 @@ export class ScenarioRunner {
     await this.repository.updateStatus(run.testRunId, "WAITING", initialized.snapshot.accountId);
   }
 
-  private commandFor(run: TestRun, amount: string) {
+  private commandFor(run: TestRun, amount: string): InitializeAccountCommand {
     return {
       fixtureAccountRef: "cn-paper-empty-10000-cny",
       ownerId: run.ownerId,
@@ -143,29 +145,22 @@ export class ScenarioRunner {
     };
   }
 
-  private async initialize(command: object): Promise<InitializeResult> {
-    const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/initialize`, {
-      method: "POST",
-      headers: this.portfolioHeaders({ "content-type": "application/json" }),
-      body: JSON.stringify(command)
-    });
-    if (!response.ok) throw new Error(`portfolio initialize failed: ${response.status}`);
-    return response.json() as Promise<InitializeResult>;
+  private async initialize(command: Parameters<GeneratedPortfolioAccountClient["initializeAccount"]>[0]) {
+    return this.portfolio.initializeAccount(command);
   }
 
   private async snapshot(accountId: string, ownerId: string): Promise<AccountSnapshot> {
-    const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/${accountId}/snapshot`, {
-      headers: this.portfolioHeaders({ "x-stockquant-owner-id": ownerId })
-    });
-    if (!response.ok) throw new Error(`portfolio snapshot failed: ${response.status}`);
-    return response.json() as Promise<AccountSnapshot>;
+    return this.portfolio.getAccountSnapshot(accountId, ownerId);
   }
 
   private async snapshotStatus(accountId: string, ownerId: string): Promise<number> {
-    const response = await fetch(`${this.portfolioApiUrl}/internal/v1/accounts/${accountId}/snapshot`, {
-      headers: this.portfolioHeaders({ "x-stockquant-owner-id": ownerId })
-    });
-    return response.status;
+    try {
+      await this.portfolio.getAccountSnapshot(accountId, ownerId);
+      return 200;
+    } catch (error) {
+      if (error instanceof PortfolioAccountClientError) return error.status;
+      throw error;
+    }
   }
 
   private assertion(assertionId: string, expected: unknown, actual: unknown, evidence: Record<string, unknown>): TestAssertion {

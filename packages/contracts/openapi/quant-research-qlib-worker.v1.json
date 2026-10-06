@@ -1,0 +1,50 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Quant Research to Qlib Worker API", "version": "v1" },
+  "servers": [{ "url": "http://qlib-worker:3004" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/qlib/fit-fixture": {
+      "post": {
+        "operationId": "fitQlibFixtureInWorker",
+        "summary": "Fit the pinned Qlib model on an explicitly synthetic fixture payload",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-research-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-fit-fixture-request.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Qlib model and test-segment predictions over synthetic fixture rows", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-fit-fixture-result.schema.json" } } } },
+          "403": { "description": "Caller identity rejected" }, "413": { "description": "Worker request exceeds its size limit" }, "422": { "description": "Invalid fixture or split rejected" }, "503": { "description": "Qlib worker is unavailable" }
+        }
+      }
+    },
+    "/probe": {
+      "get": {
+        "operationId": "probeQlibWorker",
+        "summary": "Read the Qlib worker runtime probe without running a model",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-research-service" } }],
+        "responses": { "200": { "description": "Qlib runtime readiness", "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string" }, "version": { "type": "string" }, "detail": { "type": "string" } }, "additionalProperties": true } } } }, "403": { "description": "Caller identity rejected" }, "503": { "description": "Qlib worker is unavailable" } }
+      }
+    },
+    "/train": {
+      "post": {
+        "operationId": "trainQlibFixtureSummary",
+        "summary": "Build a deterministic open-price summary from fixture bars without model training",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-research-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-summary-train-request.schema.json" } } } },
+        "responses": { "200": { "description": "Fixture summary, explicitly not model training", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "artifact"], "properties": { "status": { "const": "FIXTURE_ONLY" }, "artifact": { "type": "object", "required": ["artifactHash"], "properties": { "artifactHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }, "additionalProperties": true } }, "additionalProperties": true } } } }, "403": { "description": "Caller identity rejected" }, "422": { "description": "Invalid fixture bars rejected" } }
+      }
+    },
+    "/validate": {
+      "post": {
+        "operationId": "recomputeQlibFixtureSummary",
+        "summary": "Independently recompute the fixture summary hash; not independent model validation",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-research-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/qlib-summary-validate-request.schema.json" } } } },
+        "responses": { "200": { "description": "Deterministic fixture summary hash comparison", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "independentModelValidation"], "properties": { "status": { "enum": ["HASH_MATCH", "HASH_MISMATCH"] }, "independentModelValidation": { "const": "NOT_RUN" } }, "additionalProperties": true } } } }, "403": { "description": "Caller identity rejected" }, "422": { "description": "Invalid fixture bars rejected" } }
+      }
+    }
+  }
+}

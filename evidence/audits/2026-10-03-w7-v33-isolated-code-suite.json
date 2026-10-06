@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "w7-v33-isolated-code-suite-v1",
+  "capturedAt": "2026-10-03",
+  "command": "node scripts/run-isolated-postgres-command.mjs --url-env RESEARCH_AUTOMATION_DATABASE_URL:research_automation:research_automation_test --url-env PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test -- pnpm verify:stage -- --stage V3.3 --suite code",
+  "exitCode": 0,
+  "status": "PASS",
+  "environment": {
+    "postgres": "one-shot disposable container; research_automation_test and platform_api_test",
+    "activeServicesConnected": false,
+    "cleanup": "container and network removed and verified"
+  },
+  "checks": {
+    "baseline": "PASS",
+    "researchAutomationUnit": "216/216",
+    "researchAutomationIntegration": "29/29",
+    "platformUnit": "180/180",
+    "platformIntegration": "6/6",
+    "webPlaywright": "3/3",
+    "runnerRecovery": {
+      "status": "PASS",
+      "rows": 1000,
+      "rounds": 2,
+      "simulatedHostKill": "SIGKILL",
+      "persistedBeforeKillSequence": 1,
+      "reclaimedSequence": 2,
+      "fencingToken": 2,
+      "restoredCursor": 2,
+      "stalePublishHttpStatus": 409,
+      "providerCalls": 0,
+      "paperCalls": 0,
+      "declaredLimits": {"cpuMilli": 500, "memoryMiB": 512, "pidsLimit": 32},
+      "peakMemoryBytes": 50195333,
+      "peakCpuPercent": 49.93,
+      "peakPids": 4
+    },
+    "syntheticBudgetPaginationProbe": {
+      "status": "PASS",
+      "syntheticExperiments": 66100,
+      "rowsPerTestRun": 50000,
+      "deepOffsetPageP95Ms": 864.686,
+      "deepCursorPageP95Ms": 237.18,
+      "qualification": "isolated hot-cache read microbenchmark; not production capacity"
+    }
+  },
+  "scopeConclusion": {
+    "businessWorkflow": "NOT_IMPLEMENTED",
+    "dispatch": "ISOLATED_FIXTURE_RUNNER_SMOKE_ONLY",
+    "modelProviderCalls": 0,
+    "paperContinuity": "NOT_CHECKED",
+    "businessValidation": "NOT_RUN",
+    "humanAcceptance": "NOT_RUN",
+    "stageStatus": "NOT_RUN"
+  }
+}

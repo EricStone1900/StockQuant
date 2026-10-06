@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CollectionRunConflict, CollectionRunRepository } from "../../src/application/collection-run-repository.js";
+import { CollectionRunConflict, CollectionRunRepository } from "../../src/adapters/postgres-collection-run-repository.js";
 
 type Row = Record<string, any>;
 

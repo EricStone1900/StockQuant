@@ -5,10 +5,10 @@ import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { Pool } from "pg";
+import { isIsolatedPostgresTarget } from "./isolated-postgres-target.mjs";
 
 const databaseUrl = process.env.TRADE_EXECUTION_TEST_DATABASE_URL ?? "postgresql://trade_execution_test@127.0.0.1:5433/trade_execution_test";
-const db = new URL(databaseUrl);
-if (db.pathname !== "/trade_execution_test" || db.username !== "trade_execution_test" || db.hostname !== "127.0.0.1" || db.port !== "5433") throw new Error("readiness HTTP smoke requires the isolated local trade_execution_test database");
+if (!isIsolatedPostgresTarget(databaseUrl, process.env.STOCKQUANT_ISOLATED_PG_CONTAINER)) throw new Error("readiness HTTP smoke requires the dedicated trade_execution_test database or an inspected read-only disposable PostgreSQL test container");
 const pool = new Pool({ connectionString: databaseUrl });
 const token = () => `v24-readiness-${randomUUID()}-${randomUUID()}`;
 const platformToken = token();
@@ -36,6 +36,13 @@ async function countBusinessRows() {
     (SELECT count(*) FROM fake_broker_outbox)::int AS outbox`);
   return result.rows[0];
 }
+async function readPersistedPolicy() {
+  const result = await pool.query(`SELECT policy_id, policy_version, schema_version, status,
+    environment_mode, broker_mode, live_trading_enabled, policy_sha256, policy_json
+    FROM simulation_execution_policies WHERE policy_id='v24-snapshot-paper-policy' AND policy_version='1.0.0'`);
+  assert.equal(result.rowCount, 1, "the simulation policy must be persisted before readiness is served");
+  return result.rows[0];
+}
 let before;
 try {
   await pool.query("SELECT 1");
@@ -46,6 +53,15 @@ try {
     await delay(100);
   }
   assert.equal(ready, true, `service did not become ready: ${output}`);
+  const policyBefore = await readPersistedPolicy();
+  assert.equal(policyBefore.status, "PREPARATION_ONLY");
+  assert.equal(policyBefore.environment_mode, "PAPER");
+  assert.equal(policyBefore.broker_mode, "FAKE");
+  assert.equal(policyBefore.live_trading_enabled, false);
+  assert.equal(policyBefore.policy_json.policyVersion, "1.0.0");
+  await assert.rejects(pool.query("UPDATE simulation_execution_policies SET policy_json='{}'::jsonb WHERE policy_id='v24-snapshot-paper-policy' AND policy_version='1.0.0'"), /SIMULATION_POLICY_VERSION_IS_IMMUTABLE/u);
+  await assert.rejects(pool.query("DELETE FROM simulation_execution_policies WHERE policy_id='v24-snapshot-paper-policy' AND policy_version='1.0.0'"), /SIMULATION_POLICY_VERSION_IS_IMMUTABLE/u);
+  await assert.rejects(pool.query("TRUNCATE simulation_execution_policies"), /SIMULATION_POLICY_VERSION_IS_IMMUTABLE/u);
   before = await countBusinessRows();
   const endpoint = "/internal/v1/v24/paper-readiness";
   const call = (market, serviceId = "platform-api-service", bearer = platformToken) => fetch(`${base}${endpoint}?market=${market}`, { headers: headers(serviceId, bearer) });
@@ -73,7 +89,9 @@ try {
   assert.equal((await fetch(`${base}${endpoint}?market=CN_A`, { method: "POST", headers: headers("platform-api-service", platformToken) })).status, 403);
   const after = await countBusinessRows();
   assert.deepEqual(after, before, "readiness requests must not create orders, fills, events, or outbox entries");
-  console.log(JSON.stringify({ status: "PASS", scope: "read-only readiness HTTP boundary", http: { unauthorized: 403, wrongBearer: 403, forgedIdentity: 403, cn: 200, us: 200, invalidMarket: 400, writeVerb: 403 }, cn: cnBody, us: usBody, businessRowsBefore: before, businessRowsAfter: after }));
+  const policyAfter = await readPersistedPolicy();
+  assert.deepEqual(policyAfter, policyBefore, "readiness must use but never modify the immutable simulation policy");
+  console.log(JSON.stringify({ status: "PASS", scope: "read-only readiness HTTP boundary and immutable persisted simulation policy", policy: { id: policyBefore.policy_id, version: policyBefore.policy_version, sha256: policyBefore.policy_sha256, status: policyBefore.status, environmentMode: policyBefore.environment_mode, brokerMode: policyBefore.broker_mode, liveTradingEnabled: policyBefore.live_trading_enabled, unchangedByReadiness: true }, http: { unauthorized: 403, wrongBearer: 403, forgedIdentity: 403, cn: 200, us: 200, invalidMarket: 400, writeVerb: 403 }, cn: cnBody, us: usBody, businessRowsBefore: before, businessRowsAfter: after }));
 } finally {
   if (service.exitCode === null) { service.kill("SIGTERM"); await new Promise((resolveClose) => service.once("close", resolveClose)); }
   await pool.end();

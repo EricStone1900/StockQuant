@@ -6,8 +6,10 @@ const gate = { schemaVersion: "v3.1-promotion-gate-v1", testRunId, stageStatus: 
 
 describe("V3.1 authoritative gate reader", () => {
   it("sends the independent service identity to the exact Platform run endpoint", async () => {
-    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      expect(String(url)).toBe(`http://127.0.0.1:3000/internal/v1/acceptance/v3/v3.1/gate/${testRunId}`);
       expect(init?.method).toBe("GET");
+      expect(init?.redirect).toBe("error");
       expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${"r".repeat(40)}`);
       expect(new Headers(init?.headers).get("x-stockquant-service-id")).toBe("research-automation-service");
       return Response.json(gate);
@@ -27,5 +29,12 @@ describe("V3.1 authoritative gate reader", () => {
   it("rejects weak credentials and URLs with userinfo", () => {
     expect(() => createV31PromotionGateReader({ platformBaseUrl: "http://user:pass@127.0.0.1:3000", bearerToken: "r".repeat(40) })).toThrow(/base URL/u);
     expect(() => createV31PromotionGateReader({ platformBaseUrl: "http://127.0.0.1:3000", bearerToken: "weak" })).toThrow(/Bearer token/u);
+  });
+
+  it("rejects an invalid run ID before sending an HTTP request", async () => {
+    const fetchImpl = vi.fn();
+    const read = createV31PromotionGateReader({ platformBaseUrl: "http://127.0.0.1:3000", bearerToken: "r".repeat(40), fetchImpl });
+    await expect(read("../other-run")).rejects.toThrow(/testRunId must be a UUID/u);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

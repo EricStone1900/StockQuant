@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-experiment-ledger-settlement-command.schema.json",
+  "title": "V33ExperimentLedgerSettlementCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "expectedRounds"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "expectedRounds": { "type": "integer", "minimum": 1, "maximum": 3 }
+  }
+}

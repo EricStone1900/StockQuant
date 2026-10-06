@@ -20,6 +20,9 @@ from pathlib import Path
 from queue import Empty
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_collection_source_authorization, missing_historical_research_source_authorization
+
 FIELDS = "date,time,code,open,high,low,close,volume,amount"
 DEFAULT_SOURCE = "data/local/baostock-daily-2019-2024-v1/manifest.json"
 DEFAULT_OUTPUT = "data/local/baostock-minute-20x60-v1"
@@ -135,6 +138,9 @@ def validate_rows(code: str, rows: list[list[str]]) -> str | None:
 
 def run() -> dict[str, object]:
     args = parse_args()
+    missing = sorted(set(missing_collection_source_authorization(["baostock"]) + missing_historical_research_source_authorization(["baostock"])))
+    if missing:
+        return {"status": "BLOCKED", "source": "baostock", "blockedBeforeNetwork": True, "beforeOutputWrite": True, "missingAuthorization": missing}
     if args.sample_size < 1:
         raise ValueError("--sample-size must be positive")
     if args.max_attempts < 1 or args.retry_backoff_seconds < 0:
@@ -198,4 +204,4 @@ if __name__ == "__main__":
     except Exception as exc:  # noqa: BLE001  # pragma: no cover - CLI boundary
         result = {"status": "FAIL", "error": repr(exc)}
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if result.get("status") == "COMPLETED" else 1)
+    raise SystemExit(0 if result.get("status") == "COMPLETED" else 2 if result.get("status") == "BLOCKED" else 1)

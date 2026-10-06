@@ -7,12 +7,11 @@ const outputDir = join(schemaRoot, "generated");
 const tsOutput = join(outputDir, "types.ts");
 const pyOutput = join(outputDir, "types.py");
 const serviceTsOutputs = [
-  join(repoRoot, "services", "portfolio-risk-service", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "platform-api-service", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "quant-research-service", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "research-automation-service", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "historical-replay-worker", "src", "contracts", "generated-types.ts"),
-  join(repoRoot, "services", "market-data-service", "src", "contracts", "generated-types.ts")
+  ...[
+    "portfolio-risk-service", "platform-api-service", "quant-research-service",
+    "historical-replay-worker", "market-data-service", "trade-execution-service", "decision-governance-service"
+  ].map((service) => ({ path: join(repoRoot, "services", service, "src", "contracts", "generated-types.ts"), researchOnly: false })),
+  { path: join(repoRoot, "services", "research-automation-service", "src", "contracts", "generated-types.ts"), researchOnly: true }
 ];
 const checkOnly = process.argv.includes("--check");
 
@@ -97,6 +96,12 @@ function pythonScalarType(schema) {
 const headerTs = "// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/**/*.schema.json\n\n";
 const headerPy = "# GENERATED FILE. DO NOT EDIT. Source: packages/contracts/**/*.schema.json\n\n";
 const ts = headerTs + schemas.map(({ schema }) => `export type ${typeName(schema.title)} = ${tsType(schema)}\n`).join("\n");
+const researchOnlySchemaNames = new Set([
+  "v3.3-runner-checkpoint-command", "v3.3-runner-checkpoint-result", "v3.3-runner-checkpoint-read-result"
+]);
+const tsForService = (researchOnly) => headerTs + schemas
+  .filter(({ file }) => researchOnly || !researchOnlySchemaNames.has(basename(file, ".schema.json")))
+  .map(({ schema }) => `export type ${typeName(schema.title)} = ${tsType(schema)}\n`).join("\n");
 const py = headerPy + "from typing import Literal, NotRequired, Required, TypedDict\n\n" + schemas.map(({ schema }) => {
   const name = typeName(schema.title);
   const required = new Set(schema.required ?? []);
@@ -116,5 +121,5 @@ async function ensure(path, expected) {
 
 await ensure(tsOutput, ts);
 await ensure(pyOutput, py);
-for (const output of serviceTsOutputs) await ensure(output, ts);
-console.log(`Contract types ${checkOnly ? "checked" : "generated"}: ${schemas.length} schemas -> ${relative(repoRoot, tsOutput)}, ${relative(repoRoot, pyOutput)}, ${serviceTsOutputs.map((output) => relative(repoRoot, output)).join(", ")}`);
+for (const output of serviceTsOutputs) await ensure(output.path, tsForService(output.researchOnly));
+console.log(`Contract types ${checkOnly ? "checked" : "generated"}: ${schemas.length} schemas -> ${relative(repoRoot, tsOutput)}, ${relative(repoRoot, pyOutput)}, ${serviceTsOutputs.map(({ path }) => relative(repoRoot, path)).join(", ")}`);

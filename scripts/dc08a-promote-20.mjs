@@ -36,7 +36,16 @@ export function evaluatePromotion({ schedules, reports, config }) {
 
 export function verifyPromotedRuntime(ready, config) {
   const ids = Array.isArray(ready?.collectionSecurityIds) ? ready.collectionSecurityIds : [];
-  return ready?.status === "ready" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
+  return ready?.status === "ready" && ready.collectionSourceAuthorization === "AUTHORIZED" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === config.securityIds.length && ids.every((id, index) => id === config.securityIds[index]);
+}
+
+function collectionSourceUseConfigured(env) {
+  let local = {};
+  try { local = Object.fromEntries(readFileSync(".env.local", "utf8").split(/\r?\n/).filter((line) => /^[A-Z_]+=/.test(line)).map((line) => { const index = line.indexOf("="); return [line.slice(0, index), line.slice(index + 1)]; })); } catch { /* optional local env */ }
+  const config = { ...local, ...env };
+  const sources = (config.STOCKQUANT_COLLECTION_SOURCES ?? "sina,baostock").split(",").map((id) => id.trim()).filter(Boolean);
+  const authorized = new Set((config.STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean));
+  return config.STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED === "true" && Boolean(config.STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF?.trim()) && sources.length > 0 && sources.every((id) => authorized.has(id));
 }
 
 export async function persistRuntimeConfig({ env = process.env, subscriptionId, securityIds, file = ".env.local", writeFileFn = writeFile, renameFn = rename }) {
@@ -67,7 +76,7 @@ export function rollbackSql(shortId, targetId) {
 
 function verifyRuntime(ready, securityIds) {
   const ids = Array.isArray(ready?.collectionSecurityIds) ? ready.collectionSecurityIds : [];
-  return ready?.status === "ready" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === securityIds.length && ids.every((id, index) => id === securityIds[index]);
+  return ready?.status === "ready" && ready.collectionSourceAuthorization === "AUTHORIZED" && ready.collectionPersistence === "POSTGRES" && ready.collectionSchedulerWorker === "ENABLED" && ready.collectionExecutor === "ENABLED" && ids.length === securityIds.length && ids.every((id, index) => id === securityIds[index]);
 }
 
 export async function request(baseUrl, path, options = {}) {
@@ -109,6 +118,7 @@ async function loadReport(outputDir, date) {
 }
 
 export async function promote({ env = process.env, baseUrl = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", outputDir = env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", checkOnly = false, requestFn = request, command = run, persistConfigFn = persistRuntimeConfig } = {}) {
+  if (!collectionSourceUseConfigured(env)) return { status: "BLOCKED", reasons: ["external minute-source use is not authorized; no subscription promotion or provider call was performed"], exitCode: 2 };
   const config = promotionConfig(env);
   const schedules = [];
   for (const id of [config.shortId, config.targetId]) {

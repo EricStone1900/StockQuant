@@ -1,0 +1,18 @@
+# W7/V3.3 structured TestRun evidence export audit (2026-10-06)
+
+The isolated Platform/Research Automation HTTP smoke completed with exit code 0 against two temporary PostgreSQL databases and an isolated Runner Host container. Before cleanup, the smoke used the actual owner-scoped evidence exporter for one `normal`, one `recovery`, and one `rejection` TestRun. The full `pnpm verify:stage -- --stage V3.3 --suite code` rerun also exited 0 and repeated the three exports; its transcript is retained below. Across both runs, six exact TestRun bundles are independently checked. External Provider calls were zero and active services were not connected.
+
+The normal and recovery bundles contain the two published output Artifact bytes; the rejection bundle contains no attachments and preserves the expected HTTP 422 budget rejection plus zero Experiment, model-call, and Runner-job side effects. Each bundle is non-overwriting and has a SHA-256 manifest. The independent V3 acceptance TestRun audit checked all six exact UUIDs, bundle/Run identity, manifest entries, Artifact bytes and their independent SHA-256, frozen Fixture metrics, normal settled-budget ledger, recovery checkpoint canonical hashes and resume metrics, and rejection outcome. All six associations passed. The version gate remains `INCOMPLETE` because all V3 stages remain `NOT_RUN`; human acceptance remains `NOT_RUN`.
+
+The smoke exposed an identity-model defect: a Runner output `artifactId` includes execution/fencing identity and is intentionally distinct from the Artifact content `sha256`. The exporter now validates these fields separately, while Platform authorizes the read only through the exact owner-scoped Run reference and independently checks content SHA. The rejection workflow now explicitly persists `humanAcceptance=NOT_RUN`.
+
+Exact exports:
+
+- Normal: `c079cc1c-c218-4a8d-83e5-18c82890d0fa` — [evidence](../local/V3.3/c079cc1c-c218-4a8d-83e5-18c82890d0fa/evidence.json)
+- Recovery: `03f284b1-8edd-4e3c-b37c-2e7281f4468f` — [evidence](../local/V3.3/03f284b1-8edd-4e3c-b37c-2e7281f4468f/evidence.json)
+- Rejection: `e29c2b81-3d2f-4fe3-bf3f-f8f926cf73ee` — [evidence](../local/V3.3/e29c2b81-3d2f-4fe3-bf3f-f8f926cf73ee/evidence.json)
+- Full-suite rerun normal: `7d4442f9-e457-4c38-ab02-c0bb847ad929` — [evidence](../local/V3.3/7d4442f9-e457-4c38-ab02-c0bb847ad929/evidence.json)
+- Full-suite rerun recovery: `bdab4f8a-6ec1-46c5-b85d-2f2c1b9d0188` — [evidence](../local/V3.3/bdab4f8a-6ec1-46c5-b85d-2f2c1b9d0188/evidence.json)
+- Full-suite rerun rejection: `07d04afa-3061-4378-a8e8-a8d9511343e5` — [evidence](../local/V3.3/07d04afa-3061-4378-a8e8-a8d9511343e5/evidence.json)
+
+The machine audit is [here](2026-10-06-w7-v33-structured-run-evidence-export.json). The formal V3 gate transcript is [here](2026-10-06-w9-v33-structured-export-gate.log); it records TestRun evidence `PASS` for 6/6 UUIDs while correctly leaving the version `INCOMPLETE`/exit 2. The V3 evidence-reference gate is [here](2026-10-06-w9-v33-structured-export-evidence-gate.log) and passed with 377 references, 55 manifests, 131 active hash entries, and 13 historical manifests skipped. The complete V3.3 code-suite transcript is [here](2026-10-06-w7-v33-structured-export-full-code-suite.log). The suite passed Research 218/218 unit and 32/32 PostgreSQL integration tests, Platform 198/198 unit and 8/8 PostgreSQL integration tests, the 66,100-row isolated budget pagination probe, Runner Host recovery, contract checks, and Web E2E 5/5. Focused exporter and independent-verifier tests passed 17/17. The source and six exported bundles are recorded in [the SHA-256 manifest](2026-10-06-w7-v33-structured-run-evidence-export.sha256).

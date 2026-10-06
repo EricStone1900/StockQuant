@@ -7,7 +7,8 @@ import unittest
 import urllib.parse
 from unittest.mock import patch
 
-from market_data_adapter.cli import source_ids_from_request, wire_bar
+from market_data_adapter.cli import ensure_source_use_authorized, source_ids_from_request, wire_bar
+from market_data_adapter.authorization import missing_historical_research_source_authorization
 from market_data_adapter.failover import NormalizedBar, SourceError
 from market_data_adapter.providers import EastmoneyMinuteClient, BaoStockMinuteClient, TdxMinuteClient, _baostock_child, _normalize_baostock_result, _validate_baostock_results, baostock_source_error, baostock_symbol, eastmoney_symbol, normalize_baostock, normalize_eastmoney, normalize_sina, normalize_tdx, sina_symbol, tdx_symbol, SinaMinuteClient
 
@@ -35,6 +36,34 @@ class Response:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_adapter_source_authorization_fails_closed_before_provider_construction(self):
+        with self.assertRaises(SourceError) as failure:
+            ensure_source_use_authorized(["sina", "baostock"], {})
+        self.assertEqual(failure.exception.code, "SOURCE_NOT_AUTHORIZED")
+        self.assertFalse(failure.exception.retryable)
+
+    def test_adapter_source_authorization_is_bound_to_exact_allowed_sources(self):
+        env = {
+            "STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED": "true",
+            "STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF": "OD-008-approved-use",
+            "STOCKQUANT_COLLECTION_DATA_VERSION": "cn-5m-raw-v1",
+            "STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS": "sina,baostock",
+        }
+        ensure_source_use_authorized(["sina", "baostock"], env)
+        with self.assertRaises(SourceError) as failure:
+            ensure_source_use_authorized(["sina", "tdx"], env)
+        self.assertEqual(failure.exception.code, "SOURCE_NOT_AUTHORIZED")
+
+    def test_historical_research_authorization_is_independent_and_source_scoped(self):
+        env = {
+            "STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED": "true",
+            "STOCKQUANT_MARKET_RESEARCH_SOURCE_AUTHORIZATION_REF": "OD-008-historical-use",
+            "STOCKQUANT_MARKET_RESEARCH_DATA_VERSION": "baostock-daily-v1",
+            "STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS": "baostock",
+        }
+        self.assertEqual(missing_historical_research_source_authorization(["baostock"], env), [])
+        self.assertIn("STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS", missing_historical_research_source_authorization(["sina"], env))
+
     def test_baostock_login_diagnostics_do_not_pollute_json_stdout(self):
         class Output:
             response = None
@@ -176,6 +205,33 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(bars[0].bar_start, "2026-09-11T09:30:00+08:00")
         self.assertEqual(bars[0].bar_end, "2026-09-11T09:35:00+08:00")
 
+    def test_tdx_records_raw_timestamps_around_lunch_boundary_for_diagnostics(self):
+        class Market:
+            SH = "SH"
+
+        class Period:
+            MIN_5 = "MIN_5"
+
+        class Client:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def get_stock_kline(self, market, code, period, **kwargs):
+                return [
+                    {"datetime": "2026-09-29 11:30", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1},
+                    {"datetime": "2026-09-30 11:25", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1},
+                    {"datetime": "2026-09-30 11:30", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1},
+                    {"datetime": "2026-09-30 13:00", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1},
+                ]
+
+        with patch.dict(sys.modules, {"easy_tdx": types.SimpleNamespace(Market=Market, Period=Period)}):
+            client = TdxMinuteClient(client_factory=Client, minimum_interval_seconds=0)
+            client.fetch(["600000.SH"], "2026-09-30", "2026-09-30", 3)
+        self.assertEqual(client.last_timestamp_samples, [
+            {"securityId": "600000.SH", "timestamp": "2026-09-30 11:25"},
+            {"securityId": "600000.SH", "timestamp": "2026-09-30 11:30"},
+            {"securityId": "600000.SH", "timestamp": "2026-09-30 13:00"},
+        ])
+
     def test_tdx_paginates_security_bars_until_requested_window(self):
         class Market:
             SH = "SH"
@@ -201,6 +257,31 @@ class ProviderTests(unittest.TestCase):
             bars = TdxMinuteClient(client_factory=Client, minimum_interval_seconds=0).fetch(["600000.SH"], "2026-09-11", "2026-09-12", 3)
         self.assertEqual(calls, [0, 800, 1600])
         self.assertEqual(len(bars), 2)
+
+    def test_tdx_mac_client_uses_start_parameter_for_pagination(self):
+        class Market:
+            SH = "SH"
+
+        class Period:
+            MIN_5 = "MIN_5"
+
+        calls = []
+        class MacClient:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def get_stock_kline(self, market, code, period, start=0, count=800, times=1, adjust="qfq"):
+                calls.append(start)
+                day = "2026-09-12" if start == 0 else "2026-09-11"
+                if start > 800:
+                    return []
+                return [{"datetime": f"{day} 09:35", "open": 10, "high": 11, "low": 9, "close": 10, "vol": 1}]
+
+        with patch.dict(sys.modules, {"easy_tdx": types.SimpleNamespace(Market=Market, Period=Period)}):
+            bars = TdxMinuteClient(client_factory=MacClient, minimum_interval_seconds=0).fetch(
+                ["600000.SH"], "2026-09-11", "2026-09-12", 3
+            )
+        self.assertEqual(calls, [0, 800, 1600])
+        self.assertEqual({bar.bar_end[:10] for bar in bars}, {"2026-09-11", "2026-09-12"})
 
     def test_rejects_baostock_timestamp_with_mismatched_embedded_date(self):
         with self.assertRaises(SourceError) as failure:

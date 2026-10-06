@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-rejection-verify-result.schema.json",
+  "title": "V33RejectionVerifyResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "status", "idempotent", "assertion", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-rejection-verify-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "RUNNING" },
+    "idempotent": { "type": "boolean" },
+    "assertion": { "type": "object" },
+    "evidence": { "type": "object" }
+  }
+}

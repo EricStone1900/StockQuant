@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "o1-o2-runtime-readonly-v1",
+  "capturedAt": "2026-10-03T08:40:41.406Z",
+  "commands": {
+    "health": {"command": "pnpm dc08a:health-report", "exitCode": 1, "scope": "read-only local Market Data GET health/scheduler/source/quality/calendar"},
+    "enabledSubscriptions": {"command": "pnpm dc08a:active-subscription -- --field enabled-count", "exitCode": 0, "value": 0},
+    "observationSummary": {"command": "pnpm dc08a:observation-summary", "exitCode": 2, "status": "WAITING", "observedDays": 8, "targetDays": 20, "remainingDays": 12, "latestEligibleDate": "2026-09-30"}
+  },
+  "runtime": {
+    "marketCalendar": "CLOSED",
+    "readiness": "ready",
+    "scheduler": "ENABLED",
+    "executor": "ENABLED",
+    "lastSuccessfulTickAt": "2026-10-03T08:40:23.662Z",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "openGaps": 0,
+    "pendingOutbox": 0,
+    "health": "UNHEALTHY",
+    "healthReason": "nextTriggerRecorded=false"
+  },
+  "authorization": {"tradeMode": "NO_TRADE", "marketSourceAuthorization": "NONE", "providerRequests": 0, "collectionTriggered": false, "configurationChanged": false},
+  "interpretation": "No observation day was added. Readiness reports scheduler/executor ENABLED while the independent enabled-schedule count is zero; preserve this discrepancy for an authorized maintenance/release review."
+}

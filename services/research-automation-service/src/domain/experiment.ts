@@ -43,14 +43,15 @@ export function validateRequest(input: unknown, maxBudgetCents = MAX_EXPERIMENT_
   if (!Number.isInteger(body.rounds) || Number(body.rounds) < 1 || Number(body.rounds) > 3) throw new Error("rounds must be an integer from 1 to 3");
   if (!Number.isInteger(body.budgetCents) || Number(body.budgetCents) < 1) throw new Error("budgetCents must be a positive integer");
   if (Number(body.budgetCents) > maxBudgetCents) throw new Error(`budgetCents must not exceed ${maxBudgetCents} USD cents`);
+  if (Number(body.budgetCents) < Number(body.rounds)) throw new Error("budgetCents must provide at least one cent to every round");
   return { ...(body.testRunId ? { testRunId: body.testRunId as string } : {}), fixtureId, modelProfile, rounds: Number(body.rounds), budgetCurrency: "USD", budgetCents: Number(body.budgetCents), environmentMode: "RESEARCH", brokerMode: "FAKE", idempotencyKey };
 }
 
-export function createExperiment(request: ExperimentRequest, now = new Date(), experimentId = crypto.randomUUID()): Experiment {
+export function createExperiment(request: ExperimentRequest, now: Date, experimentId = crypto.randomUUID()): Experiment {
   return { ...request, experimentId, status: "PENDING_PREREQUISITES", reason: "real model credentials and the isolated Runner are not configured", createdAt: now.toISOString(), cancelledAt: null };
 }
 
-export function cancelExperiment(experiment: Experiment, now = new Date()): Experiment {
+export function cancelExperiment(experiment: Experiment, now: Date): Experiment {
   if (experiment.status === "CANCELLED") return experiment;
   return { ...experiment, status: "CANCELLED", cancelledAt: now.toISOString() };
 }

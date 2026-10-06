@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+test("V3.2 readiness page persists and rereads the same WAITING TestRun without business side effects", async ({ page }) => {
+  const id = "123e4567-e89b-42d3-a456-426614174013";
+  let stored: Record<string, unknown> | null = null;
+  await page.route("**/api/v1/acceptance/v3/v3.2/runs", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({ scenarioId: "normal", seed: 20260907 });
+    stored = { testRunId: id, stageId: "V3.2", scenarioId: "normal", scenarioVersion: "v3.2-readiness-v1", status: "WAITING", seed: 20260907, assertions: [{ id: "V3.2_BUSINESS_WORKFLOW", status: "NOT_RUN" }], evidence: { readiness: "WAITING", sourceMode: "READINESS_ONLY", candidateExecution: "NOT_PERFORMED", registryMutation: "NOT_PERFORMED", paperCalls: 0, businessValidation: "NOT_RUN", humanAcceptance: "NOT_RUN" } };
+    await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ accepted: true, ...stored }) });
+  });
+  await page.route(`**/api/v1/acceptance/v3/v3.2/runs/${id}`, async (route) => {
+    expect(route.request().method()).toBe("GET");
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(stored) });
+  });
+  await page.goto("/acceptance/v3/v3.2");
+  await page.getByTestId("v32-readiness-normal").click();
+  await expect(page.getByTestId("v32-readiness-result")).toContainText(id);
+  await expect(page.getByTestId("v32-readiness-result")).toContainText("WAITING");
+  await expect(page.getByTestId("v32-readiness-result")).toContainText("READINESS_ONLY");
+  await expect(page.getByTestId("v32-readiness-result")).toContainText("NOT_PERFORMED");
+});
+
 test("V3.2 page reads immutable evidence and keeps missing validation/report state explicit", async ({ page }) => {
   const id = "123e4567-e89b-42d3-a456-426614174010";
   await page.route("**/api/v1/session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ownerId: "acceptance-owner-1" }) }));

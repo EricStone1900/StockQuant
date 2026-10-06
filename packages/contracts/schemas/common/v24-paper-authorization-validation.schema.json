@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-authorization-validation.schema.json",
+  "title": "V24PaperAuthorizationValidation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "accountId", "command"],
+  "properties": {
+    "authorizationId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "command": { "$ref": "v24-paper-execution-grant.schema.json" }
+  }
+}

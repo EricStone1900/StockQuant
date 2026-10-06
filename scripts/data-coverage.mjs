@@ -75,8 +75,9 @@ async function calendarDays(dates, calendarUrl) {
   }));
 }
 
-export function summarizeCoverage({ expectedKeys, rows, statuses, openGaps, pendingOutbox, calendarDays: days }) {
+export function summarizeCoverage({ expectedKeys, validKeys = expectedKeys, rows, statuses, openGaps, pendingOutbox, calendarDays: days }) {
   const expected = new Set(expectedKeys);
+  const valid = new Set(validKeys);
   const counts = new Map();
   for (const row of rows) {
     const parsed = new Date(row.barStart);
@@ -86,7 +87,10 @@ export function summarizeCoverage({ expectedKeys, rows, statuses, openGaps, pend
   }
   const missingKeys = [...expected].filter((key) => !counts.has(key));
   const duplicateKeys = [...counts].filter(([, count]) => count > 1).map(([key]) => key);
-  const unexpectedKeys = [...counts.keys()].filter((key) => !expected.has(key));
+  // A bar can arrive before its collection-completion deadline.  It is valid
+  // evidence for the current session, even though it is not yet required for
+  // coverage.  Only rows outside the trading calendar are unexpected.
+  const unexpectedKeys = [...counts.keys()].filter((key) => !valid.has(key));
   const unknownCalendar = days.filter((day) => day.status === "UNKNOWN").map((day) => day.date);
   const status = unknownCalendar.length ? "WAITING_DEPENDENCY" : missingKeys.length || duplicateKeys.length || unexpectedKeys.length || openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : expected.size > 0 ? "PASS" : "NOT_RUN";
   return { status, expectedBars: expected.size, actualRows: rows.length, actualUniqueBars: counts.size, missingBars: missingKeys.length, duplicateBars: duplicateKeys.length, unexpectedBars: unexpectedKeys.length, missingKeys, duplicateKeys, unexpectedKeys, statuses, openGaps, pendingOutbox, unknownCalendar };
@@ -120,7 +124,16 @@ export async function persistGaps(baseUrl, report) {
   return { opened: result.opened ?? gaps.length, closed: result.closed ?? 0, open: Array.isArray(result.open) ? result.open.length : undefined };
 }
 
-export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", asOf = new Date(), graceSeconds = Number(process.env.DC08A_COVERAGE_GRACE_SECONDS ?? 120), recordGaps = false } = {}) {
+export function collectionCompletionGraceSeconds(env = process.env) {
+  // Publish delay (120s) + scheduler tick (60s) + executor tick (60s) + a
+  // bounded fetch/persist allowance (60s).  A deployment may override this
+  // with one explicit value, but must not silently use the publish delay as a
+  // completion deadline.
+  const configured = Number(env.DC08A_COVERAGE_GRACE_SECONDS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 300;
+}
+
+export async function coverage({ subscriptionId, fromDate, toDate, securityIds = defaultSecurityIds, outputDir = "evidence/dc08a", calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002", asOf = new Date(), graceSeconds = collectionCompletionGraceSeconds(), recordGaps = false } = {}) {
   const dates = datesBetween(fromDate, toDate);
   const days = await calendarDays(dates, calendarUrl);
   const escaped = sqlValue(subscriptionId);
@@ -129,7 +142,9 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
   const openGaps = Number(query(`SELECT count(*) FROM market_data_gap_records WHERE subscription_id='${escaped}' AND status='OPEN' AND (bar_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
   const pendingOutbox = Number(query(`SELECT count(*) FROM market_data_collection_outbox o JOIN market_data_collection_runs r ON r.run_id=o.run_id WHERE r.subscription_id='${escaped}' AND r.status <> 'CANCELLED' AND o.sent_at IS NULL AND (r.window_start AT TIME ZONE 'Asia/Shanghai')::date BETWEEN '${sqlValue(fromDate)}' AND '${sqlValue(toDate)}'`).trim() || "0");
   const effectiveAsOf = new Date(asOf.getTime() - Math.max(0, graceSeconds) * 1000);
-  const report = { schemaVersion: "dc08a-coverage-v1", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), effectiveAsOf: effectiveAsOf.toISOString(), graceSeconds, subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys: buildExpectedKeys(securityIds, days, effectiveAsOf), rows, statuses, openGaps, pendingOutbox, calendarDays: days }) };
+  const expectedKeys = buildExpectedKeys(securityIds, days, effectiveAsOf);
+  const validKeys = buildExpectedKeys(securityIds, days);
+  const report = { schemaVersion: "dc08a-coverage-v2", capturedAt: new Date().toISOString(), asOf: asOf.toISOString(), effectiveAsOf: effectiveAsOf.toISOString(), graceSeconds, subscriptionId, fromDate, toDate, securityIds, calendarDays: days, ...summarizeCoverage({ expectedKeys, validKeys, rows, statuses, openGaps, pendingOutbox, calendarDays: days }), notYetRequiredBars: Math.max(0, validKeys.length - expectedKeys.length) };
   if (recordGaps) {
     report.gapReconciliation = await persistGaps(calendarUrl, report);
     if (report.gapReconciliation.open !== undefined) {

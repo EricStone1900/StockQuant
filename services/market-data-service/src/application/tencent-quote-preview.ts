@@ -4,7 +4,7 @@ export type TencentQuotePreview = {
   name: string | null;
   observedAt: string | null;
   ingestedAt: string;
-  status: "LIVE_SOURCE" | "MISSING_TIMESTAMP" | "MALFORMED";
+  status: "LIVE_SOURCE" | "MISSING_TIMESTAMP" | "MALFORMED" | "SOURCE_ERROR";
 };
 
 export function decodeTencentQuote(bytes: ArrayBuffer): string {

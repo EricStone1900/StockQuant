@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-scenario-experiment-result.schema.json",
+  "title": "V33ScenarioExperimentResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "status", "idempotent", "experiment"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-scenario-experiment-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "const": "WAITING" },
+    "idempotent": { "type": "boolean" },
+    "experiment": { "$ref": "https://stockquant.local/schemas/research/v3.1-experiment-result.schema.json" }
+  }
+}

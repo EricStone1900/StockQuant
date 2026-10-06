@@ -1,0 +1,118 @@
+{
+  "status": "PASS",
+  "target": "linux/amd64 (Mac M1 emulation)",
+  "checks": 10,
+  "results": [
+    {
+      "service": "platform-api-service",
+      "imageId": "sha256:8f6082ca55341c3a2323619374714864f95f63d731fc7bba259f898092ee1fb0",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/platform-api-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "market-data-service",
+      "imageId": "sha256:31bdae1deae8a5f708b45094a99860a08f0f123e099eb52c75757f90c837e1bd",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "persistentVolumeWritable": true,
+        "rootFilesystemReadOnly": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "portfolio-risk-service",
+      "imageId": "sha256:4779f922c6b525b405e2df984bf5def49ddd69a7555825c95b8b53433924929c",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/portfolio-risk-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "trade-execution-service",
+      "imageId": "sha256:ee6fb455b13c02832c6670b158c20d42069d5ae94900a895b554610d83b3ee59",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/trade-execution-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "decision-governance-service",
+      "imageId": "sha256:2bafb3ad4e2312a1bab29f6331acdce4b67317773f5f0fcfeaab670877d322a0",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/decision-governance-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "historical-replay-worker",
+      "imageId": "sha256:46655344e560e9cdeb7f7c0cc791d03577e15f5be960c442e11da998d19a4a0e",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/historical-replay-worker/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "quant-research-service",
+      "imageId": "sha256:5621fa54bb06ecce72e9476020293a9bae43316fd221fb9ac14410c6164e9f20",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/quant-research-service/dist/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "research-automation-service",
+      "imageId": "sha256:4b43b1954c5ab190ebabb678c4c785aa6c0aa26d38ab1ed69e58f279eff11dbb",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "services/research-automation-service/dist/bootstrap/main.js",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "web",
+      "imageId": "sha256:3844ff9d0672bb6fd1817298ead73ce753a88ffcbe9642226a736cc7b383a3ff",
+      "user": "node",
+      "result": {
+        "uid": 1000,
+        "bundle": "apps/web/dist/index.html",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    },
+    {
+      "service": "qlib-worker",
+      "imageId": "sha256:0713abe4f602ffd3eea797e73c5a52c29e1a50dee417a38b743e03348cab00c1",
+      "user": "10001:10001",
+      "result": {
+        "uid": 10001,
+        "qlib": "0.9.6",
+        "lightgbm": "4.7.0",
+        "readOnlyRoot": true,
+        "network": "none"
+      }
+    }
+  ]
+}

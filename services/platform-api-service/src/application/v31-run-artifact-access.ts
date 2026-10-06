@@ -4,7 +4,7 @@ export type V31RunArtifactRef = {
   kind: string;
   namespace: string;
   sha256: string;
-  status: string;
+  status: "PENDING" | "PUBLISHED" | "FAILED" | "RETAINED" | "EXPIRED";
   sourceRef: string;
 };
 
@@ -16,7 +16,7 @@ function record(value: unknown): JsonRecord | null {
 
 function artifactRef(value: unknown): V31RunArtifactRef | null {
   const ref = record(value);
-  if (!ref || ref.schemaVersion !== "v3.1-artifact-ref-v1" || typeof ref.artifactId !== "string" || typeof ref.kind !== "string" || typeof ref.namespace !== "string" || typeof ref.sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(ref.sha256) || typeof ref.status !== "string" || typeof ref.sourceRef !== "string") return null;
+  if (!ref || ref.schemaVersion !== "v3.1-artifact-ref-v1" || typeof ref.artifactId !== "string" || typeof ref.kind !== "string" || typeof ref.namespace !== "string" || typeof ref.sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(ref.sha256) || !["PENDING", "PUBLISHED", "FAILED", "RETAINED", "EXPIRED"].includes(ref.status as string) || typeof ref.sourceRef !== "string") return null;
   return ref as V31RunArtifactRef;
 }
 

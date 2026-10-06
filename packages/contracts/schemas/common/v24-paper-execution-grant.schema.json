@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-paper-execution-grant.schema.json",
+  "title": "V24PaperExecutionGrant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenarioId",
+    "scenarioVersion",
+    "testRunId",
+    "ownerId",
+    "namespace",
+    "accountId",
+    "clockNow",
+    "dataMode",
+    "environmentMode",
+    "brokerMode",
+    "liveTradingEnabled",
+    "market",
+    "currency",
+    "policy",
+    "mandate",
+    "signal",
+    "order",
+    "snapshot",
+    "fee"
+  ],
+  "properties": {
+    "scenarioId": {
+      "const": "v24-isolated-snapshot-paper-normal"
+    },
+    "scenarioVersion": {
+      "const": "2.0.0"
+    },
+    "testRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "ownerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "namespace": {
+      "type": "string",
+      "pattern": "^v24-paper-v2-.*$"
+    },
+    "accountId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "clockNow": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dataMode": {
+      "const": "FIXTURE"
+    },
+    "environmentMode": {
+      "const": "PAPER"
+    },
+    "brokerMode": {
+      "const": "FAKE"
+    },
+    "liveTradingEnabled": {
+      "const": false
+    },
+    "market": {
+      "const": "CN_A"
+    },
+    "currency": {
+      "const": "CNY"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policyId",
+        "policyVersion",
+        "riskPolicyVersion",
+        "feePolicyVersion",
+        "maxDeviationBps",
+        "freshnessLimitSeconds",
+        "executionWindowStart",
+        "executionWindowEnd"
+      ],
+      "properties": {
+        "policyId": {
+          "const": "v24-isolated-fixture-paper-policy"
+        },
+        "policyVersion": {
+          "const": "2.0.0"
+        },
+        "riskPolicyVersion": {
+          "const": "fixture-risk-v1"
+        },
+        "feePolicyVersion": {
+          "const": "fixture-fee-v1"
+        },
+        "maxDeviationBps": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "freshnessLimitSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1800
+        },
+        "executionWindowStart": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "executionWindowEnd": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "mandate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandateId",
+        "mandateVersion",
+        "strategyVersion",
+        "securityScope",
+        "maxOrderNotional",
+        "maxGrossExposure",
+        "maxDailyTurnover",
+        "approvalEvidenceRef"
+      ],
+      "properties": {
+        "mandateId": {
+          "const": "v24-isolated-fixture-paper-mandate"
+        },
+        "mandateVersion": {
+          "const": "2.0.0"
+        },
+        "strategyVersion": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "securityScope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "maxOrderNotional": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+        },
+        "maxGrossExposure": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+        },
+        "maxDailyTurnover": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+        },
+        "approvalEvidenceRef": {
+          "type": "string",
+          "const": "fixture-approval:v24-isolated-paper-v2"
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signalId",
+        "asOf",
+        "action",
+        "quantity",
+        "referencePrice"
+      ],
+      "properties": {
+        "signalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "action": {
+          "const": "BUY"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "referencePrice": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+        }
+      }
+    },
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientOrderId",
+        "security",
+        "acceptedAt",
+        "requestedQuantity"
+      ],
+      "properties": {
+        "clientOrderId": {
+          "type": "string",
+          "pattern": "^v24-fixture-v2-.*$"
+        },
+        "security": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestedQuantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshotId",
+        "security",
+        "market",
+        "sourceMode",
+        "status",
+        "observedAt",
+        "ingestedAt",
+        "price"
+      ],
+      "properties": {
+        "snapshotId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "security": {
+          "type": "string",
+          "minLength": 1
+        },
+        "market": {
+          "const": "CN_A"
+        },
+        "sourceMode": {
+          "const": "FIXTURE"
+        },
+        "status": {
+          "const": "READY"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "price": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+        }
+      }
+    },
+    "fee": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+    }
+  }
+}

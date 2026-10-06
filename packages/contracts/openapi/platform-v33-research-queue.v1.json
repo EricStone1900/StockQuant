@@ -10,6 +10,65 @@
     }
   ],
   "paths": {
+    "/v1/runner/budgets/test-run/limit": {
+      "post": {
+        "operationId": "configureV33TestRunBudgetLimit",
+        "summary": "Bind one immutable budget cap to an exact V3.3 TestRun before creating experiments",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional identity consistency check; Bearer establishes Platform identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-test-run-budget-limit-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact TestRun cap is durably configured; replay with the same value is idempotent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-test-run-budget-limit-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Only Platform API may configure a TestRun cap"
+          },
+          "409": {
+            "description": "The cap conflicts with an existing binding or existing budget commitments"
+          },
+          "422": {
+            "description": "Invalid TestRun UUID, cap, or request properties"
+          },
+          "503": {
+            "description": "Persistent PostgreSQL budget storage is required"
+          }
+        }
+      }
+    },
     "/v1/experiments": {
       "post": {
         "operationId": "createV31Experiment",
@@ -501,6 +560,160 @@
         }
       }
     },
+    "/v1/runner/budgets/test-run": {
+      "get": {
+        "operationId": "readCompleteTestRunBudgetSummary",
+        "summary": "Read deduplicated budget totals and paged experiment ledger rows for one TestRun",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Opaque cursor for keyset pagination; mutually exclusive with nonzero offset."
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional identity consistency check; Bearer establishes identity."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deduplicated budget rows with keyset pagination; exact TestRun totals are computed on the first page and cursor pages return totals=null to avoid rescanning the full run. stageBudgetControl identifies whether TestRun and per-round caps are enforced; this is not provider invoice reconciliation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-test-run-budget-summary.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "422": {
+            "description": "Invalid TestRun identifier or pagination"
+          },
+          "503": {
+            "description": "PostgreSQL budget persistence is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experimentId}/budget/settle-from-model-calls": {
+      "post": {
+        "operationId": "settleV31ExperimentBudgetFromModelCalls",
+        "summary": "Settle an Experiment only from exactly one completed model-call ledger row per allocated round",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experimentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional identity consistency check; Bearer establishes identity."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-experiment-ledger-settlement-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Derived immutable settlement from the PostgreSQL model-call ledger; no caller-supplied amount or provider invoice claim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-experiment-ledger-settlement-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Only Platform API may settle an Experiment from the model-call ledger"
+          },
+          "409": {
+            "description": "Experiment scope, round ledger, or settlement state is incomplete or inconsistent"
+          },
+          "422": {
+            "description": "Invalid Experiment UUID or TestRun settlement command"
+          },
+          "503": {
+            "description": "PostgreSQL budget persistence is unavailable"
+          }
+        }
+      }
+    },
     "/v1/runner/budgets": {
       "get": {
         "operationId": "readRunnerBudgetForTestRun",
@@ -768,6 +981,188 @@
         }
       }
     },
+    "/v1/model-gateway/fixture/openai/v1/chat/completions": {
+      "post": {
+        "operationId": "callV31ModelGatewayOpenAIChatFixture",
+        "x-client-ignore": true,
+        "x-timeout-ms": 10000,
+        "summary": "Test-only OpenAI-compatible deterministic chat fixture; never contacts an external model provider",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-experiment-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-model-run-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "x-stockquant-reserved-cents",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,3}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-openai-chat-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenAI-compatible deterministic fixture chat response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-openai-chat-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Fixture gateway is disabled outside explicit test mode"
+          },
+          "409": {
+            "description": "modelRunId already dispatched; no second provider call is made"
+          },
+          "422": {
+            "description": "Invalid fixture request or budget binding"
+          },
+          "503": {
+            "description": "Fixture gateway is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/model-gateway/fixture/openai/v1/embeddings": {
+      "post": {
+        "operationId": "callV31ModelGatewayOpenAIEmbeddingFixture",
+        "x-client-ignore": true,
+        "x-timeout-ms": 10000,
+        "summary": "Test-only OpenAI-compatible deterministic embedding fixture; never contacts an external model provider",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "x-stockquant-experiment-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "x-stockquant-model-run-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "x-stockquant-reserved-cents",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,3}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-openai-embedding-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenAI-compatible deterministic Fixture embedding response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.1-model-gateway-openai-embedding-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer identity required"
+          },
+          "403": {
+            "description": "Caller identity or route scope is not allowed"
+          },
+          "404": {
+            "description": "Fixture gateway is disabled outside explicit test mode"
+          },
+          "409": {
+            "description": "modelRunId already dispatched; no second provider call is made"
+          },
+          "422": {
+            "description": "Invalid fixture request or budget binding"
+          },
+          "503": {
+            "description": "Fixture gateway is unavailable"
+          }
+        }
+      }
+    },
     "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/research/queue": {
       "get": {
         "operationId": "readOwnedV33ResearchQueue",
@@ -883,6 +1278,323 @@
           },
           "422": {
             "description": "Invalid scenario or seed"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/cancel": {
+      "post": {
+        "operationId": "cancelOwnedV33ReadinessRun",
+        "summary": "Cancel only an owned V3.3 WAITING readiness run before any Runner dispatch",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-readiness-cancel-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Readiness-only cancellation persisted or idempotently replayed; no Runner job is cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-readiness-cancel-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "409": {
+            "description": "Run is no longer a cancellable WAITING readiness placeholder or dispatch already started"
+          },
+          "422": {
+            "description": "TestRun ID or explicit cancellation command is invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/experiment": {
+      "post": {
+        "operationId": "reserveOwnedV33ScenarioExperiment",
+        "summary": "Create the frozen two-round Fixture Experiment for an owned normal or recovery TestRun after its TestRun cap is bound",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-experiment-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Frozen two-round Fixture Experiment and USD 80-cent budget reservation persisted or replayed; no Runner Job dispatched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-experiment-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "409": {
+            "description": "Run is not at the Experiment reservation step"
+          },
+          "422": {
+            "description": "TestRun ID or explicit versioned command is invalid"
+          },
+          "503": {
+            "description": "Research Automation reservation failed or response failed exact contract validation"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/verify-rejection": {
+      "post": {
+        "operationId": "verifyOwnedV33BudgetRejection",
+        "summary": "Verify an 80-cent Fixture Experiment is rejected by the owned rejection TestRun 50-cent cap with no persisted side effects",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-rejection-verify-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Budget rejection and zero Experiment, model-call and Runner-job side effects persisted on the same TestRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-rejection-verify-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "409": {
+            "description": "Run is not an unverified rejection scenario with a bound 50-cent cap"
+          },
+          "422": {
+            "description": "TestRun ID or explicit versioned command is invalid"
+          },
+          "503": {
+            "description": "Research Automation request or side-effect verification is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/dispatch": {
+      "post": {
+        "operationId": "dispatchOwnedV33FixtureRunnerScenario",
+        "summary": "Generate deterministic Fixture model inputs and enqueue both budget-bound Runner rounds for an owned normal or recovery TestRun",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-dispatch-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Two deterministic Fixture model calls were settled at 23 cents each and two round-bound Runner Jobs were queued; no external provider was called",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-dispatch-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "409": {
+            "description": "Run is not at the Fixture Runner dispatch step or has an unsupported scenario"
+          },
+          "422": {
+            "description": "TestRun ID or explicit versioned command is invalid"
+          },
+          "503": {
+            "description": "Runner image digest or Research Automation dependency is unavailable, or a response failed exact validation"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/reconcile": {
+      "post": {
+        "operationId": "reconcileOwnedV33FixtureRunnerScenario",
+        "summary": "Reconcile exactly two completed Runner Jobs and independently hash-verified output Artifacts into the owned TestRun without marking business acceptance complete",
+        "servers": [
+          {
+            "url": "http://platform-api-service:3000"
+          }
+        ],
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-reconcile-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Both exact round results and published output Artifact bytes are persisted on the same still-RUNNING TestRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-scenario-reconcile-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Local user session is required"
+          },
+          "404": {
+            "description": "Owned V3.3 TestRun was not found"
+          },
+          "409": {
+            "description": "Run is not at reconciliation, a Runner Job is incomplete or mismatched, or an output Artifact failed hash verification"
+          },
+          "422": {
+            "description": "TestRun ID or explicit versioned reconciliation command is invalid"
+          },
+          "503": {
+            "description": "Research Automation queue or Artifact read is unavailable"
           }
         }
       }
@@ -1154,6 +1866,227 @@
             "description": "Research Automation is unavailable"
           }
         }
+      }
+    },
+    "/v1/runner/checkpoints": {
+      "get": {
+        "operationId": "listV33RunnerCheckpoints",
+        "summary": "Read durable checkpoint history for the exact TestRun, Experiment, and round",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "const": "platform-api-service"
+            },
+            "description": "Optional identity consistency check; Bearer establishes Platform identity."
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "experimentId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "roundIndex",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Durable checkpoint history in ascending sequence order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-history.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform API Bearer identity is required"
+          },
+          "403": {
+            "description": "Only Platform API may read this route"
+          },
+          "404": {
+            "description": "Experiment was not found"
+          },
+          "409": {
+            "description": "TestRun does not match the Experiment"
+          },
+          "422": {
+            "description": "Invalid identity or round"
+          },
+          "503": {
+            "description": "Persistent checkpoint storage is required"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/verify-recovery": {
+      "post": {
+        "operationId": "verifyOwnedV33CheckpointRecovery",
+        "summary": "Persist the owner-scoped same-TestRun checkpoint recovery assertion after reconciliation",
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v3.3-recovery-verify-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recovery assertion and durable checkpoint evidence persisted on the original StageRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v3.3-recovery-verify-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid local session is required"
+          },
+          "404": {
+            "description": "V3.3 TestRun was not found in user scope"
+          },
+          "409": {
+            "description": "Run is not an eligible recovery TestRun or required evidence is not ready"
+          },
+          "422": {
+            "description": "Invalid TestRun or confirmation"
+          },
+          "503": {
+            "description": "Research Automation checkpoint evidence is unavailable"
+          }
+        },
+        "x-client-ignore": true
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/verify-normal": {
+      "post": {
+        "operationId": "verifyOwnedV33NormalResults",
+        "summary": "Persist the owner-scoped same-TestRun normal Fixture results assertion after reconciliation",
+        "security": [
+          {
+            "LocalSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testRunId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/schemas/common/v3.3-normal-verify-command.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Normal results assertion and verified Fixture outputs persisted on the original StageRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/schemas/common/v3.3-normal-verify-result.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid local session is required"
+          },
+          "404": {
+            "description": "V3.3 TestRun was not found in user scope"
+          },
+          "409": {
+            "description": "Run is not an eligible recovery TestRun or required evidence is not ready"
+          },
+          "422": {
+            "description": "Invalid TestRun or confirmation"
+          },
+          "503": {
+            "description": "Research Automation queue, artifact, or budget evidence is unavailable"
+          }
+        },
+        "x-client-ignore": true
+      }
+    },
+    "/api/v1/acceptance/v3/v3.3/runs/{testRunId}/artifacts/{artifactId}": {
+      "get": {
+        "servers": [{ "url": "http://platform-api-service:3000" }],
+        "operationId": "readOwnedV33OutputArtifact",
+        "summary": "Read a published output Artifact bound to an owner-scoped V3.3 TestRun",
+        "security": [{ "LocalSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 256 } }
+        ],
+        "responses": {
+          "200": { "description": "Published Artifact bytes after TestRun association and SHA-256 verification", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/research/v3.1-runner-input-response.schema.json" } } } },
+          "401": { "description": "A valid local session is required" },
+          "404": { "description": "Artifact is not associated with this owner-scoped V3.3 TestRun" },
+          "409": { "description": "Artifact bytes differ from the TestRun reference" },
+          "422": { "description": "Invalid TestRun identifier" },
+          "503": { "description": "Research Automation Artifact content is unavailable" }
+        },
+        "x-client-ignore": true
       }
     }
   },

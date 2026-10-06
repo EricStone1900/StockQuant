@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "w5-v31-current-suite-v1",
+  "date": "2026-10-03",
+  "stage": "V3.1",
+  "firstAttempt": {"status": "PREREQUISITE_MISSING", "reason": "STOCKQUANT_RESEARCH_IMAGE_ID not pinned", "exitCode": 2},
+  "rerun": {
+    "command": "STOCKQUANT_RESEARCH_IMAGE_REF=stockquant-v31-research-openai-fixture:codex-20261003-w5-current-run STOCKQUANT_RESEARCH_IMAGE_ID=sha256:5a6177721fb5623ac75dbfa5da317c509f3a47d9e1802a84d0198c06adaa51f2 pnpm verify:stage -- --stage V3.1 --suite code",
+    "status": "PASS",
+    "imagePlatform": "linux/arm64",
+    "imageDigest": "sha256:5a6177721fb5623ac75dbfa5da317c509f3a47d9e1802a84d0198c06adaa51f2",
+    "externalProviderCalls": 0,
+    "fixture": {"chat": "deterministic fixture response", "embedding": [0.125, -0.25, 0.5]},
+    "budget": {"rows": 2, "statuses": ["SETTLED", "SETTLED"], "requestedCents": 120, "settledCents": 46},
+    "artifactOwnerScope": {"testRunId": "e8484d56-a15b-4ded-8da2-78c542cc78ec", "authorizedRead": 200, "missingIdentity": 401, "foreignOwner": 403, "unlistedArtifact": 404, "exactBytesVerified": true, "activeServicesTouched": false},
+    "authorityUserGateChanged": false,
+    "stage": {"status": "NOT_RUN", "businessValidation": "NOT_RUN", "humanAcceptance": "NOT_RUN"},
+    "temporaryImageTagRemoved": true
+  },
+  "limits": ["no real RD-Agent provider dispatch", "no market source", "no Paper or order", "Ubuntu and O1/O2 outstanding"]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/trade-execution/fake-broker-cancellation-result.schema.json",
+  "title": "FakeBrokerCancellationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcome", "reason", "sequence"],
+  "properties": {
+    "outcome": { "enum": ["ACCEPTED", "REJECTED"] },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "sequence": { "type": "integer", "minimum": 1 }
+  }
+}

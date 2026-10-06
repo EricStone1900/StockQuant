@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "stockquant-o1-readonly-audit-v1",
+  "capturedAt": "2026-10-02T23:08:45.770Z",
+  "access": "read-only local HTTP GET; service identity secrets omitted",
+  "responses": {
+    "ready": 200,
+    "schedulerStatus": 200,
+    "sourceStatus": 200,
+    "collectionHealth": 200,
+    "cnCalendar": 200,
+    "collectionSchedules": 200
+  },
+  "calendar": {
+    "status": "CLOSED",
+    "calendarVersion": "sse-cn-a-share-2026-1",
+    "sourceFreshnessExpected": false,
+    "sourceFreshnessState": "MARKET_CLOSED"
+  },
+  "readiness": {
+    "status": "ready",
+    "persistence": "POSTGRES",
+    "scheduler": "ENABLED",
+    "executor": "ENABLED"
+  },
+  "scheduler": {
+    "status": "ENABLED",
+    "lastSuccessfulTickAt": "2026-10-02T23:08:19.236Z",
+    "nextExecutionAt": null,
+    "lastSubmitted": 0,
+    "tickAgeSeconds": 26.534
+  },
+  "schedules": [],
+  "quality": {
+    "openGaps": 0,
+    "pendingOutbox": 0
+  },
+  "health": "UNHEALTHY",
+  "healthReason": "no nextExecutionAt while collection schedule list is empty; market is closed",
+  "sourceStatusOnly": [
+    {
+      "sourceId": "baostock",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1790208109.2940702,
+      "lastFailureAt": 1790171080.0519683,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "sina",
+      "kind": "MINUTE_BAR",
+      "enabled": true,
+      "circuit": "CLOSED",
+      "failures": 0,
+      "lastSuccessAt": 1790751790.0561771,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "eastmoney",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    },
+    {
+      "sourceId": "tdx",
+      "kind": "MINUTE_BAR",
+      "enabled": false,
+      "circuit": "DISABLED",
+      "failures": 0,
+      "lastSuccessAt": null,
+      "lastFailureAt": null,
+      "lastErrorCode": null
+    }
+  ],
+  "externalMarketRequests": 0,
+  "collectionSubmitted": 0,
+  "observation": {
+    "observedDays": 8,
+    "completedDays": 7,
+    "recoveredDays": 1,
+    "remainingDays": 12,
+    "status": "WAITING",
+    "latestCountedDate": "2026-09-30"
+  },
+  "authorization": "NONE",
+  "ownerMode": "NO_TRADE",
+  "runtimeCode": "active-service state observed only; no deployment/restart performed",
+  "conclusion": "No source collection or O2 Paper run was enabled. Scheduler process ENABLED is distinct from any enabled collection schedule."
+}

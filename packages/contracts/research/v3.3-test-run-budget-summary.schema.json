@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-test-run-budget-summary.schema.json",
+  "title": "V3.3 TestRun experiment budget summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "offset", "limit", "afterCursor", "nextAfterCursor", "hasMore", "rows", "totals", "accountingScope", "stageBudgetControl"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-test-run-budget-summary-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "offset": { "type": "integer", "minimum": 0 },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "afterCursor": { "type": ["string", "null"], "maxLength": 512 },
+    "nextAfterCursor": { "type": ["string", "null"], "maxLength": 512 },
+    "hasMore": { "type": "boolean" },
+    "rows": { "type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["experimentId", "rounds", "requestedCents", "reservedCents", "roundBudget", "status", "settledCents", "unknownReservedCents", "modelCallCount"],
+      "properties": {
+        "experimentId": { "type": "string", "format": "uuid" },
+        "rounds": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "requestedCents": { "type": "integer", "minimum": 1 },
+        "reservedCents": { "type": "integer", "minimum": 0 },
+        "roundBudget": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "object", "additionalProperties": false, "required": ["roundIndex", "allocatedCents", "usedCents", "unknownReservedCents"], "properties": { "roundIndex": { "type": "integer", "minimum": 1, "maximum": 3 }, "allocatedCents": { "type": "integer", "minimum": 1 }, "usedCents": { "type": "integer", "minimum": 0 }, "unknownReservedCents": { "type": "integer", "minimum": 0 } } } },
+        "status": { "enum": ["RESERVED", "SETTLED", "UNKNOWN", "REJECTED"] },
+        "settledCents": { "type": "integer", "minimum": 0 },
+        "unknownReservedCents": { "type": "integer", "minimum": 0 },
+        "modelCallCount": { "type": "integer", "minimum": 0 }
+      }
+    } },
+    "totals": { "description": "Exact TestRun totals are computed on the first page only; cursor pages return null so deep pagination does not rescan the full run.", "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false,
+      "required": ["experiments", "requestedCents", "reservedCents", "settledCents", "unknownReservedCents", "modelCallCount"],
+      "properties": {
+        "experiments": { "type": "integer", "minimum": 0 },
+        "requestedCents": { "type": "integer", "minimum": 0 },
+        "reservedCents": { "type": "integer", "minimum": 0 },
+        "settledCents": { "type": "integer", "minimum": 0 },
+        "unknownReservedCents": { "type": "integer", "minimum": 0 },
+        "modelCallCount": { "type": "integer", "minimum": 0 }
+      }
+    }] },
+    "accountingScope": { "const": "unique experiments bound to this TestRun; model-call attempts are counted once; no provider invoice reconciliation" },
+    "stageBudgetControl": { "enum": ["NOT_IMPLEMENTED", "TEST_RUN_CAP_ENFORCED_ROUND_CAP_NOT_IMPLEMENTED", "TEST_RUN_AND_ROUND_CAP_ENFORCED"] }
+  },
+  "allOf": [
+    { "if": { "properties": { "afterCursor": { "type": "null" } }, "required": ["afterCursor"] }, "then": { "properties": { "totals": { "type": "object" } } } },
+    { "if": { "properties": { "afterCursor": { "type": "string" } }, "required": ["afterCursor"] }, "then": { "properties": { "totals": { "type": "null" } } } }
+  ]
+}

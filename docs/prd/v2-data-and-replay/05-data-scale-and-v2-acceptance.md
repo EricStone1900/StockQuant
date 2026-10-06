@@ -4,6 +4,18 @@
 
 状态：PARTIALLY_IMPLEMENTED（20×60 小规模扩容切片、全量日线容量和 V2.5 整体人工验收已完成；分钟级全量、限频稳定性、备用分钟源和 V2.4 观察门禁仍待完成；Ubuntu 实机人工子项已确认通过）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
+当前工作区复核边界（2026-10-01）：现有 `V2.5` normal/rejection/recovery 后端场景由 `V25DataScaleEngine` 生成确定性合成内存样本；它们不是 BaoStock 20×60 归档上的生产导入/缓存/任务队列/数据库恢复。旧版引擎曾将多项 expected/actual 直接写为常量，相关TestRun保留作历史，但已被审计标记为不可作为行为证据。修正后的场景从Fixture操作结果动态计算，并明确生产队列、持久恢复、模型训练和真实PIT为`NOT_RUN`。新增复核见[W4动态Fixture场景审计](../../../evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.md)及[Hash](../../../evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.sha256)。
+
+2026-10-01 数据库增量边界：另有隔离`market_data_test` PostgreSQL集成用例，将1200行合成样本经真实`publishStream`持久化至日分区，并核验幂等、分页、覆盖和DataVersion隔离；详见[审计](../../../evidence/audits/2026-10-01-w4-v25-postgres-synthetic-scale.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-postgres-synthetic-scale.sha256)。这补充了数据库路径证据，但输入仍为合成样本，未验证真实源许可、生产CSV解析/队列/恢复、分钟容量、Qlib路由或PIT，因此不改变本阶段待完成门禁。
+
+2026-10-01 CSV HTTP容量边界：实际上传链对重复、OHLC无效及有效输入各100,000行通过并发背压验证；错误行持久拒绝且零Bar，有效行完整写入并可幂等重试；详见[审计](../../../evidence/audits/2026-10-01-w4-v25-http-upload-error-capacity.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-http-upload-error-capacity.sha256)。此Mac单服务切片不代表全市场容量、Ubuntu或生产长期队列恢复。
+
+纯CSV解析器的100,000行重复/OHLC错误流式内存测试也通过；详见[审计](../../../evidence/audits/2026-10-01-w4-v25-csv-parser-capacity.md)和[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-csv-parser-capacity.sha256)。此项不经过服务/数据库。
+
+2026-10-01 有效数据容量边界：新增100,000行合成有效Parquet的实际单服务HTTP/PostgreSQL导入证据，含日分区、幂等、坏文件隔离和精确清理；见[审计](../../../evidence/audits/2026-10-01-w4-v25-parquet-valid-http-capacity.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-parquet-valid-http-capacity.sha256)。仅验证Mac arm64单进程切片，未证明生产多服务容量、长序列/全市场表现、Ubuntu或来源许可。
+
+2026-10-01 Linux/arm64容器边界：上述有效Parquet用例现也在Mac Docker Desktop的两个Linux/arm64服务实例及隔离PostgreSQL中通过，跨进程busy和幂等路径通过；见[审计](../../../evidence/audits/2026-10-01-w4-v25-parquet-linux-arm64-capacity.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-parquet-linux-arm64-capacity.sha256)。该结果非Ubuntu x86_64最终验收或全市场分钟容量。
+
 研究切分补充（2026-09-25）：已冻结`v2.5-research-split-v1`工程验证协议，按60个真实交易日设置20日预热、20日训练、10日验证、10日留出测试；脚本对本机归档Manifest与20个逐证券CSV的Hash、行数及48个日内窗口实测通过。研究指标容差冻结为绝对`1e-8`/相对`1e-7`，账本仍要求精确领域规则。该数据集存在幸存者偏差，佣金/税费政策仍UNSET；此协议不证明研究充分性、策略盈利或候选晋升，也不关闭本节模型训练、成本敏感度和PIT任务。详见[切分审计](../../../evidence/audits/2026-09-25-p6-research-split.md)。
 
 ## 1. 前置与范围
@@ -79,7 +91,7 @@ V2.2/2.3通过；V2.4连续观察可并行累计，完成V2必须具备其证据
 | Web基础URL/身份登录或会话建立方式 | `http://127.0.0.1:8080`；本地验收身份 `acceptance-owner-1`；不记录密码/token |
 | 本阶段Web路由 | `/acceptance/v2/v2.5`（目标） |
 | 正式页面的真实入口/跳转链接 | `http://127.0.0.1:8080/acceptance/v2/v2.5` |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `v2.5-cn-minute-20x60-v1`；20证券×60交易日×1200行；Mac监控池使用 Tencent LIVE_SOURCE；Manifest见 `docs/evidence-v2.5.md` |
+| 固定输入/数据版本/确切日期/Hash、规则与成本版本 | 历史归档为`v2.5-cn-minute-20x60-v1`（20证券×60交易日×57,600根5分钟Bar，Manifest见`docs/evidence-v2.5.md`）；当前Platform验收场景使用独立合成内存输入`v2.5-acceptance-synthetic-fixture-v2`（20×60=1,200行），不能把后者当作前者的导入/存储/市场容量证据；Mac监控池使用Tencent LIVE_SOURCE |
 | 配置文件及必需环境变量名/非秘密测试值 | Compose 默认 V2.5 配置；`STOCKQUANT_BROKER_MODE=FAKE`、`STOCKQUANT_LIVE_TRADING_ENABLED=false` |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | recovery 场景使用固定游标/取消断言；不操作共享卷，不删除业务数据库 |
 | 预期耗时、轮询超时、实际观察期/预算 | 单场景 <60 秒；资源预算 1024 MB / 120 秒；V2.4 观察门禁独立累计 |
@@ -173,4 +185,22 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 | 本阶段代码测试/实际观察适用项 | 代码套件和 Web E2E 通过；全量容量与 V2.4 观察未完成 | `pnpm verify:stage -- --stage V2.5 --suite code`、`pnpm test:e2e -- --stage V2.5`，均退出码 0 | 见 `docs/evidence-v2.5.md` | PASS（代码）/ NOT_RUN（全量观察） |
 | 用户人工验收 | 用户已确认页面、命令和证据导出 | 不由脚本代签 | 用户确认 / 2026-09-20 | PASS（实现范围） |
 
+追加工程边界证据：分钟上传同一 owner 并发配额与取消释放的 PostgreSQL 集成检查见[W4并发配额审计](../../../evidence/audits/2026-09-30-w4-minute-upload-concurrency-quota.md)及[SHA-256](../../../evidence/audits/2026-09-30-w4-minute-upload-concurrency-quota.sha256)。这不改变本阶段分钟全量容量和观察门禁结论。
+
+2026-10-01 当前工作区复验追加：V2.5 normal/rejection/recovery三场景分别6/6、3/3、3/3断言PASS；三个Run均通过相同ID只读核对及脱敏Manifest导出，且观察门禁仍显式WAITING。Run和Hash详见[本次W4验收审计](../../../evidence/audits/2026-10-01-w4-v25-current-worktree-scenarios.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-current-worktree-scenarios.sha256)。这不覆盖历史来源、分钟全量容量或长期观察要求。
+
+2026-10-02 V2.5当前工作区隔离完整code suite：`pnpm verify:stage -- --stage V2.5 --suite code`退出0。Trade/Portfolio/Market Data隔离数据库检查、69项Python Adapter、Ops和市场数据HTTP/PG集成均PASS；Linux/arm64 Parquet smoke对100,000行/500只/5个交易日完成HTTP导入、持久化、100页读取、40行过滤查询、幂等、跨实例锁和损坏文件取消，峰值RSS 197,636 KiB、零外部调用。由于readiness smoke原先将测试PostgreSQL限制在5433，首次运行在断言前保留失败；随后加入Docker Inspect证明随机端口绑定只读/tmpfs/资源受限容器的安全通路及4个验证测试，复跑通过并确认隔离容器/网络/镜像清理。详见[W4完整V2.5隔离套件审计](../../../evidence/audits/2026-10-02-w4-v25-isolated-capacity-code-suite.md)及[SHA-256](../../../evidence/audits/2026-10-02-w4-v25-isolated-capacity-code-suite.sha256)。此结果仍是Mac宿主Linux容器和合成输入，不代替全量市场数据、60日备用源、交易时段长期稳定性、真实PIT、Ubuntu实机或用户新范围签署。
+
+2026-10-01 HTTP分页容量追加：Linux/arm64隔离V2.5完整代码套件PASS，并从同一100,000行Parquet版本经HTTP游标分页读取100页×1,000行，100,000个证券/Bar键全部唯一且数值有效；单证券单日筛选跨2页返回40行。详见[Parquet HTTP分页容量审计](../../../evidence/audits/2026-10-01-w4-v25-parquet-http-pagination.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-parquet-http-pagination.sha256)。这是合成容量切片，阶段真实来源、Ubuntu x86_64、全市场分钟、长期稳定性、V2.4观察与人工验收仍未通过。
+
+2026-10-01 Parquet单文件容量边界复验：PyArrow适配器的单文件最大行数为100,000；超出至1,440,000行时按合同返回422，不因此扩大输入上限。支持范围下双Linux/arm64实例HTTP→隔离PG上传/预览/发布、并发互斥、幂等、100页无重复完整读回、过滤分页和损坏文件取消均PASS；RSS峰值192,556 KiB，完整V2.5 code suite受控重跑退出0。细节见[W4边界审计](../../../evidence/audits/2026-10-01-w4-v25-parquet-capacity-limit.md)及[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-parquet-capacity-limit.sha256)。1.44M仓储层和归档HTTP证据保持各自范围，不表示单个Parquet可一次导入；Ubuntu x86_64、真实源许可、全市场生产负载及长期观察依旧未验证。
+
+同日有效性更正：上段最初引用的Run经代码复核发现其旧场景引擎硬编码并发、缓存、预算及恢复结果，保留为历史，不接受为实际行为证明；初轮动态Fixture Run也因计量边界调整而被替代。当前代码、Run及Hash统一见[最终代码场景审计](../../../evidence/audits/2026-10-01-w4-v25-final-code-scenarios.md)和[SHA-256](../../../evidence/audits/2026-10-01-w4-v25-final-code-scenarios.sha256)。新场景仍不替代生产队列、数据库恢复、真实Qlib/PIT、分钟全量容量、来源观察或当前范围人工验收。
+
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+
+2026-10-03 W4 V2.5当前隔离代码套件复验：`pnpm verify:stage -- --stage V2.5 --suite code`最终明确退出0，Market Data 71、Research Automation 203、Platform API 166、Trade Execution 67、Quant Research 91、Historical Replay 25、Governance 22、Portfolio Risk 5项单测均通过；适用构建/契约/集成亦通过。Linux/arm64双实例Parquet HTTP/PG容量验证100,000行、100页唯一读回、40行过滤查询、互斥/幂等/取消，峰值RSS 193,640 KiB；输入标记`synthetic; UNCONFIRMED; researchUseAllowed=false`。无外部行情/模型/Broker调用，隔离资源已清理。首次输出缺少可读取的总退出码，完整重跑退出0的记录已保留。详见[W4审计](../../../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.md)、[JSON](../../../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.json)和[完整日志](../../../evidence/audits/2026-10-03-w4-v25-after-scheduler-artifact-regression.log)。原审计SHA-256文件是2026-10-03点时源码清单，当前`package.json`变化后该旧清单不再代表当前工作树；历史文件保留。该结果不改变V2.5真实市场/PIT/分钟全量、第二源/长期观察、Ubuntu或人工验收门槛。
+
+2026-10-03 当前源码容量复验：完整V2.5 code suite运行至Linux/arm64 Parquet隔离容量门禁并通过。100,000行合成Parquet（500证券×200 Bar、5日）成功写入并唯一分页读回；损坏上传拒绝/取消、双服务并发busy、幂等均通过，峰值服务RSS 199,676 KiB、临时数据库72,561,123 bytes，Provider/model/Broker外呼0。此为Mac Docker Linux/arm64容量切片，不代替分钟全市场、真实交易时段长期观察、Ubuntu、备用源60日、PIT或V2.4观察。完整当前W4范围审计见[V2.3/V2.5回归](../../../evidence/audits/2026-10-03-w4-v23-v25-current-code-rerun.md)及[SHA-256](../../../evidence/audits/2026-10-03-w4-v23-v25-current-code-rerun.sha256)。
+
+2026-10-06 当前工作树V2.5隔离代码/容量回归：完整`pnpm verify:stage -- --stage V2.5 --suite code`退出0；Market Data 71、Research 218、Platform 198、Trade 67、Quant 91、Replay 25、Governance 22、Portfolio Risk 5单测及适用契约/构建/集成通过。Linux/arm64双实例Parquet HTTP/PG隔离烟测使用标注`synthetic; UNCONFIRMED; researchUseAllowed=false`的100,000行Fixture（500证券×200 Bars、5日），100页唯一读回、过滤40行、幂等、互斥及损坏上传取消通过；峰值RSS 188,352 KiB，数据库72,610,275 bytes，外部/模型/Broker调用0。该Mac Docker合成切片不证明全市场分钟容量、来源许可、60日备用源、真实研究/PIT、Ubuntu、长期稳定性或V2.4观察，阶段仍PARTIALLY_IMPLEMENTED。详见[W4审计](../../../evidence/audits/2026-10-06-w4-v25-current-code-suite.md)、[完整套件日志](../../../evidence/audits/2026-10-06-w4-v25-current-code-suite.log)及[输入源码SHA（历史执行快照，绑定本次运行输入）](../../../evidence/audits/2026-10-06-w4-v25-current-code-suite.sources.sha256)。

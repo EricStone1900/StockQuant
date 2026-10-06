@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "stockquant-stage-audit-v1",
+  "capturedAt": "2026-10-02T21:02:13Z",
+  "stage": "V3.1",
+  "workPackage": "W5/W1 shared Artifact store consumer regression",
+  "status": "PASS",
+  "command": "STOCKQUANT_RESEARCH_IMAGE_ID=<exact locally built image ID> pnpm verify:stage -- --stage V3.1 --suite code",
+  "exitCode": 0,
+  "image": {
+    "ref": "stockquant-v31-research-openai-fixture:local",
+    "id": "sha256:5a6177721fb5623ac75dbfa5da317c509f3a47d9e1802a84d0198c06adaa51f2",
+    "platform": "linux/arm64",
+    "previousTagId": "sha256:05a45830f2c15a7643f60ec2f0aa3c4a7250ffd761dabb0d07dbc30d0057ef53"
+  },
+  "results": {
+    "researchAutomationUnitFiles": 36,
+    "researchAutomationUnitTests": 203,
+    "researchAutomationIntegrationFiles": 4,
+    "researchAutomationIntegrationTests": 28,
+    "platformApiUnitFiles": 46,
+    "platformApiUnitTests": 166,
+    "artifactOwnerScopeSmoke": "PASS",
+    "testRunId": "7917fa80-4f30-43d3-b7b3-4a2613118439",
+    "exactArtifactBytesVerified": true,
+    "wrongOwnerDenied403": true,
+    "anonymousDenied401": true,
+    "unlistedArtifactDenied404": true,
+    "repeatExportNoOverwrite": true,
+    "fixtureChatAndEmbedding": "PASS",
+    "externalProviderCalls": 0,
+    "activeServicesTouched": false,
+    "temporaryContainersAndNetworksCleaned": true
+  },
+  "initialAttempts": [
+    {
+      "result": "sandbox listener EPERM",
+      "preserved": true
+    },
+    {
+      "result": "refused because current exact Research image ID was not supplied",
+      "preserved": true
+    }
+  ],
+  "limitations": [
+    "V3.1 acceptance remains NOT_RUN",
+    "no real model Provider or RD-Agent experiment",
+    "no authorized market data/PIT",
+    "no Paper or Ubuntu acceptance",
+    "no human sign-off"
+  ],
+  "files": {
+    "packages/artifact-content-store/index.mjs": "ec35eebb70121495b11878b40aebec88e0f5075cd89866f5102678dba581ba70",
+    "packages/artifact-content-store/index.test.mjs": "d171aa3484ac3be85e8b48c769d36e4b7b919908eb8d029a51134c5defc54dcf",
+    "services/research-automation-service/Dockerfile": "e7f8e0c0fc1ad6823e3b289bb675d6b88f9c25dc4abfeb0379cef422bee79de4",
+    "evidence/audits/2026-10-03-w5-v31-after-artifact-leaf-hardening.log": "7ecc038be62e5e3e4e345d0c9dd35322a6ce9f53140030a19ad034633ca7cfeb"
+  }
+}

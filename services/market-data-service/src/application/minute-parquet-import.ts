@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
 import { previewMinuteCsvStream, type MinuteCsvField, type MinuteCsvMapping, type MinuteCsvPreviewInput, type MinuteCsvStreamOptions } from "./minute-csv-import.js";
-import type { MinuteImportBar } from "./minute-import-repository.js";
+import type { MinuteImportBar } from "../domain/minute-import.js";
 
 export const MAX_MINUTE_PARQUET_BYTES = 64 * 1024 * 1024;
 const FIELDS: MinuteCsvField[] = ["securityId", "timestamp", "open", "high", "low", "close", "volume", "amount"];

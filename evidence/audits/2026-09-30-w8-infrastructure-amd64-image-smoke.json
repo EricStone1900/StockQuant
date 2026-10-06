@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "stockquant.w8.infrastructure-amd64-image-smoke.v1",
+  "capturedAt": "2026-09-30T09:51:43.193Z",
+  "hostArchitecture": "arm64",
+  "target": "linux/amd64",
+  "emulation": true,
+  "images": [
+    {
+      "service": "nats",
+      "ref": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+      "tag": "stockquant-w8-infra-nats:20260930-refresh",
+      "version": "nats-server: v2.10.29",
+      "command": [
+        "nats-server",
+        "--version"
+      ],
+      "imageId": "sha256:8b9f712ae2148dcbd9d7f3d16a942d515e290526e5d018500931eab62b18e045",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "root"
+    },
+    {
+      "service": "temporal",
+      "ref": "temporalio/temporal:1.8.3@sha256:cea463d98a8d6def4420f903ea5c3fcd0d85c8d10fbcc2770a50c12fff2eb26d",
+      "tag": "stockquant-w8-infra-temporal:20260930-refresh",
+      "version": "temporal version 1.8.3 (Server 1.31.2, UI 2.50.1)",
+      "command": [
+        "temporal",
+        "--version"
+      ],
+      "imageId": "sha256:741c72563ce926036d027f58ce5c81d54bb3c31f704bcbac15a22b6d822d49b6",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "temporal"
+    },
+    {
+      "service": "postgres",
+      "ref": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+      "tag": "stockquant-w8-infra-postgres:20260930-refresh",
+      "version": "postgres (PostgreSQL) 16.9",
+      "command": [
+        "postgres",
+        "--version"
+      ],
+      "imageId": "sha256:dca9c7aa70c71caf8bcc48c8ec40658c1fdf2d1e4e8d26bc27d4d18e030d779a",
+      "os": "linux",
+      "architecture": "amd64",
+      "user": "root"
+    }
+  ],
+  "probes": [
+    {
+      "service": "nats",
+      "status": "PASS",
+      "version": "nats-server: v2.10.29",
+      "execution": "version-only",
+      "network": "none",
+      "readOnlyRoot": true,
+      "publishedPorts": [],
+      "persistentVolumes": []
+    },
+    {
+      "service": "temporal",
+      "status": "PASS",
+      "version": "temporal version 1.8.3 (Server 1.31.2, UI 2.50.1)",
+      "execution": "version-only",
+      "network": "none",
+      "readOnlyRoot": true,
+      "publishedPorts": [],
+      "persistentVolumes": []
+    },
+    {
+      "service": "postgres",
+      "status": "PASS",
+      "version": "postgres (PostgreSQL) 16.9",
+      "execution": "version-only",
+      "network": "none",
+      "readOnlyRoot": true,
+      "publishedPorts": [],
+      "persistentVolumes": []
+    }
+  ],
+  "containersRemovedByRunRm": true,
+  "activeResourcesTouched": false,
+  "limitations": [
+    "Version-only binary probes do not verify service startup, persistence, networking, resource behavior or Ubuntu runtime.",
+    "Compose continues to reference upstream pinned digests; separate local aliases avoid replacing existing ARM64 tags.",
+    "This is Mac arm64 emulation, not Ubuntu acceptance."
+  ]
+}

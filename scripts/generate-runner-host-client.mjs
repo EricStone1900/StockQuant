@@ -68,7 +68,7 @@ const lines = [
 ];
 
 const operationCount = Object.values(document.paths ?? {}).reduce((count, item) => count + Object.keys(item).filter((method) => ["get", "post", "put", "patch", "delete"].includes(method)).length, 0);
-if (operationCount !== 4) throw new Error(`Expected the four frozen Runner Host lifecycle operations, found ${operationCount}`);
+if (operationCount !== 7) throw new Error(`Expected seven Runner Host lifecycle, checkpoint, and Artifact operations, found ${operationCount}`);
 for (const [path, pathItem] of Object.entries(document.paths ?? {})) {
   for (const [method, operation] of Object.entries(pathItem)) {
     if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
@@ -76,26 +76,27 @@ for (const [path, pathItem] of Object.entries(document.paths ?? {})) {
     const operationName = operation.operationId[0].toUpperCase() + operation.operationId.slice(1);
     const pathParameters = (operation.parameters ?? []).filter((parameter) => parameter.in === "path");
     const bodySchema = operation.requestBody?.content?.["application/json"]?.schema;
-    const responseSchema = operation.responses?.["200"]?.content?.["application/json"]?.schema;
+    const responseSchema = (operation.responses?.["200"] ?? operation.responses?.["201"])?.content?.["application/json"]?.schema;
     if (!responseSchema) throw new Error(`Runner Host operation has no JSON 200 response: ${operation.operationId}`);
     const args = [
       ...pathParameters.map((parameter) => `${parameter.name}: ${tsType(parameter.schema ?? {})}`),
       ...(bodySchema ? [`body: ${tsType(bodySchema)}`] : []),
     ];
     const urlPath = `\`${path.replace(/\{([A-Za-z0-9_]+)\}/gu, "${encodeURIComponent($1)}")}\``;
-    lines.push(`  async ${operation.operationId}(${args.join(", ")}): Promise<${tsType(responseSchema)}> {`);
+    const timeoutParameter = operation.operationId === "publishRunnerOutputArtifact" ? "timeoutMs = 30_000" : "";
+    lines.push(`  async ${operation.operationId}(${[...args, ...(timeoutParameter ? [timeoutParameter] : [])].join(", ")}): Promise<${tsType(responseSchema)}> {`);
     lines.push(`    const path = ${urlPath};`);
-    lines.push(`    return this.send<${tsType(responseSchema)}>(\"${method.toUpperCase()}\", path${bodySchema ? ", body" : ""});`);
+    lines.push(`    return this.send<${tsType(responseSchema)}>(\"${method.toUpperCase()}\", path${bodySchema ? ", body" : ""}${timeoutParameter ? ", timeoutMs" : ""});`);
     lines.push("  }");
     lines.push("");
   }
 }
 
 lines.push(
-  "  private async send<T>(method: string, path: string, body: unknown): Promise<T> {",
+  "  private async send<T>(method: string, path: string, body: unknown, timeoutMs = 5000): Promise<T> {",
   "    const response = await this.request(`${this.baseUrl}${path}`, {",
   "      method, headers: { \"content-type\": \"application/json\", \"x-stockquant-service-id\": \"runner-host\", authorization: `Bearer ${this.bearerToken}` },",
-  "      body: JSON.stringify(body), signal: AbortSignal.timeout(5000),",
+  "      body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),",
   "    });",
   "    const value = await response.json().catch(() => ({}));",
   "    if (!response.ok) throw new RunnerHostHttpError(response.status);",

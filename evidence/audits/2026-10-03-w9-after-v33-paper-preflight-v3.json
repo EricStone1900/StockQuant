@@ -1,0 +1,131 @@
+{
+  "version": "V3",
+  "status": "INCOMPLETE",
+  "stages": [
+    {
+      "stageId": "V3.1",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.2",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.3",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.4",
+      "status": "NOT_RUN"
+    }
+  ],
+  "unresolvedStages": [
+    {
+      "stageId": "V3.1",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.2",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.3",
+      "status": "NOT_RUN"
+    },
+    {
+      "stageId": "V3.4",
+      "status": "NOT_RUN"
+    }
+  ],
+  "unresolvedAcceptance": [
+    {
+      "stageId": "V3.1",
+      "backend": "NOT_RUN（固定Fixture工程闭环与当前V3.1代码套件通过；2026-10-01 Research 177单测/25隔离PG集成、Platform 142单测、EXPIRED生命周期合同/owner读门禁与LiteLLM内部Fixture均通过；固定镜像完整code suite退出0，外部Provider调用0）",
+      "web": "NOT_RUN",
+      "evidence": "[准备证据](../../evidence-v3.1-preparation.md)；[P7.2 HTTP/PG](../../../evidence/audits/2026-09-25-p7-2-service-identity.md)；[P7.3 Runner](../../../evidence/audits/2026-09-25-p7-3-offline-runner-smoke.md)；[P7.4预检/账本](../../../evidence/audits/2026-09-25-p7-4-request-budget-ledger.md)；[P3.R Artifact授权](../../../evidence/audits/2026-09-25-p3-r-artifact-boundary.md)；[P7.5固定浏览器全链路与故障恢复](../../../evidence/audits/2026-09-25-p7-5-fixed-pipeline-smoke.md)；[W5 Docker上下文与V3.1回归](../../../evidence/audits/2026-10-01-w5-docker-context-v31-regression.md)；[W5离线完整回归](../../../evidence/audits/2026-10-01-w5-v31-offline-regression.md)；[W5固定镜像复验](../../../evidence/audits/2026-10-01-w5-v31-literal-fixture-regression.md)；[Artifact过期生命周期](../../../evidence/audits/2026-10-01-w1-artifact-expiry-lifecycle.md)",
+      "limitations": "生产研究容器仍未部署本次测试路由；真实 RD-Agent/模型调用、生产费用对账和Provider外发限制、过期策略/调度、物理Artifact清理、文件写入后事务崩溃孤儿回收及其余故障矩阵、Ubuntu实机未完成。网络拒绝证据限于本地 `--network none`；OOM/网络并发验证只是固定小样本，不是生产连续性/容量证据；`modelCalls=NOT_RUN`。固定Fixture测试不等于模型实验或候选有效性",
+      "signoff": "人工验收未签署"
+    },
+    {
+      "stageId": "V3.2",
+      "backend": "NOT_RUN（当前工作树完整 code suite PASS；随机隔离PG/HTTP中固定合成候选源码于受限ARM64容器执行，70/70信号经第二隔离容器独立重算并用于OOS交易；新增owner-scoped `READINESS_ONLY`准备态TestRun创建/同ID读取及可导出WAITING/NOT_RUN证据包，完整套件仍明确`businessValidation=NOT_RUN`）",
+      "web": "NOT_RUN",
+      "evidence": "[PromotionRequest intake及读路由复核](../../../evidence/audits/2026-09-25-v3-2-promotion-intake.md)；[验证报告持久化](../../../evidence/audits/2026-09-27-v32-validation-report-persistence.md)；[精确版本决策](../../../evidence/audits/2026-09-27-v32-exact-version-decision.md)；[Worker候选隔离执行](../../../evidence/audits/2026-09-27-v32-independent-worker-process.md)；[当前工作树code suite复验](../../../evidence/audits/2026-09-27-v32-code-suite-reverification.md)；[浏览器及场景复核](../../../evidence/audits/2026-09-27-v32-browser-scenario-recheck.md)；[准备态证据导出CLI](../../../evidence/audits/2026-09-27-v32-evidence-export.md)；[W6准备态TestRun基础](../../../evidence/audits/2026-09-30-w6-readiness-testrun.md)；[W6准备态TestRun Hash](../../../evidence/audits/2026-09-30-w6-readiness-testrun.sha256)；[W6 TestRun导出审计](../../../evidence/audits/2026-09-30-w6-readiness-run-export.md)；[W6 TestRun导出Hash](../../../evidence/audits/2026-09-30-w6-readiness-run-export.sha256)",
+      "limitations": "实验仅限精确白名单合成Fixture；非Fixture/用户候选执行与Qlib独立验证仍缺，V3.1权威前置、治理/Paper正式精确指纹消费、V3.2业务TestRun/正式证据包及人工验收缺失；准备态元数据不替代正式业务运行；无活动Registry/Mandate变更",
+      "signoff": "待用户确认"
+    },
+    {
+      "stageId": "V3.3",
+      "backend": "NOT_RUN（Research Automation 已实现 TestRun 累计及逐轮预算硬上限、owner-scoped预算总账、持久Runner队列、输入Artifact派发前验证、检查点持久化与fencing隔离；2026-10-03最终完整 code suite：Research 216/216单测、29/29 PG集成，Platform 173/173单测、6/6 PG集成，Web E2E 3/3通过。V3.3 readiness 另新增Paper调度器新鲜度/下次采样排期与O2合格观察日的只读预检，使用注入Clock并按降序历史正确取最新日期；Web额外断言预检始终`NOT_VERIFIED`。真实隔离Runner Host HTTP/PG场景验证容器内检查点在Host SIGKILL及租约接管后续写恢复。normal/rejection/recovery仍只持久化WAITING/NOT_RUN，不代表阶段业务已运行）",
+      "web": "NOT_RUN",
+      "evidence": "[最终W7 Paper预检工程审计](../../../evidence/audits/2026-10-03-w7-v33-paper-preflight.md)；[完整code suite日志](../../../evidence/audits/2026-10-03-w7-v33-paper-preflight-full-suite.log)；[最终Web预检E2E日志](../../../evidence/audits/2026-10-03-w7-v33-paper-preflight-web-e2e.log)；[W7机器结果](../../../evidence/audits/2026-10-03-w7-v33-paper-preflight.json)；[W7 SHA-256](../../../evidence/audits/2026-10-03-w7-v33-paper-preflight.sha256)；[V3.3检查点恢复代码套件审计](../../../evidence/audits/2026-10-03-w7-checkpoint-live-container-recovery.md)；[TestRun状态历史工程审计](../../../evidence/audits/2026-10-03-w7-v33-run-state-history.md)",
+      "limitations": "TestRun级业务编排尚未实现：精确接受的V3.1/V3.2、已验证Paper连续性与Runner逐轮执行/检查点恢复尚未串成正式场景；阶段断言和证据导出未闭环。当前用户确认为NO_TRADE且无数据源授权，本轮没有启动采集、Provider、Paper或Broker；预检不替代Paper并发测试。隔离Fixture Runner恢复不证明真实模型执行、Paper共存、Ubuntu容量或阶段业务验收",
+      "signoff": "人工验收未签署"
+    },
+    {
+      "stageId": "V3.4",
+      "backend": "NOT_RUN（2026-10-02本地代码门禁及21项离线备份合同测试PASS；Ubuntu/业务E2E仍NOT_RUN）",
+      "web": "NOT_RUN",
+      "evidence": "[V3.4本地代码门禁复验](../../../evidence/audits/2026-10-02-w8-v34-code-suite-rerun.md)；[离线备份合同套件](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.md)；[SHA-256](../../../evidence/audits/2026-10-02-w8-backup-offline-contract-suite.sha256)",
+      "limitations": "Ubuntu真实迁移/恢复、部署级备份和隔离恢复、RPO/RTO、业务工作流、全阶段E2E、5个实际交易日Paper观察未执行；不得以本地amd64容器仿真替代Ubuntu；用户验收未签署",
+      "signoff": "待用户确认"
+    }
+  ],
+  "invalidPassClaims": [],
+  "testRunEvidenceAudit": {
+    "status": "NOT_RUN",
+    "stagesChecked": 4,
+    "testRunIdsChecked": 0,
+    "unresolvedAssociations": [],
+    "results": [
+      {
+        "stageId": "V3.1",
+        "testRunIds": [],
+        "status": "PASS",
+        "results": [],
+        "failures": []
+      },
+      {
+        "stageId": "V3.2",
+        "testRunIds": [],
+        "status": "PASS",
+        "results": [],
+        "failures": []
+      },
+      {
+        "stageId": "V3.3",
+        "testRunIds": [],
+        "status": "PASS",
+        "results": [],
+        "failures": []
+      },
+      {
+        "stageId": "V3.4",
+        "testRunIds": [],
+        "status": "PASS",
+        "results": [],
+        "failures": []
+      }
+    ],
+    "scope": "Checks exact TestRun UUIDs against stage-scoped structured evidence exports and their SHA-256 manifests; PASS stages additionally require completed runs, all-PASS assertions, and a UUID-bound dated user sign-off. Legacy IDs without exported bundles remain unresolved rather than being inferred as valid."
+  },
+  "duplicateStageRows": [],
+  "duplicateAcceptanceRows": [],
+  "missingAcceptance": [],
+  "unexpectedAcceptance": [],
+  "versionSummaryIncomplete": true,
+  "uncheckedVersionGate": true,
+  "stageDocumentationAudit": {
+    "status": "PASS",
+    "stagesChecked": 4,
+    "failures": []
+  },
+  "evidenceAudit": {
+    "status": "PASS",
+    "evidenceReferences": 281,
+    "manifestsChecked": 52,
+    "manifestEntriesChecked": 114,
+    "failures": [],
+    "scope": "Checks linked local evidence-file existence and any linked SHA-256 manifest entries; does not prove evidence completeness, business correctness, deployment, observation, or human acceptance."
+  }
+}

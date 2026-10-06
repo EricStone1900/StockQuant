@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "stockquant.w8-infrastructure-image-reference-inventory.v1",
+  "capturedAt": "2026-09-30T09:47:08.772Z",
+  "project": "stockquant-w8-20260930-refresh",
+  "requiredTargetPlatform": "linux/amd64",
+  "services": [
+    {
+      "service": "nats",
+      "imageReference": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+      "digest": "sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+      "configuredPlatform": null,
+      "local": {
+        "imageId": "sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9",
+        "os": "linux",
+        "architecture": "arm64",
+        "user": "root",
+        "sizeBytes": 24816139
+      },
+      "environmentVariableNames": [],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "4222",
+          "target": 4222,
+          "protocol": "tcp"
+        },
+        {
+          "hostIp": "127.0.0.1",
+          "published": "8222",
+          "target": 8222,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "nats-jetstream-v1",
+          "target": "/data/jetstream",
+          "readOnly": false
+        }
+      ],
+      "dependsOn": []
+    },
+    {
+      "service": "temporal",
+      "imageReference": "temporalio/temporal:1.8.3@sha256:cea463d98a8d6def4420f903ea5c3fcd0d85c8d10fbcc2770a50c12fff2eb26d",
+      "digest": "sha256:cea463d98a8d6def4420f903ea5c3fcd0d85c8d10fbcc2770a50c12fff2eb26d",
+      "configuredPlatform": null,
+      "local": {
+        "imageId": "sha256:6a84517bc49b4b5a18177a8abcd4f127c3e3c00f425238ec3636e0e13dc906a7",
+        "os": "linux",
+        "architecture": "arm64",
+        "user": "temporal",
+        "sizeBytes": 139234320
+      },
+      "environmentVariableNames": [],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "7233",
+          "target": 7233,
+          "protocol": "tcp"
+        },
+        {
+          "hostIp": "127.0.0.1",
+          "published": "8233",
+          "target": 8233,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "temporal-dev-state-v1",
+          "target": "/home/temporal",
+          "readOnly": false
+        }
+      ],
+      "dependsOn": []
+    },
+    {
+      "service": "postgres",
+      "imageReference": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+      "digest": "sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+      "configuredPlatform": null,
+      "local": {
+        "imageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+        "os": "linux",
+        "architecture": "arm64",
+        "user": "root",
+        "sizeBytes": 267515020
+      },
+      "environmentVariableNames": [
+        "POSTGRES_DB",
+        "POSTGRES_HOST_AUTH_METHOD",
+        "POSTGRES_INITDB_ARGS",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_USER",
+        "STOCKQUANT_DATABASE_PASSWORD_DECISION_GOVERNANCE",
+        "STOCKQUANT_DATABASE_PASSWORD_HISTORICAL_REPLAY",
+        "STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA",
+        "STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API",
+        "STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK",
+        "STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH",
+        "STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION",
+        "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION",
+        "STOCKQUANT_DATABASE_PASSWORD_TRADE_EXECUTION_TEST"
+      ],
+      "publishedPorts": [
+        {
+          "hostIp": "127.0.0.1",
+          "published": "5433",
+          "target": 5432,
+          "protocol": "tcp"
+        }
+      ],
+      "mounts": [
+        {
+          "type": "volume",
+          "source": "postgres-v11",
+          "target": "/var/lib/postgresql/data",
+          "readOnly": false
+        },
+        {
+          "type": "bind",
+          "source": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/postgres-init.sql",
+          "target": "/docker-entrypoint-initdb.d/10-init.sql",
+          "readOnly": true
+        }
+      ],
+      "dependsOn": []
+    }
+  ],
+  "limitations": [
+    "These are pinned Compose references; no fresh pull or container start was performed.",
+    "Local platform metadata describes cached images only and does not establish Ubuntu runtime acceptance.",
+    "PostgreSQL existing-volume migration remains unexecuted."
+  ]
+}

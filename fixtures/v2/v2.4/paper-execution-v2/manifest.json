@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-isolated-snapshot-paper-normal",
+  "fixtureVersion": "2.0.0",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Isolated CN_A PAPER/FAKE end-to-end scenario with a frozen daily signal, approved test Mandate, post-acceptance snapshot, fee and exact account assertions",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-09-27T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.4/paper-execution-v2/v24-paper-execution-scenario-v2.json",
+      "sha256": "713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821",
+      "mediaType": "application/json",
+      "schemaRef": "packages/contracts/schemas/common/v24-paper-execution-scenario.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.4-PAPER-V2-001",
+      "description": "A run-scoped test Mandate is bound to the exact owner, TestRun, account, namespace, strategy and policy versions"
+    },
+    {
+      "assertionId": "V2.4-PAPER-V2-002",
+      "description": "The first qualifying post-acceptance Fixture SNAPSHOT is used for a persistent FakeBroker fill"
+    },
+    {
+      "assertionId": "V2.4-PAPER-V2-003",
+      "description": "A 100-share fill at CNY 10.0000 with CNY 5.0000 fee moves a CNY 10,000.0000 account to CNY 8,995.0000 cash and 100 shares"
+    },
+    {
+      "assertionId": "V2.4-PAPER-V2-004",
+      "description": "FakeBroker outbox and Portfolio ledger reconcile idempotently; liquidity participation remains NOT_VERIFIED"
+    }
+  ]
+}

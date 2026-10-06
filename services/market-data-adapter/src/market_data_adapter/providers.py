@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import multiprocessing as mp
 import sys
@@ -410,6 +411,7 @@ class TdxMinuteClient:
         self.limiter = RateLimiter(minimum_interval_seconds, clock=clock or time.monotonic, sleeper=sleeper or time.sleep)
         self.last_host: str | None = None
         self.last_latency_ms: float | None = None
+        self.last_timestamp_samples: list[dict[str, str]] = []
 
     def _default_client_factory(self, timeout_seconds: float = 15.0):
         try:
@@ -430,6 +432,7 @@ class TdxMinuteClient:
         import time
         self.last_host = None
         self.last_latency_ms = None
+        self.last_timestamp_samples = []
         started = time.monotonic()
         try:
             client = factory()
@@ -454,6 +457,22 @@ class TdxMinuteClient:
                         for page in range(32):
                             self.limiter.wait()
                             frame, bar_time = self._fetch_kline(connection, market, number, timeout_seconds, offset=page * self.count)
+                            for row in _tdx_records(frame):
+                                raw_timestamp = row.get("datetime") or row.get("date_time") or row.get("time")
+                                if raw_timestamp is None:
+                                    continue
+                                timestamp_text = str(raw_timestamp)
+                                if not (start <= timestamp_text[:10] <= end):
+                                    continue
+                                try:
+                                    parsed_time = datetime.fromisoformat(timestamp_text.replace(" ", "T").replace("Z", "+00:00"))
+                                    boundary_time = parsed_time.strftime("%H:%M")
+                                except ValueError:
+                                    continue
+                                if boundary_time in {"11:25", "11:30", "13:00", "13:05"}:
+                                    sample = {"securityId": security_id, "timestamp": timestamp_text}
+                                    if sample not in self.last_timestamp_samples and len(self.last_timestamp_samples) < 100:
+                                        self.last_timestamp_samples.append(sample)
                             normalized = normalize_tdx(frame, security_id, bar_time=bar_time)
                             page_key = tuple(f"{item.bar_start}|{item.bar_end}" for item in normalized)
                             if not page_key or page_key in seen_pages:
@@ -492,14 +511,25 @@ class TdxMinuteClient:
         except ImportError as error:
             raise SourceError("DEPENDENCY_MISSING", "easy-tdx is not installed", retryable=False) from error
         if hasattr(client, "get_stock_kline"):
+            method = client.get_stock_kline
+            parameters: dict[str, inspect.Parameter]
             try:
-                return client.get_stock_kline(market_value, number, period, count=self.count, offset=offset, bar_time="end"), "end"
-            except TypeError:
-                # easy-tdx's MacClient returns MAC K-line timestamps at the
-                # bar close (09:35 ... 15:00 for a normal A-share session).
-                if offset:
-                    return [], "end"
-                return client.get_stock_kline(market_value, number, period, count=self.count), "end"
+                parameters = dict(inspect.signature(method).parameters)
+            except (TypeError, ValueError):
+                parameters = {}
+            accepts_kwargs = any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters.values())
+            if "start" in parameters:
+                # The pinned easy-tdx MacClient names the paging offset `start`.
+                # Pass it explicitly; silently falling back to page zero loses older bars.
+                return method(market_value, number, period, start=offset, count=self.count), "end"
+            if accepts_kwargs or "offset" in parameters:
+                kwargs: dict[str, Any] = {"count": self.count, "offset": offset}
+                if accepts_kwargs or "bar_time" in parameters:
+                    kwargs["bar_time"] = "end"
+                return method(market_value, number, period, **kwargs), "end"
+            if offset:
+                return [], "end"
+            return method(market_value, number, period, count=self.count), "end"
         if hasattr(client, "get_security_bars"):
             try:
                 from easy_tdx import KlineCategory  # type: ignore[import-not-found]

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-read-result.schema.json",
+  "title": "V33RunnerCheckpointReadResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "checkpoint"],
+  "properties": {
+    "status": { "enum": ["FOUND", "EMPTY"] },
+    "checkpoint": { "type": ["object", "null"] }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.3-qlib-fit-input",
+  "fixtureVersion": "v2.3-qlib-fit-input-1",
+  "stageId": "V2.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Deterministic 120-row synthetic feature/label input used only for locked Qlib fit/predict and temporal split guard validation; not market data.",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-02T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.3/qlib-fit/qlib-fit-input.json",
+      "sha256": "1f99de3fb13b2cd0359a36bc2f202d2ed8359ea93d6b269a8845bc7b7e58c22e",
+      "mediaType": "application/json",
+      "schemaRef": "qlib-fit-fixture-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.3-QLIB-FIXTURE-INPUT-001",
+      "description": "The locked Qlib Fixture request is loaded from this immutable synthetic payload and verifies the exact file SHA-256 before use."
+    },
+    {
+      "assertionId": "V2.3-QLIB-TEMPORAL-001",
+      "description": "Train [0,72), validation [72,96), and test [96,120) are contiguous, with row-aligned feature, decision, and label availability timestamps."
+    }
+  ]
+}

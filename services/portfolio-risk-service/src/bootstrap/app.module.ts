@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { authorizePortfolioRequest, loadPortfolioCredentials } from "../application/service-auth.js";
 import { AccountService } from "../application/account-service.js";
 import { PostgresAccountRepository } from "../adapters/postgres-account-repository.js";
-import type { InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
+import type { CorrectFillFeeCommand, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
 import { canonicalInitialCash, isSimulationModeAllowed } from "../domain/v11-policy.js";
 
 function assertService(serviceId: string | undefined, authorization: string | undefined, method: string, path: string): void {
@@ -83,6 +83,27 @@ export class AccountController {
       if (error instanceof Error && ["FILL_RESERVATION_SCOPE_MISMATCH", "PAPER_FILL_REQUIRES_RESERVATION"].includes(error.message)) throw new ForbiddenException(error.message);
       if (error instanceof Error && ["FILL_EXCEEDS_RESERVED_CASH", "FILL_EXCEEDS_RESERVED_QUANTITY", "FILL_EXCEEDS_AVAILABLE_POSITION", "FILL_IDEMPOTENCY_CONFLICT"].includes(error.message)) throw new ConflictException(error.message);
       if (error instanceof Error && (error.message.startsWith("invalid fill") || error.message.startsWith("FILL_CURRENCY") || error.message === "INVALID_FILL_SIDE")) throw new BadRequestException(error.message);
+      throw error;
+    }
+  }
+
+  @Post(":accountId/fills/:externalFillId/fee-corrections")
+  @HttpCode(200)
+  async correctFillFee(
+    @Headers("x-stockquant-service-id") serviceId: string | undefined,
+    @Headers("authorization") authorization: string | undefined,
+    @Param("accountId") accountId: string,
+    @Param("externalFillId") externalFillId: string,
+    @Body() body: Omit<CorrectFillFeeCommand, "accountId" | "externalFillId">
+  ) {
+    const path = `/internal/v1/accounts/${accountId}/fills/${externalFillId}/fee-corrections`;
+    assertService(serviceId, authorization, "POST", path);
+    try { return await this.container.accounts.correctFillFee({ ...body, accountId, externalFillId }); }
+    catch (error) {
+      if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found");
+      if (error instanceof Error && error.message === "FILL_NOT_FOUND") throw new NotFoundException("fill was not found in account");
+      if (error instanceof Error && error.message.startsWith("INVALID_")) throw new BadRequestException(error.message);
+      if (error instanceof Error && error.message.startsWith("FEE_CORRECTION_")) throw new ConflictException(error.message);
       throw error;
     }
   }

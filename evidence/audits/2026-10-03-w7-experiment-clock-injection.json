@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "stockquant-experiment-clock-audit-v1",
+  "capturedAt": "2026-10-02T18:27:15Z",
+  "scope": "V3.1/V3.3 Experiment domain/application business timestamps",
+  "change": {
+    "clockPort": "ExperimentService requires injected ExperimentClock",
+    "creation": "ExperimentService passes clock.now() into createExperiment",
+    "cancellation": "ExperimentService passes clock.now() into cancelExperiment",
+    "bootstrap": "Research Automation injects SystemRunnerClock",
+    "domainDefaults": "removed implicit Date construction from create/cancel experiment functions"
+  },
+  "verification": {
+    "researchAutomationUnitTests": "PASS; 36 files / 202 tests",
+    "defaultSandboxAttempt": "5 restricted-egress unit cases failed to bind loopback with EPERM; remaining 197 tests passed",
+    "controlledLoopbackRetry": "PASS; same package unit suite, exit 0",
+    "lint": "PASS; tsc -p tsconfig.json --noEmit",
+    "build": "PASS; tsc -p tsconfig.json",
+    "fixedClockAssertion": "create and cancel timestamps match injected clock values exactly",
+    "v33CodeSuite": {
+      "command": "pnpm verify:stage -- --stage V3.3 --suite code",
+      "status": "PASS; controlled loopback run; exit 0",
+      "baselineDocsLinks": "PASS; 2811 local Markdown links",
+      "researchAutomationTests": "PASS; 36 files / 202 tests",
+      "platformApiTests": "PASS; 46 unit files / 166 tests; 4 integration files / 5 tests",
+      "testRunBudgetSummary": "PASS; cumulative and independent round caps; UNKNOWN retention; keyset pagination",
+      "capacityProbe": "PASS; 66100 synthetic experiments; 50000-row deep offset P95 846.061ms; keyset P95 20.034ms; isolated hot-cache microbenchmark only",
+      "fixtureRunnerRecovery": "PASS; 2 rounds / 1000 fixture rows; SIGKILL lease takeover; fencing token 2; no model provider call",
+      "runnerSmokeTestRunId": "48571703-5ebc-4c92-94b4-b171a177db07",
+      "businessWorkflow": "NOT_IMPLEMENTED",
+      "dispatch": "ISOLATED_FIXTURE_RUNNER_SMOKE_ONLY",
+      "paperContinuity": "NOT_CHECKED",
+      "businessValidation": "NOT_RUN",
+      "humanAcceptance": "NOT_RUN"
+    }
+  },
+  "safety": {
+    "providerCalls": 0,
+    "marketDataRequests": 0,
+    "runnerJobsDispatched": 0,
+    "activeServicesTouched": false,
+    "userAcceptance": "NOT_RUN",
+    "businessWorkflow": "NOT_IMPLEMENTED"
+  }
+}

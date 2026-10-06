@@ -1,0 +1,7 @@
+# O1/O2 read-only refresh — 2026-10-06 19:48 Asia/Shanghai
+
+O1 remains `WAITING`; O2 was not started. A read-only observation snapshot was captured after the scheduled window. The target DC-08A subscription is disabled; this observation is explicitly uncounted and unfinalized. No market-data/provider, collection, Paper, Broker, or order operation was issued.
+
+Health is `UNHEALTHY`: market calendar `CLOSED`, source authorization `UNKNOWN`, enabled schedules `0/1`, `nextExecutionAt=null`, open gaps/outbox `0/0`. Market Data and PostgreSQL containers remained healthy, but no future scheduler tick was configured. Observation progress remains 8/20 days (7 complete + 1 recovered), 12 remaining; latest evidence date is 2026-10-06 but is `NOT_ACTIVE`, not counted. Evidence inventory reports 185 files for other subscription IDs and zero malformed or invalid-timestamp files.
+
+O1 GET/SELECT outputs: [Health](./2026-10-06-o1-health-snapshot-1148z.json), [summary](./2026-10-06-o1-observation-summary-1148z.json), [uncounted raw observation](./2026-10-06-o1-observation-1148z.json). O2/W8 same-turn target-host inventory: [W8 preflight](./2026-10-06-w8-ubuntu-host-preflight-1148z.json) is `BLOCKED` because host is macOS/AArch64 and Docker Linux/AArch64, while required target is Ubuntu x86_64; resource thresholds are undefined and target host authorization is unconfirmed. No deployment, network access, or credential reads occurred. Checksums: [manifest](./2026-10-06-o1-o2-readonly-refresh-1148z.sha256).

@@ -1,0 +1,9 @@
+# W1 V2.4 observation read clients
+
+Date: 2026-10-01 (Asia/Shanghai)
+
+Added an OpenAPI response schema for the Market Data quote preview and extended the existing Market Data calendar contract with the Platform-bearer-protected quote operation. A generated client now owns V2.4 observation reads for the A-share calendar, authorized quote preview, and Trade Execution namespace reconciliation. `V24LiveObservationHandler` still checks the explicit source-use approval, authorization reference, and data version before calling the quote operation; without them it records `NOT_AUTHORIZED` and performs no quote request. Calendar lookup remains a separate public versioned contract. Reconciliation remains read-only with Platform service identity.
+
+Validation: generated contract drift checks passed; 117 schemas and 178 contract/fixture JSON files validate, 36 fixtures pass; Platform typecheck and unit tests pass (37 files, 127 tests). Full `pnpm verify:stage -- --stage V2.4 --suite code` completed successfully, including isolated normal/rejection/recovery HTTP and Chromium scenarios, same-run CLI checks, lost-response recovery by original order identity, temporary database cleanup, and Linux/arm64 readiness. API run IDs: normal `c0c6f6b5-f987-4d00-8366-c0197c620f4e`, rejection `176e8caf-fc9e-4d90-941d-23b18568c5f6`, recovery `08d04f05-4cfc-4f4c-9d17-0f26992e0cc5`. Matching Web/CLI TestRun IDs: `c87b765a-2d79-4a64-95bf-bc33684a731d`, `ac6a63f9-1a0e-420e-87df-f55b05f8769e`, `4b42f2c3-db95-4da2-aa11-d48f4a970535`. The smoke reported `activeServicesTouched=false`; its four random databases were cleaned.
+
+Quote calls in unit tests use an injected local mock only. This suite did not request a real quote source, activate a subscription, deploy code to active services, or add an O1/O2 observation day. `NO_TRADE`, no data-source authorization, the observation gates, and human acceptance status remain unchanged.

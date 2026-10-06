@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/sampling-config-v1.schema.json",
+  "title": "MarketDataSamplingConfig",
+  "type": "object",
+  "required": ["intervalMinutes", "allowed", "tradingWindows", "lunchBreak", "placeOrders"],
+  "properties": {"intervalMinutes": {"enum": [20, 30]}, "allowed": {"type": "array", "items": {"enum": [20, 30]}}, "tradingWindows": {"type": "array", "items": {"type": "object", "required": ["name", "start", "end"], "properties": {"name": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}}}}, "lunchBreak": {"type": "array", "items": {"type": "string"}}, "placeOrders": {"const": false}},
+  "additionalProperties": true
+}

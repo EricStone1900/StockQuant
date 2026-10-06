@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-30",
+  "command": "pnpm verify:stage -- --stage V3.2 --suite code",
+  "exitCode": 0,
+  "checks": {
+    "baselineContractsFixtures": "PASS",
+    "evidenceExportTests": "5/5 PASS",
+    "evidenceExportHttpSmoke": "4 cases PASS",
+    "independentSyntheticFixture": "2 securities x 180 sessions; 360 bars; PIT/OOS/COST/RULES/CAPACITY PASS",
+    "candidateExecution": "70 decisions in isolated fixture-only execution",
+    "separateReferenceEvaluator": "70 decisions; trade match and return within 1e-6 tolerance",
+    "promotionRequestPersistence": "random isolated PostgreSQL; idempotency/hash binding/replay and rejection paths PASS",
+    "quantTests": "48 unit tests plus worker tests PASS",
+    "researchAutomationTests": "169 unit tests PASS",
+    "platformTests": "94 unit and 3 integration tests PASS",
+    "promotionPreparationHttpSmoke": "PASS; replay safe; Registry mutation NOT_PERFORMED",
+    "containerReadinessSmoke": "linux/amd64 isolated Platform + disposable SCRAM PostgreSQL; persistent WAITING read after restart PASS; activeServicesTouched=false",
+    "web": "typecheck/build and 1 unit test PASS"
+  },
+  "acceptanceBoundary": {
+    "businessValidation": "NOT_RUN",
+    "activeRegistryMutation": "NOT_PERFORMED",
+    "humanAcceptance": "NOT_RUN",
+    "sourceMode": "FIXTURE",
+    "profitabilityClaim": "NOT_MADE"
+  },
+  "notes": "Full code suite on current worktree. It proves fixed synthetic candidate execution and independent deterministic recomputation, not real market data, an accepted V3.1 prerequisite, real candidate approval, production deployment, Ubuntu, or human acceptance."
+}

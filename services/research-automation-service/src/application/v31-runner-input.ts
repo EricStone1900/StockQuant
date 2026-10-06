@@ -1,11 +1,10 @@
 import type { RunnerJobRecord } from "./v31-runner-jobs.js";
 import { sha256, type ArtifactRef } from "./v31-runtime-guards.js";
+import type { ArtifactContentStore } from "../ports/artifact-content-store.js";
+import type { ArtifactRefRepository } from "../ports/artifact-ref-repository.js";
 
 export type RunnerInputArtifactStore = {
-  get(namespace: string, artifactId: string): Promise<ArtifactRef | null>;
-  size(ref: ArtifactRef): Promise<number>;
-  read(ref: ArtifactRef): Promise<Uint8Array>;
-};
+} & Pick<ArtifactRefRepository, "get"> & Pick<ArtifactContentStore, "size" | "read">;
 
 /** Return only the immutable input artifact for the currently fenced lease. */
 export async function readLeasedRunnerInput(input: {

@@ -19,6 +19,7 @@
 | [ADR-0003](./ADR-0003-mac-arm64-ubuntu-compatibility.md) | Mac ARM64 与 Ubuntu 兼容策略 | Accepted |
 | [ADR-0004](./ADR-0004-local-security-and-test-isolation.md) | 本地安全与测试隔离 | Accepted |
 | [ADR-0007](./ADR-0007-v3-cpu-target-architecture.md) | V3 本机开发与 Ubuntu CPU 目标架构 | Accepted |
+| [ADR-0008](./ADR-0008-fakebroker-authoritative-event-ordering.md) | FakeBroker 权威订单事件序号与乱序缓冲 | Accepted |
 
 ## 决策与阶段验收的关系
 

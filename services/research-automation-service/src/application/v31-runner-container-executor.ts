@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { closeSync, constants, lstatSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -15,6 +16,7 @@ def walk(directory,parts,depth):
  global total
  if depth>16: raise ValueError('output depth exceeds limit')
  for name in sorted(os.listdir(directory)):
+  if not parts and name=='checkpoint.json': continue
   if not safe.fullmatch(name): raise ValueError('unsafe output path segment')
   path=os.path.join(directory,name); rel='/'.join(parts+[name]); before=os.lstat(path)
   if stat.S_ISLNK(before.st_mode): raise ValueError('output symlinks are forbidden')
@@ -109,7 +111,65 @@ export type RunnerContainerExecutorOptions = {
   signal?: AbortSignal;
   executePlan?: typeof executeRunnerPlan;
   dockerCommand?: DockerCommand;
+  readCheckpoint?: (containerName: string, signal?: AbortSignal) => Promise<Uint8Array | null>;
+  onCheckpoint?: (content: Uint8Array) => Promise<void>;
+  checkpointPollIntervalMs?: number;
 };
+
+const CHECKPOINT_EXTRACTOR = String.raw`import base64,json,os,stat,sys
+path='/run/output/checkpoint.json'
+try: fd=os.open(path,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0))
+except FileNotFoundError: sys.stdout.write('{"status":"EMPTY"}'); sys.exit(0)
+before=os.fstat(fd)
+if not stat.S_ISREG(before.st_mode) or before.st_nlink!=1 or before.st_size>256*1024: raise ValueError('checkpoint must be a regular file no larger than 256 KiB')
+with os.fdopen(fd,'rb') as stream: data=stream.read(256*1024+1); after=os.fstat(stream.fileno())
+if len(data)!=before.st_size or before.st_ino!=after.st_ino or before.st_size!=after.st_size or before.st_mtime_ns!=after.st_mtime_ns: raise ValueError('checkpoint changed during read')
+json.loads(data.decode('utf-8'))
+sys.stdout.write(json.dumps({'status':'FOUND','contentBase64':base64.b64encode(data).decode('ascii')},separators=(',',':')))`;
+
+async function readCheckpointFromContainer(containerName: string, dockerCommand: DockerCommand, signal?: AbortSignal): Promise<Uint8Array | null> {
+  const result = await dockerCommand(["exec", containerName, "python", "-c", CHECKPOINT_EXTRACTOR], signal);
+  if (result.exitCode !== 0) throw new Error(`Runner checkpoint extraction failed: ${result.stderr}`);
+  let body: unknown;
+  try { body = JSON.parse(result.stdout); } catch { throw new Error("Runner checkpoint extraction returned invalid JSON"); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Runner checkpoint extraction response is invalid");
+  const record = body as Record<string, unknown>;
+  if (record.status === "EMPTY" && Object.keys(record).length === 1) return null;
+  if (record.status !== "FOUND" || typeof record.contentBase64 !== "string" || Object.keys(record).sort().join(",") !== "contentBase64,status") throw new Error("Runner checkpoint extraction response does not match its schema");
+  const bytes = Buffer.from(record.contentBase64, "base64");
+  if (bytes.byteLength > 256 * 1024 || bytes.toString("base64") !== record.contentBase64) throw new Error("Runner checkpoint extraction exceeded the 256 KiB limit or used invalid base64");
+  return bytes;
+}
+
+function startCheckpointMonitor(input: {
+  containerName: string;
+  signal?: AbortSignal;
+  read: (containerName: string, signal?: AbortSignal) => Promise<Uint8Array | null>;
+  onCheckpoint: (content: Uint8Array) => Promise<void>;
+  pollIntervalMs: number;
+}): { stop(): Promise<void> } {
+  let stopped = false;
+  let failure: unknown;
+  let lastCheckpointHash: string | null = null;
+  const loop = (async () => {
+    while (!stopped && !input.signal?.aborted) {
+      try {
+        const content = await input.read(input.containerName, input.signal);
+        if (content) {
+          const checkpointHash = createHash("sha256").update(content).digest("hex");
+          if (checkpointHash !== lastCheckpointHash) {
+            await input.onCheckpoint(content);
+            lastCheckpointHash = checkpointHash;
+          }
+        }
+      } catch (error) {
+        if (!input.signal?.aborted) { failure = error; stopped = true; }
+      }
+      if (!stopped && !input.signal?.aborted) await new Promise((resolve) => setTimeout(resolve, input.pollIntervalMs));
+    }
+  })();
+  return { async stop() { stopped = true; await loop; if (failure) throw failure; } };
+}
 
 function resultFromContainerEnvelope(raw: RunnerExecutionResult, marker: string): RunnerExecutionResult {
   const markerAt = raw.stdout.lastIndexOf(marker);
@@ -135,8 +195,12 @@ function resultFromContainerEnvelope(raw: RunnerExecutionResult, marker: string)
 export async function executeRunnerContainer(plan: RunnerLaunchPlan, options: RunnerContainerExecutorOptions = {}): Promise<RunnerExecutionResult> {
   const execute = options.executePlan ?? executeRunnerPlan;
   const dockerCommand = options.dockerCommand ?? runDockerCommand;
+  const readCheckpoint = options.readCheckpoint ?? ((containerName, signal) => readCheckpointFromContainer(containerName, dockerCommand, signal));
+  const checkpointPollIntervalMs = options.checkpointPollIntervalMs ?? 500;
+  if (!Number.isSafeInteger(checkpointPollIntervalMs) || checkpointPollIntervalMs < 1 || checkpointPollIntervalMs > 10_000) throw new Error("Runner checkpoint poll interval must be from 1 through 10000 milliseconds");
   let result: RunnerExecutionResult = { status: "SPAWN_FAILED", exitCode: null, signal: null, stdout: "", stderr: "container startup did not complete", durationMs: 0 };
   let containerStarted = false;
+  let checkpointMonitor: ReturnType<typeof startCheckpointMonitor> | null = null;
   if (plan.previousContainerName) {
     const stale = await dockerCommand(["rm", "--force", plan.previousContainerName]);
     if (stale.exitCode !== 0 && !/No such container/iu.test(stale.stderr)) throw new Error(`previous Runner fence cleanup failed; refusing new execution: ${stale.stderr}`);
@@ -146,7 +210,10 @@ export async function executeRunnerContainer(plan: RunnerLaunchPlan, options: Ru
     if (launched.status !== "COMPLETED" || launched.exitCode !== 0) result = launched;
     else {
       containerStarted = true;
+      if (options.onCheckpoint) checkpointMonitor = startCheckpointMonitor({ containerName: plan.containerName, signal: options.signal, read: readCheckpoint, onCheckpoint: options.onCheckpoint, pollIntervalMs: checkpointPollIntervalMs });
       const followed = await execute({ ...plan, argv: ["logs", "--follow", plan.containerName] }, { signal: options.signal, completionMarker: plan.completionMarker });
+      await checkpointMonitor?.stop();
+      checkpointMonitor = null;
       result = resultFromContainerEnvelope(followed, plan.completionMarker);
     }
     if (result.status === "COMPLETED" && !options.signal?.aborted) {
@@ -155,6 +222,7 @@ export async function executeRunnerContainer(plan: RunnerLaunchPlan, options: Ru
       else materializeExtractedOutput(extracted.stdout, plan.outputRoot);
     }
   } catch (error) {
+    await checkpointMonitor?.stop().catch(() => undefined);
     result = { status: containerStarted ? "FAILED" : "SPAWN_FAILED", exitCode: null, signal: null, stdout: "", stderr: String(error), durationMs: 0 };
   }
 

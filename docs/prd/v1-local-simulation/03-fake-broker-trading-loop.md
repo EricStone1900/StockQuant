@@ -1,6 +1,6 @@
 # V1.3 治理、风控与模拟券商完整交易链路
 
-状态：PASS（自动验证与用户人工验收均完成，2026-09-09）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（2026-09-09历史自动与用户人工验收PASS保留；本轮第7/8节交接清单未完成，W1/W2新增回归范围待复验与重新签署）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,11 +10,17 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 ## 2. 开发任务
 
-- [x] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。
-- [x] 实现隔离 FakeBroker 交易证据和 place/query/cancel/fills/account 契约；brokerOrderId 稳定且不复制内部账本。
-- [x] 实现订单状态、全成、拒单、UNKNOWN、重复 Fill 幂等和固定故障事件序列。
-- [x] 固定场景覆盖全成、拒单、接受响应丢失、重复/乱序回报；seed/testRunId 均记录。
-- [x] 所有服务端接受路径仅允许 PAPER + FAKE，页面不能直接改状态或余额。
+- [ ] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。
+- [ ] 实现隔离 FakeBroker 交易证据和 place/query/cancel/fills/account 契约；brokerOrderId 稳定且不复制内部账本。
+- [ ] 实现订单状态、全成、拒单、UNKNOWN、重复 Fill 幂等和固定故障事件序列。
+- [ ] 固定场景覆盖全成、拒单、接受响应丢失、重复/乱序回报；seed/testRunId 均记录。
+- [ ] 所有服务端接受路径仅允许 PAPER + FAKE，页面不能直接改状态或余额。
+
+实现边界核对（2026-10-06）：此前`V13TradingEngine`曾在Platform内构造账户、订单、Fill、风控拒绝和恢复结果，但没有调用Governance、Trade Execution、Portfolio或FakeBroker；该实现已纠正为`WAITING`/`NOT_RUN`，不再生成业务事实。第2节五项保持未勾选；既有历史人工签署保留，但本轮扩展后的签署仍NOT_RUN。隔离页面与持久TestRun表面E2E见[初次审计](../../../evidence/audits/2026-10-06-w1-v13-synthetic-web-e2e.md)及[边界修正审计](../../../evidence/audits/2026-10-06-w1-v13-waiting-boundary.md)。
+
+V1.3当前WAITING API契约（2026-10-06）：固定场景/seed请求、202接受结果、owner-scoped读取和严格`NOT_RUN`证据形态已登记为独立Schema/OpenAPI；请求在Platform保存TestRun前执行边界校验。此契约冻结的是未执行状态，不是业务交易契约，也不满足本节真实服务工作流验收。见[契约纵切审计](../../../evidence/audits/2026-10-06-w1-v13-contract-boundary.md)。
+
+V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`decideManualProposal`判定，对待审批状态、proposal版本与内容Hash、有效期、PAPER/FAKE模式、HOLD空腿及明确actor/reason执行fail-closed校验；时间由调用方传入，不读取系统时钟。治理服务完整单测7文件/31项、typecheck通过。当前函数只返回审批判定，不持久化Proposal/审批记录，不提供人工API，不执行风险复核、Mandate或短期执行授权，也不调用Trade Execution/FakeBroker；不得据此勾选第2节或声称V1.3人工审批流程验收完成。实现：[manual-proposal-decision.ts](../../../services/decision-governance-service/src/domain/manual-proposal-decision.ts)，测试：[manual-proposal-decision.spec.ts](../../../services/decision-governance-service/tests/unit/manual-proposal-decision.spec.ts)，[执行审计](../../../evidence/audits/2026-10-06-w1-v13-manual-approval-domain.md)，[输入Hash清单](../../../evidence/audits/2026-10-06-w1-v13-manual-approval-domain.sha256)。
 
 ## 3. 同步 Web 开发
 
@@ -45,6 +51,8 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 契约覆盖补充（2026-09-27）：已存在的历史回放 `POST /internal/v1/historical-orders/execute` 现有规范化命令/结果Schema、OpenAPI与兼容矩阵，生成TS/Python类型并由`pnpm contracts:check`校验；契约明确只允许`historical-replay-worker`身份及FakeBroker历史执行。Portfolio快照、Fill、预留/结算已有`portfolio-account.v1`契约。该增补弥补描述缺失，不代表服务新接线、Paper交易闭环或本阶段验收状态改变。
 
+隔离 Web/API/CLI 同 Run 表面测试（2026-10-06）：最初在随机 Compose 项目/端口/数据库密码下运行 normal、rejection、recovery 三场景并通过了页面与同Run查询；随后审查确认该成功来自平台合成证据，已修正为明确`WAITING`/`NOT_RUN`，删除合成订单/成交/现金“事实”，CLI `--check-only`按未完成预期退出2，页面明确不会创建业务记录。当前`pnpm test:e2e:v13-isolated`只证明页面边界、持久化和CLI同Run读回，不能替代真实业务闭环。初始成功审计与修正后的验证记录分别保留，不覆盖历史日志。见[合成运行审计](../../../evidence/audits/2026-10-06-w1-v13-synthetic-web-e2e.md)、[初始浏览器日志](../../../evidence/audits/2026-10-06-w1-v13-synthetic-web-e2e.log)、[修正后边界验证审计](../../../evidence/audits/2026-10-06-w1-v13-waiting-boundary.md)、[修正后日志](../../../evidence/audits/2026-10-06-w1-v13-waiting-boundary.log)及[边界修正执行SHA-256清单（历史执行快照）](../../../evidence/audits/2026-10-06-w1-v13-waiting-boundary.sha256)。[契约纵切清单（历史执行快照）](../../../evidence/audits/2026-10-06-w1-v13-contract-boundary.sha256)是生成时的历史源码快照；当前V1.3代码边界由[最新W1代码审计](../../../evidence/audits/2026-10-06-w1-v13-manual-approval-domain.md)及其[当前源码Hash清单](../../../evidence/audits/2026-10-06-w1-v13-manual-approval-domain.sha256)覆盖。
+
 退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
 
 ## 7. 阶段交付待办（完成后勾选）
@@ -71,13 +79,16 @@ COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --suite code
 COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario normal --seed 20260907
 COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario rejection --seed 20260907
 COREPACK_HOME="$PWD/.corepack" pnpm verify:stage -- --stage V1.3 --scenario recovery --seed 20260907
+COREPACK_HOME="$PWD/.corepack" pnpm test:e2e:v13-isolated
 ```
+
+`pnpm verify:stage -- --stage V1.3 --suite code` is the automated code gate. `pnpm test:e2e:v13-isolated` creates disposable TestRuns and checks the same IDs through CLI, but the expected business result is currently `WAITING`; CLI `--check-only` exits 2 because no service-backed facts exist. The harness itself passes only when this incomplete state is reported truthfully and all temporary resources are removed. This does not satisfy V1.3 business acceptance, and the current runbook remains a draft pending the real service workflow.
 
 Web 验收入口：`http://127.0.0.1:8080/acceptance/v1/v1.3`。每次运行保存页面显示的 `testRunId`，再用 `curl -H 'x-stockquant-user: acceptance-owner-1' http://127.0.0.1:3000/api/v1/acceptance/v1/v1.3/runs/<testRunId>` 核对后端证据。
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（自动验证已具备；人工签署仍 NOT_RUN）。
+手册状态：DRAFT_NOT_EXECUTABLE（2026-09-09历史签署保留；本轮只验证隔离页面/持久TestRun表面，场景返回WAITING；当前第8.1/8.2占位、业务服务链和本轮人工验收未完成）。
 
 前置服务：平台/Web、数据/量化、组合、治理、执行/Gateway、独立FakeBroker、真实DB/NATS及本阶段所需编排。
 
@@ -130,11 +141,11 @@ pnpm dev:web
 
 ### 8.4 命令行复验与相同运行核对（待实现）
 
-在项目根目录执行以下目标命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
+在项目根目录执行以下命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。当前治理/执行/组合账本/FakeBroker尚未连入V1.3，三个场景命令和同Run `--check-only`都应如实返回WAITING/exit 2；完整代码套件与隔离Web表面Harness应exit 0。业务链尚未实装时，不能把场景命令exit 2当成回归失败，也不能把它改成PASS。接入真实隔离服务后，再将业务场景预期改为基于服务事实的exit 0，并补充此处记录。
 
 ```bash
 pnpm verify:stage -- --stage V1.3 --scenario normal --seed 20260907
-# 紧接上一命令执行；0表示全部场景断言通过
+# 当前预期：WAITING / exit 2，业务链尚未执行
  echo $?
 pnpm verify:stage -- --stage V1.3 --scenario rejection --seed 20260907
  echo $?
@@ -146,7 +157,7 @@ pnpm test:e2e -- --stage V1.3
  echo $?
 ```
 
-预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
+当前已验证行为：各场景创建持久TestRun并返回`status=WAITING`、`businessExecution=NOT_RUN`，同Run CLI只读核对exit 2；页面显示该边界且不生成订单/成交/账本事实。真实业务接线后，再按8.3断言验证成功拒绝exit 0及完整正常/恢复链。恢复场景只有在真实外部动作可安全复现并记录时才可通过；不能随机换seed或重启宿主伪造恢复。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
 
 再对Web中已运行的同一testRunId执行只读核对，避免仅创建新样本掩盖页面问题：
 

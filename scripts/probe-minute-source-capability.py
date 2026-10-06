@@ -15,8 +15,12 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from pathlib import Path
 from queue import Empty
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/market-data-adapter/src"))
+from market_data_adapter.authorization import missing_collection_source_authorization
 
 FIELDS = "date,time,code,open,high,low,close,volume,amount"
 DEFAULT_CODES = "sh.600000,sz.000001,sh.600519"
@@ -123,6 +127,14 @@ def run() -> dict[str, object]:
         "liveSession": {"status": "NOT_RUN", "reason": "requires observation during an actual market session"},
         "probedAt": datetime.now().astimezone().isoformat(),
     }
+    missing = missing_collection_source_authorization(["baostock", "sina"])
+    if missing:
+        result.update({"status": "BLOCKED", "blockedBeforeNetwork": True, "missingAuthorization": missing, "sources": []})
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as handle:
+                json.dump(result, handle, ensure_ascii=False, indent=2)
+                handle.write("\n")
+        return result
     baostock = probe_baostock(codes, args.start_date, args.end_date, args.timeout_seconds)
     sina = probe_sina(codes, args.timeout_seconds)
     result["sources"] = [baostock, sina]
@@ -137,4 +149,4 @@ def run() -> dict[str, object]:
 if __name__ == "__main__":
     output = run()
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    raise SystemExit(0 if output["status"] in {"PASS", "PARTIAL"} else 1)
+    raise SystemExit(0 if output["status"] in {"PASS", "PARTIAL"} else 2 if output["status"] in {"BLOCKED", "NOT_RUN"} else 1)

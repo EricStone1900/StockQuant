@@ -1,4 +1,4 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { activate } from "./dc08a-activate.mjs";
 import { readActiveSubscription } from "./dc08a-active-subscription.mjs";
@@ -13,6 +13,7 @@ import { createObservationSummary } from "./dc08a-observation-summary.mjs";
 import { probeSourceRecovery } from "./dc08a-source-recovery-probe.mjs";
 
 const todayShanghai = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
+const shanghaiDate = (now) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(now);
 const evidenceDirectory = (date) => resolve(process.env.DC08A_OUTPUT_DIR ?? "evidence/dc08a", "dc-t19", date);
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -33,6 +34,42 @@ async function archiveReport(directory, sourcePath, name) {
 export function classifySourceRecovery(probe) {
   const failed = probe?.status === "FAILED" || probe?.attempts?.some((attempt) => attempt?.status === "FAIL");
   return { status: failed ? "DEGRADED" : "CHECKED", alert: failed, attempts: probe?.attempts ?? [] };
+}
+
+function shanghaiTime(now) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  return `${parts.find((part) => part.type === "hour")?.value ?? "00"}:${parts.find((part) => part.type === "minute")?.value ?? "00"}`;
+}
+
+export function endOfDayEligibility({ now = new Date(), calendarStatus = "TRADING", notBefore = "15:15" } = {}) {
+  if (calendarStatus === "CLOSED") return { eligible: false, status: "NOT_RUN", reason: "NON_TRADING_DAY", localTime: shanghaiTime(now) };
+  if (calendarStatus !== "TRADING") return { eligible: false, status: "WAITING_DEPENDENCY", reason: "CALENDAR_UNAVAILABLE", localTime: shanghaiTime(now) };
+  const localTime = shanghaiTime(now);
+  if (localTime < notBefore) return { eligible: false, status: "WAITING_END_OF_DAY", reason: "COMPLETION_DEADLINE_NOT_REACHED", localTime, notBefore };
+  return { eligible: true, status: "ELIGIBLE", localTime, notBefore };
+}
+
+async function readCalendar(date, calendarUrl) {
+  try {
+    const response = await fetch(`${calendarUrl}/v2/calendar/cn-a-share/${date}`, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) return { status: "UNAVAILABLE" };
+    return await response.json();
+  } catch {
+    return { status: "UNAVAILABLE" };
+  }
+}
+
+async function acquireEodLock(directory, date) {
+  await mkdir(directory, { recursive: true });
+  const path = resolve(directory, `.eod-${date}.lock`);
+  try {
+    const handle = await open(path, "wx");
+    await handle.writeFile(`${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`);
+    return { path, release: async () => { await handle.close(); await unlink(path).catch(() => {}); } };
+  } catch (error) {
+    if (error?.code === "EEXIST") return null;
+    throw error;
+  }
 }
 
 async function waitForHealthy(attempts = 20) {
@@ -75,26 +112,37 @@ export async function monitor({ recordGaps = false } = {}) {
   return { status: report.report.status, readiness, active, report: report.report, deliveries, observation: observation.report, recoveryProbe, recoveryProbeEvidence, sourceRecovery, evidence: { directory: archiveDir, observationPath: observation.archivePath }, exitCode };
 }
 
-export async function endOfDay() {
-  const monitored = await monitor({ recordGaps: true });
-  if (monitored.exitCode === 1) return monitored;
-  const archiveDir = evidenceDirectory(todayShanghai());
-  const report = await createDailyReport({ subscriptionId: monitored.active.subscriptionId, securityCount: monitored.active.securityIds.length });
-  const counted = await capture({ subscriptionId: monitored.active.subscriptionId, archiveDir, observationCounted: report.report.status === "PASS" && report.report.tradingDay === true, finalized: true });
-  // Refresh derived evidence only after gap reconciliation and outbox delivery.
-  // This keeps the daily report, health report and observation summary on the
-  // same post-recovery view while preserving the earlier evidence files.
-  const health = await createHealthReport({ activeSubscription: monitored.active.subscriptionId });
-  const observations = await createObservationSummary({ subscriptionId: monitored.active.subscriptionId });
-  const evidence = {
-    directory: archiveDir,
-    observationPath: counted.archivePath,
-    dailyReportPath: await archiveReport(archiveDir, report.path, "daily-report.json"),
-    healthReportPath: await archiveReport(archiveDir, health.output, "health-report.json"),
-    observationSummaryPath: await archiveReport(archiveDir, observations.output, "observation-summary.json")
-  };
-  const reportExitCode = finalReportExitCode(report.report);
-  return { ...monitored, observation: counted.report, dailyReport: report.report, health: health.report, observationSummary: observations.summary, evidence, exitCode: reportExitCode === 0 && monitored.sourceRecovery?.alert ? 2 : reportExitCode };
+export async function endOfDay({ now = new Date(), calendar = null, calendarUrl = process.env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002" } = {}) {
+  const date = shanghaiDate(now);
+  const day = calendar ?? await readCalendar(date, calendarUrl);
+  const eligibility = endOfDayEligibility({ now, calendarStatus: day?.status });
+  if (!eligibility.eligible) return { status: eligibility.status, calendar: day, eligibility, exitCode: eligibility.status === "NOT_RUN" ? 0 : 2 };
+  const archiveDir = evidenceDirectory(date);
+  const lock = await acquireEodLock(archiveDir, date);
+  if (!lock) return { status: "WAITING_DEPENDENCY", eligibility, reason: "EOD_ALREADY_RUNNING", exitCode: 2 };
+  try {
+    const monitored = await monitor({ recordGaps: true });
+    if (monitored.exitCode === 1) return monitored;
+    const report = await createDailyReport({ date, subscriptionId: monitored.active.subscriptionId, securityCount: monitored.active.securityIds.length, calendarUrl });
+    const completed = report.report.status === "PASS" && report.report.tradingDay === true;
+    const counted = await capture({ subscriptionId: monitored.active.subscriptionId, archiveDir, now, observationCounted: completed, finalized: completed });
+    // Refresh derived evidence only after gap reconciliation and outbox delivery.
+    // This keeps the daily report, health report and observation summary on the
+    // same post-recovery view while preserving the earlier evidence files.
+    const health = await createHealthReport({ configuredSubscriptionId: monitored.active.subscriptionId });
+    const observations = await createObservationSummary({ subscriptionId: monitored.active.subscriptionId });
+    const evidence = {
+      directory: archiveDir,
+      observationPath: counted.archivePath,
+      dailyReportPath: await archiveReport(archiveDir, report.path, "daily-report.json"),
+      healthReportPath: await archiveReport(archiveDir, health.output, "health-report.json"),
+      observationSummaryPath: await archiveReport(archiveDir, observations.output, "observation-summary.json")
+    };
+    const reportExitCode = finalReportExitCode(report.report);
+    return { ...monitored, eligibility, observation: counted.report, dailyReport: report.report, health: health.report, observationSummary: observations.summary, evidence, exitCode: reportExitCode === 0 && monitored.sourceRecovery?.alert ? 2 : reportExitCode };
+  } finally {
+    await lock.release();
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v3.3-recovery-verify-result.schema.json",
+  "title": "V33RecoveryVerifyResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testRunId", "status", "idempotent", "assertion", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "v3.3-recovery-verify-result-v1" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["RUNNING", "COMPLETED", "FAILED", "CANCELLED", "WAITING"] },
+    "idempotent": { "type": "boolean" },
+    "assertion": { "type": ["object", "null"] },
+    "evidence": { "type": ["object", "null"] }
+  }
+}

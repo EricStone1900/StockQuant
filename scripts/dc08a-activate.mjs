@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { collectionSourceConfiguration } from "./dc08a-collection-authorization.mjs";
 
 const compose = ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml"];
 export const defaultActivationConfig = {
@@ -17,6 +18,7 @@ export const defaultPromotionConfig = {
 export function evaluateActivation({ ready, schedules, expected }) {
   const reasons = [];
   if (ready?.status !== "ready" || ready.collectionPersistence !== "POSTGRES") reasons.push("market-data-service is not ready with PostgreSQL persistence");
+  if (ready?.collectionSourceAuthorization !== "AUTHORIZED") reasons.push("minute-source use is not authorized in the running Market Data service");
   const schedulerEnabled = ready?.collectionSchedulerWorker === "ENABLED";
   const executorEnabled = ready?.collectionExecutor === "ENABLED";
   if (schedulerEnabled !== executorEnabled) reasons.push("collection scheduler/executor state is inconsistent");
@@ -50,6 +52,8 @@ function readSchedules() {
 }
 
 export async function activate({ env = process.env, command = run, ready = getReady, read = readSchedules, url = env.DC08A_MARKET_URL ?? "http://127.0.0.1:3002/ready", dryRun = false } = {}) {
+  const sourceConfiguration = collectionSourceConfiguration(env);
+  if (!sourceConfiguration.authorized) return { status: "BLOCKED", reasons: ["external minute-source use is not authorized; no Market Data activation or probe was performed", ...sourceConfiguration.missingConfiguration], exitCode: 2 };
   let observation;
   let schedules;
   try {

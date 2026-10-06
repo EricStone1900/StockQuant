@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v3.3-runner-checkpoint-result.schema.json",
+  "title": "V33RunnerCheckpointResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "checkpoint", "stateSha256", "sequence", "existing", "createdAt"],
+  "properties": {
+    "status": { "const": "PERSISTED" },
+    "checkpoint": { "type": "object" },
+    "stateSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "existing": { "type": "boolean" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}
