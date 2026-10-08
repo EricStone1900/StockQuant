@@ -78,7 +78,8 @@ QlibFitFixtureResult = TypedDict("QlibFitFixtureResult", {
 })
 
 V14DailyBacktestFixtureRequest = TypedDict("V14DailyBacktestFixtureRequest", {
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees', 'corporate-actions']],
+  "testRunId": NotRequired[str],
   "seed": Required[int],
   "policy": Required[dict[str, object]],
 })
@@ -86,11 +87,12 @@ V14DailyBacktestFixtureRequest = TypedDict("V14DailyBacktestFixtureRequest", {
 V14DailyBacktestFixtureResult = TypedDict("V14DailyBacktestFixtureResult", {
   "testRunId": Required[str],
   "stageId": Required[Literal['V1.4']],
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'market-restrictions', 'historical-fees', 'corporate-actions']],
   "seed": Required[int],
   "status": Required[Literal['COMPLETED', 'FAILED']],
   "assertions": Required[list[dict[str, object]]],
   "evidence": Required[dict[str, object]],
+  "durableReport": Required[dict[str, object]],
 })
 
 V31ArtifactPublishCommand = TypedDict("V31ArtifactPublishCommand", {
@@ -968,6 +970,7 @@ ResourceReservationCommand = TypedDict("ResourceReservationCommand", {
   "cashAmount": Required[object],
   "security": Required[object],
   "quantity": Required[object],
+  "asOf": NotRequired[str],
 })
 
 ResourceReservationResolution = TypedDict("ResourceReservationResolution", {
@@ -1026,6 +1029,142 @@ TestRun = TypedDict("TestRun", {
   "artifactRefs": NotRequired[list[ArtifactRef]],
 })
 
+V12StrategySnapshotCommand = TypedDict("V12StrategySnapshotCommand", {
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "artifactId": Required[str],
+  "artifactSha256": Required[str],
+  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
+  "dataVersion": Required[Literal['v1.2-market-data-4']],
+  "factorVersion": Required[Literal['v1.2-momentum-volume-1']],
+  "strategyId": Required[Literal['v1.2-qlib-topk-1', 'v1.2-no-trade-1']],
+  "strategyHash": Required[str],
+  "mode": Required[Literal['TOPK', 'NO_TRADE']],
+  "asOf": Required[str],
+  "targets": Required[list[V12StrategyTarget]],
+})
+
+V12StrategyTarget = TypedDict("V12StrategyTarget", {
+  "ticker": Required[str],
+  "market": Required[Literal['CN_A', 'US_EQUITY']],
+  "currency": Required[Literal['CNY', 'USD']],
+  "reason": Required[str],
+})
+
+V13AutoMandateCommand = TypedDict("V13AutoMandateCommand", {
+  "mandateId": Required[str],
+  "mandateVersion": Required[Literal[1]],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "strategyVersion": Required[str],
+  "market": Required[Literal['CN_A', 'US_EQUITY']],
+  "currency": Required[Literal['CNY', 'USD']],
+  "securityScope": Required[list[str]],
+  "maxOrderAmount": Required[str],
+  "maxTotalAmount": Required[str],
+  "maxOrderCount": Required[int],
+  "validFrom": Required[str],
+  "expiresAt": Required[str],
+  "reason": Required[str],
+  "now": Required[str],
+})
+
+V13AutoMandateOrderCommand = TypedDict("V13AutoMandateOrderCommand", {
+  "mandateVersion": Required[int],
+  "ownerId": Required[str],
+  "clientOrderId": Required[str],
+  "commandHash": Required[str],
+  "proposal": Required[V13AutoMandateProposal],
+  "now": Required[str],
+})
+
+V13AutoMandateProposal = TypedDict("V13AutoMandateProposal", {
+  "proposalId": Required[str],
+  "proposalVersion": Required[int],
+  "contentHash": Required[str],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "strategyVersion": Required[str],
+  "operation": Required[Literal['HOLD', 'REBALANCE']],
+  "market": Required[Literal['CN_A', 'US_EQUITY']],
+  "currency": Required[Literal['CNY', 'USD']],
+  "legs": Required[list[dict[str, object]]],
+})
+
+V13AutoMandateSettlementCommand = TypedDict("V13AutoMandateSettlementCommand", {
+  "outcome": Required[Literal['CONSUMED', 'RELEASED']],
+  "now": Required[str],
+})
+
+V13AutoMandateTransitionCommand = TypedDict("V13AutoMandateTransitionCommand", {
+  "mandateVersion": Required[int],
+  "testRunId": Required[str],
+  "contentHash": NotRequired[str],
+  "reason": Required[str],
+  "now": Required[str],
+})
+
+V13AutoPaperExecutionCommand = TypedDict("V13AutoPaperExecutionCommand", {
+  "proposalId": Required[str],
+  "mandateId": Required[str],
+  "mandateVersion": Required[int],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "clientOrderId": Required[str],
+  "now": Required[str],
+})
+
+V13ExecutionAuthorizationCommand = TypedDict("V13ExecutionAuthorizationCommand", {
+  "proposalVersion": Required[int],
+  "contentHash": Required[str],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "clientOrderId": Required[str],
+  "commandHash": Required[str],
+  "now": Required[str],
+})
+
+V13ExecutionAuthorizationResult = TypedDict("V13ExecutionAuthorizationResult", {
+  "authorizationId": Required[str],
+  "proposalId": Required[str],
+  "proposalVersion": Required[int],
+  "contentHash": Required[str],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "clientOrderId": Required[str],
+  "commandHash": Required[str],
+  "expiresAt": Required[str],
+  "status": Required[Literal['ACTIVE']],
+  "replayed": NotRequired[bool],
+})
+
+V13ExecutionAuthorizationValidation = TypedDict("V13ExecutionAuthorizationValidation", {
+  "authorizationId": Required[str],
+  "proposalVersion": Required[int],
+  "contentHash": Required[str],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "clientOrderId": Required[str],
+  "commandHash": Required[str],
+  "now": Required[str],
+})
+
+V13ManualPaperExecutionCommand = TypedDict("V13ManualPaperExecutionCommand", {
+  "proposalId": Required[str],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "clientOrderId": Required[str],
+  "now": Required[str],
+})
+
 V13PaperStageRunAccepted = TypedDict("V13PaperStageRunAccepted", {
   "accepted": Required[Literal[True]],
   "testRunId": Required[str],
@@ -1050,6 +1189,70 @@ V13PaperStageRunResult = TypedDict("V13PaperStageRunResult", {
   "evidence": Required[dict[str, object]],
   "createdAt": Required[str],
   "completedAt": Required[object],
+})
+
+V13ProposalCommand = TypedDict("V13ProposalCommand", {
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "idempotencyKey": Required[str],
+  "accountId": Required[str],
+  "strategyVersion": Required[str],
+  "approvalMode": NotRequired[Literal['MANUAL_APPROVAL', 'AUTO_POLICY']],
+  "market": NotRequired[Literal['CN_A', 'US_EQUITY']],
+  "currency": NotRequired[Literal['CNY', 'USD']],
+  "operation": Required[Literal['HOLD', 'REBALANCE']],
+  "environmentMode": Required[Literal['PAPER']],
+  "brokerMode": Required[Literal['FAKE']],
+  "expiresAt": Required[str],
+  "legs": Required[list[V13ProposalLeg]],
+})
+
+V13ProposalDecisionCommand = TypedDict("V13ProposalDecisionCommand", {
+  "expectedVersion": Required[int],
+  "expectedContentHash": Required[str],
+  "reason": Required[str],
+  "now": Required[str],
+})
+
+V13ProposalDecisionResult = TypedDict("V13ProposalDecisionResult", {
+
+})
+
+V13ProposalLeg = TypedDict("V13ProposalLeg", {
+  "legId": Required[str],
+  "securityId": Required[str],
+  "side": Required[Literal['BUY', 'SELL']],
+  "quantity": Required[int],
+})
+
+V13ProposalResult = TypedDict("V13ProposalResult", {
+  "proposalId": Required[str],
+  "proposalVersion": Required[int],
+  "contentHash": Required[str],
+  "status": Required[Literal['MANUAL_APPROVAL_PENDING', 'AUTO_POLICY_PENDING', 'APPROVED_MANUAL', 'REJECTED_MANUAL', 'STALE']],
+  "approvalMode": Required[Literal['MANUAL_APPROVAL', 'AUTO_POLICY']],
+  "market": Required[Literal['CN_A', 'US_EQUITY']],
+  "currency": Required[Literal['CNY', 'USD']],
+  "operation": Required[Literal['HOLD', 'REBALANCE']],
+  "environmentMode": Required[Literal['PAPER']],
+  "brokerMode": Required[Literal['FAKE']],
+  "expiresAt": Required[str],
+  "legs": Required[list[V13ProposalLeg]],
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "accountId": Required[str],
+  "strategyVersion": Required[str],
+  "replayed": NotRequired[bool],
+})
+
+V13ProposalRevisionCommand = TypedDict("V13ProposalRevisionCommand", {
+  "expectedVersion": Required[int],
+  "expectedContentHash": Required[str],
+  "operation": Required[Literal['HOLD', 'REBALANCE']],
+  "expiresAt": Required[str],
+  "legs": Required[list[V13ProposalLeg]],
+  "reason": Required[str],
+  "now": Required[str],
 })
 
 V24ObservationRevisionList = TypedDict("V24ObservationRevisionList", {
@@ -1573,6 +1776,14 @@ V12FixturePreview = TypedDict("V12FixturePreview", {
   "bars": Required[list[dict[str, object]]],
 })
 
+V12ResearchFixturePreview = TypedDict("V12ResearchFixturePreview", {
+  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "dailyBarsSha256": Required[str],
+  "securities": Required[list[dict[str, object]]],
+  "bars": Required[list[dict[str, object]]],
+})
+
 V22StageRunRequest = TypedDict("V22StageRunRequest", {
   "scenarioId": NotRequired[Literal['normal', 'rejection', 'recovery', 'uploaded-csv']],
   "seed": NotRequired[int],
@@ -1616,6 +1827,8 @@ QlibSummaryValidateRequest = TypedDict("QlibSummaryValidateRequest", {
 })
 
 V12FactorPreview = TypedDict("V12FactorPreview", {
+  "status": Required[Literal['COMPLETED', 'NOT_RUN']],
+  "reason": NotRequired[str],
   "factorVersion": Required[Literal['v1.2-sma-factor-1']],
   "dataVersion": Required[Literal['v1.2-market-data-1']],
   "asOf": Required[str],
@@ -1632,6 +1845,19 @@ V12QlibProbePreview = TypedDict("V12QlibProbePreview", {
   "probe": Required[dict[str, object]],
   "executionModel": NotRequired[str],
   "modelCalls": NotRequired[str],
+})
+
+V12QlibStrategyArtifact = TypedDict("V12QlibStrategyArtifact", {
+  "schemaVersion": Required[Literal['v1.2-qlib-strategy-artifact-v1']],
+  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
+  "dailyBarsSha256": Required[str],
+  "inputSha256": Required[str],
+  "factorVersion": Required[Literal['v1.2-momentum-volume-1']],
+  "dataVersion": Required[Literal['v1.2-market-data-4']],
+  "asOf": Required[str],
+  "qlibModels": Required[list[dict[str, object]]],
+  "predictions": Required[list[dict[str, object]]],
+  "strategies": Required[list[dict[str, object]]],
 })
 
 V12RDagentProbePreview = TypedDict("V12RDagentProbePreview", {

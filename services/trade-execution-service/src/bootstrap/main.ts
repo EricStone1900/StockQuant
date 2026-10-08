@@ -14,6 +14,9 @@ import { evaluateV24PaperFixtureGrant, fixtureClock, type V24PaperExecutionGrant
 import { GeneratedPortfolioAccountClient, PortfolioAccountClientError } from "../contracts/generated-portfolio-account-client.js";
 import { GeneratedPaperAuthorizationClient } from "../contracts/generated-paper-authorization-client.js";
 import { GeneratedReplayGovernanceClient } from "../contracts/generated-replay-governance-client.js";
+import { GeneratedTradeV13GovernanceClient } from "../contracts/generated-v13-governance-client.js";
+import { V13ManualPaperExecutionError, V13ManualPaperExecutionService, V13AutoPaperExecutionService } from "../application/v13-manual-paper-execution.js";
+import { GeneratedTradeV13AutoMandateClient } from "../contracts/generated-v13-auto-mandate-client.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3005);
 const portfolioUrl = process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001";
@@ -22,7 +25,12 @@ const portfolioClient = new GeneratedPortfolioAccountClient(portfolioUrl, "trade
 const governanceUrl = process.env.STOCKQUANT_GOVERNANCE_URL ?? "http://127.0.0.1:3007";
 const paperAuthorizationClient = new GeneratedPaperAuthorizationClient(governanceUrl, process.env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION ?? "");
 const replayGovernanceClient = new GeneratedReplayGovernanceClient(governanceUrl, process.env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION ?? "");
+const v13GovernanceClient = new GeneratedTradeV13GovernanceClient(governanceUrl, process.env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION ?? "");
+const v13AutoMandateClient = new GeneratedTradeV13AutoMandateClient(governanceUrl, process.env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION ?? "");
 const pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
+pool.on("error", (error: Error & { code?: string }) => {
+  console.warn(`STOCKQUANT_TRADE_DATABASE_IDLE_CLIENT_ERROR name=${error.name} code=${error.code ?? "none"}`);
+});
 const broker = new PostgresFakeBrokerRepository(pool);
 const simulationPolicies = new PostgresSimulationExecutionPolicyRepository(pool);
 let callerTokens: ReturnType<typeof loadTradeExecutionServiceTokens>;
@@ -42,7 +50,37 @@ await broker.migrate();
 await simulationPolicies.migrate();
 const initialReadinessInputs = readV24ReadinessInputs();
 await simulationPolicies.savePreparationPolicy(initialReadinessInputs.policy);
-const fillOutboxDelivery = new FillOutboxDelivery(broker, portfolioClient);
+const injectedFeeCorrectionFaults = new Set<string>();
+const fillOutboxDelivery = new FillOutboxDelivery(broker, portfolioClient, {
+  beforeFeeCorrectionDelivery(eventId, value) {
+    const correction = value as { evidenceRef?: unknown; revision?: unknown };
+    if (process.env.STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED !== "true" || typeof correction.evidenceRef !== "string" || !correction.evidenceRef.startsWith("v13-fee-correction:") || correction.revision !== 1 || injectedFeeCorrectionFaults.has(eventId)) return;
+    injectedFeeCorrectionFaults.add(eventId);
+    console.info(JSON.stringify({ faultScenario: "V13_FEE_CORRECTION_PORTFOLIO_POST_REJECTED_ONCE", eventId, evidenceRef: correction.evidenceRef, eventSequence: 1 }));
+    throw new Error("V13_TEST_FEE_CORRECTION_PORTFOLIO_POST_REJECTED_ONCE");
+  },
+});
+const v13ManualPaperExecution = new V13ManualPaperExecutionService(broker, portfolioClient, v13GovernanceClient, fillOutboxDelivery);
+const injectedAutoFaultPhases = new Map<string, number>();
+const v13AutoPaperExecution = new V13AutoPaperExecutionService(broker, portfolioClient, v13GovernanceClient, v13AutoMandateClient, fillOutboxDelivery, {
+  async afterFakeBrokerCommit(command) {
+    if (process.env.STOCKQUANT_V13_TEST_FAULTS_ENABLED !== "true" || (!command.clientOrderId.startsWith("v13-fault-unknown-") && !command.clientOrderId.startsWith("v13-fault-restart-"))) return;
+    const key = `${command.namespace}:${command.clientOrderId}`;
+    if ((injectedAutoFaultPhases.get(key) ?? 0) !== 0) return;
+    injectedAutoFaultPhases.set(key, 1);
+    const restartRecovery = command.clientOrderId.startsWith("v13-fault-restart-");
+    console.info(JSON.stringify({ faultScenario: restartRecovery ? "AUTO_RESPONSE_LOST_BEFORE_TRADE_RESTART" : "AUTO_RESPONSE_LOST_AFTER_FAKEBROKER_COMMIT", testRunId: command.testRunId, clientOrderId: command.clientOrderId, eventSequence: 1 }));
+    throw new V13ManualPaperExecutionError(503, restartRecovery ? "AUTO_TEST_FAULT_RESPONSE_LOST_BEFORE_TRADE_RESTART" : "AUTO_TEST_FAULT_RESPONSE_LOST_AFTER_FAKEBROKER_COMMIT");
+  },
+  async beforeOriginalOrderRead(command) {
+    if (process.env.STOCKQUANT_V13_TEST_FAULTS_ENABLED !== "true" || !command.clientOrderId.startsWith("v13-fault-unknown-")) return;
+    const key = `${command.namespace}:${command.clientOrderId}`;
+    if (injectedAutoFaultPhases.get(key) !== 1) return;
+    injectedAutoFaultPhases.set(key, 2);
+    console.info(JSON.stringify({ faultScenario: "AUTO_ORIGINAL_ORDER_QUERY_UNAVAILABLE_ONCE", testRunId: command.testRunId, clientOrderId: command.clientOrderId, eventSequence: 2 }));
+    throw new V13ManualPaperExecutionError(503, "AUTO_TEST_FAULT_ORIGINAL_ORDER_QUERY_UNAVAILABLE_ONCE");
+  },
+});
 let outboxPollRunning = false;
 const retryTimer = setInterval(() => {
   if (outboxPollRunning) return;
@@ -87,7 +125,50 @@ createServer(async (request, response) => {
       return json(response, 503, { error: "V2.4 readiness policy contracts are unavailable" });
     }
   }
+  if (request.method === "GET" && pathname === "/internal/v1/v13/accounts/assets") {
+    const query = new URL(request.url ?? "/", `http://127.0.0.1:${port}`).searchParams;
+    const namespace = query.get("namespace"); const accountId = query.get("accountId");
+    if (!namespace || !accountId) return json(response, 422, { error: "namespace and accountId are required" });
+    const assets = await broker.independentAssetSnapshot(namespace, accountId);
+    return assets ? json(response, 200, assets) : json(response, 404, { error: "independent FakeBroker assets not found" });
+  }
   if (request.method === "GET" && reconciliationMatch) return json(response, 200, await broker.reconciliationSummary(decodeURIComponent(reconciliationMatch[1])));
+  if (request.method === "POST" && (pathname === "/internal/v1/v13/paper-orders/execute-manual-proposal" || pathname === "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal")) {
+    const sequenced = pathname.endsWith("execute-manual-sequenced-proposal");
+    let raw = "";
+    for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 8192) return json(response, 413, { error: "V1.3 manual execution command exceeds 8 KiB" }); }
+    let body: Record<string, unknown>;
+    try { body = JSON.parse(raw) as Record<string, unknown>; } catch { return json(response, 422, { error: "valid JSON body is required" }); }
+    if (!body || Array.isArray(body) || Object.keys(body).sort().join(",") !== "accountId,clientOrderId,namespace,now,ownerId,proposalId,testRunId" || Object.values(body).some((value) => typeof value !== "string" || !value.trim())) return json(response, 422, { error: "V1.3 execution scope fields are invalid" });
+    try {
+      const result = sequenced
+        ? await v13ManualPaperExecution.executeSequenced(body as { accountId: string; clientOrderId: string; namespace: string; now: string; ownerId: string; proposalId: string; testRunId: string })
+        : await v13ManualPaperExecution.execute(body as { accountId: string; clientOrderId: string; namespace: string; now: string; ownerId: string; proposalId: string; testRunId: string });
+      return json(response, result.replayed ? 200 : result.outbox?.status === "DELIVERED" ? 201 : 202, { schemaVersion: "v13-manual-paper-execution-result-v1", ...result });
+    } catch (error) {
+      if (error instanceof V13ManualPaperExecutionError) return json(response, error.statusCode, { error: error.message, ...(error.detail ? { detail: error.detail } : {}) });
+      const message = error instanceof Error ? error.message : "V1.3 manual proposal execution failed";
+      if (message.startsWith("V13_")) return json(response, 422, { error: message });
+      throw error;
+    }
+  }
+  if (request.method === "POST" && pathname === "/internal/v1/v13/paper-orders/execute-auto-proposal") {
+    let raw = "";
+    for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 8192) return json(response, 413, { error: "V1.3 AUTO execution command exceeds 8 KiB" }); }
+    let body: Record<string, unknown>;
+    try { body = JSON.parse(raw) as Record<string, unknown>; } catch { return json(response, 422, { error: "valid JSON body is required" }); }
+    const fields = "accountId,clientOrderId,mandateId,mandateVersion,namespace,now,ownerId,proposalId,testRunId";
+    if (!body || Array.isArray(body) || Object.keys(body).sort().join(",") !== fields || Object.entries(body).some(([key, value]) => key === "mandateVersion" ? !Number.isSafeInteger(value) || Number(value) < 1 : typeof value !== "string" || !value.trim())) return json(response, 422, { error: "V1.3 AUTO execution scope fields are invalid" });
+    try {
+      const result = await v13AutoPaperExecution.execute(body as { accountId: string; clientOrderId: string; mandateId: string; mandateVersion: number; namespace: string; now: string; ownerId: string; proposalId: string; testRunId: string });
+      return json(response, result.replayed ? 200 : result.order ? result.outbox?.status === "DELIVERED" ? 201 : 202 : 200, { schemaVersion: "v13-auto-paper-execution-result-v1", ...result });
+    } catch (error) {
+      if (error instanceof V13ManualPaperExecutionError) return json(response, error.statusCode, { error: error.message, ...(error.detail ? { detail: error.detail } : {}) });
+      const message = error instanceof Error ? error.message : "V1.3 AUTO execution failed";
+      if (message.startsWith("V13_")) return json(response, 422, { error: message });
+      throw error;
+    }
+  }
   if (request.method === "POST" && pathname === simulatedExternalOrderPath) {
     let raw = "";
     for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 8192) return json(response, 413, { error: "FakeBroker external order exceeds 8 KiB" }); }
@@ -112,9 +193,12 @@ createServer(async (request, response) => {
     const order = await broker.findByNamespaceClientOrderId(namespace, clientOrderId);
     return order ? json(response, 200, {
       order: { order_id: order.order_id, status: order.status, rejection_reason: order.rejection_reason, clientOrderId: order.client_order_id },
+      orderSide: order.payload?.side ?? "BUY",
       fill: order.external_fill_id ? { externalFillId: order.external_fill_id, quantity: Number(order.fill_quantity), price: order.fill_price, fee: order.fill_fee, effectiveAt: order.effective_at.toISOString() } : null,
+      fills: order.fills ?? [],
+      feeCorrectionOutbox: order.fee_correction_event_id ? { event_id: order.fee_correction_event_id, event_type: "FEE_CORRECTION", status: order.fee_correction_outbox_status, attempts: order.fee_correction_outbox_attempts, last_error: order.fee_correction_outbox_last_error, delivered_at: order.fee_correction_outbox_delivered_at?.toISOString() ?? null } : null,
       outbox: order.event_id ? { event_id: order.event_id, event_type: order.event_type, status: order.outbox_status, attempts: order.attempts, delivered_at: order.delivered_at?.toISOString() ?? null } : null,
-      authorization: order.payload?.testRunId ? { status: "AUTHORIZED", testRunId: order.payload.testRunId, ownerId: order.payload.ownerId, mandateId: order.payload.mandateId, mandateVersion: order.payload.mandateVersion, strategyVersion: order.payload.strategyVersion } : undefined,
+      authorization: order.payload?.testRunId ? { status: "AUTHORIZED", testRunId: order.payload.testRunId, ownerId: order.payload.ownerId, accountId: order.payload.accountId, proposalId: order.payload.proposalId, proposalVersion: order.payload.proposalVersion, contentHash: order.payload.contentHash, commandHash: order.payload.commandHash, mandateId: order.payload.mandateId, mandateVersion: order.payload.mandateVersion, strategyVersion: order.payload.strategyVersion } : undefined,
       riskEvaluation: Number.isFinite(Number(order.payload?.quoteAgeSeconds)) ? { status: "PASS_RISK_CHECK", quoteAgeSeconds: Number(order.payload.quoteAgeSeconds), deviationBps: Number(order.payload.deviationBps) } : undefined,
       eligibility: order.payload?.snapshotId ? { status: "ELIGIBLE", snapshotId: order.payload.snapshotId, executionModel: "SNAPSHOT", policyVersion: order.payload.policyVersion, dataMode: "FIXTURE", liquidityParticipation: "NOT_VERIFIED" } : undefined
     }) : json(response, 404, { error: "order not found" });
@@ -141,6 +225,7 @@ createServer(async (request, response) => {
     if (Object.keys(body).sort().join(",") !== "outcome,reason,sequence" || (result.outcome !== "ACCEPTED" && result.outcome !== "REJECTED") || typeof result.reason !== "string" || !result.reason.trim() || result.reason.length > 500 || !Number.isSafeInteger(result.sequence) || (result.sequence as number) < 1) return json(response, 422, { error: "outcome must be ACCEPTED or REJECTED, sequence must be positive, and reason must contain 1-500 characters" });
     try {
       const order = await broker.resolveCancellation(cancelResultMatch[1], result.outcome, result.reason, result.sequence as number);
+      if (order && !order.buffered) await fillOutboxDelivery.drainPending();
       return order ? json(response, order.buffered ? 202 : 200, order) : json(response, 409, { error: "order not found" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "simulated cancellation result rejected";
@@ -165,6 +250,7 @@ createServer(async (request, response) => {
       typeof report.evidenceRef !== "string" || !report.evidenceRef.trim() || report.evidenceRef.length > 512) return json(response, 422, { error: "invalid simulated cumulative fill report" });
     try {
       const result = await broker.recordSimulatedFillReport(simulatedFillReportMatch[1], report as { externalFillId: string; sequence: number; cumulativeQuantity: number; price: string; fee: string; effectiveAt: string; evidenceRef: string });
+      if (!result.buffered) await fillOutboxDelivery.drainPending();
       return json(response, result.buffered || !result.replayed ? 202 : 200, result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "simulated fill report rejected";

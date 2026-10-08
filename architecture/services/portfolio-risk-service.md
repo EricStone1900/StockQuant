@@ -76,6 +76,8 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 
 原子Fill补充（2026-09-25）：`ReservedFillCommand`现由规范Schema/类型/OpenAPI描述。PAPER Fill必须绑定账户范围内的资源预留；账户、预留、Fill、现金/持仓和Ledger在同一事务更新，重复Fill做语义核对并幂等回放。部分成交仅扣减已使用的现金/数量，剩余HELD/UNKNOWN仍参与可用资源计算；SELL入账扣持仓并增加净现金。专用`portfolio_risk_test`覆盖BUY/SELL及HTTP实际路由。该能力未接FakeBroker Outbox，Mandate/报价/风险/订单前置仍未实现，不能视作完整Paper交易链；详见[原子Fill审计](../../evidence/audits/2026-09-25-p5-5-fill-reservation-atomicity.md)。
 
+CN T+1卖出预留补充（2026-10-07）：SELL资源预留新增可选`asOf`运行时钟，SELL调用必须提供该值；CN账户按`Asia/Shanghai`本地交易日期，从总持仓中排除当日BUY Fill数量后再扣减未完成卖出占用。US不套用CN持仓等待规则。隔离PostgreSQL测试验证CN同日拒绝、9月24日买入后9月28日可预留（9月25–27日为Fixture休市日）、US同日允许预留。Market Data日历Fixture确认9月28日为交易日，但Portfolio当前按日期差判断，不读取该日历，也不判定节假日/交易时段；目前仅接入V1.3 Proposal→Trade的当日拒绝路径，CN成功卖出仍未启用。详见[V1.3 T+1边界审计](../../evidence/audits/2026-10-07-v13-governance-web-loop.md#portfolio-cn-t1-sell-reservation-2026-10-07)。
+
 费用更正补充（2026-10-02）：新增版本化`FillFeeCorrectionCommand`、执行服务Bearer专属Portfolio路由和`fill_fee_corrections`历史表。原Fill费用保存在`original_fee`且重放仍按原始语义幂等；更正按Fill行锁检查revision、previousFee和精确证据引用，原子更新当前费用、账号现金、BUY Reservation captured现金，并追加`FEE_CORRECTION`差额账本行。相同版本/载荷幂等，改写同版本或跳版拒绝。`portfolio_risk_test`验证费用从1→2→1、现金差额、预留捕获额和原Fill重放，HTTP smoke验证错误服务403及正确执行服务调用。Trade→Portfolio持久费用更正Outbox尚未接线，本记录只证明Portfolio接收端，V2.4端到端场景仍未完成。
 
 ## 9. S0冻结与变更检查

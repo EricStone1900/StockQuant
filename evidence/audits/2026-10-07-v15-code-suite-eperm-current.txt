@@ -1,0 +1,459 @@
+
+> stockquant@0.0.0 verify:stage /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/verify-stage.mjs -- --stage V1.5 --suite code
+
+
+> stockquant@0.0.0 baseline:check /Users/huangbosong/Documents/ChatGPT/StockQuant
+> pnpm docs:check && pnpm contracts:check && pnpm fixtures:check && pnpm --filter @stockquant/artifact-content-store test && pnpm service:layers -- --service portfolio-risk-service && pnpm service:layers -- --service platform-api-service && pnpm service:layers -- --service market-data-service && pnpm service:layers -- --service trade-execution-service && pnpm service:layers -- --service decision-governance-service && pnpm service:layers -- --service research-automation-service && pnpm service:layers -- --service historical-replay-worker && pnpm service:layers -- --service quant-research-service && node --test scripts/audit-local-baostock-archive.test.mjs scripts/check-service-layers.test.mjs scripts/code-suite-plan.test.mjs scripts/version-stage-documents.test.mjs scripts/verify-version.test.mjs scripts/version-gate-test-run-evidence.test.mjs
+
+
+> stockquant@0.0.0 docs:check /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-markdown-links.mjs
+
+Local Markdown links checked: 4957; failures: 0
+
+> stockquant@0.0.0 contracts:check /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/validate-json.mjs packages/contracts fixtures && node --test scripts/artifact-ref-contract.test.mjs scripts/fixture-manifest-authorization.test.mjs scripts/fixture-authorization-ref.test.mjs scripts/promotion-prepare-result-contract.test.mjs && node scripts/generate-contract-types.mjs --check && node scripts/generate-runner-host-client.mjs --check && node scripts/generate-historical-replay-client.mjs --check && node scripts/generate-research-queue-client.mjs --check && node scripts/generate-research-promotion-client.mjs --check && node scripts/generate-candidate-mandate-client.mjs --check && node scripts/generate-v31-acceptance-gate-client.mjs --check && node scripts/generate-paper-authorization-validation-client.mjs --check && node scripts/generate-platform-paper-authorization-client.mjs --check && node scripts/generate-v13-proposal-client.mjs --check && node scripts/generate-v13-auto-mandate-client.mjs --check && node scripts/generate-trade-v13-governance-client.mjs --check && node scripts/generate-platform-v13-manual-trade-client.mjs --check && node scripts/generate-platform-paper-readiness-client.mjs --check && node scripts/generate-platform-paper-execution-client.mjs --check && node scripts/generate-v24-market-observation-client.mjs --check && node scripts/generate-v21-market-data-client.mjs --check && node scripts/generate-portfolio-account-client.mjs --check && node scripts/generate-quant-registry-client.mjs --check && node scripts/generate-trade-execution-historical-client.mjs --check && node scripts/generate-replay-governance-quant-client.mjs --check && node scripts/generate-trade-governance-replay-client.mjs --check && node scripts/generate-market-data-minute-client.mjs --check && node scripts/generate-market-data-project-delivery-client.mjs --check && node scripts/generate-quant-qlib-client.mjs --check && node scripts/generate-quant-research-qlib-worker-client.mjs --check && node scripts/generate-quant-promotion-read-client.mjs --check && node scripts/generate-quant-promotion-submit-client.mjs --check && node scripts/generate-quant-v12-preview-client.mjs --check && node scripts/generate-quant-v14-backtest-client.mjs --check && node scripts/check-contract-compat.mjs && node scripts/check-openapi-contract.mjs && node --test scripts/contract-generator-registration.test.mjs && node scripts/check-contract-generators.mjs
+
+JSON files checked: 287; schemas validated: 203; fixtures validated: 45; failures: 0
+✔ TestRun artifactRefs validate against the shared immutable ArtifactRef schema (1.825084ms)
+✔ authorization reference must resolve inside repository and match its exact hash (6.101916ms)
+✔ authorization reference cannot escape the repository through a symlink (2.670834ms)
+✔ synthetic fixtures retain the existing lightweight provenance contract (1.79725ms)
+✔ RECORDED or REAL inputs cannot pass without retrievable authorization and scoped use (0.212958ms)
+✔ authorized REAL research input must name the evidence and exact permitted use (0.119459ms)
+✔ PRODUCTION_ELIGIBLE cannot be assigned to synthetic or recorded data (0.143375ms)
+✔ REAL production eligibility requires explicit authorization evidence (0.098167ms)
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/promotionRequestId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/promotionRequestId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/testRunId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/testRunId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/experimentId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/experimentId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/promotionRequestId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/promotionRequestId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/testRunId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/testRunId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/experimentId"
+unknown format "uuid" ignored in schema at path "https://stockquant.local/schemas/research/v3.2-promotion-request.schema.json/properties/experimentId"
+✔ Promotion preparation contract distinguishes WAITING from gate-ready evidence (1.721416ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119.385709
+Contract types checked: 202 schemas -> packages/contracts/generated/types.ts, packages/contracts/generated/types.py, services/portfolio-risk-service/src/contracts/generated-types.ts, services/platform-api-service/src/contracts/generated-types.ts, services/quant-research-service/src/contracts/generated-types.ts, services/historical-replay-worker/src/contracts/generated-types.ts, services/market-data-service/src/contracts/generated-types.ts, services/trade-execution-service/src/contracts/generated-types.ts, services/decision-governance-service/src/contracts/generated-types.ts, services/research-automation-service/src/contracts/generated-types.ts
+Runner Host OpenAPI client checked: 7 operations -> services/research-automation-service/src/contracts/generated-runner-host-client.ts
+Historical Replay OpenAPI client checked: 5 operations -> services/platform-api-service/src/contracts/generated-historical-replay-client.ts
+Research queue OpenAPI client checked: 17 operations -> services/platform-api-service/src/contracts/generated-research-queue-client.ts
+Research promotion OpenAPI client checked: 1 operation -> services/platform-api-service/src/contracts/generated-research-promotion-client.ts
+Candidate Mandate OpenAPI client checked: 1 operation -> services/platform-api-service/src/contracts/generated-candidate-mandate-client.ts
+V3.1 acceptance gate OpenAPI client checked: 1 operation -> services/research-automation-service/src/contracts/generated-v31-acceptance-gate-client.ts
+Paper authorization OpenAPI client checked: 1 operation -> services/trade-execution-service/src/contracts/generated-paper-authorization-client.ts
+Platform Paper authorization OpenAPI client checked: 1 operation -> services/platform-api-service/src/contracts/generated-platform-paper-authorization-client.ts
+V1.3 Proposal OpenAPI client checked: 5 operations -> services/platform-api-service/src/contracts/generated-v13-proposal-client.ts
+V1.3 AUTO Mandate OpenAPI clients checked: 5 operations -> Platform and Trade
+V1.3 Trade Governance OpenAPI client checked: 3 operations -> services/trade-execution-service/src/contracts/generated-v13-governance-client.ts
+V1.3 manual Trade OpenAPI client checked
+Platform Paper readiness OpenAPI client checked: 1 operation -> services/platform-api-service/src/contracts/generated-platform-paper-readiness-client.ts
+Platform Paper execution OpenAPI client checked: 4 operations -> services/platform-api-service/src/contracts/generated-platform-paper-execution-client.ts
+V2.4 Market observation OpenAPI client checked: 2 operations -> services/platform-api-service/src/contracts/generated-v24-market-observation-client.ts
+Market Data read OpenAPI client checked: 18 operations
+Portfolio Account OpenAPI client checked: 6 operations -> services/platform-api-service/src/contracts/generated-portfolio-account-client.ts, services/trade-execution-service/src/contracts/generated-portfolio-account-client.ts, services/historical-replay-worker/src/contracts/generated-portfolio-account-client.ts
+Quant Registry OpenAPI client checked: 1 operation -> services/decision-governance-service/src/contracts/generated-quant-registry-client.ts
+Historical Trade Execution OpenAPI client checked: 2 operations -> services/historical-replay-worker/src/contracts/generated-trade-execution-client.ts
+Replay Governance/Quant Research OpenAPI client checked: 2 operations
+Trade Execution replay Governance OpenAPI client checked: 1 operation
+Market Data minute OpenAPI client checked: 10 operations -> services/platform-api-service/src/contracts/generated-market-data-minute-client.ts
+Market Data project-delivery OpenAPI client checked: 2 operations
+Quant Qlib OpenAPI client checked: fitQlibFixtureModel -> services/platform-api-service/src/contracts/generated-quant-qlib-client.ts
+Quant Research Qlib Worker OpenAPI client checked: 4 operations
+Quant Promotion OpenAPI client checked: 3 operations
+Quant Promotion submit OpenAPI client checked: 1 operation
+V1.2 Quant Research OpenAPI client checked: 3 operations
+V1.4 Quant Research OpenAPI client checked: daily fixture backtest
+Contract compatibility matrix checked: v1, 111 consumer rules
+OpenAPI contracts checked: portfolio-account.v1 (6 operations), v13-acceptance.v1 (7 operations), v24-observation.v1 (6 operations), v22-minute-csv.v1 (16 operations), quant-candidate.v1 (1 operation), quant-promotions.v1 (8 operations), quant-qlib.v1 (1 operation), quant-v12-research-preview.v1 (3 operations), quant-v14-daily-backtest.v1 (1 operation), platform-v12-qlib-fixture.v1 (3 operations), platform-v14-backtest-report.v1 (2 operations), platform-v23-qlib-fixture.v1 (2 operations), trade-execution-v24-readiness.v1 (3 operations), trade-execution-historical.v1 (3 operations), decision-governance-paper-authorization.v1 (3 operations), research-automation-runner-host.v1 (9 operations), historical-replay-worker.v1 (5 operations), decision-governance-candidate-mandate.v1 (1 operation), market-data-calendar.v1 (18 operations), market-data-minute-import.v1 (11 operations), v31-acceptance-gate.v1 (3 operations), research-automation-promotions.v1 (3 operations), platform-v32-promotion-submit.v1 (6 operations), platform-v33-research-queue.v1 (32 operations)
+✔ all client generators must be part of generation and drift checks (0.726375ms)
+✔ reports a missing generation command and stale-artifact check separately (0.077916ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53.543875
+Contract client generator registration checked: 29 generators are included in generation and drift checking
+
+> stockquant@0.0.0 fixtures:check /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/verify-fixture-hashes.mjs && node scripts/v32-independent-fixture.mjs --check && node scripts/verify-v12-research-fixture.mjs
+
+Fixture files checked: 33; failures: 0
+{"status":"PASS","fixtureId":"v3.2-independent-validation-synthetic","fixtureVersion":"v3.2-independent-validation-1","securityCount":2,"barsPerSecurity":180,"validatedBars":360,"splitSessions":[108,36,36],"checks":["unique chronological weekday sessions","availableAt","OHLCV","split isolation","SMA windows","manifest hashes","deterministic bytes"],"files":[{"path":"fixtures/v3/v3.2-independent-validation-v1/daily-bars.csv","sha256":"cbc78bb841441d249cc145048ec5ebf83771c599f68bf31274b792daaee6e77c"},{"path":"fixtures/v3/v3.2-independent-validation-v1/candidate.json","sha256":"ab09b5e966c0e5c179dc423a56250e08354cc20795ba12761cfab8b98ea707d4"},{"path":"fixtures/v3/v3.2-independent-validation-v1/validation-design.json","sha256":"0fda5244f287a206ca797a09fc18b5622b8b57e1852834861f407630d0187736"}],"sourceMode":"FIXTURE","profitabilityClaim":"NOT_MADE"}
+{"status":"PASS","fixtureVersion":"v1.2-market-data-4","securities":{"CN_A":10,"US_EQUITY":3},"bars":774,"splitCounts":{"CN_A":{"train":209,"valid":70,"test":85,"decisionDates":39,"purgedBoundaryDates":2},"US_EQUITY":{"train":63,"valid":21,"test":27,"decisionDates":39,"purgedBoundaryDates":2}},"featureNames":["momentum_20","volume_ratio_20","high_low_range_ratio"],"featureLookbackBars":20,"label":"next-session close / decision close - 1","purgedBoundaryDates":2,"marketSpecificTimeAxes":true,"labelAvailabilityBarriers":"PASS","missingBar":true,"delistedSecurity":"000010.SZ","corporateActions":1,"futurePitProbe":"excluded","sourceMode":"SYNTHETIC FIXTURE","marketCalendarClaim":"NONE"}
+
+> @stockquant/artifact-content-store@0.1.0 test /Users/huangbosong/Documents/ChatGPT/StockQuant/packages/artifact-content-store
+> node --test
+
+✔ publishes immutable namespaced bytes and verifies each read (11.388792ms)
+✔ rejects path traversal and symlinked namespace components (2.086583ms)
+✔ does not follow a symlink at an artifact file address (4.374334ms)
+✔ removes only matching regular content and is idempotent for missing bytes (4.285333ms)
+✔ refuses to unlink a symlink stored at an artifact address (2.773208ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 75.293958
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service portfolio-risk-service
+
+{
+  "service": "portfolio-risk-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service platform-api-service
+
+{
+  "service": "platform-api-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service market-data-service
+
+{
+  "service": "market-data-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service trade-execution-service
+
+{
+  "service": "trade-execution-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service decision-governance-service
+
+{
+  "service": "decision-governance-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service research-automation-service
+
+{
+  "service": "research-automation-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service historical-replay-worker
+
+{
+  "service": "historical-replay-worker",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+
+> stockquant@0.0.0 service:layers /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/check-service-layers.mjs -- --service quant-research-service
+
+{
+  "service": "quant-research-service",
+  "status": "PASS",
+  "requiredLayers": [
+    "domain",
+    "application",
+    "ports",
+    "adapters",
+    "bootstrap"
+  ],
+  "missingLayers": [],
+  "violations": []
+}
+▶ local BaoStock archive audit
+  ✔ verifies content and reports missing authorization metadata separately (2.395667ms)
+  ✔ does not treat present authorization metadata as verified legal permission (1.761ms)
+  ✔ fails a content hash mismatch (1.556791ms)
+  ✔ rejects an artifact path that escapes the archive root (1.680541ms)
+✔ local BaoStock archive audit (8.068416ms)
+✔ portfolio-risk application depends on its repository port, not the Postgres adapter (6.689458ms)
+✔ market-data application separates persistence adapters and the bootstrap composition root (7.632042ms)
+✔ trade-execution application uses its outbox and Portfolio ports (2.494ms)
+✔ research-automation Artifact application depends on ports and keeps filesystem storage in adapters (5.555542ms)
+✔ decision-governance application uses authorization and Registry ports (2.200333ms)
+✔ historical replay use cases depend on repository and downstream ports (1.402833ms)
+✔ Quant Research bootstrap delegates PostgreSQL access to repository adapters (3.60025ms)
+✔ layer check rejects adapters/framework dependencies in domain and application (4.17725ms)
+✔ layer check reports a missing required architectural layer (1.732417ms)
+✔ Quant Research layer check rejects direct PostgreSQL calls in bootstrap (3.000833ms)
+✔ Market Data layer check rejects outbound provider HTTP in bootstrap (2.633584ms)
+✔ the V2.3 code suite executes the real isolated Qlib fixture-fit component (1.320125ms)
+✔ the V1.2 code suite executes the real isolated Qlib CPU fit component (0.101625ms)
+✔ the V1.2 code suite verifies durable Artifact task HTTP state across a Market Data process restart (0.107584ms)
+✔ the V1.4 code suite compares Quant and PostgreSQL-persisted FakeBroker fills in a disposable database (0.094917ms)
+✔ the V2.3 code suite exercises Governance, Replay Worker, and Quant HTTP identity boundaries (0.104208ms)
+✔ other stage code suites do not build or execute the heavyweight Qlib model container (0.175083ms)
+✔ V2.2 code suite executes the real upload Web/API flow against only a disposable PostgreSQL container (0.083917ms)
+✔ V2.3 retains all shared code and database checks before its scoped component smokes (0.102667ms)
+✔ V2.4 runs isolated observation persistence, Paper execution/recovery, Web/CLI, and Linux container boundary smokes (0.173625ms)
+✔ V2.5 runs the existing 100k Parquet upload/read API capacity scenario in isolated Linux containers (0.098333ms)
+✔ version verification parses every V2 acceptance row (86.3265ms)
+✔ WAITING and NOT_RUN acceptance states keep a version unresolved (0.556042ms)
+✔ a PASS stage requires Web PASS, evidence, and a dated user sign-off (1.158042ms)
+✔ duplicate stage or acceptance rows are reported instead of being hidden by ID sets (0.129916ms)
+✔ exact TestRun, stage export, all-PASS assertions, manifest hash, and dated bound sign-off allow a PASS claim (10.076208ms)
+✔ canonical evidence-export v2 flat TestRun responses support PASS verification (4.260709ms)
+✔ a missing structured export remains INCOMPLETE and cannot be inferred from a UUID alone (0.863208ms)
+✔ stage or run identity mismatch and manifest tampering fail the association audit (4.850292ms)
+✔ PASS requires the human sign-off to name the same TestRun (3.32025ms)
+✔ V3.3 structured normal export independently verifies both Artifact bytes, Fixture metrics, and same-Run assertion (5.898208ms)
+✔ V3.3 structured export detects Artifact corruption even when its file manifest is recalculated (5.176458ms)
+✔ version audit requires every stage document and sections 2, 7, and 8 (10.226542ms)
+✔ PASS stage requires checked delivery items and an executable section 8 runbook (4.425584ms)
+✔ PASS stage is rejected if delivery remains unchecked or runbook is draft (4.202709ms)
+✔ PASS stage is rejected when a verified runbook still contains execution placeholders (3.951083ms)
+✔ version audit fails when a stage-required section is missing (3.716666ms)
+✔ version audit rejects a stage document symlink that escapes the repository (4.223167ms)
+ℹ tests 42
+ℹ suites 1
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.541791
+
+> stockquant@0.0.0 build /Users/huangbosong/Documents/ChatGPT/StockQuant
+> pnpm -r --if-present build
+
+Scope: 10 of 11 workspace projects
+apps/web build$ tsc -b && vite build
+services/decision-governance-service build$ tsc -p tsconfig.json
+services/historical-replay-worker build$ tsc -p tsconfig.json
+services/market-data-service build$ tsc -p tsconfig.json
+services/historical-replay-worker build: Done
+services/decision-governance-service build: Done
+services/portfolio-risk-service build$ tsc -p tsconfig.json
+services/quant-research-service build$ tsc -p tsconfig.json
+services/market-data-service build: Done
+services/trade-execution-service build$ tsc -p tsconfig.json
+services/portfolio-risk-service build: Done
+services/quant-research-service build: Done
+services/trade-execution-service build: Done
+apps/web build: vite v8.2.2 building client environment for production...
+apps/web build: transforming...
+apps/web build: ✓ 15 modules transformed.
+apps/web build: rendering chunks...
+apps/web build: computing gzip size...
+apps/web build: dist/index.html                   0.41 kB │ gzip:  0.30 kB
+apps/web build: dist/assets/index-B3w7pmZk.css    1.37 kB │ gzip:  0.61 kB
+apps/web build: dist/assets/index-CRL_1f6b.js   320.16 kB │ gzip: 90.27 kB
+apps/web build: ✓ built in 84ms
+apps/web build: Done
+services/platform-api-service build$ tsc -p tsconfig.json
+services/research-automation-service build$ tsc -p tsconfig.json
+services/research-automation-service build: Done
+services/platform-api-service build: Done
+
+> stockquant@0.0.0 typecheck /Users/huangbosong/Documents/ChatGPT/StockQuant
+> pnpm -r --if-present typecheck
+
+Scope: 10 of 11 workspace projects
+services/historical-replay-worker typecheck$ tsc -p tsconfig.json --noEmit
+apps/web typecheck$ tsc -b --pretty false
+services/decision-governance-service typecheck$ tsc -p tsconfig.json --noEmit
+services/market-data-service typecheck$ tsc -p tsconfig.json --noEmit
+services/historical-replay-worker typecheck: Done
+services/portfolio-risk-service typecheck$ tsc -p tsconfig.json --noEmit
+services/decision-governance-service typecheck: Done
+services/quant-research-service typecheck$ tsc -p tsconfig.json --noEmit
+services/market-data-service typecheck: Done
+services/trade-execution-service typecheck$ tsc -p tsconfig.json --noEmit
+apps/web typecheck: Done
+services/portfolio-risk-service typecheck: Done
+services/quant-research-service typecheck: Done
+services/trade-execution-service typecheck: Done
+services/platform-api-service typecheck$ tsc -p tsconfig.json --noEmit
+services/platform-api-service typecheck: Done
+
+> stockquant@0.0.0 test /Users/huangbosong/Documents/ChatGPT/StockQuant
+> pnpm -r --if-present test
+
+Scope: 10 of 11 workspace projects
+apps/web test$ vitest run src
+packages/artifact-content-store test$ node --test
+services/decision-governance-service test$ vitest run tests/unit
+services/historical-replay-worker test$ vitest run tests/unit
+packages/artifact-content-store test: ✔ publishes immutable namespaced bytes and verifies each read (9.103292ms)
+packages/artifact-content-store test: ✔ rejects path traversal and symlinked namespace components (1.809458ms)
+packages/artifact-content-store test: ✔ does not follow a symlink at an artifact file address (3.725167ms)
+packages/artifact-content-store test: ✔ removes only matching regular content and is idempotent for missing bytes (4.815292ms)
+packages/artifact-content-store test: ✔ refuses to unlink a symlink stored at an artifact address (6.204375ms)
+packages/artifact-content-store test: ℹ tests 5
+packages/artifact-content-store test: ℹ suites 0
+packages/artifact-content-store test: ℹ pass 5
+packages/artifact-content-store test: ℹ fail 0
+packages/artifact-content-store test: ℹ cancelled 0
+packages/artifact-content-store test: ℹ skipped 0
+packages/artifact-content-store test: ℹ todo 0
+packages/artifact-content-store test: ℹ duration_ms 79.675958
+packages/artifact-content-store test: Done
+services/market-data-service test$ vitest run tests/unit
+services/decision-governance-service test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/decision-governance-service
+services/historical-replay-worker test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/historical-replay-worker
+apps/web test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/apps/web
+apps/web test:  Test Files  1 passed (1)
+apps/web test:       Tests  1 passed (1)
+apps/web test:    Start at  13:25:44
+apps/web test:    Duration  327ms (transform 49%, import 28%, worker 20%, tests 4%)
+apps/web test: Done
+services/portfolio-risk-service test$ vitest run tests/unit
+services/decision-governance-service test:  Test Files  8 passed (8)
+services/decision-governance-service test:       Tests  40 passed (40)
+services/decision-governance-service test:    Start at  13:25:44
+services/decision-governance-service test:    Duration  377ms (transform 60%, import 23%, worker 11%, tests 6%)
+services/historical-replay-worker test:  Test Files  9 passed (9)
+services/historical-replay-worker test:       Tests  25 passed (25)
+services/historical-replay-worker test:    Start at  13:25:44
+services/historical-replay-worker test:    Duration  387ms (transform 39%, import 26%, worker 18%, tests 17%)
+services/market-data-service test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/market-data-service
+services/decision-governance-service test: Done
+services/quant-research-service test$ vitest run tests/unit && pnpm test:worker
+services/historical-replay-worker test: Done
+services/trade-execution-service test$ vitest run tests/unit && node --test scripts/isolated-postgres-target.test.mjs
+services/portfolio-risk-service test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/portfolio-risk-service
+services/trade-execution-service test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/trade-execution-service
+services/quant-research-service test:  RUN  v5.0.0 /Users/huangbosong/Documents/ChatGPT/StockQuant/services/quant-research-service
+services/portfolio-risk-service test:  Test Files  3 passed (3)
+services/portfolio-risk-service test:       Tests  5 passed (5)
+services/portfolio-risk-service test:    Start at  13:25:44
+services/portfolio-risk-service test:    Duration  362ms (transform 77%, import 19%, tests 2%, worker 2%)
+services/portfolio-risk-service test: Done
+services/trade-execution-service test:  Test Files  18 passed (18)
+services/trade-execution-service test:       Tests  86 passed (86)
+services/trade-execution-service test:    Start at  13:25:45
+services/trade-execution-service test:    Duration  822ms (transform 72%, import 13%, tests 8%, worker 7%)
+services/trade-execution-service test:   Transform  transforming modules took 2.22s · 72% of tracked time, re-done on every run
+services/trade-execution-service test:              persist transforms across runs with fsModuleCache: true
+services/trade-execution-service test:              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+services/quant-research-service test:  Test Files  19 passed (19)
+services/quant-research-service test:       Tests  99 passed (99)
+services/quant-research-service test:    Start at  13:25:45
+services/quant-research-service test:    Duration  688ms (transform 65%, import 22%, tests 7%, worker 6%)
+services/trade-execution-service test: ✔ accepts a bounded read-only disposable PostgreSQL container on its exact loopback port (0.599917ms)
+services/trade-execution-service test: ✔ rejects the shared Compose PostgreSQL test databases on port 5433 (0.807792ms)
+services/trade-execution-service test: ✔ supports a second named database and role only in the same disposable PostgreSQL container (0.184333ms)
+services/trade-execution-service test: ✔ rejects arbitrary dynamic ports without a verifiable disposable container (0.080042ms)
+services/trade-execution-service test: ✔ rejects a writable, unbounded, non-loopback, misbound, or non-digest container (0.162625ms)
+services/trade-execution-service test: ℹ tests 5
+services/trade-execution-service test: ℹ suites 0
+services/trade-execution-service test: ℹ pass 5
+services/trade-execution-service test: ℹ fail 0
+services/trade-execution-service test: ℹ cancelled 0
+services/trade-execution-service test: ℹ skipped 0
+services/trade-execution-service test: ℹ todo 0
+services/trade-execution-service test: ℹ duration_ms 58.510542
+services/trade-execution-service test: Done
+services/quant-research-service test: > @stockquant/quant-research-service@0.1.0 test:worker /Users/huangbosong/Documents/ChatGPT/StockQuant/services/quant-research-service
+services/quant-research-service test: > python3 -m unittest discover -s tests -p 'test_*.py'
+services/market-data-service test:  Test Files  19 passed (19)
+services/market-data-service test:       Tests  74 passed (74)
+services/market-data-service test:    Start at  13:25:44
+services/market-data-service test:    Duration  1.73s (tests 55%, transform 31%, import 10%, worker 3%)
+services/quant-research-service test: ......E...
+services/quant-research-service test: ======================================================================
+services/quant-research-service test: ERROR: setUpClass (test_qlib_worker.QlibWorkerBoundaryTests)
+services/quant-research-service test: ----------------------------------------------------------------------
+services/quant-research-service test: Traceback (most recent call last):
+services/quant-research-service test:   File "/Users/huangbosong/Documents/ChatGPT/StockQuant/services/quant-research-service/tests/test_qlib_worker.py", line 24, in setUpClass
+services/quant-research-service test:     sock.bind(("127.0.0.1", 0))
+services/quant-research-service test: PermissionError: [Errno 1] Operation not permitted
+services/quant-research-service test: ----------------------------------------------------------------------
+services/quant-research-service test: Ran 9 tests in 0.018s
+services/quant-research-service test: FAILED (errors=1)
+services/market-data-service test: Done
+services/quant-research-service test:  ELIFECYCLE  Command failed with exit code 1.
+services/quant-research-service test: Failed
+/Users/huangbosong/Documents/ChatGPT/StockQuant/services/quant-research-service:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @stockquant/quant-research-service@0.1.0 test: `vitest run tests/unit && pnpm test:worker`
+Exit status 1
+ ELIFECYCLE  Test failed. See above for more details.
+ ELIFECYCLE  Command failed with exit code 1.

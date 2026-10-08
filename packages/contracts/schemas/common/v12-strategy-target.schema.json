@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v12-strategy-target.schema.json",
+  "title": "V1.2 Strategy Target",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ticker", "market", "currency", "reason"],
+  "properties": {
+    "ticker": { "type": "string", "minLength": 1 },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -38,8 +39,8 @@ def validate_temporal_metadata(metadata, ranges):
             raise ValueError(f"feature data is not available at decision for row {index}")
         if label_available < decision:
             raise ValueError(f"label availability precedes decision for row {index}")
-        if parsed and decision <= parsed[-1][0]:
-            raise ValueError("decisionAt timestamps must be strictly increasing")
+        if parsed and decision < parsed[-1][0]:
+            raise ValueError("decisionAt timestamps must be non-decreasing")
         parsed.append((decision, label_available))
     if ranges[-1][1] != len(parsed):
         raise ValueError("temporalMetadata row count must match featureRows")
@@ -87,6 +88,14 @@ def parse_fit_fixture(value):
 
 
 def fit_fixture_with_qlib(body):
+    try:
+        test_delay_ms = int(os.environ.get("STOCKQUANT_TEST_FIT_DELAY_MS", "0"))
+    except ValueError as exc:
+        raise ValueError("test fit delay must be an integer from 0 to 10000 milliseconds") from exc
+    if test_delay_ms < 0 or test_delay_ms > 10_000:
+        raise ValueError("test fit delay must be an integer from 0 to 10000 milliseconds")
+    if test_delay_ms:
+        time.sleep(test_delay_ms / 1000)
     features, labels, ranges = parse_fit_fixture(body)
     temporal_validation = validate_temporal_metadata(body.get("temporalMetadata"), ranges)
     import numpy as np

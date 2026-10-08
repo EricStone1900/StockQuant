@@ -53,7 +53,7 @@ function tsType(schema) {
   if (!schema) return "unknown";
   if (schema.$ref) return refName(schema.$ref);
   if (schema.oneOf || schema.anyOf) return (schema.oneOf ?? schema.anyOf).map(tsType).join(" | ");
-  if (schema.allOf) return schema.allOf.map(tsType).join(" & ");
+  if (schema.allOf) return [tsType({ ...schema, allOf: undefined }), ...schema.allOf.map(tsType)].join(" & ");
   if (schema.const !== undefined) return literal(schema.const);
   if (schema.enum) return schema.enum.map(literal).join(" | ");
   if (Array.isArray(schema.type)) return schema.type.map((item) => tsType({ type: item })).join(" | ");

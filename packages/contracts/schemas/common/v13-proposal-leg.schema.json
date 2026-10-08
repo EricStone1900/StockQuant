@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-leg.schema.json",
+  "title": "V13ProposalLeg",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["legId", "securityId", "side", "quantity"],
+  "properties": {
+    "legId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "securityId": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "side": { "enum": ["BUY", "SELL"] },
+    "quantity": { "type": "integer", "minimum": 1 }
+  }
+}

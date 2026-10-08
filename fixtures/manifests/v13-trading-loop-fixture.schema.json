@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/v1/v13-trading-loop-fixture.schema.json",
+  "title": "V13TradingLoopFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixtureId", "fixtureVersion", "stageId", "seed", "modes", "timezone", "markets", "sessionAdvance", "faultSequences", "expectedAssertions"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "fixtureId": { "const": "v1.3-trading-loop" },
+    "fixtureVersion": { "type": "string", "minLength": 1 },
+    "stageId": { "const": "V1.3" },
+    "seed": { "type": "integer", "const": 20260907 },
+    "modes": { "type": "object", "additionalProperties": false, "required": ["environment", "broker"], "properties": { "environment": { "const": "PAPER" }, "broker": { "const": "FAKE" } } },
+    "timezone": { "const": "Asia/Shanghai" },
+    "markets": {
+      "type": "object", "additionalProperties": false, "required": ["CN_A", "US_EQUITY"],
+      "properties": {
+        "CN_A": { "$ref": "#/$defs/market" },
+        "US_EQUITY": { "$ref": "#/$defs/market" }
+      }
+    },
+    "sessionAdvance": { "type": "object", "additionalProperties": false, "required": ["calendarVersion", "from", "to"], "properties": { "calendarVersion": { "const": "sse-cn-a-share-2026-1" }, "from": { "const": "2026-09-28T09:31:00+08:00" }, "to": { "const": "2026-09-29T09:31:00+08:00" } } },
+    "faultSequences": {
+      "type": "object", "additionalProperties": false, "required": ["unknownOrder", "orderedFills", "partialFillCancel"],
+      "properties": {
+        "unknownOrder": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
+        "orderedFills": { "type": "array", "minItems": 3, "items": { "type": "string", "minLength": 1 } },
+        "partialFillCancel": { "type": "array", "minItems": 3, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "expectedAssertions": { "type": "array", "minItems": 3, "items": { "type": "object", "additionalProperties": false, "required": ["assertionId", "description"], "properties": { "assertionId": { "type": "string", "minLength": 1 }, "description": { "type": "string", "minLength": 1 } } } }
+  },
+  "$defs": {
+    "market": {
+      "type": "object", "additionalProperties": false, "required": ["currency", "security", "initialCash", "order"],
+      "properties": {
+        "currency": { "enum": ["CNY", "USD"] },
+        "security": { "type": "string", "minLength": 1 },
+        "initialCash": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" },
+        "order": { "type": "object", "additionalProperties": false, "required": ["side", "quantity", "price", "fee", "expectedCash", "expectedPosition"], "properties": { "side": { "enum": ["BUY", "SELL"] }, "quantity": { "type": "integer", "minimum": 1 }, "price": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "fee": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "expectedCash": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "expectedPosition": { "type": "integer", "minimum": 0 } } }
+      }
+    }
+  }
+}

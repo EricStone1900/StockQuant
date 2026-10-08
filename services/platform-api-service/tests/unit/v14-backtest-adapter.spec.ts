@@ -4,7 +4,7 @@ import { V14QuantBacktestAdapter } from "../../src/adapters/v14-quant-backtest-a
 import { validateV14ExecutionPolicy, V14_DEFAULT_EXECUTION_POLICY } from "../../src/application/v14-backtest.js";
 import { GeneratedQuantV14BacktestClient, QuantV14BacktestHttpError } from "../../src/contracts/generated-quant-v14-backtest-client.js";
 
-const result: V14DailyBacktestFixtureResult = { testRunId: "4c3c4fd1-0567-46c1-bf74-4ed54ac8896b", stageId: "V1.4", scenarioId: "normal", seed: 20260907, status: "COMPLETED", assertions: [], evidence: {} };
+const result: V14DailyBacktestFixtureResult = { testRunId: "4c3c4fd1-0567-46c1-bf74-4ed54ac8896b", stageId: "V1.4", scenarioId: "normal", seed: 20260907, status: "COMPLETED", assertions: [], evidence: {}, durableReport: { resultSha256: "a".repeat(64), manifestSha256: "b".repeat(64) } };
 
 describe("V1.4 Platform-to-Quant adapter", () => {
   it("sends only the frozen policy, scenario and seed to Quant", async () => {

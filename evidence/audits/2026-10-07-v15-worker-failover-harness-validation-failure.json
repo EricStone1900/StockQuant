@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "FAIL",
+  "faultMode": "PRIMARY_PLATFORM_WORKER_TERMINATED_SECONDARY_TAKEOVER",
+  "isolatedProject": "sq-v15-e2e-15ced387e5d2e30793f9",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "35353354-052f-4766-814f-9b45b6a4f0fe"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "60f1181c-b17d-43b9-a9d0-68b265d7acaf"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "d067dfd0-f861-4cf1-a4dd-4e86961dc4f6"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:85320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=35353354-052f-4766-814f-9b45b6a4f0fe elapsedMs=146\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=14154\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=14175\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=14306\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=35353354-052f-4766-814f-9b45b6a4f0fe\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=60f1181c-b17d-43b9-a9d0-68b265d7acaf elapsedMs=147\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=149\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=272\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=60f1181c-b17d-43b9-a9d0-68b265d7acaf\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=d067dfd0-f861-4cf1-a4dd-4e86961dc4f6 elapsedMs=144\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=147\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=273\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (15.2s)\n\n  1 passed (16.0s)\n",
+  "faultSequence": [
+    {
+      "event": "failover_worker_and_independent_durable_consumer_ready",
+      "worker": "sq-v15-e2e-15ced387e5d2e30793f9-platform-api-worker-2",
+      "durable": "stockquant-v15-temporal-dispatch-worker-2",
+      "preLookupDelayMs": 5000,
+      "primaryPreLookupDelayMs": 30000,
+      "at": "2026-10-07T13:00:47.195Z"
+    },
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "35353354-052f-4766-814f-9b45b6a4f0fe",
+      "at": "2026-10-07T13:00:49.144Z"
+    },
+    {
+      "event": "primary_worker_killed_after_both_durables_received_before_secondary_lookup",
+      "testRunId": "35353354-052f-4766-814f-9b45b6a4f0fe",
+      "primaryContainer": "sq-v15-e2e-15ced387e5d2e30793f9-platform-api-service-1",
+      "primaryReceivedMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_DISPATCH_RECEIVED eventId=35353354-052f-4766-814f-9b45b6a4f0fe seq=1",
+      "secondaryReceivedMarker": "STOCKQUANT_V15_TEST_DISPATCH_RECEIVED eventId=35353354-052f-4766-814f-9b45b6a4f0fe seq=1",
+      "at": "2026-10-07T13:00:49.446Z"
+    },
+    {
+      "event": "secondary_worker_started_same_run_activity_and_primary_api_recovered",
+      "testRunId": "35353354-052f-4766-814f-9b45b6a4f0fe",
+      "secondaryActivity": "STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=35353354-052f-4766-814f-9b45b6a4f0fe market=CN_A",
+      "apiReady": true,
+      "at": "2026-10-07T13:00:56.171Z"
+    },
+    {
+      "event": "normal_run_completed_after_worker_failover",
+      "testRunId": "35353354-052f-4766-814f-9b45b6a4f0fe",
+      "at": "2026-10-07T13:01:03.153Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "743d828ee481ba6520db25635b953bf7cad7c8bc2062fb0436f5ac0566ca96ad",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "a650300b1ff33843f1f219591e5f6136af9cac972cc31f105dd1b2dd820019da",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "560b3d4e3a2c1c3143167b2cc1b1dd33da71a821cea867c4dcf968fbe0076750",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/bootstrap/main.ts": "7e6abdeeb10ab6ee06962a1425b8f7a0448cb4beb93b2793fa2839e5104734bf",
+    "services/quant-research-service/src/bootstrap/main.ts": "651ba3ee467ead9288387fd8633474486c46010109cacd90e4fc503f742695d4",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "1a32b4ef1fe985937696e168806b52f6e76ffa8c8cf2d98059c85b979c01bea0"
+  },
+  "failureReason": "NATS outage, Platform restart, malformed/wrong-owner termination, lost-ACK redelivery and post-recovery workflow completion were not fully observed"
+}

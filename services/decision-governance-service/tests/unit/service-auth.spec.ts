@@ -37,4 +37,18 @@ describe("governance service Bearer scopes", () => {
     expect(authorizeGovernanceRequest({ method: "POST", pathname: path, serviceId: "platform-api-service", authorization: `Bearer ${"p".repeat(40)}`, tokens })).toBe(false);
     expect(authorizeGovernanceRequest({ method: "GET", pathname: path, serviceId: "platform-api-service", authorization: `Bearer ${"p".repeat(40)}`, tokens: platformTokens })).toBe(false);
   });
+  it("restricts proposal persistence and owner-scoped reads to Platform API", () => {
+    const createPath = "/internal/v1/proposals";
+    const readPath = "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000";
+    const platformAllowed = (method: string, pathname: string, caller: string, token: string) => authorizeGovernanceRequest({ method, pathname, serviceId: caller, authorization: `Bearer ${token}`, tokens: platformTokens });
+    expect(platformAllowed("POST", createPath, "platform-api-service", platformTokens["platform-api-service"]!)).toBe(true);
+    const revisePath = "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/revise";
+    expect(platformAllowed("POST", revisePath, "platform-api-service", platformTokens["platform-api-service"]!)).toBe(true);
+    expect(platformAllowed("POST", revisePath, "trade-execution-service", platformTokens["trade-execution-service"])).toBe(false);
+    expect(platformAllowed("GET", readPath, "platform-api-service", platformTokens["platform-api-service"]!)).toBe(true);
+    expect(platformAllowed("GET", readPath, "trade-execution-service", platformTokens["trade-execution-service"])).toBe(true);
+    expect(platformAllowed("POST", "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/approve", "trade-execution-service", platformTokens["trade-execution-service"])).toBe(false);
+    expect(platformAllowed("POST", "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/execution-authorizations", "trade-execution-service", platformTokens["trade-execution-service"])).toBe(true);
+    expect(platformAllowed("POST", "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/execution-authorizations/validate", "platform-api-service", platformTokens["platform-api-service"]!)).toBe(false);
+  });
 });

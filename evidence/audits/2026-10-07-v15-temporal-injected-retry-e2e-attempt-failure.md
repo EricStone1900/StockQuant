@@ -1,0 +1,3 @@
+# V1.5 injected Temporal retry E2E attempt failure
+
+Date: 2026-10-07. Project: `sq-v15-e2e-c15f7d4bb2556e37655c`. The Web/API/CLI scenarios and preceding NATS recovery checks passed, but the added API-driven retry probe then failed in the harness while reading an already-consumed HTTP response body (`Body is unusable: Body has already been read`). This was a harness assertion-message bug; the extra retry assertions were not reached, so no transient-retry PASS is claimed. The adjacent JSON preserves the exact run record. All project containers, volumes and network were removed; no external data-source or real broker calls occurred.

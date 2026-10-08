@@ -1,6 +1,6 @@
 # V1.1 环境、账户初始化与 Web 验收中心
 
-状态：PARTIALLY_IMPLEMENTED（既有范围于2026-09-09有人工作业证据；截至2026-09-27复核，Money/Security、账户初始化/快照、Clock/TestRun等公共Schema及TS/Python生成类型已存在；CN/US账户详情和幂等初始化有工程证据；统一TestRun stage模式在隔离库、Web/CLI同run均通过。2026-09-27新增A股日历响应Schema、三种状态Fixture、兼容规则、OpenAPI和Market Data/Platform生成类型；真实日期校验、覆盖外UNKNOWN、3项日历单测及4类HTTP响应烟测通过；8个Market Data分钟导入/预览/读取/上传operation已有OpenAPI生成客户端；2026-10-01新增V3.1 owner-scoped输入/输出Artifact离线导出，真实隔离Platform→Research→PostgreSQL/Artifact Store→本地Exporter端到端校验和V3.1完整code suite通过；DC-06项目分页/脱敏导出新增ProjectToken OpenAPI生成客户端、匿名401/跨项目403隔离HTTP/PG验证通过。当前活动库只读快照显示49条V1.1 legacy TestRun中44条已有影子行；最新快照恢复副本补齐5条、字段/历史差异0、重跑新增0和stage新Run双写通过，切换Runbook已准备。其余跨服务API发布覆盖、通用Artifact完整生命周期、活动API切换/回退和新增范围验收仍未完成；不据此整体标记通过）。版本入口：[README](./README.md)。共同约束：[三版规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（既有范围于2026-09-09有人工作业证据；公共Schema、CN/US账户初始化、stage存储隔离及其他新增能力保留各自证据。2026-10-07正式`stack:up`/`stack:down`已验证V1.1一次性隔离项目、随机loopback端口、自动生成私密PG凭据、容器化Web/API/PostgreSQL、local session cookie及精确项目清理；其他阶段的交互隔离栈、全生命周期Artifact、活动API切换/回退及新增范围人工验收仍未完成；不据此整体标记通过）。版本入口：[README](./README.md)。共同约束：[三版规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -16,7 +16,7 @@
 前述跨服务调用与分层增量的逐项审计：[Platform Portfolio客户端](../../../evidence/audits/2026-09-30-v11-portfolio-account-client.md)、[Trade Execution Portfolio客户端](../../../evidence/audits/2026-09-30-v11-trade-portfolio-client.md)、[Replay Portfolio与Trade客户端](../../../evidence/audits/2026-09-30-v23-replay-portfolio-client.md)、[Quant Registry客户端与契约校正](../../../evidence/audits/2026-09-30-v32-quant-registry-governance-client.md)、[Market Data分钟import客户端](../../../evidence/audits/2026-10-01-w1-market-data-minute-import-client.md)、[候选Mandate绑定客户端审计](../../../evidence/audits/2026-10-01-w1-candidate-mandate-client.md)、[Paper授权客户端审计](../../../evidence/audits/2026-10-01-w1-paper-authorization-client.md)、[Platform Paper授权创建客户端审计](../../../evidence/audits/2026-10-01-w1-platform-paper-authorization-client.md)、[Platform账户初始化客户端审计](../../../evidence/audits/2026-10-01-w1-platform-paper-portfolio-client.md)、[V2.4变更后回归](../../../evidence/audits/2026-10-01-w1-v24-client-regression.md)、[Paper readiness客户端审计](../../../evidence/audits/2026-10-01-w1-platform-paper-readiness-client.md)、[V1.1 Platform账户调用审计](../../../evidence/audits/2026-10-01-w1-platform-v11-account-clients.md)、[DC-06项目交付客户端审计](../../../evidence/audits/2026-10-01-w1-market-data-project-client.md)、[Portfolio Risk分层依赖增量](../../../evidence/audits/2026-10-01-w1-portfolio-risk-layer-boundary.md)、[Platform API分层依赖增量](../../../evidence/audits/2026-10-01-w1-platform-api-layer-boundary.md)、[Market Data完整分层审计](../../../evidence/audits/2026-10-01-w1-market-data-layer-boundary-increment.md)。
 
 2026-10-02隔离复验：`pnpm verify:stage -- --stage V1.1 --suite code`退出0；`pnpm test:integration:v11-stage-storage`退出0，stage存储模式下Chromium normal/rejection/recovery 3/3通过，三个Web TestRun均由同ID经CLI只读核对，恢复仅重启已核验的隔离Portfolio容器。随机项目、容器、卷、网络和镜像已清理。该复验不等于活动API切换/回退、用户生产会话或新增范围人工验收；阶段仍为PARTIALLY_IMPLEMENTED。详见[V1.1隔离存储复验](../../../evidence/audits/2026-10-02-w1-v11-stage-storage-rerun.md)及[SHA-256](../../../evidence/audits/2026-10-02-w1-v11-stage-storage-rerun.sha256)。
-- [x] Compose core 与真实 PostgreSQL 已用于账户持久化；组合服务 CN/US 模拟账户、现金/持仓及幂等初始化已有工程和运行证据。账户详情证据：[P3.4](../../../evidence/audits/2026-09-24-p3-4-account-detail.md)、[P3.5双市场账户](../../../evidence/audits/2026-09-25-p3-5-dual-market.md)。
+- [x] Compose core 与真实 PostgreSQL 已用于账户持久化；组合服务 CN/US 模拟账户、现金/持仓及幂等初始化已有工程和运行证据。当前树真实隔离PostgreSQL新增CN_A/CNY与US_EQUITY/USD分账、同键重放/冲突、跨owner读拒绝；Portfolio HTTP smoke验证LIVE初始化返回403且零副作用。详见[当前账户身份账本矩阵](../../../evidence/audits/2026-10-07-p1-account-identity-ledger-matrix.md)。既有账户详情证据：[P3.4](../../../evidence/audits/2026-09-24-p3-4-account-detail.md)、[P3.5双市场账户](../../../evidence/audits/2026-09-25-p3-5-dual-market.md)。
 - [ ] 完成通用Artifact存储与全链路引用/交付；进展：新增`common/artifact-ref.schema.json`并将TestRun `artifactRefs`改为强类型数组，TS/Python生成类型、兼容规则及精确结构测试均接入全局契约检查；V3.1 owner-scoped TestRun API将研究引用投影为公共`ArtifactRef`，Exporter核对绑定与内容Hash后导出。V3.1支持不可变`expiresAt`和EXPIRED终态；`FileArtifactStore.read`逐次验证SHA-256。2026-10-01新增`@stockquant/artifact-content-store`不可变内容内核，拒绝路径穿越、符号链接目录及Hash不符；Research Automation与Platform/Qlib共用同一`research-artifacts-v1`内容卷，Qlib新引用将内容字节移出JSONB，旧JSONB/旧文件路径继续可校验读取。随机隔离PostgreSQL + Qlib Worker + Platform/Web/CLI/evidence-export端到端验证通过；Research/Platform各自旧内容兼容、篡改拒绝与路径安全测试通过。2026-10-03共享字节读取/发布新增`O_NOFOLLOW`普通文件句柄检查，匹配Hash的Artifact地址符号链接现被拒绝；共享包5/5、Research构建及203单测、Platform构建及166单测通过，首轮沙箱回环监听失败保留并经受控重跑通过。详见[叶子符号链接拒绝审计](../../../evidence/audits/2026-10-03-w1-artifact-leaf-symlink-rejection.md)及[SHA-256](../../../evidence/audits/2026-10-03-w1-artifact-leaf-symlink-rejection.sha256)。尚未完成共享过期/保留策略批准与调度、其他Artifact Producer盘点/迁移、过期字节物理清理、活动部署切换/回退及新增人工验收。见[本轮共享内容后端审计](../../../evidence/audits/2026-10-01-w1-common-artifact-content-store.md)与[SHA-256](../../../evidence/audits/2026-10-01-w1-common-artifact-content-store.sha256)；此前[V3.1 Artifact导出](../../../evidence/audits/2026-10-01-w1-v31-artifact-evidence-export.md)及[生命周期](../../../evidence/audits/2026-10-01-w1-artifact-expiry-lifecycle.md)保留为历史证据。
 
 2026-10-02补充：共享内容存储物理删除现要求普通文件与地址Hash匹配；Research失败发布回滚仅删除新共享路径、不触碰只读legacy路径。删除完整性与回滚隔离分别见[审计1](../../../evidence/audits/2026-10-02-w1-artifact-removal-integrity.md)和[审计2](../../../evidence/audits/2026-10-02-w1-artifact-rollback-boundary.md)。上述是安全前置，Artifact保留政策审批、跨服务引用保护/调度、其他Producer迁移、活动切换/回退与新增人工验收仍未完成。
@@ -24,7 +24,7 @@
 
 2026-10-02跨服务调用补充：Research Automation→Quant Research提交V3.2 PromotionRequest现使用`quant-promotions.v1`生成客户端并纳入`contracts:check/generate`；完整V3.2 code suite exit 0，但该结果仅代表隔离代码/数据库/readiness验证，V3.2业务验证与用户验收仍NOT_RUN。详见[客户端审计](../../../evidence/audits/2026-10-02-w1-quant-promotion-submit-client.md)及[SHA-256](../../../evidence/audits/2026-10-02-w1-quant-promotion-submit-client.sha256)。
 - [x] 平台 API owner 身份、健康/能力查询、验收运行与证据读取已有实现；V1.1 stage模式 normal/rejection/recovery 在隔离 PostgreSQL 和真实 Chromium Web 中完成同run CLI只读核对。证据：[V1.1统一存储代码与Web套件](../../../evidence/audits/2026-09-26-v11-stage-store-code-suite.md)。
-- [ ] 将V1.1统一TestRun模式按维护窗口部署到活动API并验证回退；活动Compose仍为`legacy`，隔离套件不证明生产切换。当前活动库 49 legacy/44 unified；已在只读恢复副本补齐5条、验证幂等与双写。切换步骤、停止条件、回退和当前差额见[存储切换Runbook](../../../docs/operations/v11-test-run-storage-cutover.md)与[复演审计](../../../evidence/audits/2026-10-01-w1-v11-current-snapshot-migration.md)。活动迁移仍未执行。
+- [ ] 将V1.1统一TestRun模式按维护窗口部署到活动API并验证回退；活动Compose仍为`legacy`，隔离套件不证明生产切换。当前活动库49 legacy/44 unified；已在只读恢复副本补齐5条、验证幂等与双写。2026-10-07新增随机隔离PostgreSQL持久化回归：legacy迁移/历史保留、幂等与冲突回滚、stage owner读取、双写和部分写失败原子回滚、HTTP owner 200/跨owner 403全部通过；不接触活动库。切换步骤、停止条件、回退和当前差额见[存储切换Runbook](../../../docs/operations/v11-test-run-storage-cutover.md)、[恢复副本复演审计](../../../evidence/audits/2026-10-01-w1-v11-current-snapshot-migration.md)及[当前隔离持久化复验](../../../evidence/audits/2026-10-07-v11-storage-persistence-rerun.md)。活动迁移仍为NOT_AUTHORIZED/NOT_DEPLOYED。
 - [x] Qlib/RD-Agent镜像基线、Mac/Docker架构及资源边界有历史记录；amd64仿真与当前Qlib锁版运行探针有单独工程证据。原生Ubuntu兼容、资源压力及真实RD-Agent运行仍未验收。
 
 ## 3. 同步 Web 开发
@@ -75,7 +75,7 @@
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（2026-09-08）。以下命令、路由、Fixture 与场景已在 Mac ARM64 本地执行；这只证明开发者验证可复现，用户人工验收仍为 NOT_RUN。
+手册状态：DRAFT_NOT_EXECUTABLE（V1.1隔离交互启动/清理已执行验证；第8.3～8.6全部手工步骤、完整场景与交付记录尚未逐项实测，历史第8节记录只适用于各自执行时点）。
 
 前置服务：平台API、Web、组合服务、真实PostgreSQL、Artifact存储。
 
@@ -84,30 +84,32 @@
 | 开发交付时必须填写 | 当前值 |
 |---|---|
 | 实测代码Commit或工作区Hash/验证日期 | `2c1d352`；2026-09-09 |
-| 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5、Python 3.9.6、uv 0.12.7、Docker 28.0.4、Compose 2.34.0-desktop.1；host `arm64` |
-| Web基础URL/身份登录或会话建立方式 | 原生开发 Web `http://127.0.0.1:5173/acceptance/v1/v1.1`；容器化 Web `http://127.0.0.1:8080/acceptance/v1/v1.1`；首次加载由本地开发会话端点设置 HttpOnly `sq_session`，仅 `acceptance-owner-1`；CLI 使用仅本地测试身份头 |
-| 本阶段Web路由 | `/acceptance/v1/v1.1`（目标） |
+| 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5、Python 3.9.6、uv 0.12.7；本轮容器运行平台为Docker Desktop `desktop-linux`（版本以`docker version`现场输出为准）；host `arm64` |
+| Web基础URL/身份登录或会话建立方式 | `pnpm stack:up -- --stage V1.1`随机分配回环端口；当前Web `http://127.0.0.1:59783/acceptance/v1/v1.1`，API `http://127.0.0.1:59782`。同配置SCRAM栈Platform `/api/v1/session`实测HTTP 200并签发`sq_session`；身份为`acceptance-owner-1`。CLI使用隔离栈对应测试身份 |
+| 本阶段Web路由 | `/acceptance/v1/v1.1`（容器化Web本次实测） |
 | 正式页面的真实入口/跳转链接 | `/` 与 `/acceptance/v1/v1.1`；平台 API `http://127.0.0.1:3000`；组合服务不发布到宿主 |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v1/v1.1/accounts.json`；`v1.1-accounts-1`；SHA-256 `575d2cb5e674bacbf951d9ca485c7e5c8e49e9d15bbb4623a71fd0c08c3685f4`；FIXTURE/SIMULATION_ONLY；成本/策略不适用 |
-| 配置文件及必需环境变量名/非秘密测试值 | `infra/compose/docker-compose.yml`；PAPER、FAKE、LIVE=false；`STOCKQUANT_DATABASE_URL`、`STOCKQUANT_PORTFOLIO_API_URL`、`STOCKQUANT_LOCAL_DEVELOPMENT_USER`、`STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED`；无真实券商/模型凭据 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | recovery 仅运行 `docker compose -f infra/compose/docker-compose.yml restart portfolio-risk-service`，随后对原 testRunId 调用 continue-recovery；默认保留卷和证据，不执行清理 |
-| 预期耗时、轮询超时、实际观察期/预算 | normal/rejection <1秒；recovery 含重启约11秒；CLI 最多轮询30秒；无真实观察期/模型预算 |
+| 配置文件及必需环境变量名/非秘密测试值 | 隔离Harness自动生成9个随机PG角色密码并写入`.codex/isolated-stacks/<project>.env`（0600、Git忽略）；PAPER、FAKE、LIVE=false，真实源/模型凭据未注入；`.env.local`不作为本次测试密码来源 |
+| 外部故障目标及可执行命令、恢复/隔离清理入口 | 自动场景恢复用`pnpm test:e2e -- --stage V1.1`，Harness将项目名作为`COMPOSE_PROJECT_NAME`并比对精确Portfolio容器ID后重启；交互栈关闭必须使用本次输出的`pnpm stack:down -- --project <isolatedProject>`，缺少/无效项目ID时拒绝执行 |
+| 预期耗时、轮询超时、实际观察期/预算 | Web/API最多等待30秒健康检查；E2E recovery含重启约15秒；运行中的交互栈无后台自动期限，由操作者明确执行精确stack:down；无真实观察期/模型预算 |
 
 ### 8.2 初始化与启动（目标命令，待实现）
 
-在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。首次开发由开发者生成锁文件和脚本，验收者不负责补建环境。环境变量按上表配置；保持FAKE券商与模拟账户，真实模型仅在本阶段明确要求且预算已配置的场景调用。
+在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。当前仅V1.1交互栈已实现；V1.2～V1.5尚未配置隔离交互栈时，命令会安全拒绝，不得改用默认主Compose项目验收。Harness生成仅供该随机栈使用的PG凭据；保持FAKE券商与模拟账户，不加载真实模型或行情凭据。
 
 ```bash
-# 终端A：先确认实际执行目录为项目根目录
+# 终端A：先确认实际执行目录为项目根目录；输出含随机Web/API URL、project ID和精确stop命令
 pwd
-pnpm install --frozen-lockfile
 pnpm stack:up -- --stage V1.1
-
-# 终端B：同一项目根目录，保持开发服务器运行
-pnpm dev:web
 ```
 
-预期：安装与stack入口退出0；stack输出本阶段服务、端口、健康/迁移及持久卷状态。依赖不可用应非零并说明原因；不能删除旧业务卷重试。Web服务器持续运行并输出基础URL，尚在运行不要求退出码0。若已使用容器化Web，则填写已验证入口并避免重复占用端口。Ubuntu部署必须补齐实际镜像拉取/启动/迁移命令，不能仅用dev:web代替发布验证。
+预期：命令等待随机项目内PostgreSQL、Portfolio、Platform、容器化Web健康后退出0，并输出实际URL、`acceptance-owner-1`身份方式及`stack:down -- --project <ID>`清理命令。Web和API端口绑定`127.0.0.1`随机空闲端口；PG密码文件权限0600；不存在对固定`stockquant-v12` Compose项目的默认操作。Ubuntu部署仍需另补目标主机发布命令和实际证据。
+
+终端A关闭交互环境时，复制本次`isolatedProject`值执行以下精确清理。此命令只接受`stack:up`登记的随机V1.1项目，移除该项目容器、命名PG卷、网络和随机凭据文件；不指定项目或提供其它项目时以退出码2拒绝。
+
+```bash
+pnpm stack:down -- --project sq-v11-stack-6c7c96c2fd4cde3f6e88
+```
 
 初始化在验收中心“准备隔离运行”完成；CLI场景入口也负责同样的准备，两者调用同一业务API。准备后记录testRunId、accountId、namespace及Fixture/DataVersion；初始化业务本身是测试对象时不得预先完成被测动作。缺源/凭证/历史数据时显示缺项，不静默换成Fake并报真实场景通过。
 
@@ -174,11 +176,11 @@ pnpm test:integration:v11-stage-storage
 Web 同 run 的 stage-mode 正常场景已单独用真实 Chromium 复验：独立 Compose 项目名 `sq-v11-stage-web`，API `http://127.0.0.1:32801`，Vite `http://127.0.0.1:5174`。命令如下；执行前须确认这两个回环端口空闲。Playwright 测试从页面读取 TestRun ID，并调用 `scripts/verify-stage.mjs --stage V1.1 --run <同一ID> --check-only`，断言 CLI 返回同一ID及 `COMPLETED`。2026-09-26 执行1/1通过。
 
 ```bash
-V11_HOST_PORT=32801 docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml up -d
+V11_HOST_PORT=32801 V11_WEB_HOST_PORT=32802 docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml up -d
 STOCKQUANT_PLATFORM_API_URL=http://127.0.0.1:32801 pnpm --filter @stockquant/web dev --port 5174 --strictPort
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5174 STOCKQUANT_PLATFORM_API_URL=http://127.0.0.1:32801 pnpm --filter @stockquant/web test:e2e --grep 'V1.1 normal scenario creates an isolated run'
 # 停止 Vite 终端后执行精确清理
-docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml down --volumes --remove-orphans
+V11_HOST_PORT=32801 V11_WEB_HOST_PORT=32802 docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml down --volumes --remove-orphans
 ```
 
 以上独立手动Web栈命令仅为早期正常场景复验记录；当前完整可重跑入口为`pnpm test:integration:v11-stage-storage`，它会自动提供随机数据库密码并完成全部三场景与精确清理。新手动启动时，Compose需要9个隔离PostgreSQL角色密码环境变量；不要从`.env.local`复制正式数据库密码。可先将下列随机值写入权限为0600的临时env文件，再对`up`和`down`均使用`--env-file`，最后删除该文件：
@@ -187,10 +189,10 @@ docker compose -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integrati
 v11_env_file="$(mktemp)"
 chmod 600 "$v11_env_file"
 trap 'rm -f "$v11_env_file"' EXIT
-node -e 'for (const n of ["PLATFORM_API","PORTFOLIO_RISK","TRADE_EXECUTION","TRADE_EXECUTION_TEST","HISTORICAL_REPLAY","DECISION_GOVERNANCE","QUANT_RESEARCH","RESEARCH_AUTOMATION","MARKET_DATA"]) console.log(`STOCKQUANT_DATABASE_PASSWORD_${n}=${require("node:crypto").randomBytes(32).toString("hex")}`)' > "$v11_env_file"
-V11_HOST_PORT=32801 docker compose --env-file "$v11_env_file" -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml up -d
+node -e 'console.log(`STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD=${require("node:crypto").randomBytes(32).toString("hex")}`); for (const n of ["PLATFORM_API","PORTFOLIO_RISK","TRADE_EXECUTION","TRADE_EXECUTION_TEST","HISTORICAL_REPLAY","DECISION_GOVERNANCE","QUANT_RESEARCH","RESEARCH_AUTOMATION","MARKET_DATA"]) console.log(`STOCKQUANT_DATABASE_PASSWORD_${n}=${require("node:crypto").randomBytes(32).toString("hex")}`)' > "$v11_env_file"
+V11_HOST_PORT=32801 V11_WEB_HOST_PORT=32802 docker compose --env-file "$v11_env_file" -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml up -d
 # 执行上文 Vite/Playwright 命令
-docker compose --env-file "$v11_env_file" -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml down --volumes --remove-orphans
+V11_HOST_PORT=32801 V11_WEB_HOST_PORT=32802 docker compose --env-file "$v11_env_file" -p sq-v11-stage-web -f infra/compose/docker-compose.v11-integration.yml down --volumes --remove-orphans
 rm -f "$v11_env_file"
 ```
 
@@ -216,7 +218,8 @@ rm -f "$v11_env_file"
 | rejection（含全部子场景） | API/后端证据通过；Web人工确认通过 | `pnpm test:integration`，退出0 | `24276340-2e5a-4516-a7d0-20f92851754b` / `a5140049-0423-4c50-833f-0dcd250b2db5` | PASS（自动+人工确认） |
 | recovery（含实际外部动作） | API/后端证据通过；Web重启后继续确认通过 | `pnpm test:integration`，退出0 | `bdb53484-19b4-4363-a130-eee94761df54` / `fe720260-6ece-428f-854c-5f51b8b70556` | PASS（自动+人工确认） |
 | Web同run只读核对与证据导出 | 同一 normal run 已只读查询；导出脱敏 JSON | `pnpm verify:stage -- --stage V1.1 --run d5add8bf-ae44-48a8-b726-b4be34ab4278 --check-only`、`pnpm evidence:export -- --run d5add8bf-ae44-48a8-b726-b4be34ab4278`，退出0 | Manifest `fe6eb9e97d27f99f9ffaa8eae22beea9d13f8e53495ecb9207a927204509748b` | PASS（自动+人工确认） |
-| 本阶段代码测试/实际观察适用项 | 单元、类型、构建、JSON/Hash、真实PG/重启、Playwright均通过；无实际市场观察 | `pnpm baseline:check`、`pnpm test`、`pnpm typecheck`、`pnpm build`、`pnpm test:e2e -- --stage V1.1`，均退出0 | 镜像：Postgres `9e976447…`，API `82366a5…`，组合 `cfba97fb…`，Web `31cfa0f…` | PASS（开发者自动验证） |
+| 当前隔离代码套件与Web/CLI normal/rejection/recovery | V1.1 code suite通过；Chromium 3/3；三个浏览器Run同UUID CLI `--check-only`通过；随机资源清理通过 | `pnpm test:e2e -- --stage V1.1`，2026-10-07 exit 0 | TestRuns `fa2bf85a-fb29-4219-89d9-f535b6a3a874`、`774d4367-5a52-4ae2-b4ff-185a02b5cbed`、`acd9fedf-324b-44cf-b248-934613f36091`；详见[入口复验审计](../../../evidence/audits/2026-10-07-p1-v11-stage-entry-rerun.md) | PASS（开发者自动验证） |
+| V1.1隔离交互栈与SCRAM PostgreSQL、容器化Web/API和会话 | SCRAM凭据的真实DB服务连接通过code/E2E；Web/API健康；`/api/v1/session` HTTP 200且发出`sq_session`；无项目ID的down返回2；此前SCRAM交互项目精确清理通过 | `pnpm stack:up -- --stage V1.1` exit 0；`pnpm test:integration:v11-stage-storage` exit 0；精确`stack:down` exit 0 | 当前Project `sq-v11-stack-6c7c96c2fd4cde3f6e88`；Web `http://127.0.0.1:59783/acceptance/v1/v1.1`；API `http://127.0.0.1:59782`；E2E项目`sq-v11-stage-1c0a5531fd326f3a8793` | 工程生命周期与验证PASS；当前栈保留供检查；人工验收NOT_RUN |
 | 用户人工验收 | Web normal/rejection/recovery、刷新、重启恢复及 CLI 核对已完成 | 不由脚本代签 | 用户确认（本会话） / 2026-09-09 | PASS |
 
 记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
@@ -225,7 +228,7 @@ rm -f "$v11_env_file"
 
 2026-09-09的用户签署只覆盖当时的本地账户初始化与验收中心；2026-09-25至26增加的双市场账户和统一TestRun stage存储切片具有自动/隔离Web证据，但没有新增用户签署，也未切换活动API（Compose仍为`legacy`）。第2节`[x]`仅标识已由对应工程证据覆盖的子项；第7节完整交付清单仍有未完成项，V1.1和V1整版状态不得据此扩大为通过。
 
-2026-10-02 V1.1活动存储切换前置复验：当前Platform API仍为`STOCKQUANT_V11_RUN_STORAGE=legacy`。最新活动库只读快照复演49条legacy/44条shadow，精确补5、字段/接受历史差异0、幂等复跑0、owner读取和双写/parity通过；清理后活动库计数不变、临时库/dump均移除。迁移CLI现支持补齐合法partial shadow，而不是误拒当前44条影子行；recent nonterminal 24h=0，但保留的2条历史RUNNING与1条WAITING需维护负责人审阅。完整`pnpm verify:stage -- --stage V1.1 --suite code`退出0。Runbook要求的维护时段/回退负责人仍未确认，活动API没有切换或重启，新增用户验收未执行，V1.1仍PARTIALLY_IMPLEMENTED。详见[当前快照审计](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.md)、[机器结果](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.json)、[复演日志](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.log)。该复演的源码/测试Manifest仍保留在历史审计文件`2026-10-02-w1-v11-partial-shadow-rehearsal.sha256`中；源码随后加固后，该旧点时Manifest不作为当前文件Hash使用。最新迁移拒绝全部legacy非终态记录的代码/测试Hash见[2026-10-05加固审计](../../../evidence/audits/2026-10-05-w1-v11-stale-nonterminal-migration-guard.md)及[当前SHA-256清单](../../../evidence/audits/2026-10-05-w1-v11-stale-nonterminal-migration-guard.sha256)。
+2026-10-02 V1.1活动存储切换前置复验：当前Platform API仍为`STOCKQUANT_V11_RUN_STORAGE=legacy`。最新活动库只读快照复演49条legacy/44条shadow，精确补5、字段/接受历史差异0、幂等复跑0、owner读取和双写/parity通过；清理后活动库计数不变、临时库/dump均移除。迁移CLI现支持补齐合法partial shadow，而不是误拒当前44条影子行；recent nonterminal 24h=0，但保留的2条历史RUNNING与1条WAITING需维护负责人审阅。完整`pnpm verify:stage -- --stage V1.1 --suite code`退出0。Runbook要求的维护时段/回退负责人仍未确认，活动API没有切换或重启，新增用户验收未执行，V1.1仍PARTIALLY_IMPLEMENTED。详见[当前快照审计](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.md)、[机器结果](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.json)、[复演日志](../../../evidence/audits/2026-10-02-w1-v11-partial-shadow-rehearsal.log)。该复演的源码/测试Manifest仍保留在历史审计文件`2026-10-02-w1-v11-partial-shadow-rehearsal.sha256`中；源码随后加固后，该旧点时Manifest不作为当前文件Hash使用。最新迁移拒绝全部legacy非终态记录的代码/测试Hash见[2026-10-05加固审计](../../../evidence/audits/2026-10-05-w1-v11-stale-nonterminal-migration-guard.md)及[历史执行快照SHA-256清单](../../../evidence/audits/2026-10-05-w1-v11-stale-nonterminal-migration-guard.sha256)。
 
 2026-10-02 V1.1旧非终态记录ID只读复核：对活动`platform_api`使用只读事务再次核验49条legacy/44条shadow，列出需操作负责人处置的2条历史RUNNING和1条WAITING的精确TestRun ID；Platform API与PostgreSQL均running/healthy，未更新记录或重启服务。处置决定、维护窗口、回退负责人仍待确认，以上ID/计数仅是点时结果，切换前需重新查询。详见[只读复核审计](../../../evidence/audits/2026-10-02-w1-v11-live-nonterminal-readonly-review.md)、[机器结果](../../../evidence/audits/2026-10-02-w1-v11-live-nonterminal-readonly-review.json)、[当前文档绑定说明](../../../evidence/audits/2026-10-03-w1-v11-live-nonterminal-current-linkage-after-artifact.md)及[当前SHA-256清单](../../../evidence/audits/2026-10-03-w1-v11-live-nonterminal-current-linkage-after-artifact.sha256)。原始2026-10-02 Manifest保留在审计目录作为历史快照。
 
@@ -233,6 +236,15 @@ rm -f "$v11_env_file"
 
 2026-10-05 当前工作树复验：完整`pnpm verify:stage -- --stage V1.1 --suite code`及`pnpm test:integration:v11-stage-storage`退出0；stage-mode随机隔离栈中normal/rejection/recovery Chromium 3/3通过，各Web TestRun均由同ID CLI `--check-only`核验，恢复只重启已验证的隔离Portfolio容器。测试退出时随机项目的容器、卷、网络和镜像均已移除。本次没有部署或连接活动服务，也未改变用户验收状态。完整结果见[W1审计](../../../evidence/audits/2026-10-05-w1-v11-stage-storage.md)、[机器JSON](../../../evidence/audits/2026-10-05-w1-v11-stage-storage.json)与[SHA-256（历史执行快照，绑定V1.1回归输入）](../../../evidence/audits/2026-10-05-w1-v11-stage-storage.sha256)。
 
+2026-10-07 正式阶段E2E入口修复与复验：`pnpm test:e2e -- --stage V1.1`现路由到隔离stage-storage Harness，不再裸起Web后缺少recovery所需项目身份。该正式命令完成V1.1 code suite与Chromium normal/rejection/recovery 3/3，三条TestRun分别经相同UUID CLI `--check-only`核验。随机项目`sq-v11-stage-ec7d1d5666183e86a70b`恢复只重启精确核验的Portfolio容器，并确认容器、卷、网络与镜像均已清理；三Run UUID及失败诊断见[入口复验审计](../../../evidence/audits/2026-10-07-p1-v11-stage-entry-rerun.md)。人工签署仍维持原范围，不扩展V1.1/P1总体结论。
+
+2026-10-07当前树账户矩阵扩展：V1.1代码套件入口现调用完整注册清单；随机临时PostgreSQL集成增加CN_A/CNY和US_EQUITY/USD独立初始账本、相同幂等键重放、异载荷及异owner冲突。隔离HTTP smoke验证owner拒绝、LIVE初始化403且没有账户副作用；完整code/集成/Web恢复矩阵最终通过。详细日志及失败历史见[P1账户身份账本矩阵](../../../evidence/audits/2026-10-07-p1-account-identity-ledger-matrix.md)。该工程验证未变更用户签署范围，当前V1.1仍为PARTIALLY_IMPLEMENTED。
+
 2026-10-05 V1.1活动库切换前状态复核：使用PostgreSQL只读事务再次查询既有三个非终态Run的精确ID；legacy与stage记录均还在，2条`RUNNING`和1条`WAITING`状态/创建时间不变。Platform API、PostgreSQL及原13个活动容器均保持运行，未修改数据库、迁移或重启服务。操作负责人仍需审阅并决定这三个历史Run的处理方式，因此活动API切换条件未满足。详见[非终态Run只读复核](../../../evidence/audits/2026-10-05-w1-v11-live-nonterminal-readonly-review.md)、[JSON](../../../evidence/audits/2026-10-05-w1-v11-live-nonterminal-readonly-review.json)、[SQL](../../../evidence/audits/2026-10-05-w1-v11-live-nonterminal-readonly.sql)和[SHA-256](../../../evidence/audits/2026-10-05-w1-v11-live-nonterminal-readonly-review.sha256)。
 
 2026-10-05 V1.1迁移门禁加固：复核发现旧切换脚本只检查最近24小时非终态，可能放行年龄较大的RUNNING/WAITING记录，与本Runbook要求的负责人处置不一致。现在活动迁移入口统计并拒绝全部legacy `QUEUED`/`RUNNING`/`WAITING`行，直到人工处置后再重查；隔离单测覆盖三条陈旧非终态拒绝，不连接活动库。维护窗口、备份恢复、旧Run处置及切换/回退仍未执行。
+
+
+### 2026-10-06 本轮隔离复验
+
+隔离存储模式下再次执行 `pnpm test:integration:v11-stage-storage`，完整命令exit 0；normal/rejection/recovery 3个Chromium Web TestRun均由对应相同UUID经只读CLI核对，恢复只重启已核实的隔离Portfolio容器。临时Compose资源已精确清理。此结果是自动隔离切片证据，不扩展历史人工签署，也不证明活动API切换/回退或V1.1整体完成。详见[本轮证据](../../../evidence/audits/2026-10-06-p1-v11-stage-rerun.md)和[机器摘要](../../../evidence/audits/2026-10-06-p1-v11-stage-rerun.json)。

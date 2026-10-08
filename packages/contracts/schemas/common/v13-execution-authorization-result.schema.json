@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-execution-authorization-result.schema.json",
+  "title": "V13ExecutionAuthorizationResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authorizationId", "proposalId", "proposalVersion", "contentHash", "ownerId", "testRunId", "accountId", "clientOrderId", "commandHash", "expiresAt", "status"],
+  "properties": {
+    "authorizationId": { "type": "string", "format": "uuid" },
+    "proposalId": { "type": "string", "format": "uuid" },
+    "proposalVersion": { "type": "integer" },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "ownerId": { "type": "string" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "clientOrderId": { "type": "string" },
+    "commandHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "status": { "const": "ACTIVE" },
+    "replayed": { "type": "boolean" }
+  }
+}

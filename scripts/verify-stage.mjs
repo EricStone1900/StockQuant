@@ -67,6 +67,15 @@ async function waitForRun(id) {
   throw new Error(`timed out waiting 120s for ${id}`);
 }
 
+async function waitForV14Run(id) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${id}`, { signal: AbortSignal.timeout(5000) });
+    if (["COMPLETED", "FAILED", "CANCELLED"].includes(run.status)) return run;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`timed out waiting 30s for V1.4 TestRun ${id}`);
+}
+
 function runCommand(command, commandArgs, extraEnv = {}) {
   const result = spawnSync(command, commandArgs, { stdio: "inherit", env: { ...process.env, ...extraEnv } });
   return result.status ?? 1;
@@ -314,24 +323,42 @@ async function main() {
   if (stage === "V3.3") return runV33PreparationStage();
   if (stage.startsWith("V2.")) return runV2Stage();
   if (stage === 'V1.5') {
-    if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
+    if (value('--suite') === 'code') { for (const [command, commandArgs, commandEnv] of codeSuiteCommands(stage)) { console.log(`\n[V1.5 code suite] ${command} ${commandArgs.join(" ")}`); const exitCode = runCommand(command, commandArgs, commandEnv); if (exitCode !== 0) process.exit(exitCode); } return; }
     if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
     const accepted = await request('/api/v1/acceptance/v1/v1.5/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) }); const run = await request(`/api/v1/acceptance/v1/v1.5/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.4') {
-    if (value('--suite') === 'code') { for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); } return; }
-    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
-    if (!['normal','rejection','recovery','market-restrictions','historical-fees'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery|market-restrictions|historical-fees, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
+    if (value('--suite') === 'code') { for (const [command, commandArgs, commandEnv] of codeSuiteCommands(stage)) { console.log(`\n[V1.4 code suite] ${command} ${commandArgs.join(" ")}`); const exitCode = runCommand(command, commandArgs, commandEnv); if (exitCode !== 0) process.exit(exitCode); } return; }
+    if (runId && has('--check-only')) { const run = await waitForV14Run(runId); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
+    if (!['normal','rejection','recovery','market-restrictions','historical-fees','corporate-actions'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery|market-restrictions|historical-fees|corporate-actions, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
     const policy = scenario === 'historical-fees' ? { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500, marketFeeSchedule: { scheduleId: 'CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27', commissionRatePartsPerBillion: 2_000_000, minimumCommissionCents: 500 }, sellOrder: { signalDate: '2023-08-24', executionDate: '2023-08-25', quantity: 100 } } : undefined;
-    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907), ...(policy ? { policy } : {}) }) }); const run = await request(`/api/v1/acceptance/v1/v1.4/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
+    const accepted = await request('/api/v1/acceptance/v1/v1.4/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907), ...(policy ? { policy } : {}) }) }); const run = await waitForV14Run(accepted.testRunId); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
   }
   if (stage === 'V1.3') {
+    const proposalId = value("--proposal");
+    const clientOrderArgIndex = args.indexOf("--client-order");
+    const clientOrderId = clientOrderArgIndex < 0 ? undefined : args[clientOrderArgIndex + 1];
     if (value('--suite') === 'code') {
-      for (const [command, commandArgs] of [["pnpm",["baseline:check"]],["pnpm",["build"]],["pnpm",["typecheck"]],["pnpm",["test"]]]) { const exitCode = runCommand(command, commandArgs); if (exitCode !== 0) process.exit(exitCode); }
+      for (const [command, commandArgs, commandEnv] of codeSuiteCommands(stage)) { console.log(`\n[V1.3 code suite] ${command} ${commandArgs.join(" ")}`); const exitCode = runCommand(command, commandArgs, commandEnv); if (exitCode !== 0) process.exit(exitCode); }
       return;
     }
-    if (runId && has('--check-only')) { const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run)); }
+    if (runId && has('--check-only')) {
+      const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}`);
+      let proposal;
+      let order;
+      if (proposalId) {
+        proposal = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}/proposals/${proposalId}`);
+        if (proposal.testRunId !== runId || proposal.ownerId !== "acceptance-owner-1") throw new Error("V1.3 proposal does not match the requested owner/TestRun scope");
+      }
+      if (clientOrderId) {
+        if (!proposalId) throw new Error("--client-order requires --proposal");
+        order = await request(`/api/v1/acceptance/v1/v1.3/runs/${runId}/proposals/${proposalId}/orders/${encodeURIComponent(clientOrderId)}`);
+        if (order.authorization?.proposalId !== proposalId || order.authorization?.testRunId !== runId) throw new Error("V1.3 order does not match the requested proposal/TestRun scope");
+      }
+      console.log(JSON.stringify(proposal ? { run, proposal, ...(order ? { order } : {}), checkOnly: true } : run, null, 2));
+      process.exit(runExitCode(run));
+    }
     if (!['normal','rejection','recovery'].includes(scenario)) { console.error('specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only'); process.exit(2); }
     const accepted = await request('/api/v1/acceptance/v1/v1.3/runs', { method:'POST', body: JSON.stringify({ scenarioId: scenario, seed: Number(value('--seed') ?? 20260907) }) });
     const run = await request(`/api/v1/acceptance/v1/v1.3/runs/${accepted.testRunId}`); console.log(JSON.stringify(run,null,2)); process.exit(runExitCode(run));
@@ -362,17 +389,7 @@ async function main() {
     console.log(JSON.stringify(result,null,2)); process.exit(result.status === 'COMPLETED' && assertions.length > 0 ? 0 : result.status === 'FAILED' ? 1 : 2);
   }
   if (value("--suite") === "code") {
-    const commands = [
-      ["pnpm", ["baseline:check"]],
-      ["pnpm", ["build"]],
-      ["pnpm", ["lint"]],
-      ["pnpm", ["test"]],
-      ["pnpm", ["test:contract"]]
-    ];
-    for (const [command, commandArgs] of commands) {
-      const exitCode = runCommand(command, commandArgs);
-      if (exitCode !== 0) process.exit(exitCode);
-    }
+    runCodeSuite(stage);
     return;
   }
   if (runId && has("--check-only")) {

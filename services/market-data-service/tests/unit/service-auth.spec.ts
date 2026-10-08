@@ -35,5 +35,6 @@ describe("Market Data internal minute-upload identity", () => {
   it("protects both V1.2 fixed daily Fixture previews", () => {
     expect(isProtectedPlatformApiRequest("GET", "/v1/fixtures/normal/preview")).toBe(true);
     expect(isProtectedPlatformApiRequest("GET", "/v1/fixtures/bad-future/preview")).toBe(true);
+    expect(isProtectedPlatformApiRequest("GET", "/v1/fixtures/research-preview")).toBe(true);
   });
 });

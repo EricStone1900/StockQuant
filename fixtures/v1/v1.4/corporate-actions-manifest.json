@@ -1,0 +1,29 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.4-corporate-actions",
+  "fixtureVersion": "v1.4-corporate-actions-1",
+  "stageId": "V1.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Five RAW daily closes plus a split and cash-dividend ledger for exact V1.4 accounting checks", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-07T00:00:00Z",
+  "semantics": {
+    "markets": ["CN_A"],
+    "currencies": ["CNY"],
+    "timezone": "Asia/Shanghai",
+    "prices": "RAW close in CNY; integer cents after parsing; corporate actions are independent events and prices are never adjusted",
+    "sessions": { "count": 5, "start": "2024-01-02", "end": "2024-01-08", "calendar": "Fixture session sequence only; not an exchange calendar" },
+    "securities": { "600000.SH": 5 },
+    "qualityCases": ["2-for-1 split", "10-cent-per-share cash dividend with later pay date", "duplicate dividend event delivery", "no adjusted-price double counting"]
+  },
+  "files": [
+    { "path": "fixtures/v1/v1.4/corporate_action_daily.csv", "sha256": "826436b30245e6a9d4250274a29012b216edf474fb94b444cd70411704f9a0e6", "mediaType": "text/csv", "schemaRef": "daily-bar-v1" },
+    { "path": "fixtures/v1/v1.4/corporate_actions.csv", "sha256": "ff33b0f3eb1214a1670ead8337988db13fa60c823ba001cd2e6d841c109f342f", "mediaType": "text/csv", "schemaRef": "v14-corporate-action-event-v1" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V1.4-BT-CORPORATE-ACTION-RAW-001", "description": "100 shares become 200 after 2-for-1 split; dividend entitlement is a receivable on ex-date and cash on pay date; NAV hand-checks to 200000 cents" },
+    { "assertionId": "V1.4-BT-CORPORATE-ACTION-IDEMPOTENCY-002", "description": "Repeated identical dividend event ID is applied only once" },
+    { "assertionId": "V1.4-BT-CORPORATE-ACTION-NO-ADJUSTED-DOUBLE-COUNT-003", "description": "Raw closes remain 500 and 490 cents around split and ex-date; adjusted prices are not applied on top of cash/quantity accounting" }
+  ]
+}

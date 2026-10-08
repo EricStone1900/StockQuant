@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { buildEvidenceBundle, decodeV31Artifact, decodeV33Artifact, evidenceRequest, parseEvidenceExportArgs, qlibArtifactPath, serializeEvidence, v31ArtifactPath, v31ArtifactRefs, v33ArtifactRefs } from "./evidence-export-core.mjs";
+import { buildEvidenceBundle, decodeV12QlibArtifact, decodeV14Report, decodeV31Artifact, decodeV33Artifact, evidenceRequest, parseEvidenceExportArgs, qlibArtifactPath, serializeEvidence, v12QlibArtifactPath, v14ReportArtifactPath, v31ArtifactPath, v31ArtifactRefs, v33ArtifactRefs } from "./evidence-export-core.mjs";
 
 const baseUrl = (process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000").replace(/\/$/u, "");
 try {
@@ -33,6 +33,28 @@ try {
       }
       bundle.artifacts = v33ArtifactRefs(bundle).map((ref) => ({ ...ref, filename: `v33-round-${ref.roundIndex}-${ref.sha256}.json` }));
     }
+    if (selection.stage === "V1.2") {
+      const artifactUrl = v12QlibArtifactPath(bundle, baseUrl);
+      if (artifactUrl) {
+        const artifactResponse = await fetch(artifactUrl, { headers: request.headers, signal: AbortSignal.timeout(10_000) });
+        if (!artifactResponse.ok) throw new Error(`V1.2 Qlib Artifact export failed: HTTP ${artifactResponse.status}`);
+        const artifactBody = await artifactResponse.json();
+        const bytes = decodeV12QlibArtifact(bundle, artifactBody);
+        attachments.push({ filename: `v12-qlib-${bundle.testRunId}-${bundle.evidence.qlibFit.artifactRef.sha256}.json`, bytes });
+        bundle.artifacts = [{ ...bundle.evidence.qlibFit.artifactRef, filename: `v12-qlib-${bundle.testRunId}-${bundle.evidence.qlibFit.artifactRef.sha256}.json` }];
+      }
+    }
+    if (selection.stage === "V1.4") {
+      const artifactUrl = v14ReportArtifactPath(bundle, baseUrl);
+      if (artifactUrl) {
+        const artifactResponse = await fetch(artifactUrl, { headers: request.headers, signal: AbortSignal.timeout(10_000) });
+        if (!artifactResponse.ok) throw new Error(`V1.4 report export failed: HTTP ${artifactResponse.status}`);
+        const bytes = decodeV14Report(bundle, await artifactResponse.json());
+        const ref = bundle.artifactRefs.find((item) => item.kind === "BACKTEST_REPORT");
+        attachments.push({ filename: `v14-report-${bundle.testRunId}-${ref.sha256}.json`, bytes });
+        bundle.artifacts = [{ ...ref, filename: `v14-report-${bundle.testRunId}-${ref.sha256}.json` }];
+      }
+    }
     const artifactUrl = selection.stage === "V2.3" ? qlibArtifactPath(bundle, baseUrl) : null;
     if (artifactUrl) {
       const artifactResponse = await fetch(artifactUrl, { headers: request.headers, signal: AbortSignal.timeout(10_000) });
@@ -61,7 +83,7 @@ try {
       throw error;
     }
     const kind = selection.promotionRequestId ? "V3.2_PROMOTION_PREPARATION_SNAPSHOT" : selection.stage === "V3.2" ? "V3.2_READINESS_TEST_RUN" : selection.stage === "V3.1" ? "V3.1_TEST_RUN_WITH_ARTIFACTS" : selection.stage === "V3.3" ? "V3.3_BUSINESS_TEST_RUN" : "TEST_RUN_EVIDENCE";
-    console.log(JSON.stringify({ outputDirectory, manifestHash, stageId: selection.stage, kind, attachments: files.map(({ filename, bytes }) => ({ filename, sizeBytes: bytes.length })) }, null, 2));
+    console.log(JSON.stringify({ outputDirectory, manifestHash, stageId: selection.stage, testRunId: selection.runId ?? null, kind, attachments: files.map(({ filename, bytes }) => ({ filename, sizeBytes: bytes.length })) }, null, 2));
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : "evidence export failed");

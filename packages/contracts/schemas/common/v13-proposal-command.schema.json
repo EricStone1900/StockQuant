@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-command.schema.json",
+  "title": "V13ProposalCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ownerId", "testRunId", "idempotencyKey", "accountId", "strategyVersion", "operation", "environmentMode", "brokerMode", "expiresAt", "legs"],
+  "properties": {
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "strategyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "approvalMode": { "enum": ["MANUAL_APPROVAL", "AUTO_POLICY"], "default": "MANUAL_APPROVAL" },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "operation": { "enum": ["HOLD", "REBALANCE"] },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "legs": { "type": "array", "maxItems": 100, "items": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-leg.schema.json" } }
+  },
+  "allOf": [
+    { "if": { "properties": { "operation": { "const": "HOLD" } } }, "then": { "properties": { "legs": { "maxItems": 0 } } } },
+    { "if": { "properties": { "operation": { "const": "REBALANCE" } } }, "then": { "properties": { "legs": { "minItems": 1 } } } }
+  ]
+}

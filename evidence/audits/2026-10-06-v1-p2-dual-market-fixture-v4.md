@@ -1,0 +1,7 @@
+# V1.2 dual-market Fixture version 4 correction — 2026-10-06
+
+The V1.2 full code suite caught a bad relative `$schema` path in the v3 Fixture manifest before service tests ran. The original dataset and manifest bytes were retained; v3 is now `RETIRED`. New immutable version `v1.2-market-data-4` corrects the reference to `fixtures/manifests/fixture-manifest.schema.json`; it retains the already-validated 10 CN_A / 3 US_EQUITY synthetic securities, 774 raw bars, 60 weekday sessions, missing/delisted/action/PIT cases, and 180/142/138 train/validation/test rows. The independent validator now resolves the manifest schema path as well as the hashes and model windows.
+
+`pnpm fixtures:check` passes (33 fixture files, zero hash failures), including version-4 semantic/window validation. The failure that triggered retirement is retained in [the full-suite log](2026-10-06-v1-p2-fixture-v3-schema-path-failure.log). Versions 2 and 3 remain retired; their bar inputs were not overwritten.
+
+The corrected v4 candidate subsequently passed the full V1.2 automated code suite; see [full-suite report](2026-10-06-v1-p2-dual-market-fixture-full-suite.md) and [machine result](2026-10-06-v1-p2-dual-market-fixture-full-suite.json). This closes data packaging and schema-reference validation only. The new fixture is not yet loaded through Market Data, and no Qlib model or strategy output has been run from it. V1.2 normal remains `WAITING`; P2 is still in progress. All data are synthetic weekday Fixtures and provide no real exchange calendar or profitability evidence.

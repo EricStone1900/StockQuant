@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e AS build
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
@@ -7,8 +8,11 @@ COPY services/portfolio-risk-service/package.json services/portfolio-risk-servic
 COPY services/market-data-service/package.json services/market-data-service/package.json
 COPY services/quant-research-service/package.json services/quant-research-service/package.json
 COPY packages/contracts/generated packages/contracts/generated
+COPY fixtures/v1/v1.3/manifest.json fixtures/v1/v1.3/manifest.json
+COPY fixtures/v1/v1.3/trading-loop-scenarios.json fixtures/v1/v1.3/trading-loop-scenarios.json
 COPY apps/web apps/web
-RUN corepack enable && pnpm install --frozen-lockfile --prod=false
+RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked \
+    corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile --prod=false
 RUN pnpm --filter @stockquant/web build
 
 FROM node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e

@@ -1,0 +1,105 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.3 Paper Proposal API", "version": "v1" },
+  "servers": [{ "url": "http://decision-governance-service:3007" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/proposals/{proposalId}": {
+      "get": {
+        "operationId": "readV13PaperProposal",
+        "summary": "Read a proposal only in the authenticated Platform owner's scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": { "200": { "description": "Owner-scoped proposal", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-result.schema.json" } } } }, "403": { "description": "Caller denied" }, "404": { "description": "Proposal not found in owner scope" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    },
+    "/internal/v1/proposals": {
+      "post": {
+        "operationId": "createV13PaperProposal",
+        "summary": "Persist an isolated PAPER/FAKE proposal with run scope and idempotency",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "Persisted proposal", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-result.schema.json" } } } },
+          "403": { "description": "Caller scope denied" }, "409": { "description": "Idempotency key payload conflict" }, "413": { "description": "Request too large" }, "422": { "description": "Invalid proposal" }, "503": { "description": "Governance persistence unavailable" }
+        }
+      }
+    },
+    "/internal/v1/proposals/{proposalId}/approve": {
+      "post": {
+        "operationId": "approveV13PaperProposal",
+        "summary": "Record authenticated manual approval for an exact proposal version and hash",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-decision-command.schema.json" } } } },
+        "responses": { "200": { "description": "Decision recorded", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-decision-result.schema.json" } } } }, "403": { "description": "Actor or caller rejected" }, "409": { "description": "Stale proposal version or content" }, "422": { "description": "Invalid or expired proposal" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    },
+    "/internal/v1/proposals/{proposalId}/reject": {
+      "post": {
+        "operationId": "rejectV13PaperProposal",
+        "summary": "Record authenticated manual rejection for an exact proposal version and hash",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-decision-command.schema.json" } } } },
+        "responses": { "200": { "description": "Decision recorded", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-decision-result.schema.json" } } } }, "403": { "description": "Actor or caller rejected" }, "409": { "description": "Stale proposal version or content" }, "422": { "description": "Invalid or expired proposal" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    },
+    "/internal/v1/proposals/{proposalId}/revise": {
+      "post": {
+        "operationId": "reviseV13PaperProposal",
+        "summary": "Append a new pending proposal version after authenticated manual revision",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-revision-command.schema.json" } } } },
+        "responses": { "200": { "description": "New immutable proposal version awaits manual approval" }, "403": { "description": "Actor or owner scope rejected" }, "409": { "description": "Stale version/hash or proposal is no longer pending" }, "422": { "description": "Invalid revision or expiry" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    },
+    "/internal/v1/proposals/{proposalId}/execution-authorizations": {
+      "post": {
+        "operationId": "authorizeV13ApprovedProposalExecution",
+        "summary": "Issue short-lived one-proposal authorization after execution risk and resource reservation",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "trade-execution-service" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-execution-authorization-command.schema.json" } } } },
+        "responses": { "200": { "description": "Exact approved proposal authorization", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-execution-authorization-result.schema.json" } } } }, "403": { "description": "Proposal decision or scope is not eligible" }, "409": { "description": "Conflicting order identity" }, "422": { "description": "Invalid command" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    },
+    "/internal/v1/proposals/{proposalId}/execution-authorizations/validate": {
+      "post": {
+        "operationId": "validateV13ApprovedProposalExecution",
+        "summary": "Validate or replay an exact short-lived authorization for one clientOrderId",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "trade-execution-service" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-execution-authorization-validation.schema.json" } } } },
+        "responses": { "200": { "description": "Valid exact authorization or safe idempotent replay" }, "403": { "description": "Authorization does not match or is expired" }, "422": { "description": "Invalid command" }, "503": { "description": "Governance persistence unavailable" } }
+      }
+    }
+  }
+}

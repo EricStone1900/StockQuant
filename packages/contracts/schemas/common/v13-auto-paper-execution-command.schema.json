@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-paper-execution-command.schema.json",
+  "title": "V13AutoPaperExecutionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposalId", "mandateId", "mandateVersion", "ownerId", "testRunId", "accountId", "namespace", "clientOrderId", "now"],
+  "properties": {
+    "proposalId": { "type": "string", "format": "uuid" },
+    "mandateId": { "type": "string", "format": "uuid" },
+    "mandateVersion": { "type": "integer", "minimum": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "now": { "type": "string", "format": "date-time" }
+  }
+}

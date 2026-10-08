@@ -35,7 +35,7 @@ export class GeneratedPortfolioAccountClient {
     return this.send<Contracts.AccountSnapshot>("GET", path, undefined, { "x-stockquant-owner-id": ownerId });
   }
 
-  async reserveAccountResources(accountId: string, body: { "namespace": string; "testRunId": string; "ownerId": string; "idempotencyKey": string; "clientOrderId": string; "side": "BUY" | "SELL"; "currency": string; "cashAmount"?: string | null; "security"?: string | null; "quantity"?: number | null; }): Promise<{ "reservation": Contracts.ResourceReservation; "replayed": boolean; }> {
+  async reserveAccountResources(accountId: string, body: { "namespace": string; "testRunId": string; "ownerId": string; "idempotencyKey": string; "clientOrderId": string; "side": "BUY" | "SELL"; "currency": string; "cashAmount"?: string | null; "security"?: string | null; "quantity"?: number | null; "asOf"?: string; }): Promise<{ "reservation": Contracts.ResourceReservation; "replayed": boolean; }> {
     const path = `/internal/v1/accounts/${encodeURIComponent(accountId)}/reservations`;
     return this.send<{ "reservation": Contracts.ResourceReservation; "replayed": boolean; }>("POST", path, body);
   }

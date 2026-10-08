@@ -104,7 +104,7 @@ export class PostgresAccountRepository {
         idempotency_key TEXT NOT NULL, client_order_id TEXT NOT NULL,
         side TEXT NOT NULL CHECK (side IN ('BUY','SELL')),
         currency CHAR(3) NOT NULL, cash_amount NUMERIC(20,4) NULL CHECK (cash_amount > 0),
-        security TEXT NULL, quantity BIGINT NULL CHECK (quantity > 0),
+        security TEXT NULL, quantity BIGINT NULL CHECK (quantity > 0), as_of TIMESTAMPTZ NULL,
         captured_cash_amount NUMERIC(20,4) NOT NULL DEFAULT 0 CHECK (captured_cash_amount >= 0),
         captured_quantity BIGINT NOT NULL DEFAULT 0 CHECK (captured_quantity >= 0),
         status TEXT NOT NULL CHECK (status IN ('HELD','UNKNOWN','CAPTURED','RELEASED')),
@@ -115,6 +115,7 @@ export class PostgresAccountRepository {
       );
       ALTER TABLE resource_reservations ADD COLUMN IF NOT EXISTS captured_cash_amount NUMERIC(20,4) NOT NULL DEFAULT 0;
       ALTER TABLE resource_reservations ADD COLUMN IF NOT EXISTS captured_quantity BIGINT NOT NULL DEFAULT 0;
+      ALTER TABLE resource_reservations ADD COLUMN IF NOT EXISTS as_of TIMESTAMPTZ NULL;
       CREATE INDEX IF NOT EXISTS resource_reservations_cash_held_idx ON resource_reservations(account_id,currency) WHERE status IN ('HELD','UNKNOWN') AND side='BUY';
       CREATE INDEX IF NOT EXISTS resource_reservations_security_held_idx ON resource_reservations(account_id,security) WHERE status IN ('HELD','UNKNOWN') AND side='SELL';
       CREATE UNIQUE INDEX IF NOT EXISTS resource_reservations_order_identity_idx ON resource_reservations(account_id,client_order_id);
@@ -337,6 +338,7 @@ export class PostgresAccountRepository {
     if (!command.idempotencyKey || command.idempotencyKey.length > 128 || !command.clientOrderId || command.clientOrderId.length > 128) throw new Error("INVALID_RESERVATION_IDENTITY");
     if (!command.namespace || !command.testRunId || !command.ownerId) throw new Error("INVALID_RESERVATION_SCOPE");
     if (command.side !== "BUY" && command.side !== "SELL") throw new Error("INVALID_RESERVATION_SIDE");
+    if (command.side === "SELL" && (!command.asOf || !Number.isFinite(Date.parse(command.asOf)))) throw new Error("SELL_RESERVATION_REQUIRES_RUN_CLOCK");
     if (!/^[A-Z]{3}$/u.test(command.currency)) throw new Error("INVALID_RESERVATION_CURRENCY");
     if (command.side === "BUY" && (command.security !== null || command.quantity !== null || !/^(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,4})?$/u.test(command.cashAmount ?? "") || (command.cashAmount ?? "").replace(/[.0]/gu, "") === "")) throw new Error("INVALID_RESERVATION_AMOUNT");
     if (command.side === "SELL" && (command.cashAmount !== null || !command.security || !/^[A-Z0-9.]{3,20}$/u.test(command.security) || !Number.isSafeInteger(command.quantity) || (command.quantity ?? 0) <= 0)) throw new Error("INVALID_RESERVATION_QUANTITY");
@@ -352,7 +354,8 @@ export class PostgresAccountRepository {
       const previous = await client.query<any>("SELECT * FROM resource_reservations WHERE account_id=$1 AND (idempotency_key=$2 OR client_order_id=$3) FOR UPDATE", [command.accountId, command.idempotencyKey, command.clientOrderId]);
       if (previous.rowCount) {
         const row = previous.rows[0];
-        const same = row.namespace === command.namespace && row.test_run_id === command.testRunId && row.owner_id === command.ownerId && row.idempotency_key === command.idempotencyKey && row.client_order_id === command.clientOrderId && row.side === command.side && row.currency.trim() === command.currency && normalizeCash(row.cash_amount) === normalizeCash(command.cashAmount) && row.security === command.security && (row.quantity == null ? command.quantity == null : String(row.quantity) === String(command.quantity));
+        const sameAsOf = row.as_of == null ? command.asOf == null : command.asOf != null && new Date(row.as_of).getTime() === Date.parse(command.asOf);
+        const same = sameAsOf && row.namespace === command.namespace && row.test_run_id === command.testRunId && row.owner_id === command.ownerId && row.idempotency_key === command.idempotencyKey && row.client_order_id === command.clientOrderId && row.side === command.side && row.currency.trim() === command.currency && normalizeCash(row.cash_amount) === normalizeCash(command.cashAmount) && row.security === command.security && (row.quantity == null ? command.quantity == null : String(row.quantity) === String(command.quantity));
         if (!same) throw new Error("RESERVATION_IDEMPOTENCY_CONFLICT");
         await client.query("COMMIT");
         return { reservation: this.mapReservation(row), replayed: true };
@@ -363,12 +366,21 @@ export class PostgresAccountRepository {
         if (!available.rows[0].sufficient) throw new Error("INSUFFICIENT_AVAILABLE_CASH");
       } else {
         const position = await client.query<{ quantity: string }>("SELECT quantity::text AS quantity FROM account_positions WHERE account_id=$1 AND security=$2 FOR UPDATE", [command.accountId, command.security]);
-        const available = await client.query<{ sufficient: boolean }>(`SELECT (COALESCE($1::bigint,0) - COALESCE(sum(quantity-captured_quantity),0) - $4::bigint) >= 0 AS sufficient
-          FROM resource_reservations WHERE account_id=$2 AND security=$3 AND side='SELL' AND status IN ('HELD','UNKNOWN')`, [position.rows[0]?.quantity ?? null, command.accountId, command.security, command.quantity]);
-        if (!available.rows[0].sufficient) throw new Error("INSUFFICIENT_SELLABLE_QUANTITY");
+        const sameDayBuys = account.market === "CN_A"
+          ? await client.query<{ quantity: string }>(`SELECT COALESCE(sum(quantity),0)::text AS quantity FROM recorded_fills
+              WHERE account_id=$1 AND security=$2 AND side='BUY'
+                AND (effective_at AT TIME ZONE 'Asia/Shanghai')::date = ($3::timestamptz AT TIME ZONE 'Asia/Shanghai')::date`, [command.accountId, command.security, command.asOf])
+          : { rows: [{ quantity: "0" }] };
+        const held = Number(position.rows[0]?.quantity ?? 0);
+        const unsettled = Number(sameDayBuys.rows[0].quantity);
+        const reserved = await client.query<{ quantity: string }>(`SELECT COALESCE(sum(quantity-captured_quantity),0)::text AS quantity
+          FROM resource_reservations WHERE account_id=$1 AND security=$2 AND side='SELL' AND status IN ('HELD','UNKNOWN')`, [command.accountId, command.security]);
+        const remaining = held - Number(reserved.rows[0].quantity);
+        if (remaining < (command.quantity ?? 0)) throw new Error("INSUFFICIENT_SELLABLE_QUANTITY");
+        if (remaining - unsettled < (command.quantity ?? 0)) throw new Error("T_PLUS_ONE_UNSETTLED_QUANTITY");
       }
-      const inserted = await client.query<any>(`INSERT INTO resource_reservations(reservation_id,account_id,namespace,test_run_id,owner_id,idempotency_key,client_order_id,side,currency,cash_amount,security,quantity,status)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'HELD') RETURNING *`, [randomUUID(), command.accountId, command.namespace, command.testRunId, command.ownerId, command.idempotencyKey, command.clientOrderId, command.side, command.currency, command.cashAmount, command.security, command.quantity]);
+      const inserted = await client.query<any>(`INSERT INTO resource_reservations(reservation_id,account_id,namespace,test_run_id,owner_id,idempotency_key,client_order_id,side,currency,cash_amount,security,quantity,as_of,status)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'HELD') RETURNING *`, [randomUUID(), command.accountId, command.namespace, command.testRunId, command.ownerId, command.idempotencyKey, command.clientOrderId, command.side, command.currency, command.cashAmount, command.security, command.quantity, command.asOf ?? null]);
       await client.query("COMMIT");
       return { reservation: this.mapReservation(inserted.rows[0]), replayed: false };
     } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }

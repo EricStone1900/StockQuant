@@ -752,6 +752,42 @@
           }
         }
       }
+    },
+    "/v1/fixtures/research-preview": {
+      "get": {
+        "operationId": "getV12ResearchFixturePreview",
+        "summary": "Read the frozen dual-market V1.2 research daily-bar fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dual-market research Fixture bars and daily-file SHA-256",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v12-research-fixture-preview-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          }
+        }
+      }
     }
   }
 }

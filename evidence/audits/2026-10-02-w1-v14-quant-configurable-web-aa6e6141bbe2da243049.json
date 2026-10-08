@@ -1,0 +1,5092 @@
+{
+  "schemaVersion": "stockquant.w1-v14-quant-boundary-isolated-run.v1",
+  "createdAt": "2026-10-06T23:12:54.539Z",
+  "stageId": "V1.4",
+  "status": "PASS",
+  "suite": "isolated-Compose-PostgreSQL-Quant-Platform-Web-CLI",
+  "isolatedProject": "sq-v14-backtest-aa6e6141bbe2da243049",
+  "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+  "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+  "quantServiceOwnsComputation": true,
+  "invalidPolicyRejectedWithoutRun": true,
+  "restrictionFixtureSha256": "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a",
+  "corporateActionFixtureSha256": "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc",
+  "quantPersistence": {
+    "status": "PASS",
+    "backtestRunCount": 14,
+    "manifestCount": 14,
+    "resultHashMatchesManifest": 14
+  },
+  "testRuns": [
+    {
+      "origin": "cancelled-before-Quant",
+      "testRun": {
+        "testRunId": "1b793e62-9ece-4af3-b42d-2703e9b6ee19",
+        "stageId": "V1.4",
+        "scenarioId": "recovery",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-recovery-1b793e62-9ece-4af3-b42d-2703e9b6ee19",
+        "status": "CANCELLED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": "cancelled",
+            "status": "PASS",
+            "expected": "cancelled before Quant execution",
+            "assertionId": "V1.4-TASK-CANCEL-001"
+          }
+        ],
+        "evidence": {
+          "v14Task": {
+            "phase": "CANCELLED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:15.332Z",
+            "lastStartedAt": "2026-10-06T23:12:15.330Z",
+            "cancelRequested": true,
+            "cancelRequestedAt": "2026-10-06T23:12:15.334Z"
+          },
+          "dataMode": "FIXTURE",
+          "brokerMode": "FAKE",
+          "environmentMode": "BACKTEST"
+        },
+        "createdAt": "2026-10-06T23:12:15.326Z",
+        "completedAt": "2026-10-06T23:12:16.837Z"
+      }
+    },
+    {
+      "origin": "platform-restart-recovery",
+      "testRun": {
+        "testRunId": "92bfd104-dd03-46e4-b3ec-e64a4df240f4",
+        "stageId": "V1.4",
+        "scenarioId": "recovery",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-recovery-92bfd104-dd03-46e4-b3ec-e64a4df240f4",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": {
+              "report": null,
+              "status": "CANCELLED",
+              "reportPublished": false
+            },
+            "status": "PASS",
+            "expected": {
+              "report": null,
+              "status": "CANCELLED",
+              "reportPublished": false
+            },
+            "assertionId": "V1.4-BT-CANCEL-001"
+          },
+          {
+            "actual": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "status": "PASS",
+            "expected": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "assertionId": "V1.4-BT-REPLAY-002"
+          }
+        ],
+        "evidence": {
+          "seed": 20260907,
+          "quant": {
+            "seed": 20260907,
+            "replay": {
+              "result": {
+                "nav": [
+                  {
+                    "date": "2024-01-03",
+                    "valueCents": 999500
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "valueCents": 1000500
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "valueCents": 1000000
+                  }
+                ],
+                "trades": [
+                  {
+                    "side": "BUY",
+                    "feeCents": 500,
+                    "quantity": 100,
+                    "priceCents": 1010,
+                    "signalDate": "2024-01-02",
+                    "executionDate": "2024-01-03"
+                  }
+                ],
+                "metrics": {
+                  "feesCents": 500,
+                  "finalNavCents": 1000000,
+                  "turnoverCents": 101000,
+                  "finalCashCents": 898500,
+                  "rejectedOrders": 0,
+                  "unfilledQuantity": 0,
+                  "returnBasisPoints": 0,
+                  "fillRateBasisPoints": 10000,
+                  "maxDrawdownBasisPoints": 5,
+                  "unsettledSaleProceedsCents": 0
+                },
+                "signals": [
+                  {
+                    "visibleAt": "2024-01-02T15:00:00+08:00",
+                    "securityId": "600000.SH",
+                    "executionDate": "2024-01-03"
+                  }
+                ],
+                "cashLedger": [
+                  {
+                    "date": "2024-01-03",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  }
+                ],
+                "settlements": [],
+                "orderOutcomes": [],
+                "positionAvailability": [
+                  {
+                    "date": "2024-01-03",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 0,
+                    "unsettledQuantity": 100
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 100,
+                    "unsettledQuantity": 0
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 100,
+                    "unsettledQuantity": 0
+                  }
+                ]
+              },
+              "sameResult": true
+            },
+            "barType": "DAILY_BAR",
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "cancellation": {
+              "report": null,
+              "status": "CANCELLED",
+              "cancelledAfter": "SIGNAL_QUEUED",
+              "reportPublished": false
+            },
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "completedReport": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "reportPublished": true
+          },
+          "replay": {
+            "result": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "sameResult": true
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 2,
+            "resumedAt": "2026-10-06T23:12:19.321Z",
+            "updatedAt": "2026-10-06T23:12:19.321Z",
+            "finishedAt": "2026-10-06T23:12:20.862Z",
+            "resumeCount": 1,
+            "lastStartedAt": "2026-10-06T23:12:19.319Z",
+            "cancelRequested": false,
+            "resumedFromPhase": "RUNNING_QUANT",
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "92bfd104-dd03-46e4-b3ec-e64a4df240f4"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "cancellation": {
+            "report": null,
+            "status": "CANCELLED",
+            "cancelledAfter": "SIGNAL_QUEUED",
+            "reportPublished": false
+          },
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "completedReport": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 999500
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 1000500
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 1000000
+              }
+            ],
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "metrics": {
+              "feesCents": 500,
+              "finalNavCents": 1000000,
+              "turnoverCents": 101000,
+              "finalCashCents": 898500,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": 0,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "settlements": [],
+            "orderOutcomes": [],
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "reportPublished": true
+        },
+        "createdAt": "2026-10-06T23:12:17.099Z",
+        "completedAt": "2026-10-06T23:12:20.862Z"
+      }
+    },
+    {
+      "origin": "platform-api",
+      "testRun": {
+        "testRunId": "b83d38ba-572c-41aa-8e85-c52e546651bc",
+        "stageId": "V1.4",
+        "scenarioId": "normal",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-normal-b83d38ba-572c-41aa-8e85-c52e546651bc",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 500,
+            "status": "PASS",
+            "expected": 500,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": 1000000,
+            "status": "PASS",
+            "expected": 1000000,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 999500
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 1000500
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 1000000
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 999500
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 1000500
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 1000000
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 500,
+              "finalNavCents": 1000000,
+              "turnoverCents": 101000,
+              "finalCashCents": 898500,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": 0,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "settlements": [],
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "orderOutcomes": [],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 500,
+              "quantity": 100,
+              "priceCents": 1010,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 500,
+            "finalNavCents": 1000000,
+            "turnoverCents": 101000,
+            "finalCashCents": 898500,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": 0,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 5,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:20.972Z",
+            "finishedAt": "2026-10-06T23:12:20.979Z",
+            "lastStartedAt": "2026-10-06T23:12:20.971Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "b83d38ba-572c-41aa-8e85-c52e546651bc"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2024-01-03",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-04",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-05",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "settlements": [],
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "orderOutcomes": [],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2024-01-03",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 100
+            },
+            {
+              "date": "2024-01-04",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 100,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2024-01-05",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 100,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:20.969Z",
+        "completedAt": "2026-10-06T23:12:20.979Z"
+      }
+    },
+    {
+      "origin": "cli-rejection",
+      "testRun": {
+        "testRunId": "b18a50af-bd3d-42a6-a8f5-e563e8b2a2f9",
+        "stageId": "V1.4",
+        "scenarioId": "rejection",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-rejection-b18a50af-bd3d-42a6-a8f5-e563e8b2a2f9",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-PIT-001"
+          },
+          {
+            "actual": false,
+            "status": "PASS",
+            "expected": false,
+            "assertionId": "V1.4-BT-REPORT-002"
+          },
+          {
+            "actual": "T_PLUS_1_UNAVAILABLE",
+            "status": "PASS",
+            "expected": "T_PLUS_1_UNAVAILABLE",
+            "assertionId": "V1.4-BT-TPLUS1-REJECT-009"
+          }
+        ],
+        "evidence": {
+          "seed": 20260907,
+          "quant": {
+            "seed": 20260907,
+            "barType": "DAILY_BAR",
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "rejections": [
+              "FUTURE_SIGNAL_SAME_DAY",
+              "T_PLUS_1_UNAVAILABLE"
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "reportPublished": false,
+            "rejectedSellOrder": {
+              "side": "SELL",
+              "reason": "T_PLUS_1_UNAVAILABLE",
+              "status": "REJECTED",
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03",
+              "filledQuantity": 0,
+              "requestedQuantity": 100
+            }
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:21.641Z",
+            "finishedAt": "2026-10-06T23:12:21.648Z",
+            "lastStartedAt": "2026-10-06T23:12:21.641Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "b18a50af-bd3d-42a6-a8f5-e563e8b2a2f9"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "rejections": [
+            "FUTURE_SIGNAL_SAME_DAY",
+            "T_PLUS_1_UNAVAILABLE"
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "reportPublished": false,
+          "rejectedSellOrder": {
+            "side": "SELL",
+            "reason": "T_PLUS_1_UNAVAILABLE",
+            "status": "REJECTED",
+            "signalDate": "2024-01-02",
+            "executionDate": "2024-01-03",
+            "filledQuantity": 0,
+            "requestedQuantity": 100
+          }
+        },
+        "createdAt": "2026-10-06T23:12:21.637Z",
+        "completedAt": "2026-10-06T23:12:21.648Z"
+      }
+    },
+    {
+      "origin": "cli-recovery",
+      "testRun": {
+        "testRunId": "c72b8117-02a5-4f0c-97d6-9dc4a4913b2e",
+        "stageId": "V1.4",
+        "scenarioId": "recovery",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-recovery-c72b8117-02a5-4f0c-97d6-9dc4a4913b2e",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": {
+              "report": null,
+              "status": "CANCELLED",
+              "reportPublished": false
+            },
+            "status": "PASS",
+            "expected": {
+              "report": null,
+              "status": "CANCELLED",
+              "reportPublished": false
+            },
+            "assertionId": "V1.4-BT-CANCEL-001"
+          },
+          {
+            "actual": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "status": "PASS",
+            "expected": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "assertionId": "V1.4-BT-REPLAY-002"
+          }
+        ],
+        "evidence": {
+          "seed": 20260907,
+          "quant": {
+            "seed": 20260907,
+            "replay": {
+              "result": {
+                "nav": [
+                  {
+                    "date": "2024-01-03",
+                    "valueCents": 999500
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "valueCents": 1000500
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "valueCents": 1000000
+                  }
+                ],
+                "trades": [
+                  {
+                    "side": "BUY",
+                    "feeCents": 500,
+                    "quantity": 100,
+                    "priceCents": 1010,
+                    "signalDate": "2024-01-02",
+                    "executionDate": "2024-01-03"
+                  }
+                ],
+                "metrics": {
+                  "feesCents": 500,
+                  "finalNavCents": 1000000,
+                  "turnoverCents": 101000,
+                  "finalCashCents": 898500,
+                  "rejectedOrders": 0,
+                  "unfilledQuantity": 0,
+                  "returnBasisPoints": 0,
+                  "fillRateBasisPoints": 10000,
+                  "maxDrawdownBasisPoints": 5,
+                  "unsettledSaleProceedsCents": 0
+                },
+                "signals": [
+                  {
+                    "visibleAt": "2024-01-02T15:00:00+08:00",
+                    "securityId": "600000.SH",
+                    "executionDate": "2024-01-03"
+                  }
+                ],
+                "cashLedger": [
+                  {
+                    "date": "2024-01-03",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "settledCashCents": 898500,
+                    "unsettledSaleProceedsCents": 0
+                  }
+                ],
+                "settlements": [],
+                "orderOutcomes": [],
+                "positionAvailability": [
+                  {
+                    "date": "2024-01-03",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 0,
+                    "unsettledQuantity": 100
+                  },
+                  {
+                    "date": "2024-01-04",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 100,
+                    "unsettledQuantity": 0
+                  },
+                  {
+                    "date": "2024-01-05",
+                    "securityId": "600000.SH",
+                    "heldQuantity": 100,
+                    "sellableQuantity": 100,
+                    "unsettledQuantity": 0
+                  }
+                ]
+              },
+              "sameResult": true
+            },
+            "barType": "DAILY_BAR",
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "cancellation": {
+              "report": null,
+              "status": "CANCELLED",
+              "cancelledAfter": "SIGNAL_QUEUED",
+              "reportPublished": false
+            },
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "completedReport": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "reportPublished": true
+          },
+          "replay": {
+            "result": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 999500
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 1000500
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 1000000
+                }
+              ],
+              "trades": [
+                {
+                  "side": "BUY",
+                  "feeCents": 500,
+                  "quantity": 100,
+                  "priceCents": 1010,
+                  "signalDate": "2024-01-02",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "metrics": {
+                "feesCents": 500,
+                "finalNavCents": 1000000,
+                "turnoverCents": 101000,
+                "finalCashCents": 898500,
+                "rejectedOrders": 0,
+                "unfilledQuantity": 0,
+                "returnBasisPoints": 0,
+                "fillRateBasisPoints": 10000,
+                "maxDrawdownBasisPoints": 5,
+                "unsettledSaleProceedsCents": 0
+              },
+              "signals": [
+                {
+                  "visibleAt": "2024-01-02T15:00:00+08:00",
+                  "securityId": "600000.SH",
+                  "executionDate": "2024-01-03"
+                }
+              ],
+              "cashLedger": [
+                {
+                  "date": "2024-01-03",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-04",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "settledCashCents": 898500,
+                  "unsettledSaleProceedsCents": 0
+                }
+              ],
+              "settlements": [],
+              "orderOutcomes": [],
+              "positionAvailability": [
+                {
+                  "date": "2024-01-03",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 0,
+                  "unsettledQuantity": 100
+                },
+                {
+                  "date": "2024-01-04",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                },
+                {
+                  "date": "2024-01-05",
+                  "securityId": "600000.SH",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100,
+                  "unsettledQuantity": 0
+                }
+              ]
+            },
+            "sameResult": true
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:22.229Z",
+            "finishedAt": "2026-10-06T23:12:23.737Z",
+            "lastStartedAt": "2026-10-06T23:12:22.228Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "c72b8117-02a5-4f0c-97d6-9dc4a4913b2e"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "cancellation": {
+            "report": null,
+            "status": "CANCELLED",
+            "cancelledAfter": "SIGNAL_QUEUED",
+            "reportPublished": false
+          },
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "completedReport": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 999500
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 1000500
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 1000000
+              }
+            ],
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "metrics": {
+              "feesCents": 500,
+              "finalNavCents": 1000000,
+              "turnoverCents": 101000,
+              "finalCashCents": 898500,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": 0,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "settlements": [],
+            "orderOutcomes": [],
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "reportPublished": true
+        },
+        "createdAt": "2026-10-06T23:12:22.226Z",
+        "completedAt": "2026-10-06T23:12:23.738Z"
+      }
+    },
+    {
+      "origin": "cli-market-restrictions",
+      "testRun": {
+        "testRunId": "59f0be07-d1d1-483a-b1e1-1412a7997360",
+        "stageId": "V1.4",
+        "scenarioId": "market-restrictions",
+        "scenarioVersion": "1.2.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-market-restrictions-59f0be07-d1d1-483a-b1e1-1412a7997360",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "assertionId": "V1.4-BT-MARKET-RESTRICTIONS-001"
+          }
+        ],
+        "evidence": {
+          "quant": {
+            "barType": "DAILY_BAR",
+            "dataMode": "FIXTURE",
+            "decisions": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "ruleScope": "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY",
+            "brokerMode": "FAKE",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-market-restrictions-synthetic-1",
+            "fixtureSha256": "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a",
+            "environmentMode": "BACKTEST"
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:24.057Z",
+            "finishedAt": "2026-10-06T23:12:24.063Z",
+            "lastStartedAt": "2026-10-06T23:12:24.056Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "59f0be07-d1d1-483a-b1e1-1412a7997360"
+          },
+          "dataMode": "FIXTURE",
+          "decisions": [
+            {
+              "side": "BUY",
+              "caseId": "suspended-buy",
+              "reason": "SUSPENDED",
+              "status": "REJECTED"
+            },
+            {
+              "side": "BUY",
+              "caseId": "locked-upper-buy",
+              "reason": "LOCKED_AT_UPPER_LIMIT",
+              "status": "REJECTED"
+            },
+            {
+              "side": "SELL",
+              "caseId": "locked-lower-sell",
+              "reason": "LOCKED_AT_LOWER_LIMIT",
+              "status": "REJECTED"
+            },
+            {
+              "side": "BUY",
+              "caseId": "open-market-buy",
+              "status": "FILLABLE"
+            }
+          ],
+          "ruleScope": "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY",
+          "brokerMode": "FAKE",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-market-restrictions-synthetic-1",
+          "fixtureSha256": "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a",
+          "environmentMode": "BACKTEST"
+        },
+        "createdAt": "2026-10-06T23:12:24.054Z",
+        "completedAt": "2026-10-06T23:12:24.063Z"
+      }
+    },
+    {
+      "origin": "cli-historical-fees",
+      "testRun": {
+        "testRunId": "a142b94d-660d-4cf0-aad7-c7f366180c52",
+        "stageId": "V1.4",
+        "scenarioId": "historical-fees",
+        "scenarioVersion": "1.3.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-historical-fees-a142b94d-660d-4cf0-aad7-c7f366180c52",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 1124,
+            "status": "PASS",
+            "expected": 1124,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CN-A-FEE-BREAKDOWN-010"
+          },
+          {
+            "actual": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "executionDate": "2023-08-25",
+              "stampDutyCents": 102
+            },
+            "status": "PASS",
+            "expected": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "executionDate": "2023-08-25",
+              "stampDutyCents": 102
+            },
+            "assertionId": "V1.4-BT-HISTORICAL-FEE-001"
+          },
+          {
+            "actual": 999876,
+            "status": "PASS",
+            "expected": 999876,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          },
+          {
+            "actual": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              "finalCashCents": 999876,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              "finalCashCents": 999876,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "assertionId": "V1.4-BT-SELL-SETTLEMENT-008"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2023-08-24",
+              "valueCents": 999489
+            },
+            {
+              "date": "2023-08-25",
+              "valueCents": 999876
+            },
+            {
+              "date": "2023-08-28",
+              "valueCents": 999876
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2023-08-24",
+                "valueCents": 999489
+              },
+              {
+                "date": "2023-08-25",
+                "valueCents": 999876
+              },
+              {
+                "date": "2023-08-28",
+                "valueCents": 999876
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 511,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2023-08-23",
+                "feeBreakdown": {
+                  "totalCents": 511,
+                  "stampDutyCents": 0,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2023-08-24"
+              },
+              {
+                "side": "SELL",
+                "feeCents": 613,
+                "quantity": 100,
+                "priceCents": 1020,
+                "signalDate": "2023-08-24",
+                "feeBreakdown": {
+                  "totalCents": 613,
+                  "stampDutyCents": 102,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2023-08-25"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 1124,
+              "finalNavCents": 999876,
+              "turnoverCents": 203000,
+              "finalCashCents": 999876,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": -1,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2023-08-23T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2023-08-24"
+              }
+            ],
+            "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2023-08-24",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2023-08-25",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              {
+                "date": "2023-08-28",
+                "settledCashCents": 999876,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-historical-fees-1",
+            "settlements": [
+              {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              }
+            ],
+            "fixtureSha256": "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573",
+            "orderOutcomes": [
+              {
+                "side": "SELL",
+                "status": "FILLED",
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25",
+                "filledQuantity": 100,
+                "requestedQuantity": 100
+              }
+            ],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2023-08-24",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2023-08-25",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2023-08-28",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 511,
+              "quantity": 100,
+              "priceCents": 1010,
+              "signalDate": "2023-08-23",
+              "feeBreakdown": {
+                "totalCents": 511,
+                "stampDutyCents": 0,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2023-08-24"
+            },
+            {
+              "side": "SELL",
+              "feeCents": 613,
+              "quantity": 100,
+              "priceCents": 1020,
+              "signalDate": "2023-08-24",
+              "feeBreakdown": {
+                "totalCents": 613,
+                "stampDutyCents": 102,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2023-08-25"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 1124,
+            "finalNavCents": 999876,
+            "turnoverCents": 203000,
+            "finalCashCents": 999876,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": -1,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 5,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2023-08-23T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2023-08-24"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:24.606Z",
+            "finishedAt": "2026-10-06T23:12:24.614Z",
+            "lastStartedAt": "2026-10-06T23:12:24.606Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "a142b94d-660d-4cf0-aad7-c7f366180c52"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2023-08-24",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2023-08-25",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 101387
+            },
+            {
+              "date": "2023-08-28",
+              "settledCashCents": 999876,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-historical-fees-1",
+          "settlements": [
+            {
+              "status": "SETTLED",
+              "tradeDate": "2023-08-25",
+              "proceedsCents": 101387,
+              "settlementDate": "2023-08-28"
+            }
+          ],
+          "fixtureSha256": "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573",
+          "orderOutcomes": [
+            {
+              "side": "SELL",
+              "status": "FILLED",
+              "signalDate": "2023-08-24",
+              "executionDate": "2023-08-25",
+              "filledQuantity": 100,
+              "requestedQuantity": 100
+            }
+          ],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "sellOrder": {
+              "quantity": 100,
+              "signalDate": "2023-08-24",
+              "executionDate": "2023-08-25"
+            },
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "marketFeeSchedule": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "minimumCommissionCents": 500,
+              "commissionRatePartsPerBillion": 2000000
+            },
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2023-08-24",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 100
+            },
+            {
+              "date": "2023-08-25",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2023-08-28",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:24.603Z",
+        "completedAt": "2026-10-06T23:12:24.614Z"
+      }
+    },
+    {
+      "origin": "cli-corporate-actions",
+      "testRun": {
+        "testRunId": "2ece24e8-762b-4f30-b11a-b008d08affa4",
+        "stageId": "V1.4",
+        "scenarioId": "corporate-actions",
+        "scenarioVersion": "1.4.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-corporate-actions-2ece24e8-762b-4f30-b11a-b008d08affa4",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-08",
+                  "valueCents": 200000
+                }
+              ],
+              "quantity": 200,
+              "cashCents": 102000,
+              "receivableCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-08",
+                  "valueCents": 200000
+                }
+              ],
+              "quantity": 200,
+              "cashCents": 102000,
+              "receivableCents": 0
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-RAW-001"
+          },
+          {
+            "actual": {
+              "uniqueActionsApplied": 2,
+              "duplicateDeliveriesIgnored": 1
+            },
+            "status": "PASS",
+            "expected": {
+              "uniqueActionsApplied": 2,
+              "duplicateDeliveriesIgnored": 1
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-IDEMPOTENCY-002"
+          },
+          {
+            "actual": {
+              "finalNavCents": 200000,
+              "rawSplitDateCloseCents": 500,
+              "rawExDividendCloseCents": 490
+            },
+            "status": "PASS",
+            "expected": {
+              "finalNavCents": 200000,
+              "rawSplitDateCloseCents": 500,
+              "rawExDividendCloseCents": 490
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-NO-ADJUSTED-DOUBLE-COUNT-003"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-08",
+              "valueCents": 200000
+            }
+          ],
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-08",
+                "valueCents": 200000
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "dataMode": "FIXTURE",
+            "execution": {
+              "feeCents": 0,
+              "quantity": 100,
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "priceCents": 1000,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            },
+            "brokerMode": "FAKE",
+            "priceBasis": "RAW",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-corporate-actions-1",
+            "fixtureSha256": "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc",
+            "environmentMode": "BACKTEST",
+            "initialQuantity": 0,
+            "initialCashCents": 200000,
+            "corporateActionLedger": [
+              {
+                "kind": "SPLIT",
+                "exDate": "2024-01-04",
+                "actionId": "CA-SPLIT-2-FOR-1",
+                "quantityAfter": 200,
+                "cashDeltaCents": 0,
+                "quantityBefore": 100
+              },
+              {
+                "kind": "CASH_DIVIDEND",
+                "exDate": "2024-01-05",
+                "payDate": "2024-01-08",
+                "actionId": "CA-DIVIDEND-10-CENTS",
+                "settledCents": 2000,
+                "receivableCents": 2000,
+                "entitledQuantity": 200,
+                "amountPerShareCents": 10
+              }
+            ],
+            "duplicateDeliveriesIgnored": 1
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 0,
+              "targetQuantity": 100,
+              "initialCashCents": 200000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 10000
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:25.164Z",
+            "finishedAt": "2026-10-06T23:12:25.170Z",
+            "lastStartedAt": "2026-10-06T23:12:25.163Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "2ece24e8-762b-4f30-b11a-b008d08affa4"
+          },
+          "dataMode": "FIXTURE",
+          "execution": {
+            "feeCents": 0,
+            "quantity": 100,
+            "visibleAt": "2024-01-02T15:00:00+08:00",
+            "priceCents": 1000,
+            "signalDate": "2024-01-02",
+            "executionDate": "2024-01-03"
+          },
+          "brokerMode": "FAKE",
+          "priceBasis": "RAW",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-corporate-actions-1",
+          "fixtureSha256": "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc",
+          "environmentMode": "BACKTEST",
+          "initialQuantity": 0,
+          "initialCashCents": 200000,
+          "corporateActionLedger": [
+            {
+              "kind": "SPLIT",
+              "exDate": "2024-01-04",
+              "actionId": "CA-SPLIT-2-FOR-1",
+              "quantityAfter": 200,
+              "cashDeltaCents": 0,
+              "quantityBefore": 100
+            },
+            {
+              "kind": "CASH_DIVIDEND",
+              "exDate": "2024-01-05",
+              "payDate": "2024-01-08",
+              "actionId": "CA-DIVIDEND-10-CENTS",
+              "settledCents": 2000,
+              "receivableCents": 2000,
+              "entitledQuantity": 200,
+              "amountPerShareCents": 10
+            }
+          ],
+          "duplicateDeliveriesIgnored": 1
+        },
+        "createdAt": "2026-10-06T23:12:25.161Z",
+        "completedAt": "2026-10-06T23:12:25.171Z"
+      }
+    },
+    {
+      "origin": "web-created-1-and-cli-checked",
+      "testRun": {
+        "testRunId": "6f7b92d1-b28b-49a0-86b2-dab03c86af55",
+        "stageId": "V1.4",
+        "scenarioId": "normal",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-normal-6f7b92d1-b28b-49a0-86b2-dab03c86af55",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 500,
+            "status": "PASS",
+            "expected": 500,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": 1000000,
+            "status": "PASS",
+            "expected": 1000000,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 999500
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 1000500
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 1000000
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 999500
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 1000500
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 1000000
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 500,
+              "finalNavCents": 1000000,
+              "turnoverCents": 101000,
+              "finalCashCents": 898500,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": 0,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 898500,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "settlements": [],
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "orderOutcomes": [],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 100,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 500,
+              "quantity": 100,
+              "priceCents": 1010,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 500,
+            "finalNavCents": 1000000,
+            "turnoverCents": 101000,
+            "finalCashCents": 898500,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": 0,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 5,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:27.403Z",
+            "finishedAt": "2026-10-06T23:12:27.411Z",
+            "lastStartedAt": "2026-10-06T23:12:27.403Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "6f7b92d1-b28b-49a0-86b2-dab03c86af55"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2024-01-03",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-04",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-05",
+              "settledCashCents": 898500,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "settlements": [],
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "orderOutcomes": [],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2024-01-03",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 100
+            },
+            {
+              "date": "2024-01-04",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 100,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2024-01-05",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 100,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:27.401Z",
+        "completedAt": "2026-10-06T23:12:27.411Z"
+      }
+    },
+    {
+      "origin": "web-created-2-and-cli-checked",
+      "testRun": {
+        "testRunId": "af0d946a-f6db-415b-ad63-876a29c67e9f",
+        "stageId": "V1.4",
+        "scenarioId": "market-restrictions",
+        "scenarioVersion": "1.2.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-market-restrictions-af0d946a-f6db-415b-ad63-876a29c67e9f",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "assertionId": "V1.4-BT-MARKET-RESTRICTIONS-001"
+          }
+        ],
+        "evidence": {
+          "quant": {
+            "barType": "DAILY_BAR",
+            "dataMode": "FIXTURE",
+            "decisions": [
+              {
+                "side": "BUY",
+                "caseId": "suspended-buy",
+                "reason": "SUSPENDED",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "locked-upper-buy",
+                "reason": "LOCKED_AT_UPPER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "SELL",
+                "caseId": "locked-lower-sell",
+                "reason": "LOCKED_AT_LOWER_LIMIT",
+                "status": "REJECTED"
+              },
+              {
+                "side": "BUY",
+                "caseId": "open-market-buy",
+                "status": "FILLABLE"
+              }
+            ],
+            "ruleScope": "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY",
+            "brokerMode": "FAKE",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-market-restrictions-synthetic-1",
+            "fixtureSha256": "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a",
+            "environmentMode": "BACKTEST"
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:28.013Z",
+            "finishedAt": "2026-10-06T23:12:28.019Z",
+            "lastStartedAt": "2026-10-06T23:12:28.012Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "af0d946a-f6db-415b-ad63-876a29c67e9f"
+          },
+          "dataMode": "FIXTURE",
+          "decisions": [
+            {
+              "side": "BUY",
+              "caseId": "suspended-buy",
+              "reason": "SUSPENDED",
+              "status": "REJECTED"
+            },
+            {
+              "side": "BUY",
+              "caseId": "locked-upper-buy",
+              "reason": "LOCKED_AT_UPPER_LIMIT",
+              "status": "REJECTED"
+            },
+            {
+              "side": "SELL",
+              "caseId": "locked-lower-sell",
+              "reason": "LOCKED_AT_LOWER_LIMIT",
+              "status": "REJECTED"
+            },
+            {
+              "side": "BUY",
+              "caseId": "open-market-buy",
+              "status": "FILLABLE"
+            }
+          ],
+          "ruleScope": "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY",
+          "brokerMode": "FAKE",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-market-restrictions-synthetic-1",
+          "fixtureSha256": "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a",
+          "environmentMode": "BACKTEST"
+        },
+        "createdAt": "2026-10-06T23:12:28.009Z",
+        "completedAt": "2026-10-06T23:12:28.020Z"
+      }
+    },
+    {
+      "origin": "web-created-3-and-cli-checked",
+      "testRun": {
+        "testRunId": "1f8405b6-cfb0-42ec-9fe3-acb130f4211e",
+        "stageId": "V1.4",
+        "scenarioId": "historical-fees",
+        "scenarioVersion": "1.3.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-historical-fees-1f8405b6-cfb0-42ec-9fe3-acb130f4211e",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 1124,
+            "status": "PASS",
+            "expected": 1124,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CN-A-FEE-BREAKDOWN-010"
+          },
+          {
+            "actual": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "executionDate": "2023-08-25",
+              "stampDutyCents": 102
+            },
+            "status": "PASS",
+            "expected": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "executionDate": "2023-08-25",
+              "stampDutyCents": 102
+            },
+            "assertionId": "V1.4-BT-HISTORICAL-FEE-001"
+          },
+          {
+            "actual": 999876,
+            "status": "PASS",
+            "expected": 999876,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          },
+          {
+            "actual": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              "finalCashCents": 999876,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              "finalCashCents": 999876,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "assertionId": "V1.4-BT-SELL-SETTLEMENT-008"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2023-08-24",
+              "valueCents": 999489
+            },
+            {
+              "date": "2023-08-25",
+              "valueCents": 999876
+            },
+            {
+              "date": "2023-08-28",
+              "valueCents": 999876
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2023-08-24",
+                "valueCents": 999489
+              },
+              {
+                "date": "2023-08-25",
+                "valueCents": 999876
+              },
+              {
+                "date": "2023-08-28",
+                "valueCents": 999876
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 511,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2023-08-23",
+                "feeBreakdown": {
+                  "totalCents": 511,
+                  "stampDutyCents": 0,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2023-08-24"
+              },
+              {
+                "side": "SELL",
+                "feeCents": 613,
+                "quantity": 100,
+                "priceCents": 1020,
+                "signalDate": "2023-08-24",
+                "feeBreakdown": {
+                  "totalCents": 613,
+                  "stampDutyCents": 102,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2023-08-25"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 1124,
+              "finalNavCents": 999876,
+              "turnoverCents": 203000,
+              "finalCashCents": 999876,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": -1,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2023-08-23T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2023-08-24"
+              }
+            ],
+            "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2023-08-24",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2023-08-25",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101387
+              },
+              {
+                "date": "2023-08-28",
+                "settledCashCents": 999876,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-historical-fees-1",
+            "settlements": [
+              {
+                "status": "SETTLED",
+                "tradeDate": "2023-08-25",
+                "proceedsCents": 101387,
+                "settlementDate": "2023-08-28"
+              }
+            ],
+            "fixtureSha256": "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573",
+            "orderOutcomes": [
+              {
+                "side": "SELL",
+                "status": "FILLED",
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25",
+                "filledQuantity": 100,
+                "requestedQuantity": 100
+              }
+            ],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2023-08-24",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2023-08-25",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2023-08-28",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 511,
+              "quantity": 100,
+              "priceCents": 1010,
+              "signalDate": "2023-08-23",
+              "feeBreakdown": {
+                "totalCents": 511,
+                "stampDutyCents": 0,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2023-08-24"
+            },
+            {
+              "side": "SELL",
+              "feeCents": 613,
+              "quantity": 100,
+              "priceCents": 1020,
+              "signalDate": "2023-08-24",
+              "feeBreakdown": {
+                "totalCents": 613,
+                "stampDutyCents": 102,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2023-08-25"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 1124,
+            "finalNavCents": 999876,
+            "turnoverCents": 203000,
+            "finalCashCents": 999876,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": -1,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 5,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2023-08-23T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2023-08-24"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2023-08-24",
+                "executionDate": "2023-08-25"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:29.097Z",
+            "finishedAt": "2026-10-06T23:12:29.105Z",
+            "lastStartedAt": "2026-10-06T23:12:29.096Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "1f8405b6-cfb0-42ec-9fe3-acb130f4211e"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2023-08-24",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2023-08-25",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 101387
+            },
+            {
+              "date": "2023-08-28",
+              "settledCashCents": 999876,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-historical-fees-1",
+          "settlements": [
+            {
+              "status": "SETTLED",
+              "tradeDate": "2023-08-25",
+              "proceedsCents": 101387,
+              "settlementDate": "2023-08-28"
+            }
+          ],
+          "fixtureSha256": "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573",
+          "orderOutcomes": [
+            {
+              "side": "SELL",
+              "status": "FILLED",
+              "signalDate": "2023-08-24",
+              "executionDate": "2023-08-25",
+              "filledQuantity": 100,
+              "requestedQuantity": 100
+            }
+          ],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "sellOrder": {
+              "quantity": 100,
+              "signalDate": "2023-08-24",
+              "executionDate": "2023-08-25"
+            },
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "marketFeeSchedule": {
+              "scheduleId": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27",
+              "minimumCommissionCents": 500,
+              "commissionRatePartsPerBillion": 2000000
+            },
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2023-08-24",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 100
+            },
+            {
+              "date": "2023-08-25",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2023-08-28",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:29.094Z",
+        "completedAt": "2026-10-06T23:12:29.105Z"
+      }
+    },
+    {
+      "origin": "web-created-4-and-cli-checked",
+      "testRun": {
+        "testRunId": "a8af5489-366a-48bc-9f6e-62f4d0cb347e",
+        "stageId": "V1.4",
+        "scenarioId": "corporate-actions",
+        "scenarioVersion": "1.4.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-corporate-actions-a8af5489-366a-48bc-9f6e-62f4d0cb347e",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-08",
+                  "valueCents": 200000
+                }
+              ],
+              "quantity": 200,
+              "cashCents": 102000,
+              "receivableCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "nav": [
+                {
+                  "date": "2024-01-03",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-04",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-05",
+                  "valueCents": 200000
+                },
+                {
+                  "date": "2024-01-08",
+                  "valueCents": 200000
+                }
+              ],
+              "quantity": 200,
+              "cashCents": 102000,
+              "receivableCents": 0
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-RAW-001"
+          },
+          {
+            "actual": {
+              "uniqueActionsApplied": 2,
+              "duplicateDeliveriesIgnored": 1
+            },
+            "status": "PASS",
+            "expected": {
+              "uniqueActionsApplied": 2,
+              "duplicateDeliveriesIgnored": 1
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-IDEMPOTENCY-002"
+          },
+          {
+            "actual": {
+              "finalNavCents": 200000,
+              "rawSplitDateCloseCents": 500,
+              "rawExDividendCloseCents": 490
+            },
+            "status": "PASS",
+            "expected": {
+              "finalNavCents": 200000,
+              "rawSplitDateCloseCents": 500,
+              "rawExDividendCloseCents": 490
+            },
+            "assertionId": "V1.4-BT-CORPORATE-ACTION-NO-ADJUSTED-DOUBLE-COUNT-003"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 200000
+            },
+            {
+              "date": "2024-01-08",
+              "valueCents": 200000
+            }
+          ],
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 200000
+              },
+              {
+                "date": "2024-01-08",
+                "valueCents": 200000
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "dataMode": "FIXTURE",
+            "execution": {
+              "feeCents": 0,
+              "quantity": 100,
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "priceCents": 1000,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            },
+            "brokerMode": "FAKE",
+            "priceBasis": "RAW",
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-corporate-actions-1",
+            "fixtureSha256": "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc",
+            "environmentMode": "BACKTEST",
+            "initialQuantity": 0,
+            "initialCashCents": 200000,
+            "corporateActionLedger": [
+              {
+                "kind": "SPLIT",
+                "exDate": "2024-01-04",
+                "actionId": "CA-SPLIT-2-FOR-1",
+                "quantityAfter": 200,
+                "cashDeltaCents": 0,
+                "quantityBefore": 100
+              },
+              {
+                "kind": "CASH_DIVIDEND",
+                "exDate": "2024-01-05",
+                "payDate": "2024-01-08",
+                "actionId": "CA-DIVIDEND-10-CENTS",
+                "settledCents": 2000,
+                "receivableCents": 2000,
+                "entitledQuantity": 200,
+                "amountPerShareCents": 10
+              }
+            ],
+            "duplicateDeliveriesIgnored": 1
+          },
+          "barType": "DAILY_BAR",
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "fixedFeeCents": 0,
+              "targetQuantity": 100,
+              "initialCashCents": 200000,
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 10000
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:30.192Z",
+            "finishedAt": "2026-10-06T23:12:30.198Z",
+            "lastStartedAt": "2026-10-06T23:12:30.191Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "a8af5489-366a-48bc-9f6e-62f4d0cb347e"
+          },
+          "dataMode": "FIXTURE",
+          "execution": {
+            "feeCents": 0,
+            "quantity": 100,
+            "visibleAt": "2024-01-02T15:00:00+08:00",
+            "priceCents": 1000,
+            "signalDate": "2024-01-02",
+            "executionDate": "2024-01-03"
+          },
+          "brokerMode": "FAKE",
+          "priceBasis": "RAW",
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-corporate-actions-1",
+          "fixtureSha256": "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc",
+          "environmentMode": "BACKTEST",
+          "initialQuantity": 0,
+          "initialCashCents": 200000,
+          "corporateActionLedger": [
+            {
+              "kind": "SPLIT",
+              "exDate": "2024-01-04",
+              "actionId": "CA-SPLIT-2-FOR-1",
+              "quantityAfter": 200,
+              "cashDeltaCents": 0,
+              "quantityBefore": 100
+            },
+            {
+              "kind": "CASH_DIVIDEND",
+              "exDate": "2024-01-05",
+              "payDate": "2024-01-08",
+              "actionId": "CA-DIVIDEND-10-CENTS",
+              "settledCents": 2000,
+              "receivableCents": 2000,
+              "entitledQuantity": 200,
+              "amountPerShareCents": 10
+            }
+          ],
+          "duplicateDeliveriesIgnored": 1
+        },
+        "createdAt": "2026-10-06T23:12:30.188Z",
+        "completedAt": "2026-10-06T23:12:30.198Z"
+      }
+    },
+    {
+      "origin": "web-created-5-and-cli-checked",
+      "testRun": {
+        "testRunId": "f66f500f-b30a-4f44-8d3c-112ab629d676",
+        "stageId": "V1.4",
+        "scenarioId": "normal",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-normal-f66f500f-b30a-4f44-8d3c-112ab629d676",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 1000,
+            "status": "PASS",
+            "expected": 1000,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": 99812,
+            "status": "PASS",
+            "expected": 99812,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 99,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 99
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 99,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 99
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          },
+          {
+            "actual": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 99391,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 99,
+              "executionCash": {
+                "settledCashCents": 421,
+                "unsettledSaleProceedsCents": 99391
+              },
+              "finalCashCents": 99812,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 99391,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 99,
+              "executionCash": {
+                "settledCashCents": 421,
+                "unsettledSaleProceedsCents": 99391
+              },
+              "finalCashCents": 99812,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "assertionId": "V1.4-BT-SELL-SETTLEMENT-008"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 100411
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 99812
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 99812
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 100411
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 99812
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 99812
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 99,
+                "priceCents": 1021,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              },
+              {
+                "side": "SELL",
+                "feeCents": 500,
+                "quantity": 99,
+                "priceCents": 1009,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 1000,
+              "finalNavCents": 99812,
+              "turnoverCents": 200970,
+              "finalCashCents": 99812,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 1,
+              "returnBasisPoints": -215,
+              "fillRateBasisPoints": 9950,
+              "maxDrawdownBasisPoints": 215,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 421,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 421,
+                "unsettledSaleProceedsCents": 99391
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 99812,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "settlements": [
+              {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 99391,
+                "settlementDate": "2024-01-05"
+              }
+            ],
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "orderOutcomes": [
+              {
+                "side": "SELL",
+                "status": "FILLED",
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04",
+                "filledQuantity": 99,
+                "requestedQuantity": 99
+              }
+            ],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "sellOrder": {
+                "quantity": 99,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 102000,
+              "slippageBasisPoints": 100,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 99,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 99
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 500,
+              "quantity": 99,
+              "priceCents": 1021,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            },
+            {
+              "side": "SELL",
+              "feeCents": 500,
+              "quantity": 99,
+              "priceCents": 1009,
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 1000,
+            "finalNavCents": 99812,
+            "turnoverCents": 200970,
+            "finalCashCents": 99812,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 1,
+            "returnBasisPoints": -215,
+            "fillRateBasisPoints": 9950,
+            "maxDrawdownBasisPoints": 215,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "sellOrder": {
+                "quantity": 99,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 102000,
+              "slippageBasisPoints": 100,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:31.309Z",
+            "finishedAt": "2026-10-06T23:12:31.314Z",
+            "lastStartedAt": "2026-10-06T23:12:31.308Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "f66f500f-b30a-4f44-8d3c-112ab629d676"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2024-01-03",
+              "settledCashCents": 421,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-04",
+              "settledCashCents": 421,
+              "unsettledSaleProceedsCents": 99391
+            },
+            {
+              "date": "2024-01-05",
+              "settledCashCents": 99812,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "settlements": [
+            {
+              "status": "SETTLED",
+              "tradeDate": "2024-01-04",
+              "proceedsCents": 99391,
+              "settlementDate": "2024-01-05"
+            }
+          ],
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "orderOutcomes": [
+            {
+              "side": "SELL",
+              "status": "FILLED",
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04",
+              "filledQuantity": 99,
+              "requestedQuantity": 99
+            }
+          ],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "sellOrder": {
+              "quantity": 99,
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04"
+            },
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 102000,
+            "slippageBasisPoints": 100,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2024-01-03",
+              "securityId": "600000.SH",
+              "heldQuantity": 99,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 99
+            },
+            {
+              "date": "2024-01-04",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2024-01-05",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:31.306Z",
+        "completedAt": "2026-10-06T23:12:31.314Z"
+      }
+    },
+    {
+      "origin": "web-created-6-and-cli-checked",
+      "testRun": {
+        "testRunId": "19acb6e4-967c-4c05-ba1f-2208bdc8398f",
+        "stageId": "V1.4",
+        "scenarioId": "normal",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-normal-19acb6e4-967c-4c05-ba1f-2208bdc8398f",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 1000,
+            "status": "PASS",
+            "expected": 1000,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": 100400,
+            "status": "PASS",
+            "expected": 100400,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 50,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 50
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 50,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 50
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          },
+          {
+            "actual": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 49950,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 50,
+              "executionCash": {
+                "settledCashCents": 50450,
+                "unsettledSaleProceedsCents": 49950
+              },
+              "finalCashCents": 100400,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 49950,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 50,
+              "executionCash": {
+                "settledCashCents": 50450,
+                "unsettledSaleProceedsCents": 49950
+              },
+              "finalCashCents": 100400,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "assertionId": "V1.4-BT-SELL-SETTLEMENT-008"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 100950
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 100400
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 100400
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 100950
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 100400
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 100400
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 500,
+                "quantity": 50,
+                "priceCents": 1021,
+                "signalDate": "2024-01-02",
+                "executionDate": "2024-01-03"
+              },
+              {
+                "side": "SELL",
+                "feeCents": 500,
+                "quantity": 50,
+                "priceCents": 1009,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 1000,
+              "finalNavCents": 100400,
+              "turnoverCents": 101500,
+              "finalCashCents": 100400,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": -157,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 157,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 50450,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 50450,
+                "unsettledSaleProceedsCents": 49950
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 100400,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "settlements": [
+              {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 49950,
+                "settlementDate": "2024-01-05"
+              }
+            ],
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "orderOutcomes": [
+              {
+                "side": "SELL",
+                "status": "FILLED",
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04",
+                "filledQuantity": 50,
+                "requestedQuantity": 50
+              }
+            ],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "sellOrder": {
+                "quantity": 50,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 50,
+              "initialCashCents": 102000,
+              "slippageBasisPoints": 100,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 50,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 50
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 500,
+              "quantity": 50,
+              "priceCents": 1021,
+              "signalDate": "2024-01-02",
+              "executionDate": "2024-01-03"
+            },
+            {
+              "side": "SELL",
+              "feeCents": 500,
+              "quantity": 50,
+              "priceCents": 1009,
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 1000,
+            "finalNavCents": 100400,
+            "turnoverCents": 101500,
+            "finalCashCents": 100400,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": -157,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 157,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "sellOrder": {
+                "quantity": 50,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 50,
+              "initialCashCents": 102000,
+              "slippageBasisPoints": 100,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:32.231Z",
+            "finishedAt": "2026-10-06T23:12:32.237Z",
+            "lastStartedAt": "2026-10-06T23:12:32.230Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "19acb6e4-967c-4c05-ba1f-2208bdc8398f"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2024-01-03",
+              "settledCashCents": 50450,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-04",
+              "settledCashCents": 50450,
+              "unsettledSaleProceedsCents": 49950
+            },
+            {
+              "date": "2024-01-05",
+              "settledCashCents": 100400,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "settlements": [
+            {
+              "status": "SETTLED",
+              "tradeDate": "2024-01-04",
+              "proceedsCents": 49950,
+              "settlementDate": "2024-01-05"
+            }
+          ],
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "orderOutcomes": [
+            {
+              "side": "SELL",
+              "status": "FILLED",
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04",
+              "filledQuantity": 50,
+              "requestedQuantity": 50
+            }
+          ],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "sellOrder": {
+              "quantity": 50,
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04"
+            },
+            "fixedFeeCents": 500,
+            "targetQuantity": 50,
+            "initialCashCents": 102000,
+            "slippageBasisPoints": 100,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2024-01-03",
+              "securityId": "600000.SH",
+              "heldQuantity": 50,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 50
+            },
+            {
+              "date": "2024-01-04",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2024-01-05",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:32.227Z",
+        "completedAt": "2026-10-06T23:12:32.237Z"
+      }
+    },
+    {
+      "origin": "web-created-7-and-cli-checked",
+      "testRun": {
+        "testRunId": "a93fc572-2e59-4333-8c6f-69afa94cabcb",
+        "stageId": "V1.4",
+        "scenarioId": "normal",
+        "scenarioVersion": "1.1.0",
+        "ownerId": "acceptance-owner-1",
+        "namespace": "v1-4-normal-a93fc572-2e59-4333-8c6f-69afa94cabcb",
+        "status": "COMPLETED",
+        "seed": 20260907,
+        "assertions": [
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-NEXT-BAR-001"
+          },
+          {
+            "actual": 1073,
+            "status": "PASS",
+            "expected": 1073,
+            "assertionId": "V1.4-BT-FEE-002"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CN-A-FEE-BREAKDOWN-010"
+          },
+          {
+            "actual": 999927,
+            "status": "PASS",
+            "expected": 999927,
+            "assertionId": "V1.4-BT-LEDGER-003"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-VOLUME-004"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-CASH-006"
+          },
+          {
+            "actual": true,
+            "status": "PASS",
+            "expected": true,
+            "assertionId": "V1.4-BT-DRAWDOWN-005"
+          },
+          {
+            "actual": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "status": "PASS",
+            "expected": [
+              {
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ],
+            "assertionId": "V1.4-BT-TPLUS1-SELLABLE-007"
+          },
+          {
+            "actual": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 101438,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101438
+              },
+              "finalCashCents": 999927,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "status": "PASS",
+            "expected": {
+              "outcome": {
+                "status": "FILLED"
+              },
+              "settlement": {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 101438,
+                "settlementDate": "2024-01-05"
+              },
+              "fillQuantity": 100,
+              "executionCash": {
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101438
+              },
+              "finalCashCents": 999927,
+              "finalUnsettledSaleProceedsCents": 0
+            },
+            "assertionId": "V1.4-BT-SELL-SETTLEMENT-008"
+          }
+        ],
+        "evidence": {
+          "nav": [
+            {
+              "date": "2024-01-03",
+              "valueCents": 999489
+            },
+            {
+              "date": "2024-01-04",
+              "valueCents": 999927
+            },
+            {
+              "date": "2024-01-05",
+              "valueCents": 999927
+            }
+          ],
+          "seed": 20260907,
+          "quant": {
+            "nav": [
+              {
+                "date": "2024-01-03",
+                "valueCents": 999489
+              },
+              {
+                "date": "2024-01-04",
+                "valueCents": 999927
+              },
+              {
+                "date": "2024-01-05",
+                "valueCents": 999927
+              }
+            ],
+            "seed": 20260907,
+            "trades": [
+              {
+                "side": "BUY",
+                "feeCents": 511,
+                "quantity": 100,
+                "priceCents": 1010,
+                "signalDate": "2024-01-02",
+                "feeBreakdown": {
+                  "totalCents": 511,
+                  "stampDutyCents": 0,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2024-01-03"
+              },
+              {
+                "side": "SELL",
+                "feeCents": 562,
+                "quantity": 100,
+                "priceCents": 1020,
+                "signalDate": "2024-01-03",
+                "feeBreakdown": {
+                  "totalCents": 562,
+                  "stampDutyCents": 51,
+                  "commissionCents": 500,
+                  "transferFeeCents": 11
+                },
+                "executionDate": "2024-01-04"
+              }
+            ],
+            "barType": "DAILY_BAR",
+            "metrics": {
+              "feesCents": 1073,
+              "finalNavCents": 999927,
+              "turnoverCents": 203000,
+              "finalCashCents": 999927,
+              "rejectedOrders": 0,
+              "unfilledQuantity": 0,
+              "returnBasisPoints": -1,
+              "fillRateBasisPoints": 10000,
+              "maxDrawdownBasisPoints": 5,
+              "unsettledSaleProceedsCents": 0
+            },
+            "signals": [
+              {
+                "visibleAt": "2024-01-02T15:00:00+08:00",
+                "securityId": "600000.SH",
+                "executionDate": "2024-01-03"
+              }
+            ],
+            "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+            "brokerMode": "FAKE",
+            "cashLedger": [
+              {
+                "date": "2024-01-03",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 0
+              },
+              {
+                "date": "2024-01-04",
+                "settledCashCents": 898489,
+                "unsettledSaleProceedsCents": 101438
+              },
+              {
+                "date": "2024-01-05",
+                "settledCashCents": 999927,
+                "unsettledSaleProceedsCents": 0
+              }
+            ],
+            "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+            "dataVersion": "v1.4-daily-backtest-1",
+            "settlements": [
+              {
+                "status": "SETTLED",
+                "tradeDate": "2024-01-04",
+                "proceedsCents": 101438,
+                "settlementDate": "2024-01-05"
+              }
+            ],
+            "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+            "orderOutcomes": [
+              {
+                "side": "SELL",
+                "status": "FILLED",
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04",
+                "filledQuantity": 100,
+                "requestedQuantity": 100
+              }
+            ],
+            "environmentMode": "BACKTEST",
+            "executionPolicy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2023_08_28",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "positionAvailability": [
+              {
+                "date": "2024-01-03",
+                "securityId": "600000.SH",
+                "heldQuantity": 100,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 100
+              },
+              {
+                "date": "2024-01-04",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              },
+              {
+                "date": "2024-01-05",
+                "securityId": "600000.SH",
+                "heldQuantity": 0,
+                "sellableQuantity": 0,
+                "unsettledQuantity": 0
+              }
+            ]
+          },
+          "trades": [
+            {
+              "side": "BUY",
+              "feeCents": 511,
+              "quantity": 100,
+              "priceCents": 1010,
+              "signalDate": "2024-01-02",
+              "feeBreakdown": {
+                "totalCents": 511,
+                "stampDutyCents": 0,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2024-01-03"
+            },
+            {
+              "side": "SELL",
+              "feeCents": 562,
+              "quantity": 100,
+              "priceCents": 1020,
+              "signalDate": "2024-01-03",
+              "feeBreakdown": {
+                "totalCents": 562,
+                "stampDutyCents": 51,
+                "commissionCents": 500,
+                "transferFeeCents": 11
+              },
+              "executionDate": "2024-01-04"
+            }
+          ],
+          "barType": "DAILY_BAR",
+          "metrics": {
+            "feesCents": 1073,
+            "finalNavCents": 999927,
+            "turnoverCents": 203000,
+            "finalCashCents": 999927,
+            "rejectedOrders": 0,
+            "unfilledQuantity": 0,
+            "returnBasisPoints": -1,
+            "fillRateBasisPoints": 10000,
+            "maxDrawdownBasisPoints": 5,
+            "unsettledSaleProceedsCents": 0
+          },
+          "signals": [
+            {
+              "visibleAt": "2024-01-02T15:00:00+08:00",
+              "securityId": "600000.SH",
+              "executionDate": "2024-01-03"
+            }
+          ],
+          "v14Task": {
+            "phase": "COMPLETED",
+            "policy": {
+              "sellOrder": {
+                "quantity": 100,
+                "signalDate": "2024-01-03",
+                "executionDate": "2024-01-04"
+              },
+              "fixedFeeCents": 500,
+              "targetQuantity": 100,
+              "initialCashCents": 1000000,
+              "marketFeeSchedule": {
+                "scheduleId": "CN_A_CASH_EQUITY_2023_08_28",
+                "minimumCommissionCents": 500,
+                "commissionRatePartsPerBillion": 2000000
+              },
+              "slippageBasisPoints": 0,
+              "participationRateBasisPoints": 100
+            },
+            "attempt": 1,
+            "updatedAt": "2026-10-06T23:12:32.715Z",
+            "finishedAt": "2026-10-06T23:12:32.721Z",
+            "lastStartedAt": "2026-10-06T23:12:32.713Z",
+            "cancelRequested": false,
+            "quantResultStatus": "COMPLETED",
+            "quantBacktestRunId": "a93fc572-2e59-4333-8c6f-69afa94cabcb"
+          },
+          "dataMode": "FIXTURE",
+          "costModel": "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1",
+          "brokerMode": "FAKE",
+          "cashLedger": [
+            {
+              "date": "2024-01-03",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 0
+            },
+            {
+              "date": "2024-01-04",
+              "settledCashCents": 898489,
+              "unsettledSaleProceedsCents": 101438
+            },
+            {
+              "date": "2024-01-05",
+              "settledCashCents": 999927,
+              "unsettledSaleProceedsCents": 0
+            }
+          ],
+          "codeVersion": "sha256:45e75490baa68835bc39a883f0db3f72736c3128cd00f176939a8492cfbc2634",
+          "dataVersion": "v1.4-daily-backtest-1",
+          "settlements": [
+            {
+              "status": "SETTLED",
+              "tradeDate": "2024-01-04",
+              "proceedsCents": 101438,
+              "settlementDate": "2024-01-05"
+            }
+          ],
+          "fixtureSha256": "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef",
+          "orderOutcomes": [
+            {
+              "side": "SELL",
+              "status": "FILLED",
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04",
+              "filledQuantity": 100,
+              "requestedQuantity": 100
+            }
+          ],
+          "environmentMode": "BACKTEST",
+          "executionPolicy": {
+            "sellOrder": {
+              "quantity": 100,
+              "signalDate": "2024-01-03",
+              "executionDate": "2024-01-04"
+            },
+            "fixedFeeCents": 500,
+            "targetQuantity": 100,
+            "initialCashCents": 1000000,
+            "marketFeeSchedule": {
+              "scheduleId": "CN_A_CASH_EQUITY_2023_08_28",
+              "minimumCommissionCents": 500,
+              "commissionRatePartsPerBillion": 2000000
+            },
+            "slippageBasisPoints": 0,
+            "participationRateBasisPoints": 100
+          },
+          "positionAvailability": [
+            {
+              "date": "2024-01-03",
+              "securityId": "600000.SH",
+              "heldQuantity": 100,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 100
+            },
+            {
+              "date": "2024-01-04",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            },
+            {
+              "date": "2024-01-05",
+              "securityId": "600000.SH",
+              "heldQuantity": 0,
+              "sellableQuantity": 0,
+              "unsettledQuantity": 0
+            }
+          ]
+        },
+        "createdAt": "2026-10-06T23:12:32.710Z",
+        "completedAt": "2026-10-06T23:12:32.721Z"
+      }
+    }
+  ],
+  "containersVolumesNetworksRemoved": true,
+  "externalMarketCalls": 0,
+  "providerCalls": 0,
+  "paperOrBrokerCalls": 0,
+  "activeServicesTouched": false,
+  "humanAcceptance": "NOT_CHANGED",
+  "limitations": [
+    "Fixture-only small sample",
+    "Exchange-specific limit formulas, intraday queue/fills, full market fees, Qlib/Paper parity, complete independent failure coverage, current complete manual acceptance and Ubuntu remain incomplete"
+  ]
+}

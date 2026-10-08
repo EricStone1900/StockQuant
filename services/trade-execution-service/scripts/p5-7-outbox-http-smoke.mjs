@@ -218,7 +218,12 @@ try {
   assert.equal(fillRow.rowCount, 1);
   const feeCorrectionPath = `/internal/v1/orders/${orderId}/fills/${fillRow.rows[0].external_fill_id}/fee-corrections`;
   const feeCorrection = { revision: 1, previousFee: fillRow.rows[0].original_fee, correctedFee: (Number(fillRow.rows[0].original_fee) + 1).toFixed(4), effectiveAt: "2026-09-25T01:45:00.000Z", evidenceRef: `smoke-fee-correction:${testRunId}` };
-  const feeCorrectionResponse = await fetch(`${tradeUrl}${feeCorrectionPath}`, { method: "POST", headers: headers("platform-api-service", tokens.platform), body: JSON.stringify(feeCorrection) });
+  let feeCorrectionResponse;
+  try {
+    feeCorrectionResponse = await fetch(`${tradeUrl}${feeCorrectionPath}`, { method: "POST", headers: headers("platform-api-service", tokens.platform), body: JSON.stringify(feeCorrection) });
+  } catch (error) {
+    throw new Error(`fee correction request connection failed; Trade exited=${tradeServer.exitCode}; Trade log=${tradeServer.log}; Portfolio log=${portfolioServer.log}`, { cause: error });
+  }
   const feeCorrectionText = await feeCorrectionResponse.text();
   assert.equal(feeCorrectionResponse.status, 202, feeCorrectionText);
   const feeCorrectionAccepted = JSON.parse(feeCorrectionText);
@@ -327,13 +332,18 @@ try {
     (SELECT count(*)::int FROM fake_broker_outbox x WHERE x.order_id=o.order_id AND x.event_type='RESERVATION_RESOLVE' AND x.status='DELIVERED') AS delivered_resolutions
     FROM fake_broker_orders o WHERE o.order_id=$1`, [raceOrderId]);
   assert.deepEqual(raceFacts.rows[0], { status: "CANCELLED", fill_count: 2, total_quantity: "75", delivered_fill_events: 2, delivered_resolutions: 1 });
+  const raceBrokerFills = await tradePool.query("SELECT quantity::text,price::text,fee::text FROM fake_broker_fills WHERE order_id=$1 ORDER BY broker_sequence NULLS FIRST", [raceOrderId]);
+  assert.deepEqual(raceBrokerFills.rows, [
+    { quantity: "50", price: "10.2200", fee: "0.5110" },
+    { quantity: "25", price: "10.2000", fee: "0.0100" }
+  ], "the first bar fill applies 10bp buy slippage and the later cumulative report adds only its 25-share delta");
   const raceSnapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${accountId}/snapshot`, { headers: { ...headers("platform-api-service", tokens.portfolioPlatform, false), "x-stockquant-owner-id": ownerId } });
   assert.equal(raceSnapshotResponse.status, 200);
   const raceSnapshot = await raceSnapshotResponse.json();
-  assert.equal(raceSnapshot.cash.amount, "8230.9685", "Portfolio cash reflects both incremental BUY Fills exactly once");
+  assert.equal(raceSnapshot.cash.amount, "8230.4780", "Portfolio cash reflects the 50-share slipped fill and 25-share authoritative increment exactly once");
   assert.equal(raceSnapshot.ledgerEntryCount, 5);
   const raceReservationLedger = await portfolioPool.query("SELECT status,captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1", [raceReservationId]);
-  assert.deepEqual(raceReservationLedger.rows[0], { status: "RELEASED", captured_cash_amount: "766.0305" }, "cancel result releases only the unfilled reservation remainder");
+  assert.deepEqual(raceReservationLedger.rows[0], { status: "RELEASED", captured_cash_amount: "766.5210" }, "cancel result captures both accepted fills then releases only the unfilled reservation remainder");
 
   const externalOrder = { namespace, externalOrderId: `external-${randomUUID()}`, clientOrderId: `external-client-${randomUUID()}`, security: "600000.SH", requestedQuantity: 100, status: "UNKNOWN", evidenceRef: `fixture:${testRunId}:independent-external-order`, observedAt: "2026-09-25T01:40:00.000Z" };
   const externalPath = `${tradeUrl}/internal/v1/fake-broker/external-orders`;

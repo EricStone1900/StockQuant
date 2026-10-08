@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-mandate-transition-command.schema.json",
+  "title": "V13AutoMandateTransitionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mandateVersion", "testRunId", "reason", "now"],
+  "properties": {
+    "mandateVersion": { "type": "integer", "minimum": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 250 },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock." }
+  }
+}

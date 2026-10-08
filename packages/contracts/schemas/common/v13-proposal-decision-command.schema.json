@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-decision-command.schema.json",
+  "title": "V13ProposalDecisionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["expectedVersion", "expectedContentHash", "reason", "now"],
+  "properties": {
+    "expectedVersion": { "type": "integer", "minimum": 1 },
+    "expectedContentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 250 },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock instant; never read by Governance from wall clock." }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "p1-account-identity-ledger-matrix-v1",
+  "date": "2026-10-07",
+  "status": "PASS",
+  "humanAcceptance": "UNCHANGED",
+  "v11": {
+    "command": "pnpm test:e2e -- --stage V1.1",
+    "exitCode": 0,
+    "fullRegisteredCodeSuite": true,
+    "portfolioPostgresIntegration": "5/5",
+    "portfolioHttpPostgresSmoke": {
+      "status": "PASS",
+      "liveInitialization": 403,
+      "accountsAfterLiveAttempt": 0,
+      "ownOwnerRead": 200,
+      "foreignOwnerRead": 403
+    },
+    "browserScenarios": { "normal": "PASS", "rejection": "PASS", "recovery": "PASS" },
+    "browserTests": { "passed": 3, "failed": 0, "skipped": 0 },
+    "sameRunCli": "PASS",
+    "testRuns": {
+      "normal": "6cc34f1d-dd0a-481f-b5b3-22e290064360",
+      "rejection": "21212e16-efba-44a9-a861-278250098849",
+      "recovery": "c2b414ad-5fee-4eb7-9d3e-68738600f5d3"
+    },
+    "isolatedProject": "sq-v11-stage-9e7fb9f07ab6b49808da",
+    "cleanup": { "containers": true, "volume": true, "network": true, "images": true }
+  },
+  "portfolioDualMarketPostgresCase": {
+    "status": "PASS",
+    "tests": 1,
+    "markets": ["CN_A", "US_EQUITY"],
+    "currencies": ["CNY", "USD"],
+    "separateAccountIds": true,
+    "separateInitialLedgerEntries": true,
+    "sameKeyReplay": true,
+    "changedPayloadConflict": true,
+    "foreignOwnerConflict": true,
+    "foreignOwnerReadDenied": true
+  },
+  "p57OutboxRecovery": {
+    "status": "PASS",
+    "testRunId": "ece9a322-63a9-458b-9010-d1f0a730f7bb",
+    "fillSequence": [
+      { "quantity": 50, "price": "10.2200", "fee": "0.5110" },
+      { "quantity": 25, "price": "10.2000", "fee": "0.0100" }
+    ],
+    "capturedCash": "766.5210",
+    "cashAfterFills": "8230.4780",
+    "idempotentSequenceReplay": true,
+    "restartRecovery": true,
+    "isolatedDatabaseCleanup": true
+  },
+  "v13DualMarketOwnerRunEvidence": {
+    "audit": "evidence/audits/2026-10-07-v13-governance-coordination-after-revision.md",
+    "normalUsTestRunId": "7a8b865f-0b05-461f-8c89-91b13be34953",
+    "cnAndUsExecution": "PASS"
+  },
+  "failedAttemptsPreserved": [
+    "evidence/audits/2026-10-07-p1-v11-full-code-suite-web-e2e.log",
+    "evidence/audits/2026-10-07-p1-p57-slippage-expectation-fix.log"
+  ],
+  "scopeBoundary": "Closes P1 account initialization/identity/ledger verification only. P1 TestRun/outbox transaction, general Artifact lifecycle, active-storage cutover, parent P1, stage human acceptance and V1 gate remain open.",
+  "sourceHashManifest": "evidence/audits/2026-10-07-p1-account-identity-ledger-matrix.sha256"
+}

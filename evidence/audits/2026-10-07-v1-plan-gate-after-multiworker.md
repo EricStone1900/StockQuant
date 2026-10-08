@@ -1,0 +1,5 @@
+# V1 plan gate after multiworker recovery evidence
+
+Date: 2026-10-07 (Asia/Shanghai). `node scripts/verify-version.mjs --version V1` exited 2 with `INCOMPLETE`. Stage documentation audit passed 5/5. The active evidence audit passed with 278 references, 13 manifests and 29 manifest entries, with zero failures. V1.5 is now accurately described with the current complete code-suite PASS, two-consumer dispatch idempotency evidence, and the still-open trading/day-end, UNKNOWN, worker failover, backup, runbook, Ubuntu and human acceptance requirements.
+
+Seven historical structured TestRun exports remain unavailable: one V1.2 (`5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`), three V1.3 (`39c9b7c0-080d-45d7-83cf-b8865f6a4b42`, `d1540cb1-d085-40bf-860d-43031951bd55`, `5a817c7f-64c0-4c8d-9797-97b44fc9f6ed`) and three V1.5 (`25fe0718-5a76-4477-a02b-5e954f621dde`, `48e32a09-4901-424f-8585-7b01ab9f83f7`, `113fea95-5fee-42ee-b702-f8423b8a173c`). This gate does not convert missing historical records or pending human approval into a pass. Full machine result: [JSON](./2026-10-07-v1-plan-gate-after-multiworker.json).

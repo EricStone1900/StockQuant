@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/research/v12-qlib-strategy-artifact-v1.schema.json",
+  "title": "V12QlibStrategyArtifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "fixtureVersion", "dailyBarsSha256", "inputSha256", "factorVersion", "dataVersion", "asOf", "qlibModels", "predictions", "strategies"],
+  "properties": {
+    "schemaVersion": { "const": "v1.2-qlib-strategy-artifact-v1" },
+    "fixtureVersion": { "const": "v1.2-market-data-4" },
+    "dailyBarsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "inputSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "factorVersion": { "const": "v1.2-momentum-volume-1" },
+    "dataVersion": { "const": "v1.2-market-data-4" },
+    "asOf": { "type": "string", "format": "date" },
+    "qlibModels": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["market", "version", "lightgbmVersion", "model", "modelSha256", "modelArtifactBase64", "testPredictionsSha256"],
+        "properties": {
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "version": { "type": "string", "minLength": 1 },
+          "lightgbmVersion": { "type": "string", "minLength": 1 },
+          "model": { "const": "qlib.contrib.model.gbdt.LGBModel" },
+          "modelSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "modelArtifactBase64": { "type": "string", "contentEncoding": "base64", "maxLength": 900000 },
+          "testPredictionsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "predictions": {
+      "type": "array", "minItems": 10, "maxItems": 10000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["ticker", "market", "currency", "date", "momentum20", "volumeRatio20", "rangeRatio", "label", "prediction"],
+        "properties": {
+          "ticker": { "type": "string", "minLength": 1 },
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "currency": { "enum": ["CNY", "USD"] },
+          "date": { "type": "string", "format": "date" },
+          "momentum20": { "type": "number" },
+          "volumeRatio20": { "type": "number" },
+          "rangeRatio": { "type": "number", "minimum": 0 },
+          "label": { "type": "number" },
+          "prediction": { "type": "number" }
+        }
+      }
+    },
+    "strategies": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["strategyId", "strategyHash", "mode", "asOf", "reason", "targets"],
+        "properties": {
+          "strategyId": { "enum": ["v1.2-qlib-topk-1", "v1.2-no-trade-1"] },
+          "strategyHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "mode": { "enum": ["TOPK", "NO_TRADE"] },
+          "asOf": { "type": "string", "format": "date" },
+          "reason": { "type": "string", "minLength": 1 },
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["ticker", "market", "currency", "reason"],
+              "properties": { "ticker": { "type": "string" }, "market": { "enum": ["CN_A", "US_EQUITY"] }, "currency": { "enum": ["CNY", "USD"] }, "reason": { "type": "string", "minLength": 1 } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

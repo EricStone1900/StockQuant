@@ -1,10 +1,11 @@
-export type V14Scenario = "normal" | "rejection" | "recovery" | "market-restrictions" | "historical-fees";
+export type V14Scenario = "normal" | "rejection" | "recovery" | "market-restrictions" | "historical-fees" | "corporate-actions";
 export const V14_SCENARIOS = [
   { scenarioId: "normal", version: "1.1.0", title: "日线回测与净值", expected: "根据冻结日线Fixture计算逐日净值和成交" },
   { scenarioId: "rejection", version: "1.1.0", title: "未来成交拒绝", expected: "拒绝在信号可见前成交" },
   { scenarioId: "recovery", version: "1.1.0", title: "固定输入复跑", expected: "取消不发布报告，固定输入重新计算得到相同结果" },
   { scenarioId: "market-restrictions", version: "1.2.0", title: "停牌与限制价合成规则", expected: "固定合成OHLC状态用例验证停牌和锁定限制价拒绝；不代表真实交易所规则" },
-  { scenarioId: "historical-fees", version: "1.3.0", title: "历史日期费率核对", expected: "冻结历史日期Fixture验证2023-08-28前费率及卖方印花税" }
+  { scenarioId: "historical-fees", version: "1.3.0", title: "历史日期费率核对", expected: "冻结历史日期Fixture验证2023-08-28前费率及卖方印花税" },
+  { scenarioId: "corporate-actions", version: "1.4.0", title: "拆股与现金分红手算", expected: "原始成交价格下拆股仅调整持仓，分红按除权日确认应收并在支付日结算；重复事件不重复入账" }
 ] as const;
 
 export type V14DailyBar = { date: string; securityId: string; closeCents: number; volume: number };
@@ -14,6 +15,66 @@ export type V14RestrictionBar = {
   tradingStatus: "TRADED" | "SUSPENDED"; upperLimitCents: number; lowerLimitCents: number;
 };
 export type V14RestrictionDecision = { caseId: string; side: "BUY" | "SELL"; status: "FILLABLE" | "REJECTED"; reason?: "SUSPENDED" | "LOCKED_AT_UPPER_LIMIT" | "LOCKED_AT_LOWER_LIMIT" };
+export type V14CorporateAction = { actionId: string; kind: "SPLIT" | "CASH_DIVIDEND"; exDate: string; numerator?: number; denominator?: number; amountPerShareCents?: number; payDate?: string };
+export type V14CorporateActionBar = V14DailyBar;
+
+/** A deterministic hand-calculation path. Prices remain RAW; actions change ledger quantities/cash, never the bar series. */
+export function runV14CorporateActionScenario(bars: readonly V14CorporateActionBar[], actions: readonly V14CorporateAction[], fixtureSha256: string, seed: number): V14Run {
+  if (bars.length !== 5 || bars.some((bar, index) => !isValidIsoDate(bar.date) || !bar.securityId || !Number.isSafeInteger(bar.closeCents) || bar.closeCents <= 0 || !Number.isSafeInteger(bar.volume) || bar.volume < 100 || (index > 0 && bars[index - 1]!.date >= bar.date)) || new Set(bars.map((bar) => bar.securityId)).size !== 1
+    || bars.some((bar, index) => bar.date !== ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08"][index] || bar.securityId !== "600000.SH" || bar.closeCents !== [1000, 1000, 500, 490, 490][index])) throw new Error("V1.4 corporate-action Fixture requires its exact five ordered RAW bars and frozen security/price inputs");
+  const actionsById = new Map<string, V14CorporateAction>();
+  let duplicateDeliveries = 0;
+  for (const action of actions) {
+    if (!action.actionId || !isValidIsoDate(action.exDate) || !bars.some((bar) => bar.date === action.exDate)) throw new Error("V1.4 corporate action has an invalid identity or ex-date");
+    const prior = actionsById.get(action.actionId);
+    if (prior) {
+      if (stable(prior) !== stable(action)) throw new Error(`V1.4 conflicting corporate action replay: ${action.actionId}`);
+      duplicateDeliveries += 1;
+      continue;
+    }
+    if (action.kind === "SPLIT") {
+      if (!Number.isSafeInteger(action.numerator) || !Number.isSafeInteger(action.denominator) || action.numerator! < 1 || action.denominator! < 1 || action.amountPerShareCents !== undefined || action.payDate !== undefined) throw new Error("V1.4 split action requires a positive integer ratio only");
+    } else if (action.kind === "CASH_DIVIDEND") {
+      if (!Number.isSafeInteger(action.amountPerShareCents) || action.amountPerShareCents! < 0 || !isValidIsoDate(action.payDate ?? "") || action.payDate! < action.exDate || !bars.some((bar) => bar.date === action.payDate) || action.numerator !== undefined || action.denominator !== undefined) throw new Error("V1.4 cash dividend requires non-negative cents per share and a Fixture payment date on/after ex-date");
+    } else throw new Error("V1.4 corporate action kind is unsupported");
+    actionsById.set(action.actionId, action);
+  }
+  const uniqueActions = [...actionsById.values()].sort((a, b) => a.exDate.localeCompare(b.exDate) || a.actionId.localeCompare(b.actionId));
+  const first = bars[0]!; const execution = bars[1]!; let quantity = 100; let cashCents = 100_000; let dividendReceivableCents = 0;
+  const actionLedger: Array<Record<string, unknown>> = [];
+  const nav: Array<{ date: string; valueCents: number }> = [];
+  for (const bar of bars.slice(1)) {
+    for (const action of uniqueActions.filter((item) => item.exDate === bar.date)) {
+      if (action.kind === "SPLIT") {
+        const before = quantity; const scaled = BigInt(quantity) * BigInt(action.numerator!);
+        if (scaled % BigInt(action.denominator!) !== 0n) throw new Error(`V1.4 split creates fractional Fixture shares: ${action.actionId}`);
+        quantity = safeNumber(scaled / BigInt(action.denominator!), "corporate action position quantity");
+        actionLedger.push({ actionId: action.actionId, kind: action.kind, exDate: action.exDate, quantityBefore: before, quantityAfter: quantity, cashDeltaCents: 0 });
+      } else {
+        const receivable = safeNumber(BigInt(quantity) * BigInt(action.amountPerShareCents!), "corporate action dividend receivable");
+        dividendReceivableCents = safeNumber(BigInt(dividendReceivableCents) + BigInt(receivable), "corporate action dividend receivable total");
+        actionLedger.push({ actionId: action.actionId, kind: action.kind, exDate: action.exDate, payDate: action.payDate, entitledQuantity: quantity, amountPerShareCents: action.amountPerShareCents, receivableCents: receivable, settledCents: 0 });
+      }
+    }
+    for (const action of uniqueActions.filter((item) => item.kind === "CASH_DIVIDEND" && item.payDate === bar.date)) {
+      const entry = actionLedger.find((item) => item.actionId === action.actionId)!;
+      const receivable = Number(entry.receivableCents);
+      cashCents = safeNumber(BigInt(cashCents) + BigInt(receivable), "corporate action cash settlement");
+      dividendReceivableCents -= receivable;
+      entry.settledCents = receivable;
+    }
+    const navCents = safeNumber(BigInt(cashCents) + BigInt(dividendReceivableCents) + BigInt(quantity) * BigInt(bar.closeCents), "corporate action NAV");
+    nav.push({ date: bar.date, valueCents: navCents });
+  }
+  const expected = { quantity: 200, cashCents: 102_000, receivableCents: 0, nav: bars.slice(1).map((bar) => ({ date: bar.date, valueCents: 200_000 })) };
+  const actual = { quantity, cashCents, receivableCents: dividendReceivableCents, nav };
+  const assertions: Assertion[] = [
+    { assertionId: "V1.4-BT-CORPORATE-ACTION-RAW-001", status: stable(expected) === stable(actual) ? "PASS" : "FAIL", expected, actual },
+    { assertionId: "V1.4-BT-CORPORATE-ACTION-IDEMPOTENCY-002", status: duplicateDeliveries === 1 && actionLedger.length === 2 ? "PASS" : "FAIL", expected: { duplicateDeliveriesIgnored: 1, uniqueActionsApplied: 2 }, actual: { duplicateDeliveriesIgnored: duplicateDeliveries, uniqueActionsApplied: actionLedger.length } },
+    { assertionId: "V1.4-BT-CORPORATE-ACTION-NO-ADJUSTED-DOUBLE-COUNT-003", status: bars[2]!.closeCents === 500 && bars[3]!.closeCents === 490 && nav.at(-1)!.valueCents === 200_000 ? "PASS" : "FAIL", expected: { rawSplitDateCloseCents: 500, rawExDividendCloseCents: 490, finalNavCents: 200_000 }, actual: { rawSplitDateCloseCents: bars[2]!.closeCents, rawExDividendCloseCents: bars[3]!.closeCents, finalNavCents: nav.at(-1)!.valueCents } }
+  ];
+  return { stageId: "V1.4", scenarioId: "corporate-actions", seed, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence: { dataVersion: "v1.4-corporate-actions-1", fixtureSha256, barType: "DAILY_BAR", priceBasis: "RAW", dataMode: "FIXTURE", environmentMode: "BACKTEST", brokerMode: "FAKE", initialQuantity: 0, initialCashCents: 200_000, execution: { signalDate: first.date, visibleAt: `${first.date}T15:00:00+08:00`, executionDate: execution.date, quantity: 100, priceCents: execution.closeCents, feeCents: 0 }, corporateActionLedger: actionLedger, duplicateDeliveriesIgnored: duplicateDeliveries, nav } };
+}
 
 /** Synthetic fixture rule only. Daily OHLC can establish a locked bar when all prices equal a fixture-supplied boundary. */
 export function evaluateV14RestrictionBar(bar: V14RestrictionBar): V14RestrictionDecision {
@@ -48,9 +109,9 @@ type BacktestReport = {
   positionAvailability: Array<{ date: string; securityId: string; heldQuantity: number; sellableQuantity: number; unsettledQuantity: number }>;
   cashLedger: Array<{ date: string; settledCashCents: number; unsettledSaleProceedsCents: number }>;
   settlements: Array<{ tradeDate: string; settlementDate: string | null; proceedsCents: number; status: "SETTLED" | "UNSETTLED_AT_END" }>;
-  orderOutcomes: Array<{ side: "SELL"; signalDate: string; executionDate: string; requestedQuantity: number; filledQuantity: number; status: "FILLED" | "PARTIALLY_FILLED" | "REJECTED"; reason?: "T_PLUS_1_UNAVAILABLE" | "NO_SELLABLE_POSITION" | "PARTICIPATION_LIMIT" }>;
+  orderOutcomes: Array<{ side: "BUY" | "SELL"; signalDate: string; executionDate: string; requestedQuantity: number; filledQuantity: number; status: "FILLED" | "PARTIALLY_FILLED" | "REJECTED"; reason?: "ZERO_VOLUME" | "INSUFFICIENT_CASH" | "PARTICIPATION_LIMIT" | "T_PLUS_1_UNAVAILABLE" | "NO_SELLABLE_POSITION" }>;
   trades: Array<{ side: "BUY" | "SELL"; quantity: number; priceCents: number; feeCents: number; feeBreakdown?: FeeBreakdown; signalDate: string; executionDate: string }>;
-  metrics: { returnBasisPoints: number; maxDrawdownBasisPoints: number; turnoverCents: number; feesCents: number; fillRateBasisPoints: number; rejectedOrders: number; unfilledQuantity: number; finalCashCents: number; finalNavCents: number; unsettledSaleProceedsCents: number };
+  metrics: { returnBasisPoints: number; maxDrawdownBasisPoints: number; turnoverCents: number; feesCents: number; fillRateBasisPoints: number; rejectedOrders: number; partiallyFilledOrders: number; unfilledQuantity: number; finalCashCents: number; finalNavCents: number; unsettledSaleProceedsCents: number };
 };
 type SimulationOutcome =
   | { status: "COMPLETED"; reportPublished: true; report: BacktestReport }
@@ -116,7 +177,13 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
   const exactFillCents = (BigInt(execution.closeCents) * BigInt(10_000 + policy.slippageBasisPoints) + 9_999n) / 10_000n;
   if (exactFillCents > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("V1.4 slippage-adjusted fill price exceeds safe integer cents");
   const fillCents = Number(exactFillCents);
-  const quantity = affordableBuyQuantity(Math.min(policy.targetQuantity, participationQuantity), fillCents, policy.initialCashCents, policy);
+  const buyAvailableQuantity = Math.min(policy.targetQuantity, participationQuantity);
+  const quantity = affordableBuyQuantity(buyAvailableQuantity, fillCents, policy.initialCashCents, policy);
+  const buyReason = quantity === 0
+    ? participationQuantity === 0 ? "ZERO_VOLUME" as const : "INSUFFICIENT_CASH" as const
+    : quantity < policy.targetQuantity
+      ? quantity < buyAvailableQuantity ? "INSUFFICIENT_CASH" as const : "PARTICIPATION_LIMIT" as const
+      : undefined;
   const buyFees = feeBreakdown("BUY", quantity, fillCents, policy);
   const buyFeeCents = quantity > 0 ? buyFees.totalCents : 0;
   const cashAfterBuy = policy.initialCashCents - quantity * fillCents - buyFeeCents;
@@ -172,7 +239,10 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
     const valueCents = safeNumber(BigInt(settledCashCents) + BigInt(unsettledSaleProceedsCents) + BigInt(heldQuantity) * BigInt(bar.closeCents), "NAV cents");
     nav.push({ date: bar.date, valueCents });
   }
-  const orderOutcomes: BacktestReport["orderOutcomes"] = sellOrder ? [{ side: "SELL", signalDate: sellOrder.signalDate, executionDate: sellOrder.executionDate, requestedQuantity: sellOrder.quantity, filledQuantity: sellFill, status: sellFill === 0 ? "REJECTED" : sellFill === sellOrder.quantity ? "FILLED" : "PARTIALLY_FILLED", ...(sellReason ? { reason: sellReason } : {}) }] : [];
+  const orderOutcomes: BacktestReport["orderOutcomes"] = [
+    { side: "BUY", signalDate: first.date, executionDate: execution.date, requestedQuantity: policy.targetQuantity, filledQuantity: quantity, status: quantity === 0 ? "REJECTED" : quantity === policy.targetQuantity ? "FILLED" : "PARTIALLY_FILLED", ...(buyReason ? { reason: buyReason } : {}) },
+    ...(sellOrder ? [{ side: "SELL" as const, signalDate: sellOrder.signalDate, executionDate: sellOrder.executionDate, requestedQuantity: sellOrder.quantity, filledQuantity: sellFill, status: sellFill === 0 ? "REJECTED" as const : sellFill === sellOrder.quantity ? "FILLED" as const : "PARTIALLY_FILLED" as const, ...(sellReason ? { reason: sellReason } : {}) }] : [])
+  ];
   const settlements: BacktestReport["settlements"] = sellFill > 0 ? [{ tradeDate: sellOrder!.executionDate, settlementDate, proceedsCents: sellProceedsCents, status: settlementDate ? "SETTLED" : "UNSETTLED_AT_END" }] : [];
   const finalNav = nav.at(-1)!.valueCents;
   const returnBasisPoints = roundedBasisPoints(BigInt(finalNav) - BigInt(policy.initialCashCents), BigInt(policy.initialCashCents));
@@ -193,7 +263,7 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
       settlements,
       orderOutcomes,
       trades,
-      metrics: { returnBasisPoints, maxDrawdownBasisPoints, turnoverCents: safeNumber(trades.reduce((total, trade) => total + BigInt(trade.quantity) * BigInt(trade.priceCents), 0n), "turnover cents"), feesCents: safeNumber(BigInt(buyFeeCents) + BigInt(sellFeeCents), "fees cents"), fillRateBasisPoints: roundedBasisPoints(BigInt(quantity + sellFill), BigInt(policy.targetQuantity + (sellOrder?.quantity ?? 0))), rejectedOrders: (quantity ? 0 : 1) + (sellOrder && sellFill < sellOrder.quantity ? 1 : 0), unfilledQuantity: policy.targetQuantity - quantity + (sellOrder ? sellOrder.quantity - sellFill : 0), finalCashCents: settledCashCents, finalNavCents: finalNav, unsettledSaleProceedsCents: cashLedger.at(-1)!.unsettledSaleProceedsCents },
+      metrics: { returnBasisPoints, maxDrawdownBasisPoints, turnoverCents: safeNumber(trades.reduce((total, trade) => total + BigInt(trade.quantity) * BigInt(trade.priceCents), 0n), "turnover cents"), feesCents: safeNumber(BigInt(buyFeeCents) + BigInt(sellFeeCents), "fees cents"), fillRateBasisPoints: roundedBasisPoints(BigInt(quantity + sellFill), BigInt(policy.targetQuantity + (sellOrder?.quantity ?? 0))), rejectedOrders: orderOutcomes.filter((order) => order.status === "REJECTED").length, partiallyFilledOrders: orderOutcomes.filter((order) => order.status === "PARTIALLY_FILLED").length, unfilledQuantity: policy.targetQuantity - quantity + (sellOrder ? sellOrder.quantity - sellFill : 0), finalCashCents: settledCashCents, finalNavCents: finalNav, unsettledSaleProceedsCents: cashLedger.at(-1)!.unsettledSaleProceedsCents },
     },
   };
 }
@@ -255,7 +325,7 @@ export class V14BacktestEngine {
       pass("V1.4-BT-TPLUS1-SELLABLE-007", expectedAvailability, report.positionAvailability.map(({ heldQuantity, sellableQuantity, unsettledQuantity }) => ({ heldQuantity, sellableQuantity, unsettledQuantity })));
       if (this.policy.sellOrder) {
         const sellOrder = this.policy.sellOrder;
-        const outcome = report.orderOutcomes[0]!;
+        const outcome = report.orderOutcomes.find((item) => item.side === "SELL")!;
         const executionIndex = this.bars.findIndex((bar) => bar.date === sellOrder.executionDate);
         const signalIndex = this.bars.findIndex((bar) => bar.date === sellOrder.signalDate);
         const sellBar = this.bars[executionIndex]!;

@@ -15,7 +15,7 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
 
   async migrate(): Promise<void> {
     await this.pool.query(`CREATE TABLE IF NOT EXISTS qlib_fixture_artifacts (
-      artifact_id CHAR(64) PRIMARY KEY CHECK (artifact_id ~ '^[a-f0-9]{64}$'),
+      artifact_id CHAR(64) NOT NULL CHECK (artifact_id ~ '^[a-f0-9]{64}$'),
       test_run_id UUID NOT NULL REFERENCES acceptance_stage_runs(test_run_id) ON DELETE RESTRICT,
       owner_id TEXT NOT NULL,
       media_type TEXT NOT NULL CHECK (media_type='application/vnd.stockquant.qlib-fixture-model+json'),
@@ -24,9 +24,21 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
       status TEXT NOT NULL DEFAULT 'PUBLISHED' CHECK (status IN ('PUBLISHED','RETAINED','EXPIRED')),
       expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      UNIQUE(test_run_id, artifact_id)
+      PRIMARY KEY(test_run_id, artifact_id)
     );
     CREATE INDEX IF NOT EXISTS qlib_fixture_artifacts_owner_idx ON qlib_fixture_artifacts(test_run_id, owner_id);`);
+    await this.pool.query(`DO $$ DECLARE primary_columns TEXT[]; BEGIN
+      SELECT array_agg(attribute.attname ORDER BY key_column.ordinality) INTO primary_columns
+      FROM pg_constraint constraint_row
+      JOIN unnest(constraint_row.conkey) WITH ORDINALITY AS key_column(attnum, ordinality) ON TRUE
+      JOIN pg_attribute attribute ON attribute.attrelid=constraint_row.conrelid AND attribute.attnum=key_column.attnum
+      WHERE constraint_row.conrelid='qlib_fixture_artifacts'::regclass AND constraint_row.contype='p'
+      GROUP BY constraint_row.oid;
+      IF primary_columns = ARRAY['artifact_id']::TEXT[] THEN
+        ALTER TABLE qlib_fixture_artifacts DROP CONSTRAINT qlib_fixture_artifacts_pkey;
+        ALTER TABLE qlib_fixture_artifacts ADD CONSTRAINT qlib_fixture_artifacts_pkey PRIMARY KEY(test_run_id, artifact_id);
+      END IF;
+    END $$;`);
     await this.pool.query(`ALTER TABLE qlib_fixture_artifacts ALTER COLUMN payload DROP NOT NULL;
       ALTER TABLE qlib_fixture_artifacts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'PUBLISHED';
       ALTER TABLE qlib_fixture_artifacts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;

@@ -1,0 +1,92 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.3 AUTO_POLICY Mandate API", "version": "v1" },
+  "servers": [{ "url": "http://decision-governance-service:3007" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}": {
+      "get": {
+        "operationId": "readV13AutoPolicyMandate",
+        "summary": "Read a Mandate only in the authenticated owner and exact TestRun scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "mandateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": { "200": { "description": "Mandate version and current state" }, "403": { "description": "Caller or owner rejected" }, "404": { "description": "Mandate not found in exact scope" } }
+      }
+    },
+    "/internal/v1/auto-mandates": {
+      "post": {
+        "operationId": "createV13AutoPolicyMandate",
+        "summary": "Persist a pending versioned PAPER/FAKE AUTO_POLICY Mandate",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-command.schema.json" } } } },
+        "responses": { "201": { "description": "Pending exact-version Mandate" }, "403": { "description": "Caller or identity rejected" }, "409": { "description": "Active Mandate already exists for this run/account" }, "422": { "description": "Invalid Mandate command" }, "503": { "description": "Persistence unavailable" } }
+      }
+    },
+    "/internal/v1/auto-mandates/{mandateId}/activate": {
+      "post": {
+        "operationId": "activateV13AutoPolicyMandate",
+        "summary": "Manually activate an exact pending Mandate version and content hash",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "mandateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-transition-command.schema.json" } } } },
+        "responses": { "200": { "description": "Mandate activated" }, "403": { "description": "Caller or owner scope rejected" }, "409": { "description": "Version conflict or another active Mandate exists" }, "422": { "description": "Expired or invalid transition" }, "503": { "description": "Persistence unavailable" } }
+      }
+    },
+    "/internal/v1/auto-mandates/{mandateId}/pause": {
+      "post": {
+        "operationId": "pauseV13AutoPolicyMandate",
+        "summary": "Pause an active Mandate in its exact owner scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "mandateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-actor-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-transition-command.schema.json" } } } },
+        "responses": { "200": { "description": "Mandate paused" }, "403": { "description": "Caller or owner scope rejected" }, "409": { "description": "Mandate is not active" }, "422": { "description": "Invalid transition" }, "503": { "description": "Persistence unavailable" } }
+      }
+    },
+    "/internal/v1/auto-mandates/{mandateId}/orders/authorize": {
+      "post": {
+        "operationId": "authorizeV13AutoPolicyOrder",
+        "summary": "Atomically reserve exact Proposal against an active Mandate order and cumulative budget",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "mandateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "trade-execution-service" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-order-command.schema.json" } } } },
+        "responses": { "200": { "description": "Authorized, idempotent replay, or no-order HOLD" }, "403": { "description": "Mandate or Proposal scope rejected" }, "409": { "description": "Order count or cumulative budget exceeded" }, "422": { "description": "Invalid order command" }, "503": { "description": "Persistence unavailable" } }
+      }
+    },
+    "/internal/v1/auto-mandates/reservations/{reservationId}/settle": {
+      "post": {
+        "operationId": "settleV13AutoPolicyBudgetReservation",
+        "summary": "Settle an exact AUTO_POLICY budget reservation after a deterministic execution outcome",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "reservationId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "trade-execution-service" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-settlement-command.schema.json" } } } },
+        "responses": { "200": { "description": "Reservation settled idempotently" }, "409": { "description": "Reservation is missing or has a conflicting settlement" }, "422": { "description": "Invalid settlement command" }, "503": { "description": "Persistence unavailable" } }
+      }
+    }
+  }
+}

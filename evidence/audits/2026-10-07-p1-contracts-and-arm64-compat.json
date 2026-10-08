@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "p1-contracts-and-compat-audit-v1",
+  "date": "2026-10-07",
+  "status": "PASS",
+  "checks": [
+    {
+      "command": "pnpm contracts:check",
+      "exitCode": 0,
+      "jsonFiles": 289,
+      "schemas": 203,
+      "fixtures": 46,
+      "clientGenerators": 29,
+      "consumerCompatibilityRules": 111,
+      "openApiContracts": 24,
+      "contractUnitTests": { "passed": 9, "failed": 0 },
+      "generatorRegistrationTests": { "passed": 2, "failed": 0 }
+    },
+    {
+      "command": "pnpm verify:compat -- --platform linux/arm64",
+      "exitCode": 0,
+      "platform": "linux/arm64",
+      "hostProcess": "darwin/arm64",
+      "emulated": false,
+      "node": "v24.1.0",
+      "imageBase": "node:24.1.0-slim@sha256:5ae787590295f944e7dc200bf54861bac09bf21b5fdb4c9b97aee7781b6d95a2",
+      "remotePullRequired": false
+    }
+  ],
+  "scopeBoundary": "Closes P1 schema/OpenAPI/generated-client drift check only; does not close account, durable TestRun, Artifact lifecycle, migration, stage acceptance or V1 gates.",
+  "sourceHashManifest": "evidence/audits/2026-10-07-p1-contracts-and-arm64-compat.sha256"
+}

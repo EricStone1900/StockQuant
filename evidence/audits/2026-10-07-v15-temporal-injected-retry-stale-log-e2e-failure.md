@@ -1,0 +1,3 @@
+# V1.5 injected Temporal retry E2E attempt failure: stale log match
+
+Date: 2026-10-07. Project: `sq-v15-e2e-0b18b9a07dcc9cf3d014`. The existing browser and prior NATS recovery E2E passed. The additional retry probe reached the transient-NAK log search but matched a previously emitted line from this same isolated Platform process, whose sequence was not the new Run sequence. The harness correctly rejected the stale observation; the transient-retry assertion did not pass. Exact run output is preserved in the adjacent JSON. Project containers, volumes and network were removed; external-source/real-broker calls were zero.

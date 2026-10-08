@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "ISOLATED_V1_DATABASE_NATS_TEMPORAL_VOLUME_BACKUP_RESTORE",
+  "isolatedProject": "sq-v15-e2e-c1d77296feb8a98d1eb8",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "2dd7993a-5bf3-4809-b434-4308f432ad94"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "e3579605-1c56-49e9-8a16-f699d2eb373c"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "70cd0fab-b758-466d-8aa8-2709d111a73f"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:82704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=2dd7993a-5bf3-4809-b434-4308f432ad94 elapsedMs=135\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=9165\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=9181\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=9323\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=2dd7993a-5bf3-4809-b434-4308f432ad94\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=e3579605-1c56-49e9-8a16-f699d2eb373c elapsedMs=147\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=151\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=278\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=e3579605-1c56-49e9-8a16-f699d2eb373c\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=70cd0fab-b758-466d-8aa8-2709d111a73f elapsedMs=136\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=138\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=271\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (10.0s)\n\n  1 passed (10.6s)\n",
+  "faultSequence": [
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "2dd7993a-5bf3-4809-b434-4308f432ad94",
+      "at": "2026-10-07T12:43:21.407Z"
+    },
+    {
+      "event": "isolated_v1_all_domain_postgres_nats_temporal_volumes_backed_up_restored_and_same_run_verified",
+      "testRunId": "2dd7993a-5bf3-4809-b434-4308f432ad94",
+      "snapshots": [
+        {
+          "logicalVolume": "v14-integration-postgres",
+          "archiveSha256": "14b147c7be673088da805dd5cecf2bf2535417c72c84b0c6ef4dc151b08a2b09",
+          "archiveBytes": 146025472,
+          "sourceVolume": "sq-v15-e2e-c1d77296feb8a98d1eb8_v14-integration-postgres",
+          "restoredVolume": "sq-v15-restore-d465752369f5-v14-integration-postgres"
+        },
+        {
+          "logicalVolume": "nats-jetstream",
+          "archiveSha256": "480cc9fff7b9b6dd9bc253f091ef0583266f19d05b6c0900cd13ba4adde243fc",
+          "archiveBytes": 29184,
+          "sourceVolume": "sq-v15-e2e-c1d77296feb8a98d1eb8_nats-jetstream",
+          "restoredVolume": "sq-v15-restore-a8c41a5d7a76-nats-jetstream"
+        },
+        {
+          "logicalVolume": "temporal-dev-state",
+          "archiveSha256": "20c6c3888dcdd7d5916078234dc719de68716d552575e5ab8849b899dfd91b08",
+          "archiveBytes": 919552,
+          "sourceVolume": "sq-v15-e2e-c1d77296feb8a98d1eb8_temporal-dev-state",
+          "restoredVolume": "sq-v15-restore-571d47b81329-temporal-dev-state"
+        }
+      ],
+      "restoredRunCheckExitCode": 2,
+      "restoredRunStatus": "WAITING",
+      "restoredHoldAssertion": {
+        "actual": {
+          "brokerFills": 0,
+          "brokerOrders": 0,
+          "sessionsPerMarket": 60,
+          "positionsUnchanged": true,
+          "accountBalanceUnchanged": true,
+          "authoritativeObservations": 120
+        },
+        "status": "PASS",
+        "expected": "60 local virtual sessions per market; authoritative order/fill/ledger/position facts remain unchanged",
+        "assertionId": "V1.5-HOLD-002"
+      },
+      "temporalWorkflowId": "v15-no-trade-2dd7993a-5bf3-4809-b434-4308f432ad94",
+      "temporalDescribeExcerpt": "Execution Info:\n  WorkflowId            v15-no-trade-2dd7993a-5bf3-4809-b434-4308f432ad94\n  RunId                 01a11663-a8ab-759f-8c66-cb9cf59e2358\n  Type                  v15NoTradeWorkflow\n  Namespace             default\n  TaskQueue             stockquant-v1-5\n  AssignedBuildId        \n  StartTime             54 seconds ago\n  CloseTime             45 seconds ago\n  ExecutionTime         54 seconds ago\n  SearchAttributes      map[BuildIds:metadata:{key:\"encoding\" value:\"json/plain\"} metadata:{key:\"type\" value:\"KeywordList\"} data:\"[\\\"unversioned\\\",\\\"unversioned:@temporalio/worker@1.15.0+86f77366a9cabb1fed3c41a31fbcb832b3e4e6b3400623c2e8a5352e936255ea\\\"]\"]\n  StateTransitionCount  19\n  HistoryLength         29\n  HistorySize           237652\n  RootWorkflowId        v15-no-trade-2dd7993a-5bf3-4809-b434-4308f432ad94\n  RootRunId             01a11663-a8ab-759f-8c66-cb9cf59e2358\nExtended Execution Info:\n  CancelRequested    false\n  OriginalStartTime  54 seconds ago\n\nResults:\n  RunTime         8.54s\n  Status          COMPLETED\n  Result          {\"observations\":120,\"status\":\"WAITING\"}\n  ResultEncoding  json/plain\n",
+      "restoredJetStream": {
+        "ackFloor": 1,
+        "delivered": 1
+      },
+      "restoredVolumeCleanupVerified": true,
+      "artifactDataScope": "V1.5 E2E creates no external Artifact volume; persisted run/evidence facts are in PostgreSQL.",
+      "at": "2026-10-07T12:44:37.803Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "743d828ee481ba6520db25635b953bf7cad7c8bc2062fb0436f5ac0566ca96ad",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "a650300b1ff33843f1f219591e5f6136af9cac972cc31f105dd1b2dd820019da",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "560b3d4e3a2c1c3143167b2cc1b1dd33da71a821cea867c4dcf968fbe0076750",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/bootstrap/main.ts": "7e6abdeeb10ab6ee06962a1425b8f7a0448cb4beb93b2793fa2839e5104734bf",
+    "services/quant-research-service/src/bootstrap/main.ts": "651ba3ee467ead9288387fd8633474486c46010109cacd90e4fc503f742695d4",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "300554428b9a70f3b397173e71f94cdcef53d530236cd8905042fbabc837f951"
+  },
+  "failureReason": null
+}

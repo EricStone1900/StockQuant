@@ -1,0 +1,5 @@
+# V1.5 actual Temporal server outage and recovery
+
+Date: 2026-10-07 (Asia/Shanghai). `STOCKQUANT_V15_E2E_TEMPORAL_OUTAGE=true pnpm test:e2e -- --stage V1.5` exited 0. The isolated Compose stack stopped the pinned Temporal server before the browser created a normal Run, then observed the actual dispatch error and NAK while that same server was stopped. The harness restarted the same Temporal container and persistent volume; the same Run completed its 120 authoritative observations.
+
+Run: `0871ddc3-9e7b-4669-b9c4-03a3182ecd31`. Browser normal/rejection/recovery scenarios passed 1/1. No external market source or real broker calls occurred. The random project's containers, volumes, and network were removed. Full timestamps, fault sequence, Playwright output, and source hashes are in the [machine record](./2026-10-07-v15-temporal-server-outage-e2e.json). This verifies one actual Temporal server stop/restart path only; database faults, restricted network, multi-worker competition, backup/restore, trade workflows, Ubuntu, and human acceptance remain open.

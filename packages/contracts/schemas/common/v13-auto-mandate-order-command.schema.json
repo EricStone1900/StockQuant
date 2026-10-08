@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-mandate-order-command.schema.json",
+  "title": "V13AutoMandateOrderCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mandateVersion", "ownerId", "clientOrderId", "commandHash", "proposal", "now"],
+  "properties": {
+    "mandateVersion": { "type": "integer", "minimum": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "commandHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "proposal": { "$ref": "https://stockquant.local/schemas/common/v13-auto-mandate-proposal.schema.json" },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock." }
+  }
+}

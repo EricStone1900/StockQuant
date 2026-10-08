@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "v1-p5-backup-tool-contract-tests-v1",
+  "date": "2026-10-07",
+  "command": "pnpm test:cluster-paired-backup && pnpm test:backup-scheduled && pnpm test:backup-retention",
+  "exitCode": 0,
+  "status": "PASS",
+  "tests": {
+    "clusterPairedBackup": "5/5",
+    "scheduledBackup": "8/8",
+    "retention": "3/3",
+    "total": "16/16"
+  },
+  "logPath": "evidence/audits/2026-10-07-v1-p5-backup-tool-contract-tests.log",
+  "logSha256": "250c7df2fea12e06742990e1c6c89af61251806d1d8829883f29a0c717f6cbaa",
+  "sourceSha256": {
+    "scripts/cluster-paired-backup.mjs": "f9f1cbe7d70e78a9a10bcd62e8dcd4ce534a4908f585ae859dca00b1ac00127d",
+    "scripts/cluster-paired-backup.test.mjs": "425e301e8c8aa423d80ab06d5c9aad229854f960bbb94af738f5c28b2c5392f4",
+    "scripts/scheduled-paired-backup.mjs": "b1ad79f071ddebc66325c3c777c205ff741892103a8e93c2bf08f330f725ee0e",
+    "scripts/scheduled-paired-backup.test.mjs": "05b34dc0a6312372809f61bebf1386c5015393505620f70d613e2337b7961363",
+    "scripts/backup-retention.mjs": "496a8d6ace5681d286f0b83032a6cb3d84f2a74e79d5a3c3c02eb09d84a4237b",
+    "scripts/backup-retention.test.mjs": "d01dee79979f699276b5b9a6c1a3cac9b6b9b17d566de71ee9f64109d89c6f46"
+  },
+  "scope": "Offline unit/contract tests only; no V1 database, FakeBroker, NATS, Temporal, Artifact volume, target Ubuntu host, backup capture, or restore was exercised."
+}

@@ -4,16 +4,35 @@
   "title": "V1.4 Daily Backtest Fixture Result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["testRunId", "stageId", "scenarioId", "seed", "status", "assertions", "evidence"],
+  "required": ["testRunId", "stageId", "scenarioId", "seed", "status", "assertions", "evidence", "durableReport"],
   "properties": {
     "testRunId": { "type": "string", "format": "uuid" },
     "stageId": { "const": "V1.4" },
-    "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees"] },
+    "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees", "corporate-actions"] },
     "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
     "status": { "type": "string", "enum": ["COMPLETED", "FAILED"] },
     "assertions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["assertionId", "status", "expected", "actual"], "properties": {
       "assertionId": { "type": "string", "minLength": 1 }, "status": { "type": "string", "enum": ["PASS", "FAIL"] }, "expected": {}, "actual": {}
     } } },
-    "evidence": { "type": "object" }
+    "evidence": { "type": "object", "properties": {
+      "orderOutcomes": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["side", "signalDate", "executionDate", "requestedQuantity", "filledQuantity", "status"], "properties": {
+        "side": { "type": "string", "enum": ["BUY", "SELL"] },
+        "signalDate": { "type": "string", "format": "date" },
+        "executionDate": { "type": "string", "format": "date" },
+        "requestedQuantity": { "type": "integer", "minimum": 1 },
+        "filledQuantity": { "type": "integer", "minimum": 0 },
+        "status": { "type": "string", "enum": ["FILLED", "PARTIALLY_FILLED", "REJECTED"] },
+        "reason": { "type": "string", "enum": ["ZERO_VOLUME", "INSUFFICIENT_CASH", "PARTICIPATION_LIMIT", "T_PLUS_1_UNAVAILABLE", "NO_SELLABLE_POSITION"] }
+      } } },
+      "metrics": { "type": "object", "properties": {
+        "rejectedOrders": { "type": "integer", "minimum": 0 },
+        "partiallyFilledOrders": { "type": "integer", "minimum": 0 },
+        "unfilledQuantity": { "type": "integer", "minimum": 0 }
+      } }
+    } },
+    "durableReport": { "type": "object", "additionalProperties": false, "required": ["resultSha256", "manifestSha256"], "properties": {
+      "resultSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "manifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    } }
   }
 }

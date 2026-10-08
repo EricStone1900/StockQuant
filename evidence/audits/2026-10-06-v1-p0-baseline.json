@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "status": "P0_COMPLETE_ENGINEERING_BASELINE_ONLY",
+  "startingHead": "c0f6745",
+  "versionGates": {
+    "V1": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5,
+      "evidenceAudit": "PASS"
+    },
+    "V2": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 5
+    },
+    "V3": {
+      "status": "INCOMPLETE",
+      "unresolvedStages": 4
+    }
+  },
+  "v15Correction": {
+    "status": "IMPLEMENTED_PENDING_FULL_SUITE",
+    "acceptance": "WAITING",
+    "unconnectedAssertions": "NOT_RUN",
+    "businessServiceCalls": [],
+    "ordersCreated": 0,
+    "fillsCreated": 0,
+    "ledgerMutation": false,
+    "backupRestore": "NOT_RUN"
+  },
+  "historicalMissingExports": {
+    "V1.2": [
+      "5dc2a5a7-28f1-4c9f-a867-3a676994f5b4"
+    ],
+    "V1.3": [
+      "39c9b7c0-080d-45d7-83cf-b8865f6a4b42",
+      "d1540cb1-d085-40bf-860d-43031951bd55",
+      "5a817c7f-64c0-4c8d-a979-97b44fc9f6ed"
+    ],
+    "V1.5": [
+      "25fe0718-5a76-4477-a02b-5e954f621dde",
+      "48e32a09-4901-424f-8585-7b01ab9f83f7",
+      "113fea95-5fee-42ee-b702-f8423b8a173c"
+    ]
+  },
+  "suite": {
+    "command": "pnpm verify:stage -- --stage V1.5 --suite code",
+    "status": "PASS",
+    "exitCode": 0,
+    "logPath": "/private/tmp/v1p0-v15-suite.log",
+    "coverage": [
+      "baseline:check (docs, contracts, fixtures, artifact store and repository audit tests)",
+      "workspace build",
+      "workspace typecheck",
+      "all configured service tests, including Qlib Python worker"
+    ]
+  },
+  "externalCalls": 0,
+  "realBrokerCalls": 0,
+  "activeVolumesReset": false,
+  "versionGateCommand": "node scripts/verify-version.mjs --version V1",
+  "versionGateExitCode": 2,
+  "versionGateStatus": "INCOMPLETE",
+  "evidenceAuditStatus": "PASS",
+  "evidenceAuditFailures": [],
+  "suiteLogSha256": "99a1dec8d6f12e73f1691b5ea4ee93f90c1ee260d687f9141d699ee4e9f37b57",
+  "sourceSnapshot": {
+    "services/platform-api-service/src/application/v15-orchestration.ts": "e9802b32ec902199d9df7571e82b05b55c51529d38ee715f0e9a7124600becb4",
+    "services/platform-api-service/tests/unit/v15-orchestration.spec.ts": "d9e6b80f6ae8b0d5390aa2d50a9dde08836b09ed44fed07ca0e6fb272a83c16e",
+    "docs/prd/v1-local-simulation/05-scheduling-and-recovery.md": "10b25d9df7315446bc2c01beef6e9feefdecaacfa2886f0c7df8b5904d6501f7"
+  },
+  "limitations": [
+    "No integration/browser business matrix was executed as part of the code suite.",
+    "V1.1-V1.5 remain PARTIALLY_IMPLEMENTED; formal user acceptance is pending.",
+    "Seven historical V1 run exports remain missing."
+  ],
+  "coverageLedger": {
+    "path": "evidence/audits/2026-10-06-v1-p0-coverage.md",
+    "rows": 106,
+    "sha256": "cb0bedec41e4a5f13d0b0c813a4c1e077a45e89b3513217920a892d6dd37fb3c",
+    "status": "PASS_MAPPED_NOT_ACCEPTED"
+  }
+}

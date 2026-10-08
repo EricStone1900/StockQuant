@@ -93,6 +93,13 @@ try {
   await pool.query("SELECT 1");
   await waitReady();
   migrated = true;
+  const v13ModeInjection = await request("/internal/v1/v13/paper-orders/execute-manual-proposal", "POST", "platform-api-service", tokens.platform, {
+    accountId: randomUUID(), clientOrderId: `mode-injection-${randomUUID()}`, namespace, now: "2026-10-08T00:00:00Z", ownerId: "auth-smoke-owner",
+    proposalId: randomUUID(), testRunId: randomUUID(), environmentMode: "LIVE", brokerMode: "REAL"
+  });
+  const v13ModeInjectionOrders = await pool.query("SELECT count(*)::int AS count FROM fake_broker_orders WHERE namespace=$1", [namespace]);
+  assert.equal(v13ModeInjection.status, 422, "V1.3 Trade HTTP contract must reject caller-supplied environment/broker modes");
+  assert.equal(v13ModeInjectionOrders.rows[0].count, 0, "mode injection must not create a FakeBroker order");
   const noIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", null);
   const forgedToken = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", tokens.replay);
   const unknownIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "forged-service", tokens.platform);
@@ -170,7 +177,7 @@ try {
   assert.equal(cancelResult.status, 200);
   assert.equal(cancelResultBody.status, "CANCELLED");
   assert.equal(pendingRelease.rows[0].count, 0, "reservation release waits until the partial Fill has been posted");
-  runStatus = { noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, rejectedZeroVolume: executionBody.result.rejectionReason, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
+  runStatus = { v13ModeInjection: v13ModeInjection.status, v13ModeInjectionOrders: v13ModeInjectionOrders.rows[0].count, noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, rejectedZeroVolume: executionBody.result.rejectionReason, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
   console.log(JSON.stringify({ status: "PASS", namespace, evidence: runStatus }));
 } finally {
   if (service.exitCode === null) {

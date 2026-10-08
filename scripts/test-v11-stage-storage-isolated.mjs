@@ -19,7 +19,7 @@ const databaseRoleEnvNames = [
   "STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA",
 ];
 const isolatedDatabasePasswords = Object.fromEntries(databaseRoleEnvNames.map((name) => [name, randomBytes(32).toString("hex")]));
-const composeEnv = { ...process.env, ...isolatedDatabasePasswords, COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(hostPort) };
+const composeEnv = { ...process.env, ...isolatedDatabasePasswords, STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD: randomBytes(32).toString("hex"), COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(hostPort), V11_WEB_HOST_PORT: String(webPort) };
 const compose = (args, env = composeEnv, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "-f", composeFile, ...args], { env: { ...env, COMPOSE_PROJECT_NAME: project }, encoding: "utf8", stdio });
 let started = false;
 let webServer;

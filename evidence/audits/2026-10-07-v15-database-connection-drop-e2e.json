@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "ISOLATED_PLATFORM_POSTGRES_CONNECTION_TERMINATION",
+  "isolatedProject": "sq-v15-e2e-8ed4e06fadd41cbbbed7",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "0a2d90d1-317a-4a03-934b-b1fc5c7eed9d"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "0711268b-4108-464a-be78-1e8379b6759c"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "41bcd38d-d7bb-4826-9fad-bbe5137f6347"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:60773) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=0a2d90d1-317a-4a03-934b-b1fc5c7eed9d elapsedMs=118\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=17238\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=17253\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=17383\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=0a2d90d1-317a-4a03-934b-b1fc5c7eed9d\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=0711268b-4108-464a-be78-1e8379b6759c elapsedMs=138\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=141\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=271\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=0711268b-4108-464a-be78-1e8379b6759c\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=41bcd38d-d7bb-4826-9fad-bbe5137f6347 elapsedMs=150\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=153\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=285\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (18.1s)\n\n  1 passed (18.7s)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "0a2d90d1-317a-4a03-934b-b1fc5c7eed9d",
+      "at": "2026-10-07T11:24:01.691Z"
+    },
+    {
+      "event": "platform_postgres_sessions_terminated_after_jetstream_delivery",
+      "testRunId": "0a2d90d1-317a-4a03-934b-b1fc5c7eed9d",
+      "postgresContainer": "sq-v15-e2e-8ed4e06fadd41cbbbed7-postgres-1",
+      "terminatedCount": 3,
+      "receivedMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_DISPATCH_RECEIVED eventId=0a2d90d1-317a-4a03-934b-b1fc5c7eed9d seq=1",
+      "at": "2026-10-07T11:24:02.175Z"
+    },
+    {
+      "event": "normal_run_completed_after_platform_postgres_recovery",
+      "testRunId": "0a2d90d1-317a-4a03-934b-b1fc5c7eed9d",
+      "at": "2026-10-07T11:24:18.811Z"
+    },
+    {
+      "event": "postgres_backend_sessions_terminated_platform_reconnected_and_same_run_completed",
+      "testRunId": "0a2d90d1-317a-4a03-934b-b1fc5c7eed9d",
+      "terminatedSessionCount": 3,
+      "laterPlatformSessionCount": 1,
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T11:24:19.726Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "89b3a98f6a8bb1b93459eb5273a65a7ba4c81d3f6596969eb151ff8e4c35181d",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "560b3d4e3a2c1c3143167b2cc1b1dd33da71a821cea867c4dcf968fbe0076750",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "efad7237891191d85d7c57504b9ca9e433ccac7863aa0852ad9be4878ea5cdce",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "22731d7cc9df00f07334f308676336b81407e6676ca2e465fac1c7122ab47db1"
+  },
+  "failureReason": null
+}

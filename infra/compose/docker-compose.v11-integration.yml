@@ -11,7 +11,8 @@ services:
       STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH: ${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:?isolated test password is required}
       STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION: ${STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION:?isolated test password is required}
       STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA: ${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA:?isolated test password is required}
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_PASSWORD: ${STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD:?isolated PostgreSQL superuser password is required}
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
     volumes:
@@ -31,7 +32,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3001
-      STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk@postgres:5432/portfolio_risk
+      STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk:${STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK:?isolated role password is required}@postgres:5432/portfolio_risk
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: v11-isolated-platform-token-20260926-0000000000000000
       STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: v11-isolated-execution-token-20260926-000000000000000000
       STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: v11-isolated-replay-token-20260926-0000000000000000000
@@ -54,7 +55,7 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3000
-      STOCKQUANT_DATABASE_URL: postgresql://platform_api@postgres:5432/platform_api
+      STOCKQUANT_DATABASE_URL: postgresql://platform_api:${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API:?isolated role password is required}@postgres:5432/platform_api
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: v11-isolated-platform-token-20260926-0000000000000000
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
@@ -72,6 +73,25 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+  web:
+    profiles: [interactive]
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      STOCKQUANT_PLATFORM_API_URL: http://platform-api-service:3000
+    ports:
+      - "127.0.0.1:${V11_WEB_HOST_PORT:?random isolated Web host port is required}:8080"
+    depends_on:
+      platform-api-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/acceptance/v1/v1.1').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 2s
       timeout: 3s
       retries: 30

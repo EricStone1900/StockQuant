@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "TWO_PLATFORM_CONSUMERS_DUPLICATE_WORKFLOW_START",
+  "isolatedProject": "sq-v15-e2e-fa7a296744f0637bfd1d",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "7e0744ff-af77-4a00-bcd1-c931ebd29076"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "1860ebde-d83a-47cb-bed2-e20f98b50f23"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "0e344539-e0c8-4e9b-9f57-3d6b657cf77d"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:64779) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=7e0744ff-af77-4a00-bcd1-c931ebd29076 elapsedMs=141\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=9145\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=9164\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=9296\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=7e0744ff-af77-4a00-bcd1-c931ebd29076\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=1860ebde-d83a-47cb-bed2-e20f98b50f23 elapsedMs=146\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=149\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=274\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=1860ebde-d83a-47cb-bed2-e20f98b50f23\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=0e344539-e0c8-4e9b-9f57-3d6b657cf77d elapsedMs=136\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=138\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=264\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (10.0s)\n\n  1 passed (10.6s)\n",
+  "faultSequence": [
+    {
+      "event": "second_platform_worker_and_independent_durable_consumer_ready",
+      "worker": "sq-v15-e2e-fa7a296744f0637bfd1d-platform-api-worker-2",
+      "durable": "stockquant-v15-temporal-dispatch-worker-2",
+      "at": "2026-10-07T11:36:42.231Z"
+    },
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "7e0744ff-af77-4a00-bcd1-c931ebd29076",
+      "at": "2026-10-07T11:36:43.735Z"
+    },
+    {
+      "event": "normal_run_completed_after_multiworker_dispatch",
+      "testRunId": "7e0744ff-af77-4a00-bcd1-c931ebd29076",
+      "at": "2026-10-07T11:36:52.739Z"
+    },
+    {
+      "event": "two_independent_durables_acknowledged_one_run_and_temporal_start_was_idempotent",
+      "testRunId": "7e0744ff-af77-4a00-bcd1-c931ebd29076",
+      "consumers": [
+        {
+          "durable": "stockquant-v15-temporal-dispatch",
+          "ackFloor": 1
+        },
+        {
+          "durable": "stockquant-v15-temporal-dispatch-worker-2",
+          "ackFloor": 1
+        }
+      ],
+      "duplicateStartMarker": "STOCKQUANT_V15_TEMPORAL_WORKFLOW_ALREADY_STARTED workerId=cc0f4495a595 eventId=7e0744ff-af77-4a00-bcd1-c931ebd29076 seq=1",
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T11:36:53.739Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "86adc0e43f88317e2362008e39f640ec0dafc10078ea71bb42e2150748f5a4d7",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "560b3d4e3a2c1c3143167b2cc1b1dd33da71a821cea867c4dcf968fbe0076750",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "2ee288a8da168f0688a6368b65113cfbf8e299cfcb86660906d1c50b7e47dfc9"
+  },
+  "failureReason": null
+}

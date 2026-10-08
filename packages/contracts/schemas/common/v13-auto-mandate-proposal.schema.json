@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-mandate-proposal.schema.json",
+  "title": "V13AutoMandateProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposalId", "proposalVersion", "contentHash", "ownerId", "testRunId", "accountId", "strategyVersion", "operation", "market", "currency", "legs"],
+  "properties": {
+    "proposalId": { "type": "string", "format": "uuid" },
+    "proposalVersion": { "type": "integer", "minimum": 1 },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "strategyVersion": { "type": "string", "minLength": 1 },
+    "operation": { "enum": ["HOLD", "REBALANCE"] },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "legs": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["securityId", "side", "quantity", "limitPrice", "estimatedFee"], "properties": { "securityId": { "type": "string", "minLength": 1 }, "side": { "enum": ["BUY", "SELL"] }, "quantity": { "type": "integer", "minimum": 1 }, "limitPrice": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$" }, "estimatedFee": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$" } } } }
+  }
+}

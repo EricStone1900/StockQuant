@@ -11,7 +11,7 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS research_backtest_runs (
     backtest_run_id UUID PRIMARY KEY,
     stage_id TEXT NOT NULL CHECK (stage_id = 'V1.4'),
-    scenario_id TEXT NOT NULL CHECK (scenario_id IN ('normal','rejection','recovery','market-restrictions','historical-fees')),
+    scenario_id TEXT NOT NULL CHECK (scenario_id IN ('normal','rejection','recovery','market-restrictions','historical-fees','corporate-actions')),
     seed INTEGER NOT NULL CHECK (seed >= 0),
     status TEXT NOT NULL CHECK (status IN ('COMPLETED','FAILED')),
     result_payload JSONB NOT NULL,
@@ -20,7 +20,7 @@ const statements = [
   )`,
   `DO $$ BEGIN
     ALTER TABLE research_backtest_runs DROP CONSTRAINT IF EXISTS research_backtest_runs_scenario_id_check;
-    ALTER TABLE research_backtest_runs ADD CONSTRAINT research_backtest_runs_scenario_id_check CHECK (scenario_id IN ('normal','rejection','recovery','market-restrictions','historical-fees'));
+    ALTER TABLE research_backtest_runs ADD CONSTRAINT research_backtest_runs_scenario_id_check CHECK (scenario_id IN ('normal','rejection','recovery','market-restrictions','historical-fees','corporate-actions'));
   END $$`,
   `CREATE TABLE IF NOT EXISTS research_backtest_manifests (
     backtest_run_id UUID PRIMARY KEY REFERENCES research_backtest_runs(backtest_run_id) ON DELETE RESTRICT,

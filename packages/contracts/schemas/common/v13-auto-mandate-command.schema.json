@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-mandate-command.schema.json",
+  "title": "V13AutoMandateCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mandateId", "mandateVersion", "testRunId", "accountId", "strategyVersion", "market", "currency", "securityScope", "maxOrderAmount", "maxTotalAmount", "maxOrderCount", "validFrom", "expiresAt", "reason", "now"],
+  "properties": {
+    "mandateId": { "type": "string", "format": "uuid" },
+    "mandateVersion": { "const": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "strategyVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "securityScope": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 32 } },
+    "maxOrderAmount": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$" },
+    "maxTotalAmount": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$" },
+    "maxOrderCount": { "type": "integer", "minimum": 1, "maximum": 100 },
+    "validFrom": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 250 },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock." }
+  }
+}

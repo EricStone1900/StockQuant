@@ -1,0 +1,21 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.2 Governed Strategy Snapshot API", "version": "v1" },
+  "servers": [{ "url": "http://decision-governance-service:3007" }],
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
+  "paths": {
+    "/internal/v1/v12/strategy-snapshots": {
+      "post": {
+        "operationId": "receiveV12StrategySnapshot",
+        "summary": "Persist a Qlib strategy output as a non-executable Governance receipt",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v12-strategy-snapshot-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "Snapshot received", "content": { "application/json": { "schema": { "type": "object", "required": ["snapshotId", "status", "replayed"], "properties": { "snapshotId": { "type": "string", "format": "uuid" }, "status": { "const": "RECEIVED" }, "replayed": { "type": "boolean" } } } } } },
+          "200": { "description": "Identical snapshot replay" }, "403": { "description": "Caller scope denied" }, "409": { "description": "Conflicting snapshot for owner, TestRun and strategy" }, "413": { "description": "Request too large" }, "422": { "description": "Invalid or unsupported snapshot" }
+        }
+      }
+    }
+  }
+}

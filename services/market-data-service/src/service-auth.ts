@@ -29,7 +29,7 @@ export function isProtectedPlatformApiRequest(method: string, pathname: string):
   );
   if (collectionRead) return true;
   return pathname === "/v2/minute/import"
-    || /^\/v1\/(?:fixtures\/(?:normal|bad-future)\/preview|artifacts\/)/u.test(pathname)
+    || /^\/v1\/(?:fixtures\/(?:normal|bad-future)\/preview|fixtures\/research-preview|artifacts\/)/u.test(pathname)
     || (method === "GET" && pathname === "/v2/minute/preview")
     || (method === "POST" && ["/v2/minute/quality", "/v2/minute/coverage"].includes(pathname))
     || /^\/v2\/minute\/(?:csv|parquet)\/(?:preview|import|uploads(?:\/|$))/u.test(pathname)

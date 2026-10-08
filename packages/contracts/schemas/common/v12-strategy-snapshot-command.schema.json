@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v12-strategy-snapshot-command.schema.json",
+  "title": "V1.2 Strategy Snapshot Command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ownerId", "testRunId", "artifactId", "artifactSha256", "fixtureVersion", "dataVersion", "factorVersion", "strategyId", "strategyHash", "mode", "asOf", "targets"],
+  "properties": {
+    "ownerId": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "artifactId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "artifactSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "fixtureVersion": { "const": "v1.2-market-data-4" },
+    "dataVersion": { "const": "v1.2-market-data-4" },
+    "factorVersion": { "const": "v1.2-momentum-volume-1" },
+    "strategyId": { "enum": ["v1.2-qlib-topk-1", "v1.2-no-trade-1"] },
+    "strategyHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "mode": { "enum": ["TOPK", "NO_TRADE"] },
+    "asOf": { "type": "string", "format": "date" },
+    "targets": { "type": "array", "maxItems": 100, "items": { "$ref": "https://stockquant.local/schemas/common/v12-strategy-target.schema.json" } }
+  }
+}

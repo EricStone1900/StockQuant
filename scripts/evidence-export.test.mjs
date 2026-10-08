@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { buildEvidenceBundle, decodeV31Artifact, decodeV33Artifact, evidenceRequest, parseEvidenceExportArgs, qlibArtifactPath, serializeEvidence, v31ArtifactPath, v31ArtifactRefs, v33ArtifactRefs } from "./evidence-export-core.mjs";
+import { buildEvidenceBundle, decodeV12QlibArtifact, decodeV14Report, decodeV31Artifact, decodeV33Artifact, evidenceRequest, parseEvidenceExportArgs, qlibArtifactPath, serializeEvidence, v12QlibArtifactPath, v14ReportArtifactPath, v31ArtifactPath, v31ArtifactRefs, v33ArtifactRefs } from "./evidence-export-core.mjs";
 
 const promotionRequestId = "6e534a1a-1c8d-4cf1-955c-f1070ac3c424";
 const testRunId = "8b2d68d1-62eb-46a8-a2c6-957a7b252a8f";
@@ -110,6 +110,38 @@ test("V1 evidence envelope binds top-level stage and run identity while preservi
   assert.equal(bundle.run.testRunId, testRunId);
   assert.equal(bundle.manualConclusion, "NOT_RUN");
   assert.throws(() => buildEvidenceBundle({ stage: "V1.2", runId: testRunId, responseBody: { ...responseBody, run: { ...responseBody.run, testRunId: promotionRequestId } } }), /not bound/u);
+});
+
+test("V1.2 export binds the owner-scoped Qlib bytes to the persisted common ArtifactRef", () => {
+  const canonical = (value) => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}` : JSON.stringify(value);
+  const payload = { schemaVersion: "v1.2-qlib-strategy-artifact-v1", predictionCount: 1, predictions: [0.25] };
+  const sha256 = createHash("sha256").update(canonical(payload)).digest("hex");
+  const artifactRef = { schemaVersion: "artifact-ref.v1", artifactId: sha256, testRunId, ownerId: "local-owner", kind: "MODEL_PREDICTIONS", namespace: `research/${testRunId}/qlib-fixture`, mediaType: "application/vnd.stockquant.qlib-fixture-model+json", sha256, status: "PUBLISHED", sourceRef: `platform-api-service:v1.2:${testRunId}` };
+  const responseBody = { testRunId, stageId: "V1.2", ownerId: "local-owner", status: "COMPLETED", evidence: { qlibFit: { artifactRef, artifactUrl: `/api/v1/acceptance/v1/v1.2/runs/${testRunId}/artifacts/${sha256}` } } };
+  const selection = { stage: "V1.2", runId: testRunId };
+  assert.equal(evidenceRequest({ ...selection, baseUrl: "http://127.0.0.1:3000", sessionCookie: "sq_session=local-owner" }).url, `http://127.0.0.1:3000/api/v1/acceptance/v1/v1.2/runs/${testRunId}`);
+  const bundle = buildEvidenceBundle({ ...selection, responseBody });
+  assert.equal(v12QlibArtifactPath(bundle, "http://127.0.0.1:3000"), `http://127.0.0.1:3000/api/v1/acceptance/v1/v1.2/runs/${testRunId}/artifacts/${sha256}`);
+  const bytes = decodeV12QlibArtifact(bundle, { artifactRef, payload });
+  assert.equal(bytes.toString(), canonical(payload));
+  assert.throws(() => decodeV12QlibArtifact(bundle, { artifactRef, payload: { ...payload, predictions: [0.5] } }), /content hash/u);
+  assert.throws(() => v12QlibArtifactPath({ ...bundle, evidence: { qlibFit: { ...bundle.evidence.qlibFit, artifactRef: { ...artifactRef, ownerId: "other" } } } }, "https://attacker.invalid"), /TestRun and owner/u);
+});
+
+test("V1.4 export downloads only the owner-scoped completed report and verifies its canonical hash", () => {
+  const canonical = (value) => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}` : JSON.stringify(value);
+  const content = { testRunId, status: "COMPLETED", assertions: [{ assertionId: "daily", status: "PASS" }] };
+  const sha256 = createHash("sha256").update(canonical(content)).digest("hex");
+  const artifactRef = { schemaVersion: "artifact-ref.v1", artifactId: sha256, testRunId, ownerId: "local-owner", kind: "BACKTEST_REPORT", namespace: `research/${testRunId}/daily-backtest`, sha256, status: "PUBLISHED", sourceRef: `quant-research-service:v1.4:${testRunId}` };
+  const responseBody = { testRunId, stageId: "V1.4", ownerId: "local-owner", status: "COMPLETED", artifactRefs: [artifactRef] };
+  assert.equal(evidenceRequest({ stage: "V1.4", runId: testRunId, baseUrl: "http://127.0.0.1:3000", sessionCookie: "sq_session=local-owner" }).url, `http://127.0.0.1:3000/api/v1/acceptance/v1/v1.4/runs/${testRunId}`);
+  const bundle = buildEvidenceBundle({ stage: "V1.4", runId: testRunId, responseBody });
+  assert.equal(v14ReportArtifactPath(bundle, "http://127.0.0.1:3000"), `http://127.0.0.1:3000/api/v1/acceptance/v1/v1.4/runs/${testRunId}/artifacts/${sha256}`);
+  const bytes = decodeV14Report(bundle, { artifactRef, content });
+  assert.equal(bytes.toString(), canonical(content));
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), sha256);
+  assert.throws(() => decodeV14Report(bundle, { artifactRef, content: { ...content, status: "FAILED" } }), /identity or content hash/u);
+  assert.throws(() => v14ReportArtifactPath({ ...bundle, artifactRefs: [{ ...artifactRef, ownerId: "other" }] }, "https://attacker.invalid"), /owner scope/u);
 });
 
 test("V2.3 export binds TestRun and only permits its owner-scoped content-addressed artifact route", () => {

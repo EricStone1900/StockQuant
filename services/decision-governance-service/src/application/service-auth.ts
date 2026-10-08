@@ -27,9 +27,16 @@ export function authorizeGovernanceRequest(input: { method: string; pathname: st
   const caller = input.serviceId as GovernanceCaller | undefined;
   if (caller !== "historical-replay-worker" && caller !== "trade-execution-service" && caller !== "platform-api-service") return false;
   const expected = input.tokens[caller];
-  if (!expected || !bearerMatches(input.authorization, expected) || input.method !== "POST") return false;
+  if (!expected || !bearerMatches(input.authorization, expected)) return false;
+  if (input.method === "GET" && /^\/internal\/v1\/proposals\/[0-9a-f-]{36}$/iu.test(input.pathname)) return caller === "platform-api-service" || caller === "trade-execution-service";
+  if (input.method === "GET" && /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/runs\/[0-9a-f-]{36}$/iu.test(input.pathname)) return caller === "platform-api-service";
+  if (input.method !== "POST") return false;
+  if (input.pathname === "/internal/v1/v12/strategy-snapshots") return caller === "platform-api-service";
   if (input.pathname === "/internal/v1/authorizations") return caller === "historical-replay-worker";
-  if (input.pathname === "/internal/v1/paper-authorizations" || input.pathname === "/internal/v1/paper-authorizations/revoke" || input.pathname === "/internal/v1/candidate-mandates/readiness") return caller === "platform-api-service";
+  if (/^\/internal\/v1\/proposals\/[0-9a-f-]{36}\/execution-authorizations(?:\/validate)?$/iu.test(input.pathname)) return caller === "trade-execution-service";
+  if (/^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/orders\/authorize$/iu.test(input.pathname)) return caller === "trade-execution-service";
+  if (/^\/internal\/v1\/auto-mandates\/reservations\/[0-9a-f-]{36}\/settle$/iu.test(input.pathname)) return caller === "trade-execution-service";
+  if (input.pathname === "/internal/v1/paper-authorizations" || input.pathname === "/internal/v1/paper-authorizations/revoke" || input.pathname === "/internal/v1/candidate-mandates/readiness" || input.pathname === "/internal/v1/proposals" || input.pathname === "/internal/v1/auto-mandates" || /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/(activate|pause)$/iu.test(input.pathname) || /^\/internal\/v1\/proposals\/[0-9a-f-]{36}\/(approve|reject|revise)$/iu.test(input.pathname)) return caller === "platform-api-service";
   if (input.pathname === "/internal/v1/paper-authorizations/validate" || input.pathname === "/internal/v1/authorizations/validate") return caller === "trade-execution-service";
   return false;
 }

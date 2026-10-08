@@ -24,6 +24,7 @@ COPY --from=build /workspace/services/platform-api-service/node_modules ./servic
 COPY --from=build /workspace/services/platform-api-service/dist ./services/platform-api-service/dist
 COPY --from=build /workspace/packages/artifact-content-store ./packages/artifact-content-store
 COPY --from=build /workspace/fixtures ./fixtures
+RUN mkdir -p /workspace/artifact-content && chown node:node /workspace/artifact-content
 EXPOSE 3000
 USER node
 CMD ["node", "services/platform-api-service/dist/main.js"]

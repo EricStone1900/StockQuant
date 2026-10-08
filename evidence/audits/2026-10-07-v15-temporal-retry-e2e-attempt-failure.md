@@ -1,0 +1,3 @@
+# V1.5 transient Temporal retry E2E attempt failure
+
+Date: 2026-10-07. Isolated project: `sq-v15-e2e-6a5f7e3fe7150c698a14`. The existing browser E2E completed 1/1 and the earlier NATS outage, Platform restart, poison/wrong-owner termination, lost-ACK redelivery and recovered original Outbox ACK all passed. The additional Temporal-unavailable retry probe did not reach an assertion: the harness reported `fetch failed` while beginning the extra API-driven Run. The exact failing machine record is preserved in the adjacent JSON. The harness removed all project containers, volumes, network and project images; no external data-source or real broker calls occurred. This attempt is not evidence that transient retry works.

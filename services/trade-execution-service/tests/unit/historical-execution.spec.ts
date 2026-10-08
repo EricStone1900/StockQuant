@@ -3,7 +3,7 @@ import { calculateFee, calculateHistoricalExecution, cancelTransition, historica
 describe("historical FakeBroker execution", () => {
   it("uses next bar open and participation cap without floating-point money", () => {
     const result = calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } }, { orderId:"o", externalFillId:"f" });
-    expect(result).toMatchObject({ status:"PARTIALLY_FILLED", fill:{ quantity:50, price:"10.2102", fee:"0.5105" } });
+    expect(result).toMatchObject({ status:"PARTIALLY_FILLED", fill:{ quantity:50, price:"10.2200", fee:"0.5110" } });
   });
   it("rejects zero-volume bars", () => expect(calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:0 } }, { orderId:"o", externalFillId:"f" }).rejectionReason).toBe("ZERO_VOLUME"));
   it("requests cancellation before reaching a cancellation fact", () => {
@@ -24,6 +24,16 @@ describe("historical FakeBroker execution", () => {
   it("rejects invalid execution rules", () => {
     const result = calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o4", security:"600000.SH", requestedQuantity:10, participationRate:2, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.1000", volume:100 } }, { orderId:"o4", externalFillId:"f4" });
     expect(result.rejectionReason).toBe("INVALID_RULE");
+  });
+  it("uses the versioned CN_A fee schedule and fails closed outside its currency, security or effective dates", () => {
+    const base = { namespace:"n", accountId:"a", clientOrderId:"fee-v1", security:"600000.SH", requestedQuantity:29, side:"BUY" as const, currency:"CNY", participationRate:0.29, slippageBps:55, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.0000", volume:100 } };
+    const marketFeeSchedule = { scheduleId:"CN_A_CASH_EQUITY_2023_08_28" as const, commissionRatePartsPerBillion:54_100, minimumCommissionCents:5 };
+    expect(calculateHistoricalExecution({ ...base, marketFeeSchedule }, { orderId:"o-fee", externalFillId:"f-fee" }).fill).toMatchObject({ quantity:29, price:"10.0600", fee:"0.0800" });
+    expect(calculateHistoricalExecution({ ...base, currency:"USD", marketFeeSchedule }, { orderId:"o-currency", externalFillId:"f-currency" }).rejectionReason).toBe("INVALID_RULE");
+    expect(calculateHistoricalExecution({ ...base, security:"AAPL", marketFeeSchedule }, { orderId:"o-market", externalFillId:"f-market" }).rejectionReason).toBe("INVALID_RULE");
+    expect(calculateHistoricalExecution({ ...base, bar:{ ...base.bar, timestamp:"2023-08-27T01:30:00.000Z" }, marketFeeSchedule }, { orderId:"o-date", externalFillId:"f-date" }).rejectionReason).toBe("INVALID_RULE");
+    expect(calculateHistoricalExecution({ ...base, bar:{ ...base.bar, timestamp:"not-a-timestamp" }, marketFeeSchedule }, { orderId:"o-time", externalFillId:"f-time" }).rejectionReason).toBe("INVALID_RULE");
+    expect(calculateHistoricalExecution({ ...base, marketFeeSchedule:{ ...marketFeeSchedule, commissionRatePartsPerBillion:0 } }, { orderId:"o-rate", externalFillId:"f-rate" }).rejectionReason).toBe("INVALID_RULE");
   });
   it("uses a stable semantic fingerprint and distinguishes changed idempotent requests", () => {
     const command = { namespace:"n", accountId:"a", clientOrderId:"o5", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } };

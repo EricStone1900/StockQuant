@@ -1,33 +1,118 @@
-import { spawnSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
-import { postgresSecretProblems, privateFileMode } from "./postgres-secret-preflight.mjs";
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import net from "node:net";
+import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 const args = process.argv.slice(2);
-const stage = args[args.indexOf("--stage") + 1];
-const implementedStages = ['V1.1', 'V1.2', 'V1.3', 'V1.4', 'V1.5', 'V2.1', 'V2.2', 'V2.3', 'V2.4', 'V2.5', 'V3.1'];
-if (!implementedStages.includes(stage)) {
-  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3|V1.4|V1.5|V2.1|V2.2|V2.3|V2.4|V2.5|V3.1");
+const stageIndex = args.indexOf("--stage");
+const stage = stageIndex >= 0 ? args[stageIndex + 1] : undefined;
+if (stage === "V1.2") {
+  const child = spawn(process.execPath, ["scripts/test-v12-e2e-isolated.mjs"], {
+    env: { ...process.env, STOCKQUANT_V12_MANUAL_ACCEPTANCE: "1" },
+    stdio: "inherit"
+  });
+  let stopping = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.once(signal, () => {
+      stopping = true;
+      if (child.exitCode === null) child.kill(signal);
+    });
+  }
+  const result = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
+  process.exit();
+}
+if (stage === "V1.3") {
+  const child = spawn(process.execPath, ["scripts/test-v13-web-e2e-isolated.mjs"], {
+    env: { ...process.env, STOCKQUANT_V13_MANUAL_ACCEPTANCE: "1" },
+    stdio: "inherit"
+  });
+  let stopping = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.once(signal, () => {
+      stopping = true;
+      if (child.exitCode === null) child.kill(signal);
+    });
+  }
+  const result = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
+  process.exit();
+}
+if (stage === "V1.4") {
+  const child = spawn(process.execPath, ["scripts/stack-up-v14-interactive.mjs"], { stdio: "inherit" });
+  let stopping = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.once(signal, () => { stopping = true; if (child.exitCode === null) child.kill(signal); });
+  const result = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
+  process.exit();
+}
+if (stage === "V1.5") {
+  const child = spawn(process.execPath, ["scripts/stack-up-v15-interactive.mjs"], { stdio: "inherit" });
+  let stopping = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.once(signal, () => { stopping = true; if (child.exitCode === null) child.kill(signal); });
+  const result = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
+  process.exit();
+}
+if (stage !== "V1.1") {
+  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3|V1.4|V1.5");
   process.exit(2);
 }
 
-let localEnv;
+function availableLoopbackPort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      server.close((error) => error ? reject(error) : resolve(address.port));
+    });
+  });
+}
+
+const project = `sq-v11-stack-${randomBytes(10).toString("hex")}`;
+const stateDirectory = path.resolve(".codex/isolated-stacks");
+const envFile = path.join(stateDirectory, `${project}.env`);
+const stateFile = path.join(stateDirectory, `${project}.json`);
+const composeFile = "infra/compose/docker-compose.v11-integration.yml";
+const [apiPort, webPort] = await Promise.all([availableLoopbackPort(), availableLoopbackPort()]);
+const secretNames = ["PLATFORM_API", "PORTFOLIO_RISK", "TRADE_EXECUTION", "TRADE_EXECUTION_TEST", "HISTORICAL_REPLAY", "DECISION_GOVERNANCE", "QUANT_RESEARCH", "RESEARCH_AUTOMATION", "MARKET_DATA"];
+const env = [
+  `V11_HOST_PORT=${apiPort}`,
+  `V11_WEB_HOST_PORT=${webPort}`,
+  `STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD=${randomBytes(32).toString("hex")}`,
+  ...secretNames.map((name) => `STOCKQUANT_DATABASE_PASSWORD_${name}=${randomBytes(32).toString("hex")}`),
+].join("\n") + "\n";
+const compose = (composeArgs, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "--env-file", envFile, "-f", composeFile, ...composeArgs], { encoding: "utf8", stdio });
+let started = false;
 try {
-  localEnv = readFileSync(".env.local", "utf8");
-} catch {
-  console.error("PostgreSQL credentials are required in ignored .env.local; see .env.example and generate independent values with openssl rand -hex 32.");
-  process.exit(2);
+  mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
+  chmodSync(stateDirectory, 0o700);
+  writeFileSync(envFile, env, { mode: 0o600, flag: "wx" });
+  chmodSync(envFile, 0o600);
+  writeFileSync(stateFile, JSON.stringify({ project, stage, composeFile, envFile, apiPort, webPort }, null, 2) + "\n", { mode: 0o600, flag: "wx" });
+  const up = compose(["--profile", "interactive", "up", "-d", "--build"]);
+  assert.equal(up.status, 0, "isolated V1.1 stack failed to start");
+  started = true;
+  const apiUrl = `http://127.0.0.1:${apiPort}`;
+  const webUrl = `http://127.0.0.1:${webPort}/acceptance/v1/v1.1`;
+  for (const [name, url] of [["Platform API", `${apiUrl}/live`], ["containerized Web", webUrl]]) {
+    let ready = false;
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      try { if ((await fetch(url)).ok) { ready = true; break; } } catch { /* isolated stack is starting */ }
+      await delay(250);
+    }
+    assert.equal(ready, true, `${name} did not become ready at ${url}`);
+  }
+  console.log(JSON.stringify({ status: "READY", stage, isolatedProject: project, webUrl, platformApiUrl: apiUrl, identity: "first Web request establishes local acceptance-owner-1 session", brokerMode: "FAKE", environmentMode: "PAPER", liveTradingEnabled: false, stopCommand: `pnpm stack:down -- --project ${project}`, timeoutSeconds: 30 }));
+} catch (error) {
+  const projectContainers = spawnSync("docker", ["ps", "-aq", "--filter", `label=com.docker.compose.project=${project}`], { encoding: "utf8" });
+  if (started || projectContainers.stdout?.trim()) compose(["--profile", "interactive", "down", "--volumes", "--remove-orphans"]);
+  rmSync(envFile, { force: true });
+  rmSync(stateFile, { force: true });
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 }
-const insecureMode = !privateFileMode(statSync(".env.local").mode);
-const secretProblems = postgresSecretProblems(localEnv);
-if (insecureMode || secretProblems.length > 0) {
-  if (insecureMode) console.error(".env.local permissions are too broad; run chmod 600 .env.local.");
-  if (secretProblems.length > 0) console.error(`Missing or invalid independent PostgreSQL credentials: ${secretProblems.join(", ")}. Use distinct 64-character lowercase hex values; secret values are not displayed.`);
-  process.exit(2);
-}
-
-const services = stage === 'V1.1'
-  ? ["postgres", "portfolio-risk-service", "platform-api-service"]
-  : ["postgres", "portfolio-risk-service", "platform-api-service", "market-data-service", "qlib-worker", "quant-research-service", ...(stage === "V3.1" ? ["research-automation-service"] : [])];
-const profileArgs = stage.startsWith("V2.") || stage === "V3.1" ? ["--profile", "web"] : [];
-const result = spawnSync("docker", ["compose", "--env-file", ".env.local", "-f", "infra/compose/docker-compose.yml", ...profileArgs, "up", "--build", "-d", ...services, ...(stage.startsWith("V2.") || stage === "V3.1" ? ["web"] : [])], { stdio: "inherit" });
-process.exit(result.status ?? 1);

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-manual-paper-execution-command.schema.json",
+  "title": "V13ManualPaperExecutionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposalId", "ownerId", "testRunId", "accountId", "namespace", "clientOrderId", "now"],
+  "properties": {
+    "proposalId": { "type": "string", "format": "uuid" },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "now": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "v1.4-cn-a-fee-parity-audit-v1",
+  "date": "2026-10-07",
+  "status": "PASS",
+  "scope": "Same fixed CN_A fee schedule and frozen daily bars compared between Quant backtest report and FakeBroker persisted PostgreSQL fills, including BUY/SELL, partial BUY, zero-volume rejection, and 55 bps adverse slippage.",
+  "feeSchedule": {
+    "scheduleId": "CN_A_CASH_EQUITY_2023_08_28",
+    "commissionRatePartsPerBillion": 54100,
+    "minimumCommissionCents": 5,
+    "transferFeePartsPerBillion": 100000,
+    "sellStampDutyPartsPerBillion": 500000,
+    "rounding": "each percentage component rounds upward to whole CNY fen"
+  },
+  "unitChecks": {
+    "quantParity": "6/6 PASS",
+    "fakeBrokerHistoricalExecution": "11/11 PASS",
+    "tradeTypecheck": "PASS"
+  },
+  "isolatedPostgres": {
+    "status": "PASS",
+    "database": "isolated trade_execution_test",
+    "compared": [
+      "BUY",
+      "SELL",
+      "partial BUY",
+      "zero-volume rejection"
+    ],
+    "checkedFields": [
+      "status",
+      "quantity",
+      "price",
+      "fee",
+      "session",
+      "rejection reason",
+      "Fill outbox"
+    ],
+    "persistedCounts": {
+      "orders": 4,
+      "fills": 3,
+      "fillOutbox": 3
+    },
+    "activeServices": "NOT_CONNECTED",
+    "cleanup": "disposable container and network removed and verified",
+    "logPath": "evidence/audits/2026-10-07-v14-cn-a-fee-parity.log",
+    "logSha256": "5c33fd6e175e831c073e32a1fabeaa725c889a245d27e0719af83f8577365a50"
+  },
+  "completeV14CodeSuite": {
+    "command": "pnpm verify:stage -- --stage V1.4 --suite code",
+    "exitCode": 0,
+    "runAfterFinalFeeValidationChange": true
+  },
+  "boundaries": [
+    "synthetic CN_A exact-cent Fixture only",
+    "does not establish complete exchange rules, full historical rates, real brokerage fees, user acceptance, or Ubuntu acceptance"
+  ],
+  "sourceSha256": {
+    "services/trade-execution-service/src/domain/historical-execution.ts": "c1db56ac59d5d7f28dedeceade9d28f75426d1cd458d71315aae512bf7673fce",
+    "services/trade-execution-service/tests/unit/historical-execution.spec.ts": "25df038c99f44930023e144ce1662f418e8a428925e96144eb5d521b7e430917",
+    "services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs": "c49f15bf38f701e4b8be46cc5247c9986593d9bb27bd4b82a114e6e8674619b1",
+    "services/quant-research-service/tests/unit/v14-trade-execution-parity.spec.ts": "ac2e659bbddae955e567dc7dc6e86a976818e5ee0e84ab52151ac9caf1e23cbb"
+  }
+}

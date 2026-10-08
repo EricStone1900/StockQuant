@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-execution-authorization-command.schema.json",
+  "title": "V13ExecutionAuthorizationCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposalVersion", "contentHash", "ownerId", "testRunId", "accountId", "clientOrderId", "commandHash", "now"],
+  "properties": {
+    "proposalVersion": { "type": "integer", "minimum": 1 },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "commandHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock instant." }
+  }
+}

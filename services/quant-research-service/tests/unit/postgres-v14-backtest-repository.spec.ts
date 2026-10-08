@@ -12,7 +12,7 @@ describe("Quant V1.4 durable BacktestRun and Manifest", () => {
   it("writes immutable result and hash-bound manifest in one transaction", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
     const client = { query, release: vi.fn() };
-    const repo = new PostgresV14BacktestRepository({ connect: async () => client } as never);
+    const repo = new PostgresV14BacktestRepository({ query: vi.fn().mockResolvedValue({ rowCount: 0, rows: [] }), connect: async () => client } as never);
     const hashes = await repo.save("00000000-0000-4000-8000-000000000001", run);
     expect(hashes.resultSha256).toMatch(/^[a-f0-9]{64}$/u);
     expect(hashes.manifestSha256).toMatch(/^[a-f0-9]{64}$/u);
@@ -28,9 +28,21 @@ describe("Quant V1.4 durable BacktestRun and Manifest", () => {
       return { rows: [] };
     });
     const client = { query, release: vi.fn() };
-    const repo = new PostgresV14BacktestRepository({ connect: async () => client } as never);
+    const repo = new PostgresV14BacktestRepository({ query: vi.fn().mockResolvedValue({ rowCount: 0, rows: [] }), connect: async () => client } as never);
     await expect(repo.save("00000000-0000-4000-8000-000000000001", run)).rejects.toThrow("write failed");
     expect(query.mock.calls.at(-1)?.[0]).toBe("ROLLBACK");
     expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it("returns the exact durable hashes on an identical stable-ID retry without opening a write transaction", async () => {
+    const lookup = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const client = { query, release: vi.fn() };
+    const repo = new PostgresV14BacktestRepository({ query: lookup, connect: async () => client } as never);
+    const original = await repo.save("00000000-0000-4000-8000-000000000001", run);
+    lookup.mockResolvedValue({ rowCount: 1, rows: [{ result_payload: run, result_sha256: original.resultSha256, manifest_sha256: original.manifestSha256 }] });
+    await expect(repo.save("00000000-0000-4000-8000-000000000001", run)).resolves.toEqual(original);
+    expect(query.mock.calls.map(([sql]) => String(sql).trim().split(/\s+/u)[0])).toEqual(["BEGIN", "INSERT", "INSERT", "COMMIT"]);
+    expect(lookup).toHaveBeenCalledTimes(2);
   });
 });

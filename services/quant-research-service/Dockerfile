@@ -13,6 +13,8 @@ COPY services/quant-research-service services/quant-research-service
 COPY fixtures/v1/v1.4/backtest_daily.csv fixtures/v1/v1.4/backtest_daily.csv
 COPY fixtures/v1/v1.4/backtest_historical_fees.csv fixtures/v1/v1.4/backtest_historical_fees.csv
 COPY fixtures/v1/v1.4/market_restrictions_synthetic.csv fixtures/v1/v1.4/market_restrictions_synthetic.csv
+COPY fixtures/v1/v1.4/corporate_action_daily.csv fixtures/v1/v1.4/corporate_action_daily.csv
+COPY fixtures/v1/v1.4/corporate_actions.csv fixtures/v1/v1.4/corporate_actions.csv
 RUN pnpm --filter @stockquant/quant-research-service build
 ENV QLIB_SOURCE_COMMIT=UNSET
 USER node

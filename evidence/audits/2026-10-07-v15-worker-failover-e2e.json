@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "PRIMARY_PLATFORM_WORKER_TERMINATED_SECONDARY_TAKEOVER",
+  "isolatedProject": "sq-v15-e2e-95ef4bc70579278c2622",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "ca6a6f8a-fd59-4a43-a362-12bf51b0f1be"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "a008da6b-bd9a-40b0-b0ad-af889dfbf50f"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:85721) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=3d75cc82-082d-4987-9c98-6094ae57df81 elapsedMs=137\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=14161\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=14178\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=14309\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=3d75cc82-082d-4987-9c98-6094ae57df81\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=ca6a6f8a-fd59-4a43-a362-12bf51b0f1be elapsedMs=142\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=144\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=269\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=ca6a6f8a-fd59-4a43-a362-12bf51b0f1be\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=a008da6b-bd9a-40b0-b0ad-af889dfbf50f elapsedMs=143\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=146\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=283\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (15.0s)\n\n  1 passed (15.6s)\n",
+  "faultSequence": [
+    {
+      "event": "failover_worker_and_independent_durable_consumer_ready",
+      "worker": "sq-v15-e2e-95ef4bc70579278c2622-platform-api-worker-2",
+      "durable": "stockquant-v15-temporal-dispatch-worker-2",
+      "preLookupDelayMs": 5000,
+      "primaryPreLookupDelayMs": 30000,
+      "at": "2026-10-07T13:03:03.984Z"
+    },
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81",
+      "at": "2026-10-07T13:03:05.482Z"
+    },
+    {
+      "event": "primary_worker_killed_after_both_durables_received_before_secondary_lookup",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81",
+      "primaryContainer": "sq-v15-e2e-95ef4bc70579278c2622-platform-api-service-1",
+      "primaryReceivedMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_DISPATCH_RECEIVED eventId=3d75cc82-082d-4987-9c98-6094ae57df81 seq=1",
+      "secondaryReceivedMarker": "STOCKQUANT_V15_TEST_DISPATCH_RECEIVED eventId=3d75cc82-082d-4987-9c98-6094ae57df81 seq=1",
+      "at": "2026-10-07T13:03:05.809Z"
+    },
+    {
+      "event": "secondary_worker_started_same_run_activity_and_primary_api_recovered",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81",
+      "secondaryActivity": "STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=3d75cc82-082d-4987-9c98-6094ae57df81 market=CN_A",
+      "apiReady": true,
+      "at": "2026-10-07T13:03:12.580Z"
+    },
+    {
+      "event": "normal_run_completed_after_worker_failover",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81",
+      "at": "2026-10-07T13:03:19.504Z"
+    },
+    {
+      "event": "normal_run_completed_after_worker_failover",
+      "testRunId": "3d75cc82-082d-4987-9c98-6094ae57df81",
+      "sequence": 1,
+      "secondaryWorker": "sq-v15-e2e-95ef4bc70579278c2622-platform-api-worker-2",
+      "secondaryAck": {
+        "sequence": 1,
+        "ackFloor": 1,
+        "delivered": 1
+      },
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T13:03:20.406Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "743d828ee481ba6520db25635b953bf7cad7c8bc2062fb0436f5ac0566ca96ad",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "a650300b1ff33843f1f219591e5f6136af9cac972cc31f105dd1b2dd820019da",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "560b3d4e3a2c1c3143167b2cc1b1dd33da71a821cea867c4dcf968fbe0076750",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/bootstrap/main.ts": "7e6abdeeb10ab6ee06962a1425b8f7a0448cb4beb93b2793fa2839e5104734bf",
+    "services/quant-research-service/src/bootstrap/main.ts": "651ba3ee467ead9288387fd8633474486c46010109cacd90e4fc503f742695d4",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "36133fcfc3d412ff5e792191c7199a6bbeeaea5bebd103342e261c510a8fe6f3"
+  },
+  "failureReason": null
+}

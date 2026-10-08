@@ -1,0 +1,568 @@
+
+> stockquant@0.0.0 test:e2e /Users/huangbosong/Documents/ChatGPT/StockQuant
+> node scripts/test-e2e-stage.mjs -- --stage V1.5
+
+Compose can now delegate builds to bake for better performance.
+ To do so, set COMPOSE_BAKE=true.
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [portfolio-risk-service internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.22kB done
+#1 DONE 0.0s
+
+#2 [quant-research-service internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.45kB done
+#2 DONE 0.0s
+
+#3 [quant-research-service internal] load metadata for docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#3 DONE 0.0s
+
+#4 [portfolio-risk-service internal] load .dockerignore
+#4 transferring context: 301B done
+#4 DONE 0.0s
+
+#5 [quant-research-service internal] load .dockerignore
+#5 transferring context: 301B done
+#5 DONE 0.0s
+
+#6 [quant-research-service build  1/10] FROM docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#6 DONE 0.0s
+
+#7 [portfolio-risk-service internal] load build context
+#7 transferring context: 227.64kB 0.0s done
+#7 DONE 0.0s
+
+#8 [quant-research-service internal] load build context
+#8 transferring context: 854.07kB 0.0s done
+#8 DONE 0.0s
+
+#9 [portfolio-risk-service build  8/10] COPY tsconfig.base.json ./
+#9 CACHED
+
+#10 [portfolio-risk-service stage-1 3/5] COPY --from=build /workspace/node_modules ./node_modules
+#10 CACHED
+
+#11 [portfolio-risk-service build  5/10] COPY services/platform-api-service/package.json services/platform-api-service/package.json
+#11 CACHED
+
+#12 [portfolio-risk-service build  3/10] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+#12 CACHED
+
+#13 [portfolio-risk-service build  6/10] COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
+#13 CACHED
+
+#14 [portfolio-risk-service build  9/10] COPY services/portfolio-risk-service services/portfolio-risk-service
+#14 CACHED
+
+#15 [portfolio-risk-service build  2/10] WORKDIR /workspace
+#15 CACHED
+
+#16 [portfolio-risk-service build 10/10] RUN pnpm --filter @stockquant/portfolio-risk-service build
+#16 CACHED
+
+#17 [portfolio-risk-service build  7/10] RUN corepack enable && pnpm install --frozen-lockfile
+#17 CACHED
+
+#18 [portfolio-risk-service stage-1 4/5] COPY --from=build /workspace/services/portfolio-risk-service/node_modules ./services/portfolio-risk-service/node_modules
+#18 CACHED
+
+#19 [portfolio-risk-service build  4/10] COPY apps/web/package.json apps/web/package.json
+#19 CACHED
+
+#20 [portfolio-risk-service stage-1 5/5] COPY --from=build /workspace/services/portfolio-risk-service/dist ./services/portfolio-risk-service/dist
+#20 CACHED
+
+#21 [quant-research-service 11/18] RUN pnpm install --frozen-lockfile
+#21 CACHED
+
+#22 [quant-research-service  6/18] COPY services/platform-api-service/package.json services/platform-api-service/package.json
+#22 CACHED
+
+#23 [quant-research-service  7/18] COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
+#23 CACHED
+
+#24 [quant-research-service 12/18] COPY services/quant-research-service services/quant-research-service
+#24 CACHED
+
+#25 [quant-research-service 14/18] COPY fixtures/v1/v1.4/backtest_historical_fees.csv fixtures/v1/v1.4/backtest_historical_fees.csv
+#25 CACHED
+
+#26 [quant-research-service 15/18] COPY fixtures/v1/v1.4/market_restrictions_synthetic.csv fixtures/v1/v1.4/market_restrictions_synthetic.csv
+#26 CACHED
+
+#27 [quant-research-service 17/18] COPY fixtures/v1/v1.4/corporate_actions.csv fixtures/v1/v1.4/corporate_actions.csv
+#27 CACHED
+
+#28 [quant-research-service 10/18] COPY tsconfig.base.json ./
+#28 CACHED
+
+#29 [quant-research-service 13/18] COPY fixtures/v1/v1.4/backtest_daily.csv fixtures/v1/v1.4/backtest_daily.csv
+#29 CACHED
+
+#30 [quant-research-service  8/18] COPY services/market-data-service/package.json services/market-data-service/package.json
+#30 CACHED
+
+#31 [quant-research-service  4/18] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+#31 CACHED
+
+#32 [quant-research-service 16/18] COPY fixtures/v1/v1.4/corporate_action_daily.csv fixtures/v1/v1.4/corporate_action_daily.csv
+#32 CACHED
+
+#33 [quant-research-service  9/18] COPY services/quant-research-service/package.json services/quant-research-service/package.json
+#33 CACHED
+
+#34 [quant-research-service  5/18] COPY apps/web/package.json apps/web/package.json
+#34 CACHED
+
+#35 [quant-research-service  3/18] RUN corepack enable
+#35 CACHED
+
+#36 [quant-research-service 18/18] RUN pnpm --filter @stockquant/quant-research-service build
+#36 CACHED
+
+#15 [quant-research-service build  2/10] WORKDIR /workspace
+#15 CACHED
+
+#37 [portfolio-risk-service] exporting to image
+#37 exporting layers done
+#37 writing image sha256:2839cd1d258db9d856213459b45f767dbbdca10e6a9f8dc88090c36567f6ab30 done
+#37 naming to docker.io/library/sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service done
+#37 DONE 0.0s
+
+#38 [quant-research-service] exporting to image
+#38 exporting layers done
+#38 writing image sha256:c2898f9556b7a9639f864e723d95ecbabb9eebfc20d0bb17c344e49e50244c02 done
+#38 naming to docker.io/library/sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service done
+#38 DONE 0.0s
+
+#39 [portfolio-risk-service] resolving provenance for metadata file
+#39 DONE 0.0s
+
+#40 [quant-research-service] resolving provenance for metadata file
+#40 DONE 0.0s
+
+#41 [trade-execution-service internal] load build definition from Dockerfile
+#41 transferring dockerfile: 1.36kB done
+#41 DONE 0.0s
+
+#3 [trade-execution-service internal] load metadata for docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#3 DONE 0.0s
+
+#42 [trade-execution-service internal] load .dockerignore
+#42 transferring context: 301B done
+#42 DONE 0.0s
+
+#6 [trade-execution-service build 1/8] FROM docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#6 DONE 0.0s
+
+#43 [trade-execution-service internal] load build context
+#43 transferring context: 637.77kB 0.0s done
+#43 DONE 0.0s
+
+#44 [trade-execution-service build 7/8] COPY services/trade-execution-service services/trade-execution-service
+#44 CACHED
+
+#45 [trade-execution-service build 4/8] COPY services/trade-execution-service/package.json services/trade-execution-service/package.json
+#45 CACHED
+
+#46 [trade-execution-service build 5/8] RUN corepack enable && pnpm install --frozen-lockfile
+#46 CACHED
+
+#47 [trade-execution-service stage-1 3/7] COPY --from=build /workspace/node_modules ./node_modules
+#47 CACHED
+
+#48 [trade-execution-service stage-1 4/7] COPY --from=build /workspace/services/trade-execution-service/node_modules ./services/trade-execution-service/node_modules
+#48 CACHED
+
+#49 [trade-execution-service stage-1 5/7] COPY --from=build /workspace/services/trade-execution-service/dist ./services/trade-execution-service/dist
+#49 CACHED
+
+#50 [trade-execution-service build 3/8] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+#50 CACHED
+
+#15 [trade-execution-service build 2/8] WORKDIR /workspace
+#15 CACHED
+
+#51 [trade-execution-service build 6/8] COPY tsconfig.base.json ./
+#51 CACHED
+
+#52 [trade-execution-service stage-1 6/7] COPY packages/contracts/fixtures/v24-paper-execution-policy-v1.json ./packages/contracts/fixtures/v24-paper-execution-policy-v1.json
+#52 CACHED
+
+#53 [trade-execution-service build 8/8] RUN pnpm --filter @stockquant/trade-execution-service build
+#53 CACHED
+
+#54 [trade-execution-service stage-1 7/7] COPY packages/contracts/fixtures/v24-paper-mandate-preparation-v1.json ./packages/contracts/fixtures/v24-paper-mandate-preparation-v1.json
+#54 CACHED
+
+#55 [trade-execution-service] exporting to image
+#55 exporting layers done
+#55 writing image sha256:8f0c8b2d11dac442577b50749d8fd9e05734f19e361aa465d37d1621dcb142ab 0.0s done
+#55 naming to docker.io/library/sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service done
+#55 DONE 0.0s
+
+#56 [trade-execution-service] resolving provenance for metadata file
+#56 DONE 0.0s
+
+#57 [platform-api-service internal] load build definition from Dockerfile
+#57 transferring dockerfile: 1.97kB done
+#57 DONE 0.0s
+
+#58 [platform-api-service] resolve image config for docker-image://docker.io/docker/dockerfile:1.7
+#58 DONE 0.4s
+
+#59 [platform-api-service] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+#59 CACHED
+
+#60 [platform-api-service internal] load metadata for docker.io/library/node:24.1.0-slim@sha256:5ae787590295f944e7dc200bf54861bac09bf21b5fdb4c9b97aee7781b6d95a2
+#60 DONE 0.0s
+
+#61 [platform-api-service internal] load .dockerignore
+#61 transferring context: 301B done
+#61 DONE 0.0s
+
+#62 [platform-api-service stage-1 1/8] FROM docker.io/library/node:24.1.0-slim@sha256:5ae787590295f944e7dc200bf54861bac09bf21b5fdb4c9b97aee7781b6d95a2
+#62 DONE 0.0s
+
+#63 [platform-api-service internal] load build context
+#63 transferring context: 2.26MB 0.0s done
+#63 DONE 0.1s
+
+#64 [platform-api-service build  8/15] COPY services/platform-api-service/package.json services/platform-api-service/package.json
+#64 CACHED
+
+#65 [platform-api-service build 13/15] COPY fixtures fixtures
+#65 CACHED
+
+#66 [platform-api-service build 12/15] COPY tsconfig.base.json ./
+#66 CACHED
+
+#67 [platform-api-service stage-1 5/8] COPY --from=build /workspace/services/platform-api-service/dist ./services/platform-api-service/dist
+#67 CACHED
+
+#68 [platform-api-service stage-1 7/8] COPY --from=build /workspace/fixtures ./fixtures
+#68 CACHED
+
+#69 [platform-api-service stage-1 3/8] COPY --from=build /workspace/node_modules ./node_modules
+#69 CACHED
+
+#70 [platform-api-service build 14/15] COPY services/platform-api-service services/platform-api-service
+#70 CACHED
+
+#71 [platform-api-service build  4/15] COPY packages/artifact-content-store/package.json packages/artifact-content-store/package.json
+#71 CACHED
+
+#72 [platform-api-service build 15/15] RUN pnpm --filter @stockquant/platform-api-service build
+#72 CACHED
+
+#73 [platform-api-service build 10/15] COPY services/research-automation-service/package.json services/research-automation-service/package.json
+#73 CACHED
+
+#74 [platform-api-service stage-1 2/8] WORKDIR /workspace
+#74 CACHED
+
+#75 [platform-api-service stage-1 6/8] COPY --from=build /workspace/packages/artifact-content-store ./packages/artifact-content-store
+#75 CACHED
+
+#76 [platform-api-service stage-1 4/8] COPY --from=build /workspace/services/platform-api-service/node_modules ./services/platform-api-service/node_modules
+#76 CACHED
+
+#77 [platform-api-service build  3/15] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+#77 CACHED
+
+#78 [platform-api-service build  9/15] COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
+#78 CACHED
+
+#79 [platform-api-service build  5/15] COPY packages/artifact-content-store/index.mjs packages/artifact-content-store/index.mjs
+#79 CACHED
+
+#80 [platform-api-service build  6/15] COPY packages/artifact-content-store/index.d.ts packages/artifact-content-store/index.d.ts
+#80 CACHED
+
+#81 [platform-api-service build  7/15] COPY apps/web/package.json apps/web/package.json
+#81 CACHED
+
+#82 [platform-api-service build 11/15] RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked     corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile
+#82 CACHED
+
+#83 [platform-api-service stage-1 8/8] RUN mkdir -p /workspace/artifact-content && chown node:node /workspace/artifact-content
+#83 CACHED
+
+#84 [platform-api-service] exporting to image
+#84 exporting layers done
+#84 writing image sha256:3befa92425f3fdd843aa2cf1421d48eb995c476a2cbf2d93dfe3ea1284501448 done
+#84 naming to docker.io/library/sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service done
+#84 DONE 0.0s
+
+#85 [platform-api-service] resolving provenance for metadata file
+#85 DONE 0.0s
+
+#86 [web internal] load build definition from Dockerfile
+#86 transferring dockerfile: 1.74kB done
+#86 DONE 0.0s
+
+#58 [web] resolve image config for docker-image://docker.io/docker/dockerfile:1.7
+#58 DONE 0.6s
+
+#59 [web] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+#59 CACHED
+
+#3 [web internal] load metadata for docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#3 DONE 0.0s
+
+#87 [web internal] load .dockerignore
+#87 transferring context: 301B done
+#87 DONE 0.0s
+
+#6 [web stage-1 1/8] FROM docker.io/library/node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
+#6 DONE 0.0s
+
+#88 [web internal] load build context
+#88 transferring context: 865.55kB 0.0s done
+#88 DONE 0.0s
+
+#89 [web build  5/12] COPY services/platform-api-service/package.json services/platform-api-service/package.json
+#89 CACHED
+
+#90 [web build  8/12] COPY services/quant-research-service/package.json services/quant-research-service/package.json
+#90 CACHED
+
+#91 [web build  4/12] COPY apps/web/package.json apps/web/package.json
+#91 CACHED
+
+#92 [web build  3/12] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .node-version ./
+#92 CACHED
+
+#93 [web build  6/12] COPY services/portfolio-risk-service/package.json services/portfolio-risk-service/package.json
+#93 CACHED
+
+#15 [web stage-1 2/8] WORKDIR /workspace
+#15 CACHED
+
+#94 [web build  7/12] COPY services/market-data-service/package.json services/market-data-service/package.json
+#94 CACHED
+
+#95 [web build  9/12] COPY packages/contracts/generated packages/contracts/generated
+#95 CACHED
+
+#96 [web build 10/12] COPY apps/web apps/web
+#96 DONE 0.0s
+
+#97 [web build 11/12] RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked     corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile --prod=false
+#97 0.171 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-10.34.5.tgz
+#97 5.564 Scope: all 6 workspace projects
+#97 5.595 Lockfile is up to date, resolution step is skipped
+#97 5.622 Progress: resolved 1, reused 0, downloaded 0, added 0
+#97 5.704 Packages: +309
+#97 5.704 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#97 6.625 Progress: resolved 309, reused 309, downloaded 0, added 294
+#97 6.859 Progress: resolved 309, reused 309, downloaded 0, added 309, done
+#97 7.237 
+#97 7.237 devDependencies:
+#97 7.237 + ajv 8.20.0
+#97 7.237 + ajv-formats 3.0.1
+#97 7.237 
+#97 7.251 ╭ Warning ─────────────────────────────────────────────────────────────────────╮
+#97 7.251 │                                                                              │
+#97 7.251 │   Ignored build scripts: @swc/core@1.16.2, protobufjs@7.6.6.                 │
+#97 7.251 │   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+#97 7.251 │   to run scripts.                                                            │
+#97 7.251 │                                                                              │
+#97 7.251 ╰──────────────────────────────────────────────────────────────────────────────╯
+#97 7.263 Done in 1.9s using pnpm v10.34.5
+#97 8.105 
+#97 8.105    ╭──────────────────────────────────────────────╮
+#97 8.105    │                                              │
+#97 8.105    │     Update available! 10.34.5 → 12.9.1.      │
+#97 8.105    │     Changelog: https://pnpm.io/v/12.9.1      │
+#97 8.105    │   To update, run: corepack use pnpm@12.9.1   │
+#97 8.105    │                                              │
+#97 8.105    ╰──────────────────────────────────────────────╯
+#97 8.105 
+#97 DONE 8.2s
+
+#98 [web build 12/12] RUN pnpm --filter @stockquant/web build
+#98 0.363 
+#98 0.363 > @stockquant/web@0.1.0 build /workspace/apps/web
+#98 0.363 > tsc -b && vite build
+#98 0.363 
+#98 0.837 vite v8.2.2 building client environment for production...
+#98 0.846 transforming...
+#98 0.919 ✓ 15 modules transformed.
+#98 0.950 rendering chunks...
+#98 0.991 computing gzip size...
+#98 0.995 dist/index.html                   0.41 kB │ gzip:  0.30 kB
+#98 0.995 dist/assets/index-B3w7pmZk.css    1.37 kB │ gzip:  0.61 kB
+#98 0.995 dist/assets/index-DDYLqBUl.js   321.32 kB │ gzip: 90.70 kB
+#98 0.995 
+#98 0.995 ✓ built in 157ms
+#98 DONE 1.0s
+
+#15 [web stage-1 2/8] WORKDIR /workspace
+#15 CACHED
+
+#99 [web stage-1 3/8] COPY --from=build /workspace/node_modules ./node_modules
+#99 DONE 0.9s
+
+#100 [web stage-1 4/8] COPY --from=build /workspace/apps/web/package.json ./apps/web/package.json
+#100 DONE 0.0s
+
+#101 [web stage-1 5/8] COPY --from=build /workspace/apps/web/node_modules ./apps/web/node_modules
+#101 DONE 0.0s
+
+#102 [web stage-1 6/8] COPY --from=build /workspace/apps/web/dist ./apps/web/dist
+#102 DONE 0.0s
+
+#103 [web stage-1 7/8] COPY --from=build /workspace/apps/web/vite.config.ts ./apps/web/vite.config.ts
+#103 DONE 0.0s
+
+#104 [web stage-1 8/8] RUN mkdir -p /workspace/apps/web/node_modules/.vite-temp && chown node:node /workspace/apps/web/node_modules/.vite-temp
+#104 DONE 0.1s
+
+#105 [web] exporting to image
+#105 exporting layers
+#105 exporting layers 1.1s done
+#105 writing image sha256:28eb1aeba66516228eb4d6d560a9ee4234821ccf83804a472fb6c7f1d474b6eb
+#105 writing image sha256:28eb1aeba66516228eb4d6d560a9ee4234821ccf83804a472fb6c7f1d474b6eb done
+#105 naming to docker.io/library/sq-v15-e2e-c6da10b7e980bc5a5834-web done
+#105 DONE 1.1s
+
+#106 [web] resolving provenance for metadata file
+#106 DONE 0.1s
+ platform-api-service  Built
+ portfolio-risk-service  Built
+ quant-research-service  Built
+ trade-execution-service  Built
+ web  Built
+ Network sq-v15-e2e-c6da10b7e980bc5a5834_integration  Creating
+ Network sq-v15-e2e-c6da10b7e980bc5a5834_integration  Created
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_v14-integration-postgres"  Creating
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_v14-integration-postgres"  Created
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_nats-jetstream"  Creating
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_nats-jetstream"  Created
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_temporal-dev-state"  Creating
+ Volume "sq-v15-e2e-c6da10b7e980bc5a5834_temporal-dev-state"  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Creating
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Created
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Started
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Waiting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Healthy
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Starting
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Started
+
+Running 1 test using 1 worker
+
+(node:12635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[V1.5 E2E] scenario=normal begin
+[V1.5 E2E] scenario=normal selector visible
+[V1.5 E2E] scenario=normal priorRun=none
+[V1.5 E2E] scenario=normal selected
+[V1.5 E2E] scenario=normal submit dispatched
+[V1.5 E2E] scenario=normal created testRunId=9e08dadd-c56f-422b-b7e6-aa3250b2d065 elapsedMs=152
+[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=556
+[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=1368
+[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=1503
+[V1.5 E2E] scenario=rejection begin
+[V1.5 E2E] scenario=rejection selector visible
+[V1.5 E2E] scenario=rejection priorRun=9e08dadd-c56f-422b-b7e6-aa3250b2d065
+[V1.5 E2E] scenario=rejection selected
+[V1.5 E2E] scenario=rejection submit dispatched
+[V1.5 E2E] scenario=rejection created testRunId=b0e2f24e-1977-42c1-8d15-3fc381aa2eed elapsedMs=153
+[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=156
+[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=284
+[V1.5 E2E] scenario=recovery begin
+[V1.5 E2E] scenario=recovery selector visible
+[V1.5 E2E] scenario=recovery priorRun=b0e2f24e-1977-42c1-8d15-3fc381aa2eed
+[V1.5 E2E] scenario=recovery selected
+[V1.5 E2E] scenario=recovery submit dispatched
+[V1.5 E2E] scenario=recovery created testRunId=37619e69-5c30-4571-8ba9-8ea4f8c5ead1 elapsedMs=153
+[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=155
+[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=277
+  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (2.4s)
+
+  1 passed (3.1s)
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-web-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-platform-api-service-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-nats-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-temporal-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-quant-research-service-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-trade-execution-service-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-portfolio-risk-service-1  Removed
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Stopping
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Stopped
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Removing
+ Container sq-v15-e2e-c6da10b7e980bc5a5834-postgres-1  Removed
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_temporal-dev-state  Removing
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_v14-integration-postgres  Removing
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_nats-jetstream  Removing
+ Network sq-v15-e2e-c6da10b7e980bc5a5834_integration  Removing
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_temporal-dev-state  Removed
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_nats-jetstream  Removed
+ Volume sq-v15-e2e-c6da10b7e980bc5a5834_v14-integration-postgres  Removed
+ Network sq-v15-e2e-c6da10b7e980bc5a5834_integration  Removed
+{"status":"PASS","isolatedProject":"sq-v15-e2e-c6da10b7e980bc5a5834","stage":"V1.5","e2e":"WAITING/NOT_RUN verified for normal, rejection, recovery","externalSourceCalls":0,"realBrokerCalls":0,"exactProjectResourcesRemoved":true}

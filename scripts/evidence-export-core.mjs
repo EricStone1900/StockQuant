@@ -34,6 +34,12 @@ export function parseEvidenceExportArgs(args) {
 
 export function evidenceRequest({ stage, runId, promotionRequestId, baseUrl, sessionCookie }) {
   if (typeof sessionCookie !== "string" || !/(?:^|;\s*)sq_session=[^;\s]+/u.test(sessionCookie) || /[\r\n]/u.test(sessionCookie)) throw new Error("STOCKQUANT_EVIDENCE_SESSION_COOKIE must contain the current local session cookie");
+  const v1RunRoutes = { "V1.2": "/api/v1/acceptance/v1/v1.2/runs", "V1.4": "/api/v1/acceptance/v1/v1.4/runs" };
+  if (v1RunRoutes[stage]) return {
+    url: `${baseUrl}${v1RunRoutes[stage]}/${encodeURIComponent(runId)}`,
+    headers: { cookie: sessionCookie },
+    outputDirectory: `evidence/local/${stage}/${runId}`,
+  };
   if (stage === "V3.2") {
     if (runId && UUID.test(runId)) return {
       url: `${baseUrl}/api/v1/acceptance/v3/v3.2/runs/${encodeURIComponent(runId)}`,
@@ -226,6 +232,59 @@ export function qlibArtifactPath(bundle, baseUrl) {
     || common.kind !== "MODEL_PREDICTIONS" || common.namespace !== `research/${bundle.testRunId}/qlib-fixture` || common.mediaType !== ref.mediaType
     || common.sha256 !== ref.sha256 || common.status !== "PUBLISHED" || common.sourceRef !== `platform-api-service:v2.3:${bundle.testRunId}`) throw new Error("V2.3 Qlib reference is not bound to its canonical TestRun ArtifactRef");
   return `${baseUrl}${expected}`;
+}
+
+export function v12QlibArtifactPath(bundle, baseUrl) {
+  const ref = bundle?.evidence?.qlibFit?.artifactRef;
+  if (bundle?.stageId !== "V1.2" || !UUID.test(bundle?.testRunId ?? "") || !ref
+    || ref.schemaVersion !== "artifact-ref.v1" || ref.testRunId !== bundle.testRunId || ref.ownerId !== bundle.ownerId
+    || ref.kind !== "MODEL_PREDICTIONS" || ref.namespace !== `research/${bundle.testRunId}/qlib-fixture`
+    || ref.mediaType !== "application/vnd.stockquant.qlib-fixture-model+json" || ref.status !== "PUBLISHED"
+    || !/^[a-f0-9]{64}$/u.test(ref.sha256 ?? "") || ref.artifactId !== ref.sha256
+    || ref.sourceRef !== `platform-api-service:v1.2:${bundle.testRunId}`) throw new Error("V1.2 Qlib ArtifactRef is not bound to its TestRun and owner");
+  const expected = `/api/v1/acceptance/v1/v1.2/runs/${bundle.testRunId}/artifacts/${ref.artifactId}`;
+  if (bundle.evidence.qlibFit.artifactUrl !== expected) throw new Error("V1.2 Qlib Artifact URL does not match its TestRun and content address");
+  return `${baseUrl}${expected}`;
+}
+
+export function decodeV12QlibArtifact(bundle, responseBody) {
+  const url = v12QlibArtifactPath(bundle, "");
+  const ref = bundle.evidence.qlibFit.artifactRef;
+  const returned = responseBody?.artifactRef;
+  const payload = responseBody?.payload;
+  if (url !== `/api/v1/acceptance/v1/v1.2/runs/${bundle.testRunId}/artifacts/${ref.artifactId}` || !returned
+    || ["schemaVersion", "artifactId", "testRunId", "ownerId", "kind", "namespace", "mediaType", "sha256", "status", "sourceRef"].some((key) => returned[key] !== ref[key])
+    || !payload || typeof payload !== "object") throw new Error("V1.2 Artifact response identity does not match its TestRun ArtifactRef");
+  const canonical = (value) => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}` : JSON.stringify(value);
+  const bytes = Buffer.from(canonical(payload));
+  if (createHash("sha256").update(bytes).digest("hex") !== ref.sha256) throw new Error("V1.2 Artifact payload does not match its immutable content hash");
+  return bytes;
+}
+
+export function v14ReportArtifactPath(bundle, baseUrl) {
+  if (bundle?.stageId !== "V1.4" || !UUID.test(bundle?.testRunId ?? "") || !Array.isArray(bundle.artifactRefs)) throw new Error("V1.4 report refs require a bound TestRun");
+  const refs = bundle.artifactRefs.filter((ref) => ref?.kind === "BACKTEST_REPORT");
+  if (refs.length === 0) return null;
+  if (refs.length !== 1) throw new Error("V1.4 TestRun must expose at most one report ArtifactRef");
+  const ref = refs[0];
+  if (bundle.status !== "COMPLETED" || ref.schemaVersion !== "artifact-ref.v1" || ref.testRunId !== bundle.testRunId
+    || ref.ownerId !== bundle.ownerId || ref.artifactId !== ref.sha256 || !/^[a-f0-9]{64}$/u.test(ref.sha256 ?? "")
+    || ref.namespace !== `research/${bundle.testRunId}/daily-backtest` || ref.status !== "PUBLISHED"
+    || ref.sourceRef !== `quant-research-service:v1.4:${bundle.testRunId}`) throw new Error("V1.4 report ArtifactRef is malformed or outside its TestRun/owner scope");
+  return `${baseUrl}/api/v1/acceptance/v1/v1.4/runs/${bundle.testRunId}/artifacts/${ref.artifactId}`;
+}
+
+export function decodeV14Report(bundle, responseBody) {
+  const path = v14ReportArtifactPath(bundle, "");
+  if (!path) throw new Error("V1.4 report ArtifactRef is not published for this TestRun");
+  const ref = bundle.artifactRefs.find((item) => item.kind === "BACKTEST_REPORT");
+  const returned = responseBody?.artifactRef;
+  const content = responseBody?.content;
+  const canonical = (value) => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}` : JSON.stringify(value);
+  if (path !== `/api/v1/acceptance/v1/v1.4/runs/${bundle.testRunId}/artifacts/${ref.artifactId}` || !returned
+    || ["schemaVersion", "artifactId", "testRunId", "ownerId", "kind", "namespace", "sha256", "status", "sourceRef"].some((key) => returned[key] !== ref[key])
+    || !content || createHash("sha256").update(canonical(content)).digest("hex") !== ref.sha256) throw new Error("V1.4 report response identity or content hash does not match its TestRun ArtifactRef");
+  return Buffer.from(canonical(content));
 }
 
 export function serializeEvidence(bundle, attachments = []) {

@@ -32,6 +32,18 @@ describe("V1.4 Quant daily backtest application", () => {
     expect(result.assertions.find(({ assertionId }) => assertionId === "V1.4-BT-HISTORICAL-FEE-001")?.status).toBe("PASS");
   });
 
+  it("hand-checks RAW prices, split quantity, dividend receivable and duplicate event delivery", () => {
+    const service = new V14DailyBacktestService(new V14DailyBacktestFixtureAdapter());
+    const result = service.run({ scenarioId: "corporate-actions", seed: 20260907, policy: { initialCashCents: 200_000, targetQuantity: 100, participationRateBasisPoints: 10_000, slippageBasisPoints: 0, fixedFeeCents: 0 } });
+    expect(result.evidence).toMatchObject({ dataVersion: "v1.4-corporate-actions-1", fixtureSha256: "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc", priceBasis: "RAW", duplicateDeliveriesIgnored: 1 });
+    expect(result.assertions).toHaveLength(3);
+    expect(result.assertions.every((assertion) => assertion.status === "PASS")).toBe(true);
+    expect(result.evidence.nav).toEqual([
+      { date: "2024-01-03", valueCents: 200_000 }, { date: "2024-01-04", valueCents: 200_000 },
+      { date: "2024-01-05", valueCents: 200_000 }, { date: "2024-01-08", valueCents: 200_000 }
+    ]);
+  });
+
   it("binds the run to an explicitly supplied workspace code digest", () => {
     const previous = process.env.STOCKQUANT_CODE_VERSION;
     process.env.STOCKQUANT_CODE_VERSION = "sha256:" + "a".repeat(64);

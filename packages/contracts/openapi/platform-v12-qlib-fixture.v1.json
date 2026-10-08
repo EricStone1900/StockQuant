@@ -1,0 +1,56 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Platform V1.2 Qlib Strategy Fixture", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "paths": {
+    "/api/v1/acceptance/v1/v1.2/runs": {
+      "post": {
+        "operationId": "createV12QlibStrategyTestRun",
+        "summary": "Persist a V1.2 owner-scoped TestRun and execute per-market locked Qlib Fixture fit and strategy output",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["scenarioId", "seed"], "properties": { "scenarioId": { "enum": ["normal", "rejection", "recovery"] }, "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 } } } } } },
+        "responses": {
+          "202": { "description": "Persisted asynchronous V1.2 TestRun; final state is read by the same UUID", "content": { "application/json": { "schema": { "type": "object", "required": ["accepted", "testRunId", "status"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "const": "RUNNING" } }, "additionalProperties": false } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "Scenario or user is outside the local acceptance scope" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.2/runs/{testRunId}/cancel": {
+      "post": {
+        "operationId": "cancelV12QlibStrategyTestRun",
+        "summary": "Request cooperative cancellation of a V1.2 Qlib TestRun before immutable Artifact publication",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "202": { "description": "Cancellation is persisted and acknowledged at the next worker checkpoint", "content": { "application/json": { "schema": { "type": "object", "required": ["accepted", "testRunId", "status", "cancelRequested"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "const": "RUNNING" }, "cancelRequested": { "const": true } }, "additionalProperties": false } } } },
+          "401": { "description": "A local user session is required" },
+          "403": { "description": "The TestRun is outside the local acceptance scope" },
+          "404": { "description": "The TestRun does not belong to this owner" },
+          "409": { "description": "The TestRun is terminal or its Artifact is in the fenced publication section" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.2/runs/{testRunId}/artifacts/{artifactId}": {
+      "get": {
+        "operationId": "readV12QlibStrategyArtifact",
+        "summary": "Read the immutable owner-scoped Qlib model, prediction and strategy Artifact for a V1.2 normal TestRun",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "Integrity-checked immutable Qlib strategy Artifact with its shared owner-scoped reference", "content": { "application/json": { "schema": { "type": "object", "required": ["artifactId", "testRunId", "ownerId", "mediaType", "sha256", "status", "payload", "artifactRef"], "properties": { "artifactId": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "testRunId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string" }, "mediaType": { "const": "application/vnd.stockquant.qlib-fixture-model+json" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "status": { "enum": ["PUBLISHED", "RETAINED"] }, "payload": { "$ref": "https://stockquant.local/schemas/research/v12-qlib-strategy-artifact-v1.schema.json" }, "artifactRef": { "$ref": "https://stockquant.local/schemas/common/artifact-ref.schema.json" } }, "additionalProperties": false } } } },
+          "401": { "description": "A local user session is required" },
+          "404": { "description": "Artifact does not belong to the requested owner and TestRun" }
+        }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" } } }
+}

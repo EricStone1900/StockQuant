@@ -21,7 +21,8 @@ export class GeneratedQuantV14BacktestClient {
       || result.stageId !== "V1.4" || result.scenarioId !== input.scenarioId || result.seed !== input.seed
       || !["COMPLETED", "FAILED"].includes(String(result.status)) || !Array.isArray(result.assertions)
       || result.assertions.some((item) => !item || typeof item.assertionId !== "string" || !["PASS", "FAIL"].includes(item.status))
-      || !result.evidence || typeof result.evidence !== "object" || Array.isArray(result.evidence)) throw new Error("Quant Research V1.4 response does not match its request or result contract");
+      || !result.evidence || typeof result.evidence !== "object" || Array.isArray(result.evidence)
+      || !result.durableReport || !/^[0-9a-f]{64}$/u.test(result.durableReport.resultSha256 ?? "") || !/^[0-9a-f]{64}$/u.test(result.durableReport.manifestSha256 ?? "")) throw new Error("Quant Research V1.4 response does not match its request, result, or durable report contract");
     return result as Contracts.V14DailyBacktestFixtureResult;
   }
 }

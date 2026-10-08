@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "isolatedProject": "sq-v15-e2e-afb6d0a2f81c482f35cb",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "e4a6b243-afc0-4e65-8be4-9eec8dfba358"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "eed9758c-4e0e-48be-8eb3-ba013d6db5e2"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "67c48cad-6a99-4ba9-8072-a08e76e28674"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:33824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=e4a6b243-afc0-4e65-8be4-9eec8dfba358 elapsedMs=153\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=41123\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=41143\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=41280\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=e4a6b243-afc0-4e65-8be4-9eec8dfba358\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=eed9758c-4e0e-48be-8eb3-ba013d6db5e2 elapsedMs=153\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=156\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=275\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=eed9758c-4e0e-48be-8eb3-ba013d6db5e2\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=67c48cad-6a99-4ba9-8072-a08e76e28674 elapsedMs=144\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=147\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=270\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (42.1s)\n\n  1 passed (43.0s)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "e4a6b243-afc0-4e65-8be4-9eec8dfba358",
+      "at": "2026-10-07T10:05:02.559Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-07T10:05:02.770Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-07T10:05:05.963Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-07T10:05:17.851Z"
+    },
+    {
+      "event": "platform_temporal_worker_restarted_during_workflow_activity",
+      "testRunId": "e4a6b243-afc0-4e65-8be4-9eec8dfba358",
+      "activityMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=e4a6b243-afc0-4e65-8be4-9eec8dfba358 market=CN_A",
+      "workflowCompleteBeforeRestart": false,
+      "at": "2026-10-07T10:05:38.610Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-e4a6b243-afc0-4e65-8be4-9eec8dfba358\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_MESSAGE_REDELIVERED seq=3",
+      "at": "2026-10-07T10:05:38.708Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "e4a6b243-afc0-4e65-8be4-9eec8dfba358",
+      "at": "2026-10-07T10:05:43.529Z"
+    },
+    {
+      "event": "original_outbox_message_acknowledged_after_relay_recovery",
+      "output": "{\"originalOutboxSequence\":4,\"consumerAckFloor\":4}",
+      "at": "2026-10-07T10:06:16.670Z"
+    },
+    {
+      "event": "injected_temporal_unavailable_caused_transient_nak",
+      "testRunId": "9558d1e7-fd4d-446e-85f2-094737da83ea",
+      "sequence": 5,
+      "marker": "platform-api-service-1  | STOCKQUANT_V15_TEST_TRANSIENT_NAK eventId=9558d1e7-fd4d-446e-85f2-094737da83ea seq=5 error=TemporalServiceUnavailableError",
+      "at": "2026-10-07T10:06:17.839Z"
+    },
+    {
+      "event": "temporal_retry_run_completed_and_message_acknowledged",
+      "testRunId": "9558d1e7-fd4d-446e-85f2-094737da83ea",
+      "output": "{\"streamSequence\":5,\"consumerAckFloor\":5}",
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T10:06:31.382Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "e3f75a2663470ddd1fdb12a980400c9ad232996bb6c49b23b64c093f696e0544",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "7846e6b81a818530887063a90460bc3fff4ac3a7ee7edac0fb97b949e2a00be2",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "53b45993e6079937d7b2d14abaca89d86a63908b86e6c485f9843742082da292",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "aee6dd0f5863bdad8e3ecf52d6880d2797e984ea52cd553c98c38144e01e9878",
+    "scripts/test-v15-web-e2e-isolated.mjs": "0f291183dd73d8a06f4ef5baab40f70b42c735155e219a92f21e20c19e7e5ff0"
+  },
+  "failureReason": null,
+  "additionalRuns": [
+    {
+      "scenario": "normal-platform-temporal-worker-restart-during-cn-activity",
+      "testRunId": "e4a6b243-afc0-4e65-8be4-9eec8dfba358"
+    },
+    {
+      "scenario": "normal-injected-temporal-unavailable-retry",
+      "testRunId": "9558d1e7-fd4d-446e-85f2-094737da83ea"
+    }
+  ],
+  "temporalTransientRetryE2E": "PASS: one injected TemporalServiceUnavailableError; JetStream NAK, redelivery, 120 authoritative observations and ACK floor 5",
+  "platformTemporalWorkerRestartDuringActivityE2E": "PASS: CN_A verifyNoTradeSessions activity-start marker observed before Platform API restart; same persisted workflow completed 120 observations afterwards",
+  "databaseTransientRetryE2E": "NOT_RUN",
+  "actualTemporalServerOutageRecoveryE2E": "NOT_PROVEN; separate probe failed after stopping Temporal and is preserved in failure history",
+  "concurrentWorkerE2E": "NOT_RUN"
+}

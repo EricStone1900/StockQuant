@@ -16,6 +16,11 @@ function assertService(serviceId: string | undefined, authorization: string | un
 @Injectable()
 export class PortfolioContainer {
   readonly pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
+  constructor() {
+    this.pool.on("error", (error: Error & { code?: string }) => {
+      console.warn(`STOCKQUANT_PORTFOLIO_DATABASE_IDLE_CLIENT_ERROR name=${error.name} code=${error.code ?? "none"}`);
+    });
+  }
   readonly repository = new PostgresAccountRepository(this.pool);
   readonly accounts = new AccountService(this.repository);
 
@@ -120,7 +125,7 @@ export class AccountController {
     catch (error) {
       if (error instanceof Error && error.message.startsWith("INVALID_")) throw new BadRequestException(error.message);
       if (error instanceof Error && ["ACCOUNT_SCOPE_MISMATCH", "RESERVATION_REQUIRES_PAPER_FAKE", "RESERVATION_CURRENCY_MISMATCH"].includes(error.message)) throw new ForbiddenException(error.message);
-      if (error instanceof Error && ["INSUFFICIENT_AVAILABLE_CASH", "INSUFFICIENT_SELLABLE_QUANTITY", "RESERVATION_IDEMPOTENCY_CONFLICT"].includes(error.message)) throw new ConflictException(error.message);
+      if (error instanceof Error && ["INSUFFICIENT_AVAILABLE_CASH", "INSUFFICIENT_SELLABLE_QUANTITY", "T_PLUS_ONE_UNSETTLED_QUANTITY", "SELL_RESERVATION_REQUIRES_RUN_CLOCK", "RESERVATION_IDEMPOTENCY_CONFLICT"].includes(error.message)) throw new ConflictException(error.message);
       throw error;
     }
   }

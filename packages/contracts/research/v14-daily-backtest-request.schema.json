@@ -6,7 +6,8 @@
   "additionalProperties": false,
   "required": ["scenarioId", "seed", "policy"],
   "properties": {
-    "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees"] },
+    "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees", "corporate-actions"] },
+    "testRunId": { "type": "string", "format": "uuid" },
     "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
     "policy": { "type": "object", "additionalProperties": false, "required": ["initialCashCents", "targetQuantity", "participationRateBasisPoints", "slippageBasisPoints", "fixedFeeCents"], "properties": {
       "initialCashCents": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },

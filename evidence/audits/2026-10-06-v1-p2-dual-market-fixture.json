@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "status": "FIXTURE_FROZEN_VALIDATION_PASS_P2_PIPELINE_PENDING",
+  "fixtureVersion": "v1.2-market-data-3",
+  "manifestPath": "fixtures/v1/v1.2/v1.2-market-data-3/manifest.json",
+  "marketCounts": {
+    "CN_A": 10,
+    "US_EQUITY": 3
+  },
+  "syntheticSessions": 60,
+  "dateRange": [
+    "2024-01-02",
+    "2024-03-25"
+  ],
+  "dailyBars": 774,
+  "features": {
+    "lookbackSessions": 20,
+    "label": "next-session raw close return",
+    "trainRows": 180,
+    "validationRows": 142,
+    "testRows": 138,
+    "labelAvailabilityBarriers": "PASS"
+  },
+  "dataCases": [
+    "missing bar",
+    "delisting after session 55",
+    "separate raw-price split event",
+    "future PIT probe excluded"
+  ],
+  "sourceMode": "SYNTHETIC FIXTURE",
+  "realMarketCalendar": "NOT_CLAIMED",
+  "externalCalls": 0,
+  "modelCalls": 0,
+  "firstCandidate": {
+    "version": "v1.2-market-data-2",
+    "status": "RETIRED",
+    "reason": "intended missing-bar row was absent",
+    "failureLog": "evidence/audits/2026-10-06-v1-p2-fixture-v2-validation-failure.log"
+  },
+  "validationCommand": "pnpm fixtures:check",
+  "validationStatus": "PASS",
+  "remaining": [
+    "wire frozen data through V1.2 Market Data API",
+    "execute locked Qlib factor/model from this input",
+    "persist strategy output Artifact and expose formal Web/CLI read",
+    "independent numerical recomputation and actual model evidence"
+  ],
+  "fixtureHashes": {
+    "fixtures/manifests/fixture-manifest.schema.json": "4169c2d2c234fb6716c2698ce84723d33762fcf70439e5d3da86fda16e18fd0f",
+    "fixtures/v1/v1.2/v1.2-market-data-2/manifest.json": "66a0551dca8f95a77e51edd53ab7250d348f4477ef4b690a7f00b6d42108f0ed",
+    "fixtures/v1/v1.2/v1.2-market-data-3/manifest.json": "e60fec65d4abddb0bf9f1eec646c235910e137b0b65aba0c0529bdab39bf7773",
+    "fixtures/v1/v1.2/v1.2-market-data-3/securities.csv": "197ee21b1099d9353c99f69f1d3d27330d4c3bf23657ad80b2bde6befee760d0",
+    "fixtures/v1/v1.2/v1.2-market-data-3/daily_bars.csv": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688",
+    "fixtures/v1/v1.2/v1.2-market-data-3/corporate_actions.csv": "fe9fe46c07ccc20304b9229a228f2a7b8f3c76fa82a9bb1e6c7546214820a72a",
+    "fixtures/v1/v1.2/v1.2-market-data-3/pit_future_probe.csv": "266151f1ed07e9f144d1fb9fac8826de18cff266502497891edadac543a8da46",
+    "scripts/verify-v12-research-fixture.mjs": "e3864e9606195641c4f19466eb278e6cbc8b1d51b54fa76998c525600f8c9f88",
+    "package.json": "32c81c6daa09d53621d11a5e8cddd6cc1447111b24178657beeb33cd67212456"
+  },
+  "validatorSha256": "e3864e9606195641c4f19466eb278e6cbc8b1d51b54fa76998c525600f8c9f88",
+  "fixtureReportSha256": "a1da4ce51e6501668a6d4bdd7e93d5b100297164c0877e6d58d57fead6efcf53"
+}

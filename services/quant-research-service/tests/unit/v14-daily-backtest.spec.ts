@@ -128,12 +128,14 @@ describe("V1.4 fixture-backed daily backtest", () => {
     const lowVolume = new V14BacktestEngine(oneShareLimit, fixture.sha256).run("normal");
     const lowVolumeEvidence = lowVolume.evidence as { trades: unknown[]; metrics: { rejectedOrders: number; unfilledQuantity: number; feesCents: number; finalCashCents: number } };
     expect(lowVolumeEvidence.trades).toEqual([]);
-    expect(lowVolumeEvidence.metrics).toMatchObject({ rejectedOrders: 1, unfilledQuantity: 100, feesCents: 0, finalCashCents: 1_000_000 });
+    expect(lowVolumeEvidence.metrics).toMatchObject({ rejectedOrders: 1, partiallyFilledOrders: 0, unfilledQuantity: 100, feesCents: 0, finalCashCents: 1_000_000 });
+    expect(lowVolume.evidence.orderOutcomes).toEqual([{ side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 0, status: "REJECTED", reason: "ZERO_VOLUME" }]);
 
     const noCash = new V14BacktestEngine(fixture.bars, fixture.sha256, { initialCashCents: 500, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500 }).run("normal");
     const noCashEvidence = noCash.evidence as { trades: unknown[]; metrics: { rejectedOrders: number; unfilledQuantity: number; feesCents: number; finalCashCents: number } };
     expect(noCashEvidence.trades).toEqual([]);
-    expect(noCashEvidence.metrics).toMatchObject({ rejectedOrders: 1, unfilledQuantity: 100, feesCents: 0, finalCashCents: 500 });
+    expect(noCashEvidence.metrics).toMatchObject({ rejectedOrders: 1, partiallyFilledOrders: 0, unfilledQuantity: 100, feesCents: 0, finalCashCents: 500 });
+    expect(noCash.evidence.orderOutcomes).toEqual([{ side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 0, status: "REJECTED", reason: "INSUFFICIENT_CASH" }]);
   });
 
   it("fills a sell only from T+1 sellable shares and settles sale cash on the next Fixture session", () => {
@@ -178,7 +180,10 @@ describe("V1.4 fixture-backed daily backtest", () => {
       metrics: { finalCashCents: number; finalNavCents: number; unsettledSaleProceedsCents: number };
     };
     expect(evidence.trades.map(({ side, quantity }) => ({ side, quantity }))).toEqual([{ side: "BUY", quantity: 100 }, { side: "SELL", quantity: 50 }]);
-    expect(evidence.orderOutcomes).toEqual([{ side: "SELL", signalDate: "2024-01-04", executionDate: "2024-01-05", requestedQuantity: 100, filledQuantity: 50, status: "PARTIALLY_FILLED", reason: "PARTICIPATION_LIMIT" }]);
+    expect(evidence.orderOutcomes).toEqual([
+      { side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 100, status: "FILLED" },
+      { side: "SELL", signalDate: "2024-01-04", executionDate: "2024-01-05", requestedQuantity: 100, filledQuantity: 50, status: "PARTIALLY_FILLED", reason: "PARTICIPATION_LIMIT" }
+    ]);
     expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-05", settlementDate: null, proceedsCents: 50_250, status: "UNSETTLED_AT_END" }]);
     expect(evidence.cashLedger.at(-1)).toEqual({ date: "2024-01-05", settledCashCents: 898_500, unsettledSaleProceedsCents: 50_250 });
     expect(evidence.metrics).toMatchObject({ finalCashCents: 898_500, unsettledSaleProceedsCents: 50_250, finalNavCents: 999_500 });
@@ -193,7 +198,10 @@ describe("V1.4 fixture-backed daily backtest", () => {
     const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy).run("normal");
     const evidence = run.evidence as { trades: Array<{ side: string }>; orderOutcomes: Array<{ status: string; reason?: string; filledQuantity: number }> };
     expect(evidence.trades.map((trade) => trade.side)).toEqual(["BUY"]);
-    expect(evidence.orderOutcomes).toEqual([{ side: "SELL", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 0, status: "REJECTED", reason: "T_PLUS_1_UNAVAILABLE" }]);
+    expect(evidence.orderOutcomes).toEqual([
+      { side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 100, status: "FILLED" },
+      { side: "SELL", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 0, status: "REJECTED", reason: "T_PLUS_1_UNAVAILABLE" }
+    ]);
     expect(run.status).toBe("COMPLETED");
   });
 

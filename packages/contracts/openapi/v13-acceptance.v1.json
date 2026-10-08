@@ -47,6 +47,77 @@
           "404": { "description": "The run is missing, unowned, or not a V1.3 run" }
         }
       }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs/{testRunId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-request": {
+      "post": {
+        "operationId": "requestOwnedV13SequencedPaperOrderCancel",
+        "summary": "Persist a fixed L07 cancellation request while retaining its resource reservation",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "clientOrderId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }
+        ],
+        "responses": {
+          "202": { "description": "The original order is CANCEL_REQUESTED and its Portfolio reservation remains HELD", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "order", "reservation"], "properties": { "status": { "const": "CANCEL_REQUESTED" }, "order": { "type": "object" }, "reservation": { "type": "object", "required": ["status"], "properties": { "status": { "const": "HELD" } } } } } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The order is outside the owner's fixed V1.3 TestRun/Proposal Fixture" },
+          "404": { "description": "The run, proposal or FakeBroker order was not found in user scope" },
+          "409": { "description": "The exact causal Fill sequence is absent or cancellation is not pending" },
+          "503": { "description": "A required domain service is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs/{testRunId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-results/{sequence}": {
+      "post": {
+        "operationId": "resolveOwnedV13SequencedPaperOrderCancel",
+        "summary": "Apply the fixed L07 seq=3 accepted cancel result after the original request",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "clientOrderId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "sequence", "in": "path", "required": true, "schema": { "const": "3" } }
+        ],
+        "responses": {
+          "200": { "description": "The terminal CANCELLED order, released remainder reservation, posted Fills and independent reconciliation", "content": { "application/json": { "schema": { "type": "object", "required": ["resolution", "order"], "properties": { "resolution": { "type": "object" }, "order": { "type": "object", "required": ["order", "reconciliation"], "properties": { "order": { "type": "object", "required": ["status"], "properties": { "status": { "const": "CANCELLED" } } }, "reconciliation": { "type": "object", "properties": { "status": { "const": "MATCH" } } } } } } } } } },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The order is outside the owner's fixed V1.3 TestRun/Proposal Fixture" },
+          "404": { "description": "The run, proposal or FakeBroker order was not found in user scope" },
+          "409": { "description": "The accepted result is out of order or the exact resource reservation state is not HELD" },
+          "503": { "description": "A required domain service is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs/{testRunId}/external-orders/observe": {
+      "post": {
+        "operationId": "recordV13IndependentFakeBrokerOrderObservation",
+        "summary": "Record a fixed, owner-scoped simulated external order and return the persistent reconciliation discrepancy",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "201": { "description": "A fixed external FakeBroker order and current independently read reconciliation summary" },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing, unowned, or not a V1.3 run" },
+          "503": { "description": "FakeBroker observation or reconciliation service is unavailable" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.3/runs/{testRunId}/reconciliation": {
+      "get": {
+        "operationId": "readOwnedV13FakeBrokerReconciliation",
+        "summary": "Read the persistent FakeBroker order discrepancy summary in the owner's V1.3 namespace",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Independent FakeBroker reconciliation summary" },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The authenticated user is outside the local acceptance scope" },
+          "404": { "description": "The run is missing, unowned, or not a V1.3 run" },
+          "503": { "description": "FakeBroker reconciliation service is unavailable" }
+        }
+      }
     }
   },
   "components": {

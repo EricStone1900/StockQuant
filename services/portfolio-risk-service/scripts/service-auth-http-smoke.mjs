@@ -48,6 +48,13 @@ try {
   const bad = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.trade, command);
   const wrongScope = await request("/internal/v1/accounts/initialize", "POST", "trade-execution-service", tokens.trade, command);
   if (missing.status !== 401 || bad.status !== 401 || wrongScope.status !== 403) throw new Error(`auth rejection mismatch: ${JSON.stringify({ missing: missing.status, bad: bad.status, wrongScope: wrongScope.status })}`);
+  const rejectedModeAttempts = [];
+  for (const [environmentMode, brokerMode] of [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+    const response = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.platform, { ...command, idempotencyKey: `reject-${environmentMode}-${brokerMode}`, environmentMode, brokerMode });
+    rejectedModeAttempts.push({ environmentMode, brokerMode, status: response.status });
+  }
+  const rejectedModeSideEffects = await pool.query("SELECT count(*)::int AS count FROM accounts WHERE namespace=$1 AND test_run_id=$2", [namespace, testRunId]);
+  if (rejectedModeAttempts.some((attempt) => attempt.status !== 403) || rejectedModeSideEffects.rows[0].count !== 0) throw new Error(`unsupported environment/broker modes must be rejected before persistence: ${JSON.stringify({ attempts: rejectedModeAttempts, accountsCreated: rejectedModeSideEffects.rows[0].count })}`);
   const initialized = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.platform, command);
   if (initialized.status !== 201 && initialized.status !== 200) throw new Error(`valid platform identity could not initialize isolated account: ${initialized.status} ${await initialized.text()}`);
   const result = await initialized.json();
@@ -95,7 +102,7 @@ try {
   if (unknownResolve.status !== 200 || (await unknownResolve.json()).status !== "UNKNOWN") throw new Error("UNKNOWN did not preserve the resource hold with update status 200");
   const release = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, outcome: "CANCELLED", evidenceRef: "smoke:authoritative-cancel-confirmed" });
   if (release.status !== 200 || (await release.json()).status !== "RELEASED") throw new Error("authoritative cancellation did not release the reservation with update status 200");
-  console.log(JSON.stringify({ status: "PASS", testRunId, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, feeCorrection: feeCorrectionResponse.status, feeCorrectionReplay: true, originalFillReplayAfterCorrection: true, exactCorrectedCash: correctedSnapshot.cash.amount, wrongFeeCaller: wrongFeeCaller.status, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
+  console.log(JSON.stringify({ status: "PASS", testRunId, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, rejectedModeAttempts, rejectedModeAccountsCreated: rejectedModeSideEffects.rows[0].count, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, feeCorrection: feeCorrectionResponse.status, feeCorrectionReplay: true, originalFillReplayAfterCorrection: true, exactCorrectedCash: correctedSnapshot.cash.amount, wrongFeeCaller: wrongFeeCaller.status, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
 } finally {
   if (service.exitCode === null) { service.kill("SIGTERM"); await new Promise((resolveClose) => service.once("close", resolveClose)); }
   if (accountId) {

@@ -6,7 +6,7 @@ export type QlibFixtureArtifact = {
   sha256: string;
   status: "PUBLISHED" | "RETAINED" | "EXPIRED";
   expiresAt?: string | null;
-  payload: { schemaVersion: "v2.3-qlib-fixture-artifact-v1"; modelBase64: string; predictions: number[] };
+  payload: { schemaVersion: "v2.3-qlib-fixture-artifact-v1" | "v1.2-qlib-strategy-artifact-v1"; modelBase64?: string; predictions?: number[]; [key: string]: unknown };
 };
 
 export interface QlibFixtureArtifactRepository {

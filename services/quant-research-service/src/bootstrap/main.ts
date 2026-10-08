@@ -27,8 +27,12 @@ const qlibWorkerCallerToken = process.env.STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARC
 const qlibWorkerClient = qlibWorkerCallerToken.length >= 32 ? new GeneratedQlibWorkerAdapter(new GeneratedQlibWorkerClient(qlibWorkerUrl, qlibWorkerCallerToken)) : undefined;
 const qlibResearch = new QlibResearchService(qlibWorkerClient);
 const pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
+pool.on("error", (error: Error & { code?: string }) => {
+  console.warn(`STOCKQUANT_QUANT_DATABASE_IDLE_CLIENT_ERROR name=${error.name} code=${error.code ?? "none"}`);
+});
 const v14DailyBacktest = new V14DailyBacktestService(new V14DailyBacktestFixtureAdapter());
 const v14BacktestRuns = new PostgresV14BacktestRepository(pool);
+const canonicalJson = (value: unknown): string => value === null || typeof value !== "object" ? JSON.stringify(value) : Array.isArray(value) ? `[${value.map(canonicalJson).join(",")}]` : `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
 const candidateRegistration = new CandidateRegistrationService(new PostgresCandidateRegistrationRepository(pool));
 const promotionRequests = new PromotionRequestService(new PostgresPromotionRequestRepository(pool));
 const validationReports = new ValidationReportService(new PostgresValidationReportRepository(pool));
@@ -67,15 +71,25 @@ const server = createServer(async (req,res) => {
     try {
       const body = JSON.parse(raw) as Record<string, unknown>;
       const policy = body?.policy;
-      const allowedRequestKeys = ["scenarioId", "seed", "policy"];
+      const allowedRequestKeys = ["scenarioId", "seed", "policy", "testRunId"];
       const requiredPolicyKeys = ["initialCashCents", "targetQuantity", "participationRateBasisPoints", "slippageBasisPoints", "fixedFeeCents"];
       const allowedPolicyKeys = [...requiredPolicyKeys, "sellOrder", "marketFeeSchedule"];
       if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).sort().join(",") !== [...allowedRequestKeys].sort().join(",")
         || !policy || typeof policy !== "object" || Array.isArray(policy) || requiredPolicyKeys.some((key) => !Object.hasOwn(policy, key)) || Object.keys(policy).some((key) => !allowedPolicyKeys.includes(key))) return json(res, { status: "REJECTED", reason: "V1.4 request contains missing or unknown fields" }, 422);
+      if (body.testRunId !== undefined && (typeof body.testRunId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body.testRunId))) return json(res, { status: "REJECTED", reason: "V1.4 testRunId must be a UUID" }, 422);
+      if (typeof body.testRunId === "string") {
+        const existing = await v14BacktestRuns.get(body.testRunId);
+        if (existing) {
+          const runPolicy = existing.run.evidence.executionPolicy;
+          if (existing.run.scenarioId !== body.scenarioId || existing.run.seed !== body.seed || canonicalJson(runPolicy) !== canonicalJson(policy)) return json(res, { status: "CONFLICT", reason: "V1.4 TestRun ID already exists with different inputs" }, 409);
+          return json(res, { ...existing.run, testRunId: body.testRunId, durableReport: { resultSha256: existing.resultSha256, manifestSha256: existing.manifestSha256 } });
+        }
+      }
       const result = v14DailyBacktest.run(body as unknown as import("../application/v14-daily-backtest-service.js").V14DailyBacktestRequest);
-      try { await v14BacktestRuns.save(result.testRunId, result); }
+      let durableReport: { resultSha256: string; manifestSha256: string };
+      try { durableReport = await v14BacktestRuns.save(result.testRunId, result); }
       catch { return json(res, { status: "NOT_RUN", reason: "Quant could not durably persist the V1.4 BacktestRun and Manifest" }, 503); }
-      return json(res, result);
+      return json(res, { ...result, durableReport });
     } catch (error) {
       return json(res, { status: "REJECTED", reason: error instanceof Error ? error.message : "invalid V1.4 backtest request" }, 422);
     }
@@ -148,7 +162,7 @@ const server = createServer(async (req,res) => {
     const result = await promotionRequests.get(route[1]);
     return json(res, result.body, result.status);
   }
-  if (req.url === "/v1/factors/preview") return json(res,{factorVersion:"v1.2-sma-factor-1",dataVersion:"v1.2-market-data-1",asOf:"2024-01-04",qlibStatus:(await qlibResearch.probe()).status,ranking:[{ticker:"000002.SZ",factor:"0.014851",signal:"TOPK"},{ticker:"000001.SZ",factor:"0.009901",signal:"TOPK"}],noTrade:false,lookbackBars:2});
+  if (req.url === "/v1/factors/preview") return json(res,{status:"NOT_RUN",reason:"V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",factorVersion:"v1.2-sma-factor-1",dataVersion:"v1.2-market-data-1",asOf:"2024-01-04",qlibStatus:(await qlibResearch.probe()).status,ranking:[],noTrade:true,lookbackBars:0});
   if (req.method === "POST" && req.url === "/v1/research/multi-bar") {
     let raw = ""; for await (const chunk of req) raw += chunk;
     try {

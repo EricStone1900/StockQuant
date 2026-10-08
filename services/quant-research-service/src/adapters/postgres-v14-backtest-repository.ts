@@ -12,6 +12,13 @@ const sha256 = (value: unknown) => createHash("sha256").update(canonical(value))
 export class PostgresV14BacktestRepository {
   constructor(private readonly pool: Pool) {}
 
+  async get(backtestRunId: string): Promise<{ run: V14Run; resultSha256: string; manifestSha256: string } | null> {
+    const result = await this.pool.query(`SELECT r.result_payload,r.result_sha256,m.manifest_sha256
+      FROM research_backtest_runs r JOIN research_backtest_manifests m USING(backtest_run_id) WHERE r.backtest_run_id=$1`, [backtestRunId]);
+    if (result.rowCount !== 1) return null;
+    return { run: result.rows[0].result_payload as V14Run, resultSha256: String(result.rows[0].result_sha256).trim(), manifestSha256: String(result.rows[0].manifest_sha256).trim() };
+  }
+
   async save(backtestRunId: string, run: V14Run): Promise<{ resultSha256: string; manifestSha256: string }> {
     const resultSha256 = sha256(run);
     const manifest = {
@@ -28,6 +35,11 @@ export class PostgresV14BacktestRepository {
       resultSha256,
     };
     const manifestSha256 = sha256(manifest);
+    const existing = await this.get(backtestRunId);
+    if (existing) {
+      if (existing.resultSha256 !== resultSha256 || existing.manifestSha256 !== manifestSha256) throw new Error("V1.4 BacktestRun ID already exists with different result evidence");
+      return { resultSha256, manifestSha256 };
+    }
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -39,6 +51,10 @@ export class PostgresV14BacktestRepository {
       return { resultSha256, manifestSha256 };
     } catch (error) {
       await client.query("ROLLBACK");
+      if ((error as { code?: string }).code === "23505") {
+        const concurrent = await this.get(backtestRunId);
+        if (concurrent && concurrent.resultSha256 === resultSha256 && concurrent.manifestSha256 === manifestSha256) return { resultSha256, manifestSha256 };
+      }
       throw error;
     } finally {
       client.release();

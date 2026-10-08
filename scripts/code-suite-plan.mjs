@@ -15,6 +15,13 @@ const baseCommands = [
 
 export function codeSuiteCommands(stage) {
   const commands = baseCommands.map(([command, args, env]) => [command, [...args], env ? { ...env } : undefined]);
+  if (stage === "V1.4") {
+    commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "TRADE_EXECUTION_TEST_DATABASE_URL:trade_execution_test:trade_execution_test", "--", process.execPath, "services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs"]]);
+    commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "test:v14-report-publication-fencing"]]);
+  }
+  if (stage === "V1.5") {
+    commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "test:v15-outbox-atomicity"]]);
+  }
   if (stage === "V2.3") {
     commands.push(["pnpm", ["test:service-auth:http"]]);
     commands.push(["pnpm", ["--filter", "@stockquant/quant-research-service", "qlib:fit-smoke"]]);
@@ -22,6 +29,7 @@ export function codeSuiteCommands(stage) {
   }
   if (stage === "V1.2") {
     commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "MARKET_DATA_DATABASE_URL:market_data_test:market_data_test", "--", "pnpm", "--filter", "@stockquant/market-data-service", "artifact-task:http-restart-smoke"]]);
+    commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "test:v12-run-lifecycle"]]);
     commands.push(["pnpm", ["--filter", "@stockquant/quant-research-service", "qlib:fit-smoke"]]);
     commands.push(["pnpm", ["test:e2e", "--", "--stage", "V1.2"]]);
   }

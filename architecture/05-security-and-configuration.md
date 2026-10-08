@@ -15,7 +15,7 @@
 
 ## 2. 身份与授权
 
-本地仍需要真实用户会话和服务身份，不以“只有本人使用”代替授权。浏览器只获得短期、HttpOnly、SameSite 会话；具体实现由 OD-004 冻结。用户操作绑定 ownerId，服务调用绑定 serviceId 和允许的 route/scope。
+本地仍需要真实用户会话和服务身份，不以“只有本人使用”代替授权。Platform 本地开发会话由 PostgreSQL `platform_local_sessions` 管理：Cookie 携带256位随机令牌，数据库只保存其SHA-256；12小时后过期，logout立即写入`revoked_at`，每个带会话Cookie的API请求都查询有效期/撤销状态。浏览器Cookie为HttpOnly、SameSite=Lax，刷新可重新建立本地单用户开发会话。仅显式启用隔离测试配置时才兼容测试身份头/旧测试身份；它不能用于正式入口。用户操作绑定ownerId，服务调用绑定serviceId和允许的route/scope。
 
 所有读写同时检查 environmentMode、accountId、market、testRunId/namespace。内部网络不是可信身份。人工验收记录必须来自真实用户会话，脚本不能代签。写命令的 actor 从认证上下文生成，不能接受请求体自报身份。
 
@@ -74,7 +74,7 @@ Web 后端和 Runner 不挂载 Docker Socket。可信控制器若未来需要宿
 - 匿名写入返回 401；合法用户跨 owner/run/account 查询返回 403。
 - 同幂等键异载荷返回 409且不产生第二笔期初流水。
 - `LIVE`、非 `FAKE` broker、真实券商字段和管理端口公开配置均使启动或命令失败。
-- 重启后会话失效策略、账户事实和 TestRun 证据符合已冻结配置。
+- 随机隔离V1.3已验证有效会话读200、logout后旧令牌401、Platform API重启后旧令牌重放仍401；12小时过期按数据库时间在每次请求边界判断。贯穿五阶段的会话体验、活动环境部署和用户验收仍待。
 - Web、平台 API 和 Runner 容器检查无 Docker Socket 与多余秘密。
 
 这些是待实现测试输入，当前全部 `NOT_RUN`。
@@ -82,7 +82,7 @@ Web 后端和 Runner 不挂载 Docker Socket。可信控制器若未来需要宿
 
 ## P7.2 实现补充（2026-09-25）
 
-V3.1研究API的服务间调用采用每个调用方独立Bearer Token；由忽略的本机`.env.local`注入，生产环境需用Secret管理器提供同名配置。研究API从Token本身确定调用方身份，以恒定时间比较配置的独立Token并执行route/scope白名单；可选`x-stockquant-service-id`只做一致性校验，不能选择授权身份，重复Token配置会在启动时失败。平台API与Runner Host各有专用凭据；Runner claim/heartbeat/complete实施原子租约和fencing，隔离PG并发/接管测试通过。平台API仅可读取RunnerJob元数据、按精确owner/run读取Artifact，并可取消指定RunnerJob；取消使租约失效，Host下一次心跳即中止执行，固定容器取消Smoke核实容器移除和无输出发布。Runner Host只可claim/heartbeat/input/complete与Artifact发布，不能调用取消路由。Runner Host客户端、租约绑定的INPUT读取与OUTPUT发布、`runner:host`实际循环入口已实现；Mac ARM64/Linux AMD64仿真下的临时HTTP/PG→Docker smoke验证正常任务、崩溃接管和取消。活动Artifact卷只读复制恢复与23个已发布引用Hash核验通过。Artifact孤儿巡检默认只读；只有暂停发布者与Runner Host后显式启用隔离，才会把超过最小保留期的无引用文件移至同文件系统外置隔离目录，并生成SHA-256清单，不自动删除。portfolio-risk-service也新增调用方独立Bearer校验及route scope，平台/执行/回放客户端配置了匹配身份；隔离HTTP拒绝与owner检查通过，Compose静态配置通过，但该代码尚未部署到活动Portfolio容器。新Runner路由、Host循环及平台Artifact端点均尚未部署到活动容器；周期备份/保留、完整Paper授权与真实浏览器会话仍待完成，因此OD-004为PARTIAL；细节见[P7.2审计](../evidence/audits/2026-09-25-p7-2-service-identity.md)和[P3.R Artifact审计](../evidence/audits/2026-09-25-p3-r-artifact-boundary.md)。
+V3.1研究API的服务间调用采用每个调用方独立Bearer Token；由忽略的本机`.env.local`注入，生产环境需用Secret管理器提供同名配置。研究API从Token本身确定调用方身份，以恒定时间比较配置的独立Token并执行route/scope白名单；可选`x-stockquant-service-id`只做一致性校验，不能选择授权身份，重复Token配置会在启动时失败。平台API与Runner Host各有专用凭据；Runner claim/heartbeat/complete实施原子租约和fencing，隔离PG并发/接管测试通过。平台API仅可读取RunnerJob元数据、按精确owner/run读取Artifact，并可取消指定RunnerJob；取消使租约失效，Host下一次心跳即中止执行，固定容器取消Smoke核实容器移除和无输出发布。Runner Host只可claim/heartbeat/input/complete与Artifact发布，不能调用取消路由。Runner Host客户端、租约绑定的INPUT读取与OUTPUT发布、`runner:host`实际循环入口已实现；Mac ARM64/Linux AMD64仿真下的临时HTTP/PG→Docker smoke验证正常任务、崩溃接管和取消。活动Artifact卷只读复制恢复与23个已发布引用Hash核验通过。Artifact孤儿巡检默认只读；只有暂停发布者与Runner Host后显式启用隔离，才会把超过最小保留期的无引用文件移至同文件系统外置隔离目录，并生成SHA-256清单，不自动删除。portfolio-risk-service也新增调用方独立Bearer校验及route scope，平台/执行/回放客户端配置了匹配身份；隔离HTTP拒绝与owner检查通过，Compose静态配置通过，但该代码尚未部署到活动Portfolio容器。新Runner路由、Host循环及平台Artifact端点均尚未部署到活动容器；周期备份/保留、完整Paper授权与跨五阶段的浏览器会话验收仍待完成，因此OD-004为PARTIAL；细节见[P7.2审计](../evidence/audits/2026-09-25-p7-2-service-identity.md)和[P3.R Artifact审计](../evidence/audits/2026-09-25-p3-r-artifact-boundary.md)。
 
 P7.2补充（2026-09-27）：Market Data Fixture/CSV/Parquet分钟导入、分块上传、持久导入详情和Bar分页路由均要求平台API服务Bearer；在跨实例背压锁之前执行导入身份验证。Token决定身份，`x-stockquant-service-id`可省略，若提供则只作一致性核对。平台代理先做用户会话与适用的owner校验，再添加服务身份；真实隔离Chromium→Vite→Platform API→Market Data→双PG smoke验证匿名导入读取401、用户读详情/分页200、异主403及CSV/Parquet/5m归档同run路径。当前活动Compose未部署此版本，密钥轮换、部署和阶段人工验收仍未完成。
 

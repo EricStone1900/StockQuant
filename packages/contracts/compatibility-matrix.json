@@ -291,6 +291,35 @@
       }
     },
     {
+      "schema": "research/v14-daily-backtest-result.schema.json",
+      "consumer": "quant-research-service -> platform-api-service (V1.4 durable report result and Manifest identity)",
+      "requiredProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "seed",
+        "status",
+        "assertions",
+        "evidence",
+        "durableReport"
+      ],
+      "stableProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "durableReport"
+      ],
+      "stableEnums": {
+        "stageId": [
+          "V1.4"
+        ],
+        "status": [
+          "COMPLETED",
+          "FAILED"
+        ]
+      }
+    },
+    {
       "schema": "schemas/common/account-initialization.schema.json",
       "consumer": "platform-api-service -> portfolio-risk-service",
       "requiredProperties": [

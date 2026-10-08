@@ -1,0 +1,5 @@
+# V1.5 Platform PostgreSQL session termination and recovery
+
+Date: 2026-10-07 (Asia/Shanghai). Command: `STOCKQUANT_V15_E2E_DATABASE_CONNECTION_DROP=true pnpm test:e2e -- --stage V1.5`; exit 0. After JetStream delivered the normal Run, the harness terminated `3` PostgreSQL backend sessions scoped to `platform_api` in the random isolated database. The Platform process stayed available, established a new PostgreSQL session, and completed the same Run's 120 authoritative observations. The normal/rejection/recovery browser matrix, same-Run CLI/export and exact container/volume/network cleanup passed; external source and real broker calls were 0.
+
+Run `0a2d90d1-317a-4a03-934b-b1fc5c7eed9d`. The [machine record](./2026-10-07-v15-database-connection-drop-e2e.json) preserves timestamps, project/container, terminated/reconnected session counts, browser output and source hashes. PostgreSQL stayed healthy; this verifies real backend-session termination and pool reconnection, not a whole-server outage or dispatch NAK.

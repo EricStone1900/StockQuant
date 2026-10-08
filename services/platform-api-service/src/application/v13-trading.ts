@@ -72,6 +72,8 @@ export class V13TradingEngine {
         orderFacts: "NOT_CREATED",
         fillFacts: "NOT_CREATED",
         portfolioLedgerFacts: "NOT_CREATED",
+        runClockNow: "2026-09-28T09:31:00+08:00",
+        strategyVersion: "fixture-manual-test-v1",
       },
     };
   }

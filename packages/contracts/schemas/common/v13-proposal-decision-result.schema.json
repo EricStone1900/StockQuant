@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-decision-result.schema.json",
+  "title": "V13ProposalDecisionResult",
+  "oneOf": [
+    { "type": "object", "additionalProperties": false, "required": ["status", "proposalId", "proposalVersion", "contentHash", "decidedBy", "reason"], "properties": { "status": { "const": "APPROVED_MANUAL" }, "proposalId": { "type": "string", "format": "uuid" }, "proposalVersion": { "type": "integer" }, "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "decidedBy": { "type": "string" }, "reason": { "type": "string" } } },
+    { "type": "object", "additionalProperties": false, "required": ["status", "proposalId", "proposalVersion", "contentHash", "decidedBy", "reason"], "properties": { "status": { "const": "REJECTED_MANUAL" }, "proposalId": { "type": "string", "format": "uuid" }, "proposalVersion": { "type": "integer" }, "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "decidedBy": { "type": "string" }, "reason": { "type": "string" } } }
+  ]
+}

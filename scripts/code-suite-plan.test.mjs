@@ -18,6 +18,31 @@ test("the V1.2 code suite verifies durable Artifact task HTTP state across a Mar
   assert.ok(commands.some(([, args]) => args.includes("artifact-task:http-restart-smoke")));
 });
 
+test("the V1.4 code suite compares Quant and PostgreSQL-persisted FakeBroker fills in a disposable database", () => {
+  const command = codeSuiteCommands("V1.4").find(([, args]) => args.includes("services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs"));
+  assert.deepEqual(command, [process.execPath, [
+    "scripts/run-isolated-postgres-command.mjs", "--url-env", "TRADE_EXECUTION_TEST_DATABASE_URL:trade_execution_test:trade_execution_test", "--",
+    process.execPath, "services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs",
+  ]]);
+});
+
+test("the V1.5 code suite includes the real TestRun/Outbox rollback check on disposable PostgreSQL", () => {
+  const command = codeSuiteCommands("V1.5").find(([, args]) => args.includes("test:v15-outbox-atomicity"));
+  assert.deepEqual(command, [process.execPath, [
+    "scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--",
+    "pnpm", "--filter", "@stockquant/platform-api-service", "test:v15-outbox-atomicity",
+  ]]);
+  assert.deepEqual(codeSuiteCommands("V1.5").slice(0, 12).map(([, args]) => args), codeSuiteCommands("V1.1").map(([, args]) => args));
+});
+
+test("the V1.4 code suite tests report Artifact cancellation/publication fencing on disposable PostgreSQL", () => {
+  const command = codeSuiteCommands("V1.4").find(([, args]) => args.includes("test:v14-report-publication-fencing"));
+  assert.deepEqual(command, [process.execPath, [
+    "scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--",
+    "pnpm", "--filter", "@stockquant/platform-api-service", "test:v14-report-publication-fencing",
+  ]]);
+});
+
 test("the V2.3 code suite exercises Governance, Replay Worker, and Quant HTTP identity boundaries", () => {
   const commands = codeSuiteCommands("V2.3");
   const authIndex = commands.findIndex(([, args]) => args.includes("test:service-auth:http"));

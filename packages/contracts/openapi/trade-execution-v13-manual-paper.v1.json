@@ -1,0 +1,88 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Trade Execution V1.3 Manual Paper API", "version": "1.0.0" },
+  "servers": [{ "url": "http://trade-execution-service:3005" }],
+  "security": [{ "ServiceBearer": [] }],
+  "paths": {
+    "/internal/v1/orders/{orderId}/fills/{externalFillId}/fee-corrections": {
+      "post": {
+        "operationId": "correctV13FakeBrokerFillFee",
+        "summary": "Record a versioned fee correction for the exact simulated Fill and deliver it through the Portfolio fee-correction Outbox",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "externalFillId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/fill-fee-correction-command.schema.json" } } } },
+        "responses": { "200": { "description": "Idempotent replay" }, "202": { "description": "Versioned correction persisted and queued" }, "403": { "description": "Service identity rejected" }, "404": { "description": "Order or Fill not found" }, "409": { "description": "Stale or conflicting correction" }, "422": { "description": "Invalid correction" } }
+      }
+    },
+    "/internal/v1/v13/accounts/assets": {
+      "get": {
+        "operationId": "readV13IndependentFakeBrokerAssets",
+        "summary": "Read the independent FakeBroker simulated cash, positions, and asset-event count",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "accountId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Independent FakeBroker asset snapshot" }, "403": { "description": "Service identity or scope rejected" }, "404": { "description": "FakeBroker assets were not found" } }
+      }
+    },
+    "/internal/v1/orders/by-client-id": {
+      "get": {
+        "operationId": "readV13FakeBrokerOrderByClientId",
+        "summary": "Read the original FakeBroker order and Fill by exact TestRun namespace and clientOrderId",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "clientOrderId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }
+        ],
+        "responses": { "200": { "description": "Original persisted FakeBroker order facts" }, "403": { "description": "Service identity or scope rejected" }, "404": { "description": "No original order exists" } }
+      }
+    },
+    "/internal/v1/v13/paper-orders/execute-manual-proposal": {
+      "post": {
+        "operationId": "executeV13ApprovedManualProposal",
+        "summary": "Revalidate and execute only the exact frozen V1.3 PAPER/FAKE manual Proposal Fixture",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-manual-paper-execution-command.schema.json" } } } },
+        "responses": {
+          "201": { "description": "Original fixed Fixture order persisted; Fill and reservation resolution delivered" },
+          "200": { "description": "Exact idempotent replay or original-order lookup" },
+          "202": { "description": "Order persisted; Portfolio Outbox delivery remains pending" },
+          "403": { "description": "Proposal scope, approval, or one-time Governance grant is invalid" },
+          "409": { "description": "Risk reservation or idempotency conflict; caller must query original order before recovery" },
+          "413": { "description": "Request exceeds 8 KiB" },
+          "422": { "description": "Proposal or fixed Fixture terms are invalid" },
+          "503": { "description": "Governance or Portfolio dependency unavailable" }
+        }
+      }
+    },
+    "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal": {
+      "post": {
+        "operationId": "executeV13ApprovedManualSequencedProposal",
+        "summary": "Create only the fixed 200-share CN working order for causal FakeBroker Fill sequencing",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-manual-paper-execution-command.schema.json" } } } },
+        "responses": { "201": { "description": "Accepted working order created without a fabricated Fill" }, "200": { "description": "Exact idempotent replay" }, "403": { "description": "Proposal scope or one-time Governance grant is invalid" }, "409": { "description": "Resource reservation or idempotency conflict" }, "422": { "description": "Proposal is outside the fixed sequenced Fixture" } }
+      }
+    },
+    "/internal/v1/v13/paper-orders/execute-auto-proposal": {
+      "post": {
+        "operationId": "executeV13AutoPolicyProposal",
+        "summary": "Execute an exact AUTO_POLICY proposal through an active Mandate, Portfolio reservation and FakeBroker",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-paper-execution-command.schema.json" } } } },
+        "responses": { "200": { "description": "HOLD or idempotent result" }, "201": { "description": "FakeBroker order and fill accepted and ledger event delivered" }, "202": { "description": "Order accepted with ledger delivery pending" }, "403": { "description": "Owner, Proposal or Mandate rejected" }, "409": { "description": "Budget, resource, conflict or original order lookup required" }, "422": { "description": "Proposal is outside the fixed Fixture" }, "503": { "description": "Dependency unavailable; reservation may remain pending" } }
+      }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } }
+}

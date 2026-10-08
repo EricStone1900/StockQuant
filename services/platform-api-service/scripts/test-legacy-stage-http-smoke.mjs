@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
@@ -14,6 +15,7 @@ const parsed = new URL(databaseUrl);
 if (decodeURIComponent(parsed.pathname.slice(1)) !== "platform_api_test" || parsed.username !== "platform_api_test") throw new Error("V1.1 unified HTTP smoke requires platform_api_test only");
 const pool = new Pool({ connectionString: databaseUrl });
 const ownerId = "acceptance-owner-1";
+const platformServiceToken = randomBytes(32).toString("base64url");
 let testRunId;
 const serviceDirectory = fileURLToPath(new URL("..", import.meta.url));
 const legacy = new PostgresTestRunRepository(pool, "legacy");
@@ -56,10 +58,12 @@ try {
       STOCKQUANT_LIVE_TRADING_ENABLED: "false",
       STOCKQUANT_BROKER_MODE: "FAKE",
       STOCKQUANT_V11_RUN_STORAGE: "stage",
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: platformServiceToken,
       STOCKQUANT_DATABASE_URL: databaseUrl,
       STOCKQUANT_BIND_HOST: "127.0.0.1",
       STOCKQUANT_PORT: String(port),
-      STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "false",
+      STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true",
+      STOCKQUANT_LOCAL_DEVELOPMENT_USER: ownerId,
       STOCKQUANT_V24_AUTO_START: "false"
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -73,7 +77,7 @@ try {
   }
   assert.equal(live, true, `Platform API stage-store startup failed: ${output}`);
 
-  const headers = { cookie: `sq_session=${ownerId}` };
+  const headers = { "x-stockquant-user": ownerId };
   const runResponse = await fetch(`${baseUrl}/api/v1/acceptance/runs/${testRunId}`, { headers });
   const runText = await runResponse.text();
   assert.equal(runResponse.status, 200, runText);
@@ -87,7 +91,7 @@ try {
   const evidence = await evidenceResponse.json();
   assert.equal(evidence.run.status, "COMPLETED");
   assert.equal(evidence.assertions[0].evidence.source, "acceptance_stage_runs");
-  const denied = await fetch(`${baseUrl}/api/v1/acceptance/runs/${testRunId}`, { headers: { cookie: "sq_session=foreign-owner" } });
+  const denied = await fetch(`${baseUrl}/api/v1/acceptance/runs/${testRunId}`, { headers: { "x-stockquant-user": "foreign-owner" } });
   assert.equal(denied.status, 403);
   console.log(JSON.stringify({ status: "PASS", storageMode: "stage", startupParityGate: "PASS", ownerScopedRunRead: runResponse.status, evidenceRead: evidenceResponse.status, foreignSession: denied.status, runStatus: body.status, assertions: body.assertions.length }));
 } finally {

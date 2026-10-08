@@ -1,0 +1,6 @@
+# V1.5 two-worker dispatch idempotency E2E
+
+Date: 2026-10-07 (Asia/Shanghai). Command: `STOCKQUANT_V15_E2E_MULTIWORKER=true pnpm test:e2e -- --stage V1.5`; exit 0. In isolated project `sq-v15-e2e-fa7a296744f0637bfd1d`, the harness started a second Platform process with independent durable `stockquant-v15-temporal-dispatch-worker-2`. Both the primary and secondary JetStream durable consumers ACKed the same normal TestRun event (ack floor 1), and the logs showed Temporal rejecting the duplicate start for stable Workflow ID as already started. The same Run `7e0744ff-af77-4a00-bcd1-c931ebd29076` completed 120 authoritative CN/US observations; browser normal/rejection/recovery and same-Run CLI/export passed. External source and real broker calls were 0. Exact project containers, volumes, network and images were cleaned.
+
+The [machine record](./2026-10-07-v15-multiworker-e2e.json) preserves all three TestRun IDs, consumer acknowledgements, duplicate-start marker, browser output, and source hashes. This verifies two independent consumers and stable Temporal workflow-start idempotency for the normal NO_TRADE Run. It does not cover a worker outage while both consumers compete, trade/settlement workflows, backup/restore, Ubuntu or human acceptance.
+

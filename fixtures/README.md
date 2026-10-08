@@ -44,6 +44,14 @@ Manifest 必须记录来源种类、说明、许可/授权和采集时间。`REC
 
 期望每个账户只有一笔期初流水，重复相同幂等请求十次后金额和流水数不变；同键异载荷必须拒绝且无副作用。完整场景仍需后端、真实 PostgreSQL、Web 和 CLI 实现后才能冻结为可执行验收。
 
+## V1.3 双市场交易链
+
+[`v1/v1.3/manifest.json`](./v1/v1.3/manifest.json) 冻结 [`v1.3-trading-loop` 1.0.0 场景输入](./v1/v1.3/trading-loop-scenarios.json)，包含 CN_A/CNY 与 US_EQUITY/USD 的合成订单输入、精确现金/持仓预期、CN Fixture Session 推进、UNKNOWN 查询恢复与成交序号故障顺序。输入文件 SHA-256 为 `24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770`。V1.3 Web从该文件读取seed、市场证券、订单数量/币种及AUTO Mandate预算；E2E以Manifest Hash核对并从同一 Fixture 读取预期断言。此Fixture为纯模拟输入，不代表真实行情、市场日历完整性、真实费用或券商行为；更改输入必须升新版本并更新Manifest。
+
+## V1.5 双市场 NO_TRADE 日历
+
+`v1/v1.5/no-trade-calendar-manifest.json` 冻结 `v1.5-no-trade-calendar-1`：CN_A 与 US_EQUITY 各60个按市场本地时区排序的日期型虚拟交易日；日程排除冻结的2026交易所假日规则，不含开收市时刻、Security、OHLCV、成交或真实行情。V1.5 Temporal E2E 对每个日期分别读取持久 Portfolio 账户与独立 FakeBroker 对账事实；NO_TRADE 执行完成后继续断言零订单/Fill、资金/持仓不变。该小样本仅满足本轮虚拟HOLD场景，不代表交易所完整日历、真实观察窗口、行情覆盖或生产调度。更新日历必须创建新 Fixture 版本。
+
 ## V3.2 研究侧验证 sidecar
 
 `packages/contracts/fixtures/v3.2-data-manifest-fixture-v1.json` 与 `packages/contracts/fixtures/v3.2-validation-plan-fixture-v1.json` 是契约形状样例，不是行情数据或已完成的验证证据。验证计划用数据 Manifest 原始 UTF-8 字节的 SHA-256 建立绑定；任何内容变更都必须生成新版本及新 Hash。Runner输入包中的 `dataContentSha256` 定义为：排除两个sidecar后，对其余`data/`文件按ASCII相对路径字节序排列，生成`[{path,sha256}]` JSON UTF-8字节，再取SHA-256。每个文件Hash直接从原始字节计算。验证计划还声明`candidateOutputPath`、`generatedCodeOutputPath`和`metricsOutputPath`；PromotionRequest构造器以Runner Job ID、fencing sourceRef及路径派生artifactId核实角色对应的实际OUTPUT产物。这个输入包校验不能替代对数据来源、授权、市场覆盖或时间可用性的独立验证；来源、许可、时间范围和数据版本须与候选及TestRun同时固定。
@@ -63,6 +71,10 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 ## V1.4 合成停牌与限制价用例
 
 `v1/v1.4/market-restrictions-manifest.json` 冻结了一组独立的 `SIMULATION_ONLY` 合成输入，包含显式 `trading_status` 与 Fixture 定义的上下限价四个确定性用例。当前只用于验证 Quant 域规则辅助函数：停牌拒绝、整根 OHLC 锁在上限时拒绝 BUY、整根 OHLC 锁在下限时拒绝 SELL。原有日线收盘价/成交量 Fixture 保持不变。该输入不是交易所行情，不按证券类别/生效日期推导涨跌幅，也不能证明盘中排队位置或真实成交；并已连接Quant Fixture API、正式Web选择器及同一TestRun的CLI `--check-only`路径；隔离HTTP/PG/Web端到端验收尚待通过，这也不构成真实交易所规则验收。
+
+## V1.4 合成公司行动用例
+
+`v1/v1.4/corporate-actions-manifest.json` 冻结`v1.4-corporate-actions-1`，包含五个`600000.SH` RAW close及拆股/现金分红事件文件。账务用例先以200000分买100股×1000分；2024-01-04按2:1拆股变为200股且不产生现金；2024-01-05每股10分分红按200股确认2000分应收，RAW价格从500分到490分；2024-01-08支付后应收转现金。每个交易日NAV应为200000分。分红事件重复投递同一actionId，必须只记一次。价格文件绝不回填复权价，本Fixture为合成会计断言，不代表真实公司行动、除权规则或税务处理。
 
 ## V2.3 锁版 Qlib 拟合输入
 

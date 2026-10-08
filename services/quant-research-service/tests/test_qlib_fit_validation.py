@@ -89,7 +89,10 @@ class QlibFitFixtureInputTests(unittest.TestCase):
         candidate = payload()
         candidate["temporalMetadata"][12]["decisionAt"] = candidate["temporalMetadata"][11]["decisionAt"]
         candidate["temporalMetadata"][12]["featureAvailableAt"] = candidate["temporalMetadata"][11]["featureAvailableAt"]
-        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+        self.assertEqual(MODULE.parse_fit_fixture(candidate)[2][-1], (96, 120))
+        candidate["temporalMetadata"][12]["decisionAt"] = "2026-01-01T10:00:00Z"
+        candidate["temporalMetadata"][12]["featureAvailableAt"] = "2026-01-01T10:00:00Z"
+        with self.assertRaisesRegex(ValueError, "non-decreasing"):
             MODULE.parse_fit_fixture(candidate)
         candidate = payload()
         candidate["temporalMetadata"][0]["decisionAt"] = "2026-01-01T00:00:00"

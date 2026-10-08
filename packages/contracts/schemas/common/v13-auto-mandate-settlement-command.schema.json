@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-auto-mandate-settlement-command.schema.json",
+  "title": "V13AutoMandateSettlementCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outcome", "now"],
+  "properties": {
+    "outcome": { "enum": ["CONSUMED", "RELEASED"] },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock." }
+  }
+}

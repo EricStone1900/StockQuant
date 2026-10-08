@@ -84,3 +84,5 @@ V2.4授权生命周期补充（2026-09-30）：Fixture Paper授权新增精确sc
 
 
 2026-10-01实现边界复核：`src/domain/`保留纯授权策略，`src/application/`协调Repository/Registry端口，`src/adapters/`提供PostgreSQL与生成Quant Registry client适配器，`src/bootstrap/`负责HTTP与依赖组合；旧`src/main.ts`入口保留。layer scan现纳入全仓baseline。当前证据见[W1 Decision Governance分层审计](../../evidence/audits/2026-10-01-w1-decision-governance-layer-boundary.md)及[SHA-256](../../evidence/audits/2026-10-01-w1-decision-governance-layer-boundary.sha256)。该工程检查不表示W1整体、Decision Governance交易授权流程或活动部署验收完成。
+
+2026-10-07 V1.3工程增量：Proposal及版本快照、决定、执行授权和修订审计已接入Platform/Trade；修订要求owner+actor，旧版本决定返回冲突。AUTO_POLICY现有整数分规则域、PostgreSQL Mandate/事件/预算预留、精确版本Hash激活与暂停；Governance OpenAPI及Platform会话/TestRun范围代理已接入。随机隔离PostgreSQL smoke覆盖Mandate创建幂等、HTTP原请求重放、精确激活、Trade HTTP逐单预算预留、并发限额和Platform越权拒绝。当前仍无正式AUTO_POLICY Web页面、Trade自动预算授权到FakeBroker/Portfolio结算的业务协调器和浏览器/CLI矩阵，也未覆盖总流程故障矩阵；因此实现及V1验收仍未完成。详细证据见[V1.3订单闭环审计](../../evidence/audits/2026-10-07-v13-governance-web-loop.md)。

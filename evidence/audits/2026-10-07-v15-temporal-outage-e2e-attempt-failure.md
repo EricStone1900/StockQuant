@@ -1,0 +1,3 @@
+# V1.5 actual Temporal outage E2E attempt failure
+
+Date: 2026-10-07. Project: `sq-v15-e2e-172863a4ccd7a7f1228d`. The normal/rejection/recovery browser E2E and prior message recovery checks passed, but an added probe that stopped Temporal before creating another Run failed with `fetch failed` immediately after the Temporal stop. No transient-retry success is claimed. The exact run record is adjacent. All project containers, volumes, network and images were removed. The retry test is being redesigned to inject a bounded Temporal UNAVAILABLE failure at the client boundary while retaining real JetStream NAK/redelivery and recovery.

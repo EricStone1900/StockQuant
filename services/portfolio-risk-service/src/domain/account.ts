@@ -34,4 +34,4 @@ export type ResourceReservation = {
   evidenceRef: string | null;
 };
 
-export type ReserveResourceCommand = Omit<ResourceReservation, "reservationId" | "status" | "evidenceRef">;
+export type ReserveResourceCommand = Omit<ResourceReservation, "reservationId" | "status" | "evidenceRef"> & { asOf?: string };

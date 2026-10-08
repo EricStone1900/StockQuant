@@ -1,5 +1,7 @@
 # 工作流编排与市场调度服务
 
+2026-10-07实现边界补充：仓库目前只在Platform API内实现V1.5 normal NO_TRADE的NATS Outbox→JetStream→Temporal受控切片；独立`workflow-orchestration-service`依旧是设计目标，未创建或验收。不能将该切片描述成交易/日终编排服务已实现。证据与边界见[V1.5持久派发E2E](../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.md)。
+
 服务：`workflow-orchestration-service`。日期：2026-09-07。状态：设计草案；实现/运行/验收均NOT_RUN。技术基线：TypeScript / Temporal Worker + 调度/事件Starter。
 
 共同约束见[整体架构](../01-system-architecture.md)、[契约与数据](../02-contracts-and-data.md)、[部署](../03-deployment-and-operations.md)。本文是服务S0设计输入；逻辑表与扩展端口需在对应阶段冻结Schema/迁移，不表示已有实现。

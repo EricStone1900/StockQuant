@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "status": "PASS_FIXTURE_API_WEB_PREVIEW_QILIB_PIPELINE_PENDING",
+  "command": "pnpm verify:stage -- --stage V1.2 --suite code",
+  "exitCode": 0,
+  "fixtureVersion": "v1.2-market-data-4",
+  "route": "GET /v1/fixtures/research-preview",
+  "serviceIdentity": "platform-api-service Bearer required",
+  "manifestHashVerifiedAtRead": true,
+  "webUrl": "http://127.0.0.1:58031/",
+  "composeProject": "sq-v12-e2e-70f8d851351bfee6c778",
+  "testRuns": {
+    "normal": "43574514-e61d-46e0-aecd-469c6ffaffb7",
+    "rejection": "e7924db9-ffdb-41dc-8a85-acc02aebb507",
+    "recovery": "4093d5dc-431f-43d4-ab73-c614baf3dadb"
+  },
+  "sameRunCliChecks": 3,
+  "normalRunStatus": "WAITING",
+  "previewAssertions": {
+    "securityCount": 13,
+    "barCount": 774,
+    "marketTypes": [
+      "CN_A",
+      "US_EQUITY"
+    ]
+  },
+  "cleanup": "PASS",
+  "externalCalls": 0,
+  "modelCalls": 0,
+  "realBrokerCalls": 0,
+  "activeVolumesTouched": false,
+  "logPath": "evidence/audits/2026-10-06-v1-p2-v12-research-api-suite.log",
+  "logSha256": "c50702e951f3cbc711f5146d9ac1f82431ba3dde95539e3058fd7e908e393847",
+  "remaining": [
+    "build Qlib fit/strategy input from Market Data response",
+    "execute real locked Qlib factor/model on v4 rows",
+    "persist output Artifact and owner-scoped retrieval",
+    "independent prediction/ranking recomputation"
+  ]
+}

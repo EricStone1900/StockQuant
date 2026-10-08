@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v12-research-fixture-preview-v1.schema.json",
+  "title": "V12ResearchFixturePreview",
+  "type": "object",
+  "required": ["fixtureVersion", "dataMode", "dailyBarsSha256", "securities", "bars"],
+  "properties": {
+    "fixtureVersion": { "const": "v1.2-market-data-4" },
+    "dataMode": { "const": "FIXTURE" },
+    "dailyBarsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "securities": {
+      "type": "array",
+      "minItems": 13,
+      "items": {
+        "type": "object",
+        "required": ["securityId", "ticker", "market", "currency", "timezone", "listedAt", "delistedAt"],
+        "properties": {
+          "securityId": { "type": "string" },
+          "ticker": { "type": "string" },
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "currency": { "enum": ["CNY", "USD"] },
+          "timezone": { "type": "string" },
+          "listedAt": { "type": "string", "format": "date" },
+          "delistedAt": { "type": ["string", "null"], "format": "date" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "bars": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["securityId", "ticker", "market", "currency", "timezone", "date", "availableAt", "open", "high", "low", "close", "volume", "adjustment"],
+        "properties": {
+          "securityId": { "type": "string" },
+          "ticker": { "type": "string" },
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "currency": { "enum": ["CNY", "USD"] },
+          "timezone": { "type": "string" },
+          "date": { "type": "string", "format": "date" },
+          "availableAt": { "type": "string", "format": "date-time" },
+          "open": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{2}$" },
+          "high": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{2}$" },
+          "low": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{2}$" },
+          "close": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{2}$" },
+          "volume": { "type": "integer", "minimum": 1 },
+          "adjustment": { "const": "raw" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

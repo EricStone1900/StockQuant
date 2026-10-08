@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { FakeBrokerOutboxPort } from "../ports/fake-broker-outbox.js";
 import { calculateHistoricalExecution, historicalExecutionFingerprint, IdempotencyConflictError, validateExecutionReservation, type HistoricalExecutionCommand, type HistoricalExecutionResult, type SnapshotPaperExecutionCommand } from "../domain/historical-execution.js";
 import { acceptFakeBrokerEvent, type FakeBrokerEventSequenceState } from "../domain/fake-broker-event-sequencer.js";
+import type { V13FixedPaperOrder } from "../application/v13-manual-execution.js";
 
 export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
   constructor(private readonly pool: Pool) {}
@@ -10,7 +11,7 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
     CREATE TABLE IF NOT EXISTS fake_broker_orders (
         order_id UUID PRIMARY KEY, namespace TEXT NOT NULL, account_id UUID NOT NULL, client_order_id TEXT NOT NULL,
         security TEXT NOT NULL, requested_quantity BIGINT NOT NULL, status TEXT NOT NULL, rejection_reason TEXT,
-        request_fingerprint TEXT, cancel_prior_status TEXT,
+        request_fingerprint TEXT, cancel_prior_status TEXT, execution_context JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(namespace, client_order_id)
     );
     CREATE TABLE IF NOT EXISTS fake_broker_external_orders (
@@ -19,8 +20,23 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
       status TEXT NOT NULL, evidence_ref TEXT NOT NULL, observed_at TIMESTAMPTZ NOT NULL,
       fingerprint TEXT NOT NULL, PRIMARY KEY(namespace, external_order_id)
     );
+    CREATE TABLE IF NOT EXISTS fake_broker_account_assets (
+      namespace TEXT NOT NULL, account_id UUID NOT NULL, owner_id TEXT NOT NULL, test_run_id UUID NOT NULL,
+      currency CHAR(3) NOT NULL, initial_cash NUMERIC(20,4) NOT NULL, current_cash NUMERIC(20,4) NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(namespace,account_id)
+    );
+    CREATE TABLE IF NOT EXISTS fake_broker_positions (
+      namespace TEXT NOT NULL, account_id UUID NOT NULL, security TEXT NOT NULL, quantity BIGINT NOT NULL CHECK(quantity >= 0),
+      PRIMARY KEY(namespace,account_id,security), FOREIGN KEY(namespace,account_id) REFERENCES fake_broker_account_assets(namespace,account_id)
+    );
+    CREATE TABLE IF NOT EXISTS fake_broker_asset_events (
+      event_id UUID PRIMARY KEY, namespace TEXT NOT NULL, account_id UUID NOT NULL, external_fill_id UUID NOT NULL UNIQUE,
+      currency CHAR(3) NOT NULL, cash_delta NUMERIC(20,4) NOT NULL, security TEXT NOT NULL, quantity_delta BIGINT NOT NULL,
+      effective_at TIMESTAMPTZ NOT NULL, evidence_ref TEXT NOT NULL
+    );
       ALTER TABLE fake_broker_orders ADD COLUMN IF NOT EXISTS request_fingerprint TEXT;
       ALTER TABLE fake_broker_orders ADD COLUMN IF NOT EXISTS cancel_prior_status TEXT;
+    ALTER TABLE fake_broker_orders ADD COLUMN IF NOT EXISTS execution_context JSONB NOT NULL DEFAULT '{}'::jsonb;
     CREATE TABLE IF NOT EXISTS fake_broker_fills (
       external_fill_id UUID PRIMARY KEY, order_id UUID NOT NULL REFERENCES fake_broker_orders(order_id), quantity BIGINT NOT NULL,
       price NUMERIC(20,4) NOT NULL, fee NUMERIC(20,4) NOT NULL DEFAULT 0, original_fee NUMERIC(20,4), fee_revision INTEGER NOT NULL DEFAULT 0,
@@ -142,6 +158,67 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
     finally { client.release(); }
   }
 
+  async executeV13ManualPaper(command: V13FixedPaperOrder & { reservation: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string } }): Promise<{ result: HistoricalExecutionResult; replayed: boolean }> {
+    if (!command.namespace || !command.accountId || !command.clientOrderId || !command.proposalId || !/^[A-Z0-9.]{3,20}$/u.test(command.security) || !Number.isSafeInteger(command.quantity) || command.quantity <= 0 || !/^[a-f0-9]{64}$/u.test(command.commandHash) || command.reservation.clientOrderId !== command.clientOrderId || command.reservation.ownerId !== command.ownerId || command.reservation.testRunId !== command.testRunId) throw new Error("INVALID_V13_MANUAL_PAPER_EXECUTION");
+    const fingerprint = createHash("sha256").update(JSON.stringify(command)).digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [command.namespace, command.clientOrderId]);
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [command.namespace, command.accountId]);
+      const existing = await client.query<any>(`SELECT o.order_id,o.status,o.request_fingerprint,o.requested_quantity,f.external_fill_id,f.quantity,f.price::text,f.original_fee::text AS fee,f.effective_at
+        FROM fake_broker_orders o LEFT JOIN LATERAL (SELECT * FROM fake_broker_fills WHERE order_id=o.order_id ORDER BY effective_at,external_fill_id LIMIT 1) f ON true WHERE o.namespace=$1 AND o.client_order_id=$2 FOR UPDATE OF o`, [command.namespace, command.clientOrderId]);
+      if (existing.rowCount === 1) {
+        const row = existing.rows[0];
+        if (row.request_fingerprint !== fingerprint) throw new IdempotencyConflictError();
+        await client.query("COMMIT");
+        return { replayed: true, result: row.external_fill_id ? { orderId: row.order_id, status: row.status === "LEDGER_PENDING" ? "FILLED" : row.status, brokerMode: "FAKE", fill: { externalFillId: row.external_fill_id, quantity: Number(row.quantity), price: row.price, fee: row.fee, effectiveAt: row.effective_at.toISOString() } } : { orderId: row.order_id, status: row.status, brokerMode: "FAKE" } as HistoricalExecutionResult };
+      }
+      const orderId = randomUUID(); const externalFillId = randomUUID(); const eventId = randomUUID();
+      const sequenced = command.executionMode === "SEQUENCED";
+      if (sequenced && (command.approvalMode !== "MANUAL_APPROVAL" || command.side !== "BUY" || command.security !== "600000.SH" || ![100, 200].includes(command.quantity) || command.currency !== "CNY")) throw new Error("V13_SEQUENCED_FIXTURE_OUTSIDE_SCOPE");
+      const result: HistoricalExecutionResult = sequenced
+        ? { orderId, status: "ACCEPTED", brokerMode: "FAKE" }
+        : { orderId, status: "FILLED", brokerMode: "FAKE", fill: { externalFillId, quantity: command.quantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt } };
+      const executionContext = { accountId: command.accountId, namespace: command.namespace, security: command.security, side: command.side,
+        currency: command.currency, reservation: command.reservation, testRunId: command.testRunId, ownerId: command.ownerId,
+        strategyVersion: command.strategyVersion, approvalMode: command.approvalMode, proposalId: command.proposalId,
+        proposalVersion: command.proposalVersion, contentHash: command.contentHash, commandHash: command.commandHash };
+      await client.query(`INSERT INTO fake_broker_orders(order_id,namespace,account_id,client_order_id,security,requested_quantity,status,request_fingerprint,execution_context)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`, [orderId, command.namespace, command.accountId, command.clientOrderId, command.security, command.quantity, sequenced ? "ACCEPTED" : "LEDGER_PENDING", fingerprint, JSON.stringify(executionContext)]);
+      await client.query("INSERT INTO fake_broker_order_events(event_id,order_id,status,reason) VALUES($1,$2,'ACCEPTED',$3)", [randomUUID(), orderId, command.approvalMode === "AUTO_POLICY" ? "V13_ACTIVE_AUTO_MANDATE_FIXTURE_PROPOSAL" : sequenced ? "V13_APPROVED_MANUAL_SEQUENCED_FIXTURE_PROPOSAL" : "V13_APPROVED_MANUAL_FIXTURE_PROPOSAL"]);
+      await client.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+        VALUES($1,$2,$3,$4,$5,10000.0000,10000.0000) ON CONFLICT(namespace,account_id) DO NOTHING`, [command.namespace, command.accountId, command.ownerId, command.testRunId, command.currency]);
+      const asset = await client.query<any>("SELECT owner_id,test_run_id,currency,current_cash::text FROM fake_broker_account_assets WHERE namespace=$1 AND account_id=$2 FOR UPDATE", [command.namespace, command.accountId]);
+      if (asset.rows[0]?.owner_id !== command.ownerId || asset.rows[0]?.test_run_id !== command.testRunId || asset.rows[0]?.currency.trim() !== command.currency) throw new Error("FAKEBROKER_ASSET_SCOPE_MISMATCH");
+      const scaled4 = (amount: string) => { const [whole, fraction = ""] = amount.split("."); return BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, "0")); };
+      const currentCashMinor = scaled4(asset.rows[0].current_cash); const reservedMinor = scaled4(command.reservedCash);
+      if (command.side === "BUY" && currentCashMinor < reservedMinor) throw new Error("FAKEBROKER_INSUFFICIENT_ASSETS");
+      if (sequenced) {
+        await client.query("INSERT INTO fake_broker_order_event_sequences(order_id,last_applied_sequence) VALUES($1,0)", [orderId]);
+        await client.query("COMMIT");
+        return { result, replayed: false };
+      }
+      await client.query("INSERT INTO fake_broker_fills(external_fill_id,order_id,quantity,price,fee,original_fee,effective_at,broker_sequence) VALUES($1,$2,$3,$4,$5,$5,$6,1)", [externalFillId, orderId, command.quantity, command.price, command.fee, command.effectiveAt]);
+      const cashDelta = command.side === "SELL"
+        ? await client.query<{ amount: string }>("SELECT ($1::numeric*$2::numeric-$3::numeric)::numeric(20,4)::text AS amount", [command.quantity, command.price, command.fee])
+        : { rows: [{ amount: `-${command.reservedCash}` }] };
+      await client.query("UPDATE fake_broker_account_assets SET current_cash=current_cash+$3::numeric,updated_at=now() WHERE namespace=$1 AND account_id=$2", [command.namespace, command.accountId, cashDelta.rows[0].amount]);
+      if (command.side === "SELL") {
+        const position = await client.query("UPDATE fake_broker_positions SET quantity=quantity-$4 WHERE namespace=$1 AND account_id=$2 AND security=$3 AND quantity >= $4 RETURNING quantity", [command.namespace, command.accountId, command.security, command.quantity]);
+        if (position.rowCount !== 1) throw new Error("FAKEBROKER_INSUFFICIENT_SELLABLE_ASSETS");
+      } else await client.query(`INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,$3,$4)
+        ON CONFLICT(namespace,account_id,security) DO UPDATE SET quantity=fake_broker_positions.quantity+EXCLUDED.quantity`, [command.namespace, command.accountId, command.security, command.quantity]);
+      await client.query(`INSERT INTO fake_broker_asset_events(event_id,namespace,account_id,external_fill_id,currency,cash_delta,security,quantity_delta,effective_at,evidence_ref)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [randomUUID(), command.namespace, command.accountId, externalFillId, command.currency, cashDelta.rows[0].amount, command.security, command.side === "SELL" ? -command.quantity : command.quantity, command.effectiveAt, `v13-proposal:${command.proposalId}`]);
+      await client.query("INSERT INTO fake_broker_order_events(event_id,order_id,status,reason) VALUES($1,$2,'LEDGER_PENDING','V13_FIXED_FIXTURE_FILL')", [randomUUID(), orderId]);
+      await client.query("INSERT INTO fake_broker_order_event_sequences(order_id,last_applied_sequence) VALUES($1,1)", [orderId]);
+      await client.query("INSERT INTO fake_broker_authoritative_event_inbox(order_id,broker_sequence,event_type,payload,fingerprint,applied_at) VALUES($1,1,'FILL_REPORT',$2::jsonb,$3,now())", [orderId, JSON.stringify({ externalFillId, sequence: 1, cumulativeQuantity: command.quantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt, evidenceRef: `v13-proposal:${command.proposalId}` }), fingerprint]);
+      await client.query("INSERT INTO fake_broker_outbox(event_id,order_id,event_type,payload) VALUES($1,$2,'FILL_POST',$3::jsonb)", [eventId, orderId, JSON.stringify({ accountId: command.accountId, namespace: command.namespace, security: command.security, externalFillId, quantity: command.quantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt, side: command.side ?? "BUY", currency: command.currency, reservation: command.reservation, reservationOutcome: "FILLED", testRunId: command.testRunId, ownerId: command.ownerId, strategyVersion: command.strategyVersion, approvalMode: command.approvalMode, mandateId: command.mandateId, mandateVersion: command.mandateVersion, proposalId: command.proposalId, proposalVersion: command.proposalVersion, contentHash: command.contentHash, commandHash: command.commandHash })]);
+      await client.query("COMMIT"); return { result, replayed: false };
+    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+  }
+
   async recordSimulatedFillReport(orderId: string, input: { externalFillId: string; sequence: number; cumulativeQuantity: number; price: string; fee: string; effectiveAt: string; evidenceRef: string }) {
     if (!/^[0-9a-f-]{36}$/iu.test(input.externalFillId) || !Number.isSafeInteger(input.sequence) || input.sequence < 1 ||
       !Number.isSafeInteger(input.cumulativeQuantity) || input.cumulativeQuantity <= 0 ||
@@ -217,17 +294,31 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
     if (incrementalQuantity > 0n) {
       const fillStatus = cumulativeQuantity >= BigInt(order.requested_quantity) ? "FILLED" : "PARTIALLY_FILLED";
       const baseOutbox = await client.query<any>("SELECT payload FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST' ORDER BY created_at LIMIT 1", [order.order_id]);
-      if (baseOutbox.rowCount !== 1) throw new Error("SIMULATED_FILL_CONTEXT_MISSING");
+      const executionContext = order.execution_context && typeof order.execution_context.accountId === "string" ? order.execution_context : baseOutbox.rows[0]?.payload;
+      if (!executionContext || typeof executionContext.accountId !== "string" || typeof executionContext.namespace !== "string" || typeof executionContext.security !== "string") throw new Error("SIMULATED_FILL_CONTEXT_MISSING");
       eventId = randomUUID();
       await client.query(`INSERT INTO fake_broker_fills(external_fill_id,order_id,quantity,price,fee,original_fee,effective_at,broker_sequence,report_fingerprint)
         VALUES($1,$2,$3,$4,$5,$5,$6,$7,$8)`, [input.externalFillId, order.order_id, Number(incrementalQuantity), input.price, input.fee, input.effectiveAt, input.sequence, fingerprint]);
-      const basePayload = baseOutbox.rows[0].payload;
       const payload = { accountId: order.account_id, namespace: order.namespace, security: order.security, externalFillId: input.externalFillId,
         quantity: Number(incrementalQuantity), price: input.price, fee: input.fee, effectiveAt: input.effectiveAt,
-        side: basePayload.side, currency: basePayload.currency, ...(basePayload.reservation ? { reservation: basePayload.reservation } : {}),
-        ...(fillStatus === "FILLED" && basePayload.reservation ? { reservationOutcome: "FILLED" } : {}),
+        side: executionContext.side ?? "BUY", currency: executionContext.currency ?? "CNY", ...(executionContext.reservation ? { reservation: executionContext.reservation } : {}),
+        ...(fillStatus === "FILLED" && executionContext.reservation ? { reservationOutcome: "FILLED" } : {}),
         simulatedReport: true, brokerSequence: input.sequence, cumulativeQuantity: input.cumulativeQuantity, evidenceRef: input.evidenceRef };
       await client.query("INSERT INTO fake_broker_outbox(event_id,order_id,event_type,payload) VALUES($1,$2,'FILL_POST',$3::jsonb)", [eventId, order.order_id, JSON.stringify(payload)]);
+      const independentAsset = await client.query<any>("SELECT current_cash::text FROM fake_broker_account_assets WHERE namespace=$1 AND account_id=$2 FOR UPDATE", [order.namespace, order.account_id]);
+      if (independentAsset.rowCount === 1) {
+        const debit = (BigInt(incrementalQuantity) * BigInt(input.price.replace(".", "").padEnd(5, "0")) + BigInt(input.fee.replace(".", "").padEnd(5, "0"))).toString();
+        const currentCash = independentAsset.rows[0].current_cash as string;
+        const [cashWhole, cashFraction = ""] = currentCash.split(".");
+        const currentCashMinor = BigInt(cashWhole) * 10000n + BigInt(cashFraction.padEnd(4, "0"));
+        if (currentCashMinor < BigInt(debit)) throw new Error("FAKEBROKER_INSUFFICIENT_ASSETS");
+        await client.query("UPDATE fake_broker_account_assets SET current_cash=current_cash-($3::numeric*$4::numeric+$5::numeric),updated_at=now() WHERE namespace=$1 AND account_id=$2",
+          [order.namespace, order.account_id, Number(incrementalQuantity), input.price, input.fee]);
+        await client.query(`INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,$3,$4)
+          ON CONFLICT(namespace,account_id,security) DO UPDATE SET quantity=fake_broker_positions.quantity+EXCLUDED.quantity`, [order.namespace, order.account_id, order.security, Number(incrementalQuantity)]);
+        await client.query(`INSERT INTO fake_broker_asset_events(event_id,namespace,account_id,external_fill_id,currency,cash_delta,security,quantity_delta,effective_at,evidence_ref)
+          VALUES($1,$2,$3,$4,$5,-($6::numeric*$7::numeric+$8::numeric),$9,$10,$11,$12)`, [randomUUID(), order.namespace, order.account_id, input.externalFillId, executionContext.currency ?? "CNY", Number(incrementalQuantity), input.price, input.fee, order.security, Number(incrementalQuantity), input.effectiveAt, input.evidenceRef]);
+      }
     }
     await client.query(`INSERT INTO fake_broker_simulated_reports(external_fill_id,order_id,broker_sequence,cumulative_quantity,incremental_quantity,report_fingerprint,evidence_ref,effective_at,event_id)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [input.externalFillId, order.order_id, input.sequence, input.cumulativeQuantity, Number(incrementalQuantity), fingerprint, input.evidenceRef, input.effectiveAt, eventId]);
@@ -268,7 +359,7 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      const orderResult = await client.query<any>("SELECT order_id,account_id,status FROM fake_broker_orders WHERE order_id=$1 FOR UPDATE", [orderId]);
+      const orderResult = await client.query<any>("SELECT order_id,namespace,account_id,status FROM fake_broker_orders WHERE order_id=$1 FOR UPDATE", [orderId]);
       const order = orderResult.rows[0];
       if (!order) throw new Error("ORDER_NOT_FOUND");
       const duplicate = await client.query<any>(`SELECT c.previous_fee=$3::numeric AS previous_matches,c.corrected_fee=$4::numeric AS corrected_matches,
@@ -296,6 +387,11 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
       const payload = { accountId: order.account_id, externalFillId: input.externalFillId, revision: input.revision,
         previousFee: input.previousFee, correctedFee: input.correctedFee, effectiveAt: input.effectiveAt, evidenceRef: input.evidenceRef };
       await client.query("UPDATE fake_broker_fills SET fee=$2::numeric,fee_revision=$3 WHERE external_fill_id=$1", [input.externalFillId, input.correctedFee, input.revision]);
+      // Some bounded FakeBroker execution paths (for example the V2.4 snapshot
+      // readiness adapter) do not own a separate broker-side asset ledger. Keep
+      // the independent cash ledger in sync when that ledger exists, while the
+      // Portfolio correction Outbox remains authoritative for every execution.
+      await client.query("UPDATE fake_broker_account_assets SET current_cash=current_cash-($3::numeric-$2::numeric),updated_at=now() WHERE namespace=$1 AND account_id=$4", [order.namespace, input.previousFee, input.correctedFee, order.account_id]);
       await client.query("INSERT INTO fake_broker_outbox(event_id,order_id,event_type,payload) VALUES($1,$2,'FEE_CORRECTION',$3::jsonb)", [eventId, orderId, JSON.stringify(payload)]);
       await client.query(`INSERT INTO fake_broker_fee_corrections(external_fill_id,revision,previous_fee,corrected_fee,effective_at,evidence_ref,event_id)
         VALUES($1,$2,$3,$4,$5,$6,$7)`, [input.externalFillId, input.revision, input.previousFee, input.correctedFee, input.effectiveAt, input.evidenceRef, eventId]);
@@ -309,10 +405,15 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
   async find(orderId: string) { const result = await this.pool.query<any>("SELECT order_id,status,rejection_reason FROM fake_broker_orders WHERE order_id=$1", [orderId]); return result.rows[0] ?? null; }
   async findByNamespaceClientOrderId(namespace: string, clientOrderId: string) {
     const result = await this.pool.query<any>(`SELECT o.order_id,o.status,o.rejection_reason,o.client_order_id,
-      f.external_fill_id,f.quantity AS fill_quantity,f.price::text AS fill_price,f.original_fee::text AS fill_fee,f.effective_at,
-      x.event_id,x.event_type,x.status AS outbox_status,x.attempts,x.delivered_at,x.payload
+      f.external_fill_id,f.quantity AS fill_quantity,f.price::text AS fill_price,f.fee::text AS fill_fee,f.effective_at,
+      x.event_id,x.event_type,x.status AS outbox_status,x.attempts,x.delivered_at,COALESCE(NULLIF(o.execution_context,'{}'::jsonb),x.payload) AS payload,
+      COALESCE(all_fills.rows,'[]'::jsonb) AS fills,fc.event_id AS fee_correction_event_id,
+      fc.status AS fee_correction_outbox_status,fc.attempts AS fee_correction_outbox_attempts,
+      fc.last_error AS fee_correction_outbox_last_error,fc.delivered_at AS fee_correction_outbox_delivered_at
       FROM fake_broker_orders o LEFT JOIN LATERAL (SELECT * FROM fake_broker_fills WHERE order_id=o.order_id ORDER BY effective_at,external_fill_id LIMIT 1) f ON true
       LEFT JOIN LATERAL (SELECT * FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='FILL_POST' ORDER BY created_at LIMIT 1) x ON true
+      LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('externalFillId',external_fill_id,'quantity',quantity,'price',price::text,'fee',fee::text,'effectiveAt',effective_at,'brokerSequence',broker_sequence) ORDER BY effective_at,external_fill_id) AS rows FROM fake_broker_fills WHERE order_id=o.order_id) all_fills ON true
+      LEFT JOIN LATERAL (SELECT event_id,status,attempts,last_error,delivered_at FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='FEE_CORRECTION' ORDER BY created_at DESC LIMIT 1) fc ON true
       WHERE o.namespace=$1 AND o.client_order_id=$2`, [namespace, clientOrderId]);
     return result.rows[0] ?? null;
   }
@@ -329,6 +430,14 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
       discrepancies: external.rows.map((row) => ({ kind: "EXTERNAL_ORDER_MISSING_LOCALLY", externalOrderId: row.external_order_id,
         clientOrderId: row.client_order_id, security: row.security, requestedQuantity: Number(row.requested_quantity),
         status: row.status, evidenceRef: row.evidence_ref, observedAt: row.observed_at.toISOString() })) };
+  }
+  async independentAssetSnapshot(namespace: string, accountId: string) {
+    const account = await this.pool.query<any>(`SELECT namespace,account_id,owner_id,test_run_id,currency,initial_cash::text,current_cash::text,updated_at
+      FROM fake_broker_account_assets WHERE namespace=$1 AND account_id=$2`, [namespace, accountId]);
+    if (!account.rows[0]) return null;
+    const positions = await this.pool.query<any>(`SELECT security,quantity::text FROM fake_broker_positions WHERE namespace=$1 AND account_id=$2 AND quantity>0 ORDER BY security`, [namespace, accountId]);
+    const events = await this.pool.query<any>(`SELECT count(*)::int AS fill_event_count FROM fake_broker_asset_events WHERE namespace=$1 AND account_id=$2`, [namespace, accountId]);
+    return { brokerMode: "FAKE", source: "FAKEBROKER_INDEPENDENT_ASSET_LEDGER", ...account.rows[0], account_id: undefined, positions: positions.rows.map((row) => ({ security: row.security, quantity: Number(row.quantity) })), ...events.rows[0] };
   }
   async recordSimulatedExternalOrder(input: { namespace: string; externalOrderId: string; clientOrderId?: string; security: string; requestedQuantity: number; status: string; evidenceRef: string; observedAt: string }) {
     const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");

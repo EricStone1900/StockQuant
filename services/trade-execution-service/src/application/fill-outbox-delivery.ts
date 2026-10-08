@@ -4,7 +4,11 @@ import type { FakeBrokerOutboxPort } from "../ports/fake-broker-outbox.js";
 import type { PortfolioFillWriter } from "../ports/portfolio-fill-writer.js";
 
 export class FillOutboxDelivery {
-  constructor(private readonly outbox: FakeBrokerOutboxPort, private readonly portfolio: PortfolioFillWriter) {}
+  constructor(
+    private readonly outbox: FakeBrokerOutboxPort,
+    private readonly portfolio: PortfolioFillWriter,
+    private readonly faults: { beforeFeeCorrectionDelivery?: (eventId: string, payload: unknown) => void | Promise<void> } = {},
+  ) {}
 
   async deliver(eventId: string): Promise<boolean> {
     const claim = await this.outbox.claimOutbox(eventId);
@@ -49,6 +53,7 @@ export class FillOutboxDelivery {
     if (!claim) return false;
     try {
       const correction = claim.payload as { accountId: string; externalFillId: string; revision: number; previousFee: string; correctedFee: string; effectiveAt: string; evidenceRef: string };
+      await this.faults.beforeFeeCorrectionDelivery?.(eventId, correction);
       await this.portfolio.correctAccountFillFee(correction.accountId, correction.externalFillId, {
         revision: correction.revision, previousFee: correction.previousFee, correctedFee: correction.correctedFee,
         effectiveAt: correction.effectiveAt, evidenceRef: correction.evidenceRef,

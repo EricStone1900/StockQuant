@@ -14,6 +14,18 @@ test("V1.2 E2E uses the isolated Platform, Market Data, Quant, Qlib Worker, Web 
   assert.deepEqual(e2eStageCommand("V1.2"), ["exec", "node", "scripts/test-v12-e2e-isolated.mjs"]);
 });
 
+test("V1.3 E2E uses the isolated Web/API/CLI harness and its scoped FakeBroker faults", () => {
+  assert.deepEqual(e2eStageCommand("V1.3"), ["exec", "node", "scripts/test-v13-web-e2e-isolated.mjs"]);
+});
+
+test("V1.5 E2E uses its isolated Temporal/NATS/Web/API/CLI harness", () => {
+  assert.deepEqual(e2eStageCommand("V1.5"), ["exec", "node", "scripts/test-v15-web-e2e-isolated.mjs"]);
+});
+
+test("V1.1 E2E uses the isolated stage-storage stack, full code suite and guarded recovery harness", () => {
+  assert.deepEqual(e2eStageCommand("V1.1"), ["test:integration:v11-stage-storage"]);
+});
+
 test("other stage E2E commands continue to run their matching Web tests", () => {
   assert.deepEqual(e2eStageCommand("V3.2"), ["--filter", "@stockquant/web", "exec", "playwright", "test", "-g", "V3\\.2"]);
   assert.deepEqual(e2eStageCommand(undefined), ["--filter", "@stockquant/web", "test:e2e"]);

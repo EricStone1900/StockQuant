@@ -1,6 +1,6 @@
 # V1.4 日线历史回测与可核对报告
 
-状态：PARTIALLY_IMPLEMENTED（2026-09-09历史自动与用户人工验收PASS保留；当前BUY/SELL单订单成本、参与率、现金约束、T+1可卖量和下一Fixture Session卖出款结算均有隔离验证，TestRun绑定精确workspace代码Hash；仅合成停牌/限制价拒绝场景已有隔离闭环，真实市场限制规则/费税完整性、Qlib规则对照仍未完成，第7节未验，第8节人工执行/导出仍待完成）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PARTIALLY_IMPLEMENTED（2026-09-09历史自动与用户人工验收PASS保留；2026-10-07已验证持久异步TestRun/Quant稳定ID、取消门禁、Platform在Quant执行前及Quant结果/Manifest落库后强制终止恢复、Quant同ID幂等重试；Web/CLI轮询、同Run查询及随机隔离Harness均有证据。BUY/SELL成本、T+1、结算与合成公司行动已有固定Fixture切片。完整适用市场规则/日历、完整费税、Qlib/Paper全规则对照、第7节其余交付项及当前新增范围人工验收仍未完成。2026-10-07逐单买入结果、部分成交/拒绝分别统计及规则子集对照已通过隔离集成；V1.3 FakeBroker SELL账本修复后，V1.4 code suite及隔离E2E复跑仍通过。详见[规则对照审计](../../../evidence/audits/2026-10-07-v14-trade-rule-parity.md)、[此前任务复验](../../../evidence/audits/2026-10-07-v14-durable-tasks-b11017bd3e3392b3a963.md)和[最新复验](../../../evidence/audits/2026-10-07-v14-durable-tasks-ab5fb8f4ee92e8c60081.md)。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
 
 ## 1. 前置与范围
 
@@ -10,12 +10,18 @@ V1.3通过；复用同一风控、账本与执行规则，避免另建交易规�
 
 ## 2. 开发任务
 
+- [x] TestRun先持久受理，再异步派发Quant；Web/CLI按同一TestRun ID轮询，页面刷新不触发重新计算。已在取消前、Quant执行前崩溃、Quant结果/Manifest提交后崩溃三种路径执行独立PostgreSQL验证，恢复保留原ID；Quant重复输入幂等返回原报告、变更输入409。该工程切片不代表本阶段其余规则或人工验收完成。详情见[持久任务审计](../../../evidence/audits/2026-10-07-v14-durable-tasks-3e249b385f39763ddd91.md)。
+
 - [x] 建立BacktestRun及固定Manifest：数据、股票池、策略/因子、规则、成本、依赖/镜像、种子、初始账户、区间与基准。
 - [x] 实现按运行隔离的历史时钟与日线撮合；日终确认信号最早下一可交易时点执行，原价用于成交，复权研究与公司行动入账分离。
-- [ ] 完成费用、滑点、成交量约束、停牌/限制价、可卖量及结算处理；当前已实现固定费用/不利滑点、可配置A股佣金参数/最低佣金、沪深经手费与过户费、卖方印花税、成交量约束、T+1与单卖单次一Fixture Session结算，并有合成停牌/锁板场景；另有独立合成历史日期费率Fixture覆盖2023-08-28前后规则切换。完整券商费率、交易所结算日历、公司行动及交易规则一致性仍缺；日线无法确定的盘中顺序采用明确保守规则。
+- [ ] 完成费用、滑点、成交量约束、停牌/限制价、可卖量及结算处理；当前已实现固定费用/不利滑点、可配置A股佣金参数/最低佣金、沪深经手费与过户费、卖方印花税、成交量约束、T+1与单卖单次一Fixture Session结算，并有合成停牌/锁板场景；另有独立合成历史日期费率Fixture覆盖2023-08-28前后规则切换。每笔买卖结果记录请求/成交量、状态和适用原因；拒绝单与部分成交分别统计。完整券商费率、交易所结算日历、公司行动及交易规则一致性仍缺；日线无法确定的盘中顺序采用明确保守规则。
 - [x] 单证券日线Fixture按交易Session记录持仓、T+1未可卖量和可卖量；成交日持仓纳入估值，下一条Fixture交易日才释放卖出可用量；同日卖出被拒绝，后续显式SELL按可卖持仓/成交参与率成交，扣费后计未结算款并在下一Fixture Session转为现金。后端断言、Web结果和同Run CLI核对均通过；Fixture结束时未结款仍作为应收项。
 - [x] 提供收益/基准、回撤、换手、费用归因、成交率、拒绝/未成交数量和数据覆盖；关联实际模拟流水。
-- [ ] Qlib快速研究报告和交易链路回放分开标注执行模型；同一基准案例比对规则与费用，无差异才作为一致性证据。
+- [ ] Qlib快速研究报告和交易链路回放分开标注执行模型；同一基准案例比对规则与费用，无差异才作为一致性证据。2026-10-07已扩展V1.4与Trade Execution固定规则对照：全成BUY/SELL数量、价格、费用、下一Session，以及参与率限制的部分BUY和零成交拒绝（`PARTICIPATION_LIMIT`/`ZERO_VOLUME`）均逐单对照。Quant单测20/20；隔离真实PostgreSQL/Web/API/Quant集成5/5，8个Web TestRun均同Run经CLI检查；其中部分买单以`INSUFFICIENT_CASH`准确拒绝不可负担部分，允许部分成交，回测独立计数。该隔离集成未调用Trade HTTP/Governance或Portfolio账本；对照尚不覆盖日期费率、滑点取整、现金/应收结算和完整恢复矩阵，故规则一致性项仍未完成。详见[规则对照审计](../../../evidence/audits/2026-10-07-v14-trade-rule-parity.md)和[隔离持久任务复验](../../../evidence/audits/2026-10-07-v14-durable-tasks-b11017bd3e3392b3a963.md)。
+
+2026-10-07滑点取整增量：FakeBroker现在在方向性滑点后按0.01报价档向不利方向取整；Quant/Paper同输入55 bps的CN BUY/SELL价格、数量和Session对照通过。对照审计见[滑点报价档审计](../../../evidence/audits/2026-10-07-v14-slippage-tick-parity.md)。费用模型仍未对齐：非零滑点时Quant固定费与FakeBroker比例费用不同；全市场tick与规则支持也未验证，因此本项和阶段仍未完成。
+
+2026-10-07费用对照后续：上段记录的是当时事实。新增同一个`CN_A_CASH_EQUITY_2023_08_28` Fixture费率计划，Quant和FakeBroker对BUY/SELL在0与55 bps下费用逐笔一致；实际隔离PostgreSQL还核对了部分BUY和零成交拒绝，验证费用与成交Outbox持久一致。FakeBroker请求指纹包含费率版本，并拒绝超出计划市场、币种及生效日期的输入。见[CN_A费用一致性审计](../../../evidence/audits/2026-10-07-v14-cn-a-fee-parity.md)与[SHA-256](../../../evidence/audits/2026-10-07-v14-cn-a-fee-parity.sha256)。这一项只证明冻结的CN_A费率Fixture，不证明US费用、完整历史费税、结算与Paper总账逐规则一致；第2节整体交付、P4和V1.4继续未完成。
 
 ## 3. 同步 Web 开发
 
@@ -66,6 +72,7 @@ V1.3通过；复用同一风控、账本与执行规则，避免另建交易规�
 - [ ] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
 - [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
 - [ ] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
+- [x] P1 V1.4回测报告Artifact的公共身份/owner读取/Hash校验切片已完成并经隔离Web/API/CLI验证；本项不代替本阶段其他交付、人工验收或整版Artifact统一审计，详见[P1报告ArtifactRef审计](../../../evidence/audits/2026-10-07-p1-v14-report-artifact-ref.md)。
 
 ## 8. 阶段验收操作手册
 
@@ -75,7 +82,7 @@ V1.3通过；复用同一风控、账本与执行规则，避免另建交易规�
 
 前置服务：只使用本命令自动创建的随机隔离Compose项目，包括V1.4 Quant Research、Platform API、Portfolio Risk、PostgreSQL和Web；不依赖活动服务。Docker daemon须可访问。当前执行环境为Node `v24.1.0`、pnpm `10.34.5`、Docker CLI `28.0.4`；仓库Node版本见根目录`.node-version`。
 
-固定输入：常规场景为`fixtures/v1/v1.4/backtest_daily.csv`，SHA-256 `88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef`；版本`v1.4-daily-backtest-1`；合成单证券`600000.SH`，2024-01-02至2024-01-05。历史费率场景为`fixtures/v1/v1.4/backtest_historical_fees.csv`，SHA-256 `5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573`；版本`v1.4-historical-fees-1`；合成日期2023-08-23至2023-08-28，不含真实历史价格。默认策略资金1,000,000分、目标100股、参与率100bps、滑点0bps、固定费500分；seed=`20260907`。Fixture不含公司行动。
+固定输入：常规场景为`fixtures/v1/v1.4/backtest_daily.csv`，SHA-256 `88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef`；版本`v1.4-daily-backtest-1`；合成单证券`600000.SH`，2024-01-02至2024-01-05。历史费率场景为`fixtures/v1/v1.4/backtest_historical_fees.csv`，SHA-256 `5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573`；版本`v1.4-historical-fees-1`；合成日期2023-08-23至2023-08-28，不含真实历史价格。公司行动场景使用独立Manifest `fixtures/v1/v1.4/corporate-actions-manifest.json`、Fixture版本`v1.4-corporate-actions-1`及复合输入Hash `914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc`；五个合成RAW收盘价覆盖2024-01-02至2024-01-08，含2:1拆股、每股10分现金分红与重复事件投递。拆股/分红仅为账务引擎输入，不代表实际证券公司行动数据或完整税务规则。默认策略资金1,000,000分、目标100股、参与率100bps、滑点0bps、固定费500分；seed=`20260907`。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
@@ -86,12 +93,12 @@ V1.3通过；复用同一风控、账本与执行规则，避免另建交易规�
 | 正式页面的真实入口/跳转链接 | 在Web正式验收中心选择V1 → V1.4；隔离浏览器直接进入`/acceptance/v1/v1.4` |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v1/v1.4/backtest_daily.csv`，2024-01-02至2024-01-05，SHA-256见本节上文；`v1.4-daily-backtest-1`；`FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2` |
 | 配置文件及必需环境变量名/非秘密测试值 | Harness自动生成随机端口、Compose project与服务凭证；API地址通过`STOCKQUANT_PLATFORM_API_URL`传入，浏览器地址通过`PLAYWRIGHT_BASE_URL`传入。无需手工放置密钥，不在终端输出凭证 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | `pnpm test:e2e -- --stage V1.4`执行API normal/rejection/recovery、浏览器正常/参数比较、同Run CLI check-only及精确隔离资源清理；此切片尚无真实外部故障目标 |
-| 预期耗时、轮询超时、实际观察期/预算 | 单次隔离E2E以本机容器构建为准；Harness健康等待上限30秒。外部数据、Paper及Provider预算均为0；自然市场观察不适用于本Fixture自动套件 |
+| 外部故障目标及可执行命令、恢复/隔离清理入口 | `pnpm test:e2e -- --stage V1.4`在独立Compose项目中强制终止Platform API两次（Quant调用前、Quant报告已落库后），重启后按原TestRun ID恢复；另验证预执行取消、同ID Quant幂等重放、API/Web/CLI及精确隔离资源清理 |
+| 预期耗时、轮询超时、实际观察期/预算 | Harness健康等待上限30秒；V1.4任务终态轮询上限30秒；单次E2E以容器构建/浏览器执行为准。外部数据、Paper及Provider预算均为0；自然市场观察不适用于本Fixture套件 |
 
-### 8.2 初始化与启动（隔离自动化命令已实测；人工页面启动仍待补）
+### 8.2 初始化与启动（隔离自动化与交互栈已实测；人工操作待执行）
 
-在仓库根目录运行以下隔离验证命令。它内部构建唯一随机Compose项目、临时数据库、服务与Web，结束后移除并核验本次项目的容器、卷、网络和镜像。不要另行对活动Stack执行初始化或迁移。
+在仓库根目录运行以下隔离验证命令。它内部构建唯一随机Compose项目、临时数据库、服务与Web；固定注入两个受限测试延时，以便在Quant调用前及Quant报告落库后强制终止隔离Platform进程，检验恢复/幂等。结束后移除并核验本次项目的容器、卷、网络和镜像。不要另行对活动Stack执行初始化或迁移。
 
 ```bash
 # 仓库根目录；先确认执行目录、锁定工具版本和Docker daemon可用
@@ -100,7 +107,17 @@ pnpm install --frozen-lockfile
 pnpm test:e2e -- --stage V1.4
 ```
 
-预期：命令退出0；报告包含API/browser TestRun IDs、八个Quant BacktestRun/Manifest配对Hash、Fixture Hash和临时资源清理结果。任一服务构建/健康、CLI核对、浏览器断言、Hash或清理失败时命令非零退出并保留审计报告。此命令启动的临时Web URL仅在运行期间可用；它支持自动验收，不满足本节要求的人工交互式启动/持久URL。
+预期：命令退出0；报告包含API/browser TestRun IDs、Quant BacktestRun/Manifest配对Hash、Fixture Hash和临时资源清理结果。公司行动场景应包含RAW价位、持仓/现金/应收变化及重复事件数。任一服务构建/健康、CLI核对、浏览器断言、Hash或清理失败时命令非零退出并保留审计报告。此命令启动的临时Web URL仅在运行期间可用；它支持自动验收，不满足本节要求的人工交互式启动/持久URL。
+
+交互式隔离栈现可单独启动，便于用户在浏览器检查正式页面。入口生成每项目随机Compose ID、回环端口、SCRAM数据库口令和服务Token；禁用V1.4测试延时Hook、使用FAKE/BACKTEST并保持LIVE关闭。2026-10-07实测Web `http://127.0.0.1:49683/acceptance/v1/v1.4`（HTTP 200）、Platform `http://127.0.0.1:49682/live`、PostgreSQL `password_encryption=scram-sha-256`，项目为`sq-v14-stack-f130ccd6951b701f2096`。重启复验后，以该次运行打印的具体ID执行精确关停；停止后容器/卷/网络/项目镜像及0600凭据文件均清理。当前新栈示例命令：
+
+```bash
+pnpm stack:up -- --stage V1.4
+# 按命令输出打开随机端口的正式验收页；另一终端按启动输出停止精确项目：
+pnpm stack:down -- --project sq-v14-stack-f130ccd6951b701f2096
+```
+
+人工只读检查、Web发起回测、同Run CLI核验与用户签署尚未执行；不能据交互栈健康状态推断人工验收通过。隔离E2E自动运行后会销毁其临时URL；交互栈也按停止命令销毁，二者均不触碰活动服务或共享卷。
 
 初始化在验收中心“准备隔离运行”完成；CLI场景入口也负责同样的准备，两者调用同一业务API。准备后记录testRunId、accountId、namespace及Fixture/DataVersion；初始化业务本身是测试对象时不得预先完成被测动作。缺源/凭证/历史数据时显示缺项，不静默换成Fake并报真实场景通过。
 
@@ -113,6 +130,7 @@ pnpm test:e2e -- --stage V1.4
 | 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
 |---|---|---|---|
 | normal | 日线回测 | 选择固定区间/初始现金/成本→运行NO_TRADE，再以相同输入运行TopK；打开净值、费用和交易明细对比。 | 每笔成交晚于信号可见时间；NO_TRADE无委托；费用/股息归因与账本可核对，报告标DAILY_BAR。 |
+| corporate-actions | 拆股与现金分红 | 选择“合成：RAW拆股与现金分红（Fixture）”并运行，核对逐日RAW收盘、公司行动账本、重复事件计数及净值。 | 买100股×1000分；2:1拆股后200股、RAW价500分；除息后每股490分并确认2000分应收，支付日转入现金；逐日NAV均为200000分，不叠加复权价格，不重复计分红。 |
 | rejection | 未来成交拒绝 | 运行“收盘信号同日成交”“状态未知”“重复公司行动”子场景，查看断言和流水。 | 拒绝回填成交与不可确认撮合；公司行动只记一次，不出现复权加股息双算。 |
 | market-restrictions | 合成停牌与限制价 | 选择“合成：停牌与限制价（Fixture）”，运行后查看完整证据中的四条固定用例。 | 停牌、上限锁定BUY、下限锁定SELL均按预期拒绝，非锁定bar标为FILLABLE；标明`SYNTHETIC_FIXTURE_BOUNDARIES_ONLY`，不解释为真实交易所规则。 |
 | recovery | 取消与复跑 | 复制正常输入新建运行，关闭页面再打开比较结果；另运行任务并取消。 | 后台独立执行，固定结果一致；取消不发布完整报告或覆盖成功结果。 |
@@ -133,6 +151,8 @@ pnpm verify:stage -- --stage V1.4 --scenario rejection --seed 20260907
 pnpm verify:stage -- --stage V1.4 --scenario recovery --seed 20260907
  echo $?
 pnpm verify:stage -- --stage V1.4 --scenario market-restrictions --seed 20260907
+ echo $?
+pnpm verify:stage -- --stage V1.4 --scenario corporate-actions --seed 20260907
  echo $?
 pnpm verify:stage -- --stage V1.4 --suite code
  echo $?
@@ -210,3 +230,11 @@ check-only仅查询此运行后端事实并追加检查证据，不创建新订�
 2026-10-02 W9哈希漂移修复后的当前V1.4复验：为绑定后续共享契约版本，重新运行`pnpm test:e2e -- --stage V1.4`，隔离栈退出0；11个Quant BacktestRun/Manifest/resultHash相符，六个浏览器创建的TestRun均由CLI同Run核验，Playwright 4/4，随机容器/卷/网络删除。当前workspace codeVersion为`sha256:249165d62f3a4179e3b6a456a9cb36d18b804c5ff3eb2f4837eedf0274f12fd7`。报告与机器JSON原件保留于`evidence/audits/2026-10-02-w1-v14-quant-configurable-web-29d7797558a9431213d2.md/.json`，其中的SHA清单为其执行时历史快照。历史运行及其点时Manifest保留在审计目录；本节“最新”只指新报告。它不完成完整交易所规则、公司行动、日历、Qlib/Paper规则一致性、Ubuntu或人工验收。
 
 2026-10-02共享合同生成文件快照说明：后续V3.3 Runner Job合同新增可选`roundIndex`后，全仓合同生成检查通过且V1.4业务API/E2E未受影响；之前当前E2E审计中的生成类型SHA属于其执行时点。原文件与原SHA清单均保留，不覆盖历史；此前W7 Runner SHA Manifest作为历史执行快照保留于`evidence/audits/2026-10-02-w7-v33-runner-round-binding.sha256`；当前共享源码/合同Hash由[刷新说明](../../../evidence/audits/2026-10-03-w7-current-shared-contracts.md)、[机器结果](../../../evidence/audits/2026-10-03-w7-current-shared-contracts.json)及此前W9共享源码SHA点时快照（仅代表当时版本）绑定。此前的当前侧车清单保留为历史点时记录。此说明只更正跨版本共享生成文件的时间基准，不改变V1.4验收状态或其业务证据。
+
+2026-10-07当前工作区固定回测复验为历史快照，详见[V1.4复验审计](../../../evidence/audits/2026-10-07-v14-reverification.md)。最新持久异步任务纵切使用随机项目`sq-v14-backtest-3e249b385f39763ddd91`，源码Hash `sha256:f4f2aa6a9be7c569ffa310fc073b9a861c33ee9b28f3f816de92e41ddc1b8834`，15个Quant BacktestRun/Manifest/结果Hash配对、16个Platform TestRun、Web 5/5及7个Web Run同Run CLI通过。Harness分别在Quant调用前和Quant已落库、Platform未终结时终止Platform进程；原UUID恢复完成，Quant同ID重试无重复记录；取消场景未产生Quant报告。审计和逐TestRun导出位于[持久任务审计](../../../evidence/audits/2026-10-07-v14-durable-tasks-3e249b385f39763ddd91.md)、相邻JSON/SHA-256和`evidence/local/V1.4/`。随机项目容器、卷、网络和镜像已清理。该证据不证明完整市场规则/日历、Qlib/Paper逐规则一致性、当前人工操作签署或Ubuntu实机；阶段继续PARTIALLY_IMPLEMENTED。
+
+2026-10-07 P4合成公司行动账务切片：新增冻结的`v1.4-corporate-actions-1`合成RAW日线与拆股/现金分红Fixture；2:1拆股、每股10分股息应收/支付、重复`actionId`投递均按分手算，逐日NAV维持200000分。公司行动Web/API/Quant/PostgreSQL/CLI同Run隔离E2E Playwright 5/5通过，13个BacktestRun/Manifest/结果Hash匹配；Web TestRun由同Run CLI `check-only`通过，临时容器/卷/网络清理确认。当前树V1.4完整code suite再次exit 0，Quant Python Worker 14/14。运行ID、输入Hash、断言和边界见[公司行动审计](../../../evidence/audits/2026-10-07-v14-corporate-actions.md)。此证据只验证合成账务切片；不覆盖真实公司行动数据、完整税务/交易所规则、Qlib/Paper逐规则一致性、完整拒绝/恢复、人类验收或Ubuntu实机，V1.4保持`PARTIALLY_IMPLEMENTED`。
+
+2026-10-07 P1回测报告ArtifactRef切片：Quant报告结果和Manifest先在Quant PostgreSQL持久化，再由Platform把结果SHA投影为owner/TestRun范围公共`artifact-ref.v1`；API返回报告前重新核验内容SHA，异owner且无本地会话Cookie被拒绝403。V1.4 schema/OpenAPI/TS-Python生成检查通过；报告页面端到端下载同一内容、7个浏览器Run由CLI同Run验证，Playwright 5/5。具体Hash、命令和边界见[P1报告ArtifactRef审计](../../../evidence/audits/2026-10-07-p1-v14-report-artifact-ref.md)。这只关闭V1.4报告Artifact切片；完整规则、阶段其他交付、用户新范围签署和Ubuntu验收保持未完成。
+
+2026-10-07 持久异步任务纵切：按数据库RUNNING任务与Per-TestRun advisory lock实现V1.4后台恢复；Quant请求/报告/Manifest复用稳定TestRun UUID，平台只有在完整Quant响应返回后才完成结果投影。取消请求在预执行阶段阻止Quant计算。Web提交后显示RUNNING并轮询；CLI创建与check-only都轮询终态。隔离真实PostgreSQL、Platform/Quant容器和Web浏览器验证取消、Quant落库前崩溃恢复、Quant报告原子落库后崩溃恢复、同ID重放无重复报告/Manifest及冲突409；16个TestRun、15对Quant记录、Playwright 5/5、7个Web TestRun同Run CLI核验、隔离资源清理全部PASS。执行审计：[Markdown](../../../evidence/audits/2026-10-07-v14-durable-tasks-3e249b385f39763ddd91.md)、[机器结果](../../../evidence/audits/2026-10-07-v14-durable-tasks-3e249b385f39763ddd91.json)、[历史执行快照SHA-256](../../../evidence/audits/2026-10-07-v14-durable-tasks-3e249b385f39763ddd91.sha256)。Web当前手工验收、全市场规则/日历、Qlib/Paper逐规则一致性、stage code suite与完整V1门禁仍须分别完成。

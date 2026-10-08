@@ -1,0 +1,27 @@
+{
+  "$schema": "../../manifests/v13-trading-loop-fixture.schema.json",
+  "fixtureId": "v1.3-trading-loop",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V1.3",
+  "seed": 20260907,
+  "modes": { "environment": "PAPER", "broker": "FAKE" },
+  "timezone": "Asia/Shanghai",
+  "markets": {
+    "CN_A": { "currency": "CNY", "security": "600000.SH", "initialCash": "10000.0000", "order": { "side": "BUY", "quantity": 100, "price": "10.0000", "fee": "5.0000", "expectedCash": "8995.0000", "expectedPosition": 100 } },
+    "US_EQUITY": { "currency": "USD", "security": "AAPL", "initialCash": "10000.0000", "order": { "side": "BUY", "quantity": 10, "price": "25.0000", "fee": "0.0500", "expectedCash": "9749.9500", "expectedPosition": 10 } }
+  },
+  "sessionAdvance": { "calendarVersion": "sse-cn-a-share-2026-1", "from": "2026-09-28T09:31:00+08:00", "to": "2026-09-29T09:31:00+08:00" },
+  "faultSequences": {
+    "unknownOrder": ["FakeBroker commits original clientOrderId", "response is lost", "original-order read is unavailable once", "retry queries original clientOrderId and settles without a second order"],
+    "orderedFills": ["seq=2 cumulative 150 arrives first", "duplicate seq=2 is replayed ten times and buffered", "Trade restarts", "seq=1 cumulative 100 arrives and reducer applies seq=2 delta 50"],
+    "partialFillCancel": ["seq=1 fills 40 of 100", "cancel becomes CANCEL_REQUESTED while remaining reservation stays HELD", "seq=2 ACCEPTED cancels remaining 60", "fee revision 1 is replayed idempotently"]
+  },
+  "expectedAssertions": [
+    { "assertionId": "V1.3-CN-LOOP-001", "description": "CN_A 100-share BUY at CNY 10.0000 with CNY 5.0000 fee leaves CNY 8995.0000 and 100 shares; FakeBroker and Portfolio reconcile MATCH." },
+    { "assertionId": "V1.3-US-LOOP-001", "description": "US_EQUITY 10-share BUY at USD 25.0000 with USD 0.0500 fee leaves USD 9749.9500 and 10 shares; CN account facts remain isolated." },
+    { "assertionId": "V1.3-REJECTION-001", "description": "Rejected, stale, out-of-scope and insufficient-resource actions create no unauthorized FakeBroker order or ledger side effect." },
+    { "assertionId": "V1.3-UNKNOWN-RECOVERY-001", "description": "Recovery queries the original clientOrderId, preserves the reservation while outcome is unknown and never blindly places a second order." },
+    { "assertionId": "V1.3-EVENT-ORDER-001", "description": "Duplicate and out-of-order broker reports reduce once in sequence; partial-fill cancellation releases only the unfilled remainder after accepted cancellation." },
+    { "assertionId": "V1.3-TPLUS1-001", "description": "Same-session SELL is rejected; a persisted next-session advance using the pinned calendar allows the settled holding to be sold exactly once." }
+  ]
+}

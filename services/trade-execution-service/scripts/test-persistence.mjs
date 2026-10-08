@@ -87,6 +87,32 @@ try {
     status: "CANCELLED", events: partialFillBeforeCancel.rows[0].events + 2,
     outbox: partialFillBeforeCancel.rows[0].outbox, reason: "CANCEL_ACCEPTED: SIMULATED_FAKEBROKER_CANCEL_ACCEPTED:SEQUENCE_1",
   }, "accepted cancel result and event commit together while preserving the Fill outbox");
+
+  const lateFillClientOrderId = `late-fill-${randomUUID()}`;
+  const lateFillCommand = {
+    ...command,
+    clientOrderId: lateFillClientOrderId,
+    reservation: { ...command.reservation, reservationId: randomUUID(), clientOrderId: lateFillClientOrderId },
+  };
+  const lateFillStarted = await repository.execute(lateFillCommand);
+  assert.equal(lateFillStarted.result.status, "PARTIALLY_FILLED");
+  const lateFillInitial = await pool.query("SELECT COALESCE(SUM(quantity),0)::int AS quantity FROM fake_broker_fills WHERE order_id=$1", [lateFillStarted.result.orderId]);
+  assert.ok(lateFillInitial.rows[0].quantity > 0 && lateFillInitial.rows[0].quantity < lateFillCommand.requestedQuantity);
+  assert.equal((await repository.cancel(lateFillStarted.result.orderId))?.status, "CANCEL_REQUESTED");
+  const lateFill = await repository.recordSimulatedFillReport(lateFillStarted.result.orderId, {
+    externalFillId: randomUUID(), sequence: 1, cumulativeQuantity: lateFillCommand.requestedQuantity,
+    price: "10.2000", fee: "0.0000", effectiveAt: "2026-09-25T01:32:00.000Z", evidenceRef: "fixture:fill-reported-after-cancel-request",
+  });
+  assert.equal(lateFill.lastAppliedSequence, 1);
+  const lateCancelResolution = await repository.resolveCancellation(lateFillStarted.result.orderId, "ACCEPTED", "SIMULATED_LATE_FULL_FILL_WON", 2);
+  assert.equal(lateCancelResolution?.status, "FILLED", "a full authoritative Fill arriving after cancel request but before cancel result wins the race");
+  const lateFillRaceState = await pool.query(`SELECT o.status,COALESCE(SUM(f.quantity),0)::int AS filled_quantity,
+    (SELECT count(*)::int FROM fake_broker_order_events WHERE order_id=o.order_id) AS event_count,
+    (SELECT last_applied_sequence FROM fake_broker_order_event_sequences WHERE order_id=o.order_id) AS last_sequence
+    FROM fake_broker_orders o LEFT JOIN fake_broker_fills f USING (order_id) WHERE o.order_id=$1 GROUP BY o.order_id`, [lateFillStarted.result.orderId]);
+  assert.deepEqual(lateFillRaceState.rows[0], { status: "FILLED", filled_quantity: lateFillCommand.requestedQuantity, event_count: 4, last_sequence: "2" });
+  console.log(`[FakeBroker cancel/fill race] ${JSON.stringify({ orderId: lateFillStarted.result.orderId, initialFillQuantity: lateFillInitial.rows[0].quantity, cancelRequestedBeforeLateFill: true, lateFillCumulativeQuantity: lateFillCommand.requestedQuantity, cancelResult: "ACCEPTED", finalStatus: lateFillRaceState.rows[0].status, finalFilledQuantity: lateFillRaceState.rows[0].filled_quantity, lastAppliedSequence: lateFillRaceState.rows[0].last_sequence })}`);
+
   assert.equal((await pool.query("SELECT count(*)::int AS count FROM fake_broker_outbox WHERE order_id=$1 AND event_type='RESERVATION_RESOLVE'", [original.result.orderId])).rows[0].count, 0, "reservation resolution must wait for the already-persisted Fill to post to Portfolio");
   const fillOutbox = await repository.pendingOutbox();
   const eventRow = await pool.query("SELECT event_id FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST'", [original.result.orderId]);
@@ -94,6 +120,8 @@ try {
   const fillClaim = await repository.claimOutbox(eventRow.rows[0].event_id);
   assert.ok(fillClaim);
   await repository.markFillDelivered(eventRow.rows[0].event_id, fillClaim.claim_token);
+  await pool.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+    VALUES($1,$2,'test-owner',$3,'CNY',10000,10000) ON CONFLICT(namespace,account_id) DO NOTHING`, [namespace, accountId, command.reservation.testRunId]);
   const correction1 = { externalFillId: original.result.fill.externalFillId, revision: 1, previousFee: original.result.fill.fee,
     correctedFee: (Number(original.result.fill.fee) + 1).toFixed(4), effectiveAt: "2026-09-25T01:40:00.000Z", evidenceRef: `fixture-fee:${original.result.fill.externalFillId}:1` };
   const recordedCorrection = await repository.recordFeeCorrection(original.result.orderId, correction1);
@@ -192,6 +220,64 @@ try {
   assert.equal(raceFillResult.incrementalQuantity, 25);
   assert.equal((await repository.recordSimulatedFillReport(fillRaceOrder.result.orderId, simulatedReport)).replayed, true, "same broker report replay is idempotent");
   await assert.rejects(repository.recordSimulatedFillReport(fillRaceOrder.result.orderId, { ...simulatedReport, fee: "0.0200" }), /FAKEBROKER_EVENT_SEQUENCE_CONFLICT/u);
+
+  const causalTestRunId = randomUUID(); const causalAccountId = randomUUID(); const causalClientOrderId = `causal-fill-order-${randomUUID()}`;
+  const causalCommand = {
+    proposalId: randomUUID(), proposalVersion: 1, contentHash: "a".repeat(64), ownerId: "test-owner", testRunId: causalTestRunId,
+    accountId: causalAccountId, strategyVersion: "fixture-manual-test-v1", approvalMode: "MANUAL_APPROVAL", namespace,
+    clientOrderId: causalClientOrderId, security: "600000.SH", side: "BUY", quantity: 200, currency: "CNY", price: "10.0000",
+    fee: "5.0000", reservedCash: "2005.0000", effectiveAt: "2026-09-25T01:34:00.000Z", commandHash: "b".repeat(64), executionMode: "SEQUENCED",
+    reservation: { reservationId: randomUUID(), ownerId: "test-owner", testRunId: causalTestRunId, clientOrderId: causalClientOrderId },
+  };
+  const causalOrder = await repository.executeV13ManualPaper(causalCommand);
+  assert.equal(causalOrder.result.status, "ACCEPTED", "the sequenced FakeBroker order starts working without inventing a Fill");
+  assert.equal(causalOrder.result.fill, undefined);
+  const sequence2Fill = { externalFillId: randomUUID(), sequence: 2, cumulativeQuantity: 150, price: "10.0000", fee: "2.5000", effectiveAt: "2026-09-25T01:34:02.000Z", evidenceRef: `fixed-fault:${causalOrder.result.orderId}:fill-sequence-2` };
+  const bufferedSequence2 = await repository.recordSimulatedFillReport(causalOrder.result.orderId, sequence2Fill);
+  assert.equal(bufferedSequence2.buffered, true, "sequence 2 cumulative Fill is durably buffered while sequence 1 is missing");
+  assert.equal(bufferedSequence2.totalFilledQuantity, null, "buffered sequence 2 has not been applied to the cumulative ledger");
+  for (let replay = 0; replay < 10; replay += 1) {
+    const result = await repository.recordSimulatedFillReport(causalOrder.result.orderId, sequence2Fill);
+    assert.equal(result.replayed, true, `sequence 2 replay ${replay + 1} is idempotent`);
+    assert.equal(result.buffered, true);
+  }
+  const sequence1Fill = { externalFillId: randomUUID(), sequence: 1, cumulativeQuantity: 100, price: "10.0000", fee: "2.5000", effectiveAt: "2026-09-25T01:34:01.000Z", evidenceRef: `fixed-fault:${causalOrder.result.orderId}:fill-sequence-1` };
+  const drainedFillSequence = await repository.recordSimulatedFillReport(causalOrder.result.orderId, sequence1Fill);
+  assert.equal(drainedFillSequence.lastAppliedSequence, 2, "sequence 1 arrival drains both Fill events in causal order");
+  assert.equal(drainedFillSequence.totalFilledQuantity, 100, "sequence 1 keeps its own cumulative report while sequence 2 is applied immediately afterward");
+  assert.equal(drainedFillSequence.incrementalQuantity, 100, "sequence 1 applies the authoritative 100-share cumulative Fill");
+  const causalState = await pool.query(`SELECT o.status,
+    (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=o.order_id) AS fills,
+    (SELECT COALESCE(sum(quantity),0)::text FROM fake_broker_fills WHERE order_id=o.order_id) AS quantity,
+    (SELECT COALESCE(sum(quantity * price + fee),0)::text FROM fake_broker_fills WHERE order_id=o.order_id) AS fill_cash,
+    (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='FILL_POST') AS fill_events,
+    s.last_applied_sequence,
+    (SELECT count(*)::int FROM fake_broker_authoritative_event_inbox WHERE order_id=o.order_id AND applied_at IS NULL) AS pending
+    FROM fake_broker_orders o JOIN fake_broker_order_event_sequences s USING(order_id) WHERE o.order_id=$1`, [causalOrder.result.orderId]);
+  const causalFillRows = await pool.query("SELECT quantity::int,price::text,fee::text,broker_sequence FROM fake_broker_fills WHERE order_id=$1 ORDER BY broker_sequence NULLS FIRST", [causalOrder.result.orderId]);
+  assert.deepEqual(causalFillRows.rows, [
+    { quantity: 100, price: "10.0000", fee: "2.5000", broker_sequence: "1" },
+    { quantity: 50, price: "10.0000", fee: "2.5000", broker_sequence: "2" },
+  ], "causal reduction applies sequence 1's 100-share Fill before sequence 2's 50-share increment");
+  const money4 = (value) => { const [whole, fraction = ""] = value.split("."); return BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, "0")); };
+  const expectedCashMinor = causalFillRows.rows.reduce((total, fill) => total + BigInt(fill.quantity) * money4(fill.price) + money4(fill.fee), 0n);
+  const expectedCausalCash = `${expectedCashMinor / 10000n}.${(expectedCashMinor % 10000n).toString().padStart(4, "0")}`;
+  assert.deepEqual(causalState.rows[0], { status: "LEDGER_PENDING", fills: 2, quantity: "150", fill_cash: expectedCausalCash, fill_events: 2, last_applied_sequence: "2", pending: 0 }, "durable Facts and Fill Outbox cash agree exactly with the authoritative 100 + 50 Fill facts");
+  const causalReports = await pool.query("SELECT broker_sequence,cumulative_quantity::int,incremental_quantity::int FROM fake_broker_simulated_reports WHERE order_id=$1 ORDER BY broker_sequence", [causalOrder.result.orderId]);
+  assert.deepEqual(causalReports.rows, [{ broker_sequence: "1", cumulative_quantity: 100, incremental_quantity: 100 }, { broker_sequence: "2", cumulative_quantity: 150, incremental_quantity: 50 }]);
+  assert.equal((await repository.recordSimulatedFillReport(causalOrder.result.orderId, sequence1Fill)).replayed, true);
+  assert.equal((await repository.recordSimulatedFillReport(causalOrder.result.orderId, sequence2Fill)).replayed, true);
+  const causalReplayState = await pool.query(`SELECT count(*)::int AS fills,COALESCE(sum(quantity),0)::text AS quantity,
+    (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST') AS fill_events
+    FROM fake_broker_fills WHERE order_id=$1`, [causalOrder.result.orderId]);
+  assert.deepEqual(causalReplayState.rows[0], { fills: 2, quantity: "150", fill_events: 2 }, "post-application replay of both causal reports cannot duplicate ledger events");
+  const causalAssets = await repository.independentAssetSnapshot(namespace, causalAccountId);
+  assert.equal(causalAssets.current_cash, "8495.0000", "FakeBroker independent cash posts exactly 150 shares at CNY 10 plus CNY 5 total fees");
+  assert.deepEqual(causalAssets.positions, [{ security: "600000.SH", quantity: 150 }]);
+  assert.equal(causalAssets.fill_event_count, 2);
+  const causalReadback = await repository.findByNamespaceClientOrderId(namespace, causalClientOrderId);
+  assert.equal(causalReadback.payload.proposalId, causalCommand.proposalId);
+  assert.equal(causalReadback.fills.length, 2, "owner/TestRun authorization metadata and all fills remain readable after sequencing");
   const reportFirstCommand = { ...command, clientOrderId: `report-before-cancel-ack-${randomUUID()}`, reservation: { ...command.reservation, reservationId: randomUUID() } };
   reportFirstCommand.reservation.clientOrderId = reportFirstCommand.clientOrderId;
   const reportFirstOrder = await repository.execute(reportFirstCommand);
@@ -254,7 +340,7 @@ try {
   assert.equal(discrepancy.externalOnlyOrderCount, 1, "independent broker-side order missing locally is reconciled as a discrepancy");
   assert.equal(discrepancy.discrepancies[0].kind, "EXTERNAL_ORDER_MISSING_LOCALLY");
   assert.equal(discrepancy.discrepancies[0].externalOrderId, externalOnly.externalOrderId);
-  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", partialFillCancellation: "duplicate requests idempotent; accepted result closes remainder; rejected result restores PARTIALLY_FILLED; late result ignored; fill/outbox preserved", competingCancelResults: { sameSequenceConflict: true, exactlyOnePayloadAccepted: true, reservationReleaseWaitsForFill: true }, cancellationReservationOutbox: "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered", fillDuringCancelRace: { laterCancelArrivesBeforeEarlierFill: true, bufferedWithoutStateChange: true, missingSequenceArrivalDrainsInOrder: true, postAckFillFenced: true, cumulativeToIncremental: true, cumulativeRegressionRejected: true, overfillRejected: true, noDeltaReportNoFill: true, idempotentReportReplay: true, reservationReleaseWaitsForAllFills: true }, feeCorrection: "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable", externalOrderReconciliation: "independent durable broker-side observation, replay conflict isolation, missing-local discrepancy surfaced", reconnectReplay: "current CANCELLED state plus original partial Fill", brokerMode: "FAKE" }, null, 2));
+  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", partialFillCancellation: "duplicate requests idempotent; accepted result closes remainder; rejected result restores PARTIALLY_FILLED; late result ignored; fill/outbox preserved", competingCancelResults: { sameSequenceConflict: true, exactlyOnePayloadAccepted: true, reservationReleaseWaitsForFill: true }, cancellationReservationOutbox: "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered", fillDuringCancelRace: { laterCancelArrivesBeforeEarlierFill: true, bufferedWithoutStateChange: true, missingSequenceArrivalDrainsInOrder: true, postAckFillFenced: true, cumulativeToIncremental: true, cumulativeRegressionRejected: true, overfillRejected: true, noDeltaReportNoFill: true, idempotentReportReplay: true, reservationReleaseWaitsForAllFills: true }, fillCausalSequence: { testRunId: causalCommand.reservation.testRunId, orderId: causalOrder.result.orderId, sequence2Buffered: true, replayed10Times: true, sequence1DrainsBoth: true, cumulativeFrom100To150: true, incrementalSequence1: 0, incrementalSequence2: 50, authoritativeCashCny: expectedCausalCash, fillFactsAndOutboxExactlyOnce: true }, feeCorrection: "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable", externalOrderReconciliation: "independent durable broker-side observation, replay conflict isolation, missing-local discrepancy surfaced", reconnectReplay: "current CANCELLED state plus original partial Fill", brokerMode: "FAKE" }, null, 2));
 } catch (error) {
   if (!databaseReady) {
     console.error("isolated trade-execution test database is unreachable; start the local PostgreSQL test service or set TRADE_EXECUTION_TEST_DATABASE_URL");

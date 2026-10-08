@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "v1.5-code-suite-audit-v1",
+  "date": "2026-10-07",
+  "stage": "V1.5",
+  "status": "PASS",
+  "command": "pnpm verify:stage -- --stage V1.5 --suite code",
+  "exitCode": 0,
+  "pythonTestImage": {
+    "reference": "python@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e",
+    "repositoryReference": "python:3.11-slim",
+    "imageId": "sha256:829cc065f506a60d332260af9fc48c590d60cfeff8bfc20df57b7baf20edb879",
+    "platform": "linux/arm64",
+    "availability": "already local",
+    "pullPerformed": false,
+    "buildPerformed": false,
+    "pythonTestNetwork": "none"
+  },
+  "checks": {
+    "markdownLinks": "5031/5031",
+    "contractAndFixtureValidation": "289 JSON / 203 schemas / 46 fixtures, 0 failures",
+    "webUnit": "1/1",
+    "historicalReplayWorkerUnit": "25/25",
+    "decisionGovernanceUnit": "40/40",
+    "portfolioRiskUnit": "5/5",
+    "tradeExecutionUnit": "87/87",
+    "quantResearchTypeScriptUnit": "99/99",
+    "quantResearchPythonWorkerUnit": "14/14",
+    "marketDataUnit": "74/74",
+    "researchAutomationUnit": "218/218",
+    "platformApiUnit": "241/241",
+    "platformApiTestFiles": 55
+  },
+  "integrations": "all V1.5 code-suite commands completed, including stage-scoped isolated checks",
+  "rawLog": "evidence/audits/2026-10-07-v15-code-suite-pinned-python-available.log",
+  "rawLogSha256": "51c9af0782f81f07445193b8dffc7c54877ed1d92349735c03c4598fa9b5471e",
+  "boundaries": [
+    "Code suite PASS only; this does not pass the V1.5 business rejection/recovery workflows, actual Temporal server outage, DB outage, multiconsumer/network recovery, backups, Ubuntu, or human acceptance."
+  ]
+}

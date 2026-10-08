@@ -1,0 +1,55 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.5-no-trade-calendar",
+  "fixtureVersion": "v1.5-no-trade-calendar-1",
+  "stageId": "V1.5",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Deterministic virtual date schedule derived from frozen 2026 CN SSE and NYSE holiday calendar rules; no bars, prices or security observations.",
+    "license": "Internal synthetic simulation schedule; official calendar references are documented in semantics.",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-07T00:00:00Z",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "per-row timeZone field",
+    "prices": "No prices or market data; HOLD/NO_TRADE schedule only.",
+    "sessions": {
+      "count": 120,
+      "start": "2026-01-05",
+      "end": "2026-03-31",
+      "calendar": "60 dates per market, separately sequenced; CN SSE 2026 holiday closures and NYSE 2026 holiday closures; date-only virtual sessions."
+    },
+    "securities": {},
+    "qualityCases": [
+      "exactly 60 unique, increasing sessions per market",
+      "weekends and frozen exchange holiday closures excluded",
+      "distinct market-local sequences and time zones",
+      "no market bars, orders or fills are manufactured"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.5/no-trade-calendar.json",
+      "sha256": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+      "mediaType": "application/json",
+      "schemaRef": "v15-no-trade-calendar-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.5-HOLD-002",
+      "description": "60 per-market local virtual sessions are individually advanced and every session reads authoritative PAPER account plus independent FakeBroker reconciliation; orders, fills and budget consumption remain zero."
+    }
+  ]
+}

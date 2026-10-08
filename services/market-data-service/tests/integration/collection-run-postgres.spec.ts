@@ -547,7 +547,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const claim = await artifacts.claimTask(`race-worker-${suffix}`, 30_000);
     expect(claim).toMatchObject({ taskId, status: "RUNNING", fence: 1 });
 
-    const [, publishedOrFenced] = await Promise.all([
+    const [cancelledOrCompleted, publishedOrFenced] = await Promise.all([
       artifacts.cancelTask(taskId),
       artifacts.publishTask(taskId, claim!.fence, sourceBytes, sha256),
     ]);

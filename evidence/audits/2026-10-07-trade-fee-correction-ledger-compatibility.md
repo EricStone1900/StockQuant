@@ -1,0 +1,11 @@
+# Trade Fee Correction Independent Asset Ledger Compatibility (2026-10-07)
+
+The isolated P5.7 Trade → Portfolio recovery smoke repeatedly closed the Trade HTTP connection while posting a fee correction. Captured service logs showed an uncaught `FAKEBROKER_ASSET_LEDGER_NOT_FOUND` in `recordFeeCorrection`. The V2.4 snapshot readiness FakeBroker path owns a Portfolio account and durable Fill but does not maintain the V1.3-only independent FakeBroker asset ledger. Requiring that optional ledger crashed the Trade process before the fee correction Outbox could be recorded.
+
+Fee correction now always updates the authoritative FakeBroker Fill and enqueues the durable Portfolio correction Outbox. It also updates independent FakeBroker cash in the same transaction when a row exists; the V1.3 path continues to use and update that independent ledger. This keeps the cross-path persistence behavior explicit without manufacturing an asset snapshot for execution paths that do not own one.
+
+Validation: `pnpm --filter @stockquant/trade-execution-service test:p5-7` exited 0. The isolated HTTP/PG test confirmed a lost Portfolio Fill response recovers after Trade restart; the fee correction reached Portfolio, duplicate correction replay was idempotent, unauthorized replay was denied, fee revision 1 delivered, and FakeBroker cash remained `8996.9990` after correction. The same run passed cancel/fill sequence gap persistence and restart, held resources during the gap, final `CANCELLED`, Portfolio's 75 total shares, and reservation release after both fills. TestRun `527e2a43-4820-4281-ad1e-4fdb100e9fe5`, order `c0796972-e73b-479a-9e07-b58dff71790b`; disposable database image `sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2`, random loopback port and isolated no-masquerade network; container/network cleanup verified. No external providers or brokers connected.
+
+This resolves the P5.7 integration smoke failure and verifies a lower-level recovery/fee/cancel slice. It does not complete the V1.3 owner/TestRun/Proposal Web path for L07/L08 or the full P3 matrix.
+
+Implementation and test inputs are pinned in [SHA-256 manifest](2026-10-07-trade-fee-correction-ledger-compatibility.sha256); all entries were computed after the successful P5.7 run.

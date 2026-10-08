@@ -1,0 +1,43 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Platform V1.4 Backtest Report API", "version": "1.0.0" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "components": {
+    "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" } },
+    "schemas": {
+      "ArtifactRef": { "$ref": "https://stockquant.local/schemas/common/artifact-ref.schema.json" },
+      "V14DailyBacktestResult": { "$ref": "https://stockquant.local/schemas/research/v14-daily-backtest-result.schema.json" }
+    }
+  },
+  "paths": {
+    "/api/v1/acceptance/v1/v1.4/runs/{testRunId}": {
+      "get": {
+        "operationId": "readV14BacktestTestRun",
+        "summary": "Read an owner-scoped persistent V1.4 TestRun and its published ArtifactRefs",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Persistent TestRun with zero or one immutable backtest report reference", "content": { "application/json": { "schema": { "type": "object", "required": ["testRunId", "stageId", "artifactRefs"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "stageId": { "const": "V1.4" }, "artifactRefs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRef" }, "maxItems": 1 } }, "additionalProperties": true } } } },
+          "401": { "description": "A local user session is required" },
+          "404": { "description": "TestRun does not belong to the requesting owner" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.4/runs/{testRunId}/artifacts/{artifactId}": {
+      "get": {
+        "operationId": "readV14BacktestReportArtifact",
+        "summary": "Read a durable Quant report after TestRun owner, ArtifactRef and content hash verification",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+        ],
+        "responses": {
+          "200": { "description": "The exact persisted report content and its shared ArtifactRef", "content": { "application/json": { "schema": { "type": "object", "required": ["artifactRef", "content"], "properties": { "artifactRef": { "$ref": "#/components/schemas/ArtifactRef" }, "content": { "type": "object", "required": ["testRunId", "stageId", "scenarioId", "seed", "status", "assertions", "evidence"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "stageId": { "const": "V1.4" }, "scenarioId": { "type": "string" }, "seed": { "type": "integer" }, "status": { "const": "COMPLETED" }, "assertions": { "type": "array" }, "evidence": { "type": "object" } }, "additionalProperties": false } }, "additionalProperties": false } } } },
+          "401": { "description": "A local user session is required" },
+          "404": { "description": "Artifact does not belong to the requested owner and TestRun or failed its content hash check" }
+        }
+      }
+    }
+  }
+}

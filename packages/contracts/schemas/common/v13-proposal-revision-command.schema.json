@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-revision-command.schema.json",
+  "title": "V13ProposalRevisionCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["expectedVersion", "expectedContentHash", "operation", "expiresAt", "legs", "reason", "now"],
+  "properties": {
+    "expectedVersion": { "type": "integer", "minimum": 1 },
+    "expectedContentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "operation": { "enum": ["HOLD", "REBALANCE"] },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "legs": { "type": "array", "items": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-leg.schema.json" } },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 250 },
+    "now": { "type": "string", "format": "date-time", "description": "Injected TestRun Clock instant." }
+  }
+}

@@ -47,7 +47,7 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 const schemaFiles = [...parsedFiles.entries()]
   .filter(([file, value]) => file.includes(`${join("packages", "contracts")}${"/"}`) && typeof value?.$id === "string")
-  .concat([...parsedFiles.entries()].filter(([file, value]) => file.endsWith("fixtures/manifests/fixture-manifest.schema.json") && typeof value?.$id === "string"));
+  .concat([...parsedFiles.entries()].filter(([file, value]) => file.includes(`${join("fixtures", "manifests")}${"/"}`) && typeof value?.$id === "string"));
 
 for (const [, schema] of schemaFiles) {
   try {

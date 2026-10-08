@@ -11,6 +11,7 @@ describe("CN A-share versioned calendar", () => {
 
   it("returns the expected trading and closed sessions inside covered year", () => {
     expect(cnAShareSession("2026-09-28")).toMatchObject({ status: "TRADING", calendarVersion: "sse-cn-a-share-2026-1", sessions: [{ start: "09:30", end: "11:30" }, { start: "13:00", end: "15:00" }] });
+    expect(cnAShareSession("2026-09-25")).toMatchObject({ status: "CLOSED", calendarVersion: "sse-cn-a-share-2026-1" });
     expect(cnAShareSession("2026-09-27")).toMatchObject({ status: "CLOSED", calendarVersion: "sse-cn-a-share-2026-1" });
     expect(cnAShareSession("2026-10-02").status).toBe("CLOSED");
   });

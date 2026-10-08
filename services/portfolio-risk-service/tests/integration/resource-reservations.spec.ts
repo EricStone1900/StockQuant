@@ -48,6 +48,45 @@ run("persistent account resource reservations", () => {
     await pool.end();
   });
 
+  it("persists separate CN and US cash ledgers with original currencies and conflict-safe initialization replay", async () => {
+    const isolatedRunId = randomUUID();
+    const isolatedNamespace = `dual-market-account-test/${isolatedRunId}`;
+    const isolatedOwner = `owner-${isolatedRunId}`;
+    const common = { ownerId: isolatedOwner, environmentMode: "PAPER" as const, brokerMode: "FAKE" as const, namespace: isolatedNamespace, testRunId: isolatedRunId };
+    const cnCommand = { ...common, fixtureAccountRef: `cn-${isolatedRunId}`, market: "CN_A" as const, initialCash: { amount: "10000.0000", currency: "CNY" }, idempotencyKey: "initialize-cn" };
+    const usCommand = { ...common, fixtureAccountRef: `us-${isolatedRunId}`, market: "US_EQUITY" as const, initialCash: { amount: "10000.0000", currency: "USD" }, idempotencyKey: "initialize-us" };
+    let accountIds: string[] = [];
+    try {
+      const [cn, us] = await Promise.all([repository.initialize(cnCommand), repository.initialize(usCommand)]);
+      accountIds = [cn.snapshot.accountId, us.snapshot.accountId];
+      expect(new Set(accountIds).size).toBe(2);
+      expect(cn.snapshot).toMatchObject({ market: "CN_A", cash: { amount: "10000.0000", currency: "CNY" } });
+      expect(us.snapshot).toMatchObject({ market: "US_EQUITY", cash: { amount: "10000.0000", currency: "USD" } });
+
+      await expect(repository.initialize(cnCommand)).resolves.toMatchObject({ replayed: true, snapshot: { accountId: cn.snapshot.accountId } });
+      await expect(repository.initialize({ ...cnCommand, initialCash: { amount: "9999.0000", currency: "CNY" } })).rejects.toThrow("IDEMPOTENCY_CONFLICT");
+      await expect(repository.initialize({ ...cnCommand, ownerId: "foreign-owner" })).rejects.toThrow("IDEMPOTENCY_CONFLICT");
+      await expect(repository.snapshot(cn.snapshot.accountId, "foreign-owner")).resolves.toBeNull();
+
+      const ledger = await pool.query<{ market: string; currency: string; entry_count: number; amount: string }>(
+        `SELECT a.market, le.currency, count(*)::int AS entry_count, sum(le.amount)::text AS amount
+           FROM accounts a JOIN ledger_entries le USING(account_id)
+          WHERE a.account_id = ANY($1::uuid[])
+          GROUP BY a.market, le.currency ORDER BY a.market`, [accountIds]
+      );
+      expect(ledger.rows).toEqual([
+        { market: "CN_A", currency: "CNY", entry_count: 1, amount: "10000.0000" },
+        { market: "US_EQUITY", currency: "USD", entry_count: 1, amount: "10000.0000" }
+      ]);
+      console.info(`[Portfolio dual-market account] ${JSON.stringify({ testRunId: isolatedRunId, accountIds, currencies: ledger.rows.map(({ market, currency }) => ({ market, currency })), idempotency: "same-payload-replayed/different-payload-and-owner-rejected", foreignOwnerRead: "DENIED" })}`);
+    } finally {
+      if (accountIds.length) {
+        await pool.query("DELETE FROM ledger_entries WHERE account_id = ANY($1::uuid[])", [accountIds]);
+        await pool.query("DELETE FROM accounts WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      }
+    }
+  });
+
   it("serializes concurrent cash reservations and retains UNKNOWN until authoritative release", async () => {
     const base = { accountId, namespace, testRunId, ownerId, side: "BUY" as const, currency: "CNY", cashAmount: "7000.0000", security: null, quantity: null };
     await expect(repository.reserveResource({ ...base, cashAmount: "0.0000", idempotencyKey: "cash-zero", clientOrderId: "order-zero" })).rejects.toThrow("INVALID_RESERVATION_AMOUNT");
@@ -73,9 +112,10 @@ run("persistent account resource reservations", () => {
   });
 
   it("serializes sellable quantity, supports idempotent retries, and releases only with evidence", async () => {
-    const base = { accountId, namespace, testRunId, ownerId, side: "SELL" as const, currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80 };
+    const base = { accountId, namespace, testRunId, ownerId, side: "SELL" as const, currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80, asOf: "2026-09-25T01:00:00.000Z" };
     const first = await repository.reserveResource({ ...base, idempotencyKey: "sell-a", clientOrderId: "sell-order-a" });
     await expect(repository.reserveResource({ ...base, idempotencyKey: "sell-a", clientOrderId: "sell-order-a" })).resolves.toMatchObject({ replayed: true, reservation: { reservationId: first.reservation.reservationId } });
+    await expect(repository.reserveResource({ ...base, asOf: "2026-09-26T01:00:00.000Z", idempotencyKey: "sell-a", clientOrderId: "sell-order-a" })).rejects.toThrow("RESERVATION_IDEMPOTENCY_CONFLICT");
     await expect(repository.reserveResource({ ...base, idempotencyKey: "sell-a-alt", clientOrderId: "sell-order-a" })).rejects.toThrow("RESERVATION_IDEMPOTENCY_CONFLICT");
     await expect(repository.reserveResource({ ...base, idempotencyKey: "sell-b", clientOrderId: "sell-order-b" })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
     await resolve(first.reservation.reservationId, "UNKNOWN", "broker-timeout:sell-a");
@@ -93,6 +133,41 @@ run("persistent account resource reservations", () => {
     expect(afterRelease.reservation.status).toBe("HELD");
     await expect(resolve(afterRelease.reservation.reservationId, "CANCELLED", "cancel:sell-d")).resolves.toMatchObject({ status: "RELEASED" });
     await expect(repository.resolveReservation({ accountId, reservationId: afterRelease.reservation.reservationId, namespace, testRunId, ownerId: "other-owner", outcome: "UNKNOWN", evidenceRef: "forged" })).rejects.toThrow("ACCOUNT_SCOPE_MISMATCH");
+  });
+
+  it("keeps same-day CN buy fills unavailable for sell reservations until the next Shanghai trade date", async () => {
+    const isolatedRunId = randomUUID(); const isolatedNamespace = `t1-test/${isolatedRunId}`; const isolatedOwner = `owner-${isolatedRunId}`;
+    const isolated = await repository.initialize({ fixtureAccountRef: `fixture-${isolatedRunId}`, ownerId: isolatedOwner, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" }, namespace: isolatedNamespace, testRunId: isolatedRunId, idempotencyKey: `init-${isolatedRunId}` });
+    const isolatedAccountId = isolated.snapshot.accountId;
+    try {
+      const buy = await repository.reserveResource({ accountId: isolatedAccountId, namespace: isolatedNamespace, testRunId: isolatedRunId, ownerId: isolatedOwner, idempotencyKey: "t1-buy", clientOrderId: "t1-buy", side: "BUY", currency: "CNY", cashAmount: "505.0000", security: null, quantity: null });
+      await repository.recordFill({ accountId: isolatedAccountId, namespace: isolatedNamespace, externalFillId: randomUUID(), security: "600002.SH", quantity: 50, price: "10.0000", fee: "5.0000", currency: "CNY", effectiveAt: "2026-09-24T01:00:00.000Z", side: "BUY", reservation: { reservationId: buy.reservation.reservationId, ownerId: isolatedOwner, testRunId: isolatedRunId, clientOrderId: "t1-buy" } });
+      await repository.resolveReservation({ accountId: isolatedAccountId, reservationId: buy.reservation.reservationId, namespace: isolatedNamespace, testRunId: isolatedRunId, ownerId: isolatedOwner, outcome: "FILLED", evidenceRef: "fill:t1-buy" });
+      const sell = { accountId: isolatedAccountId, namespace: isolatedNamespace, testRunId: isolatedRunId, ownerId: isolatedOwner, side: "SELL" as const, currency: "CNY", cashAmount: null, security: "600002.SH", quantity: 50, asOf: "2026-09-24T02:00:00.000Z" };
+      await expect(repository.reserveResource({ ...sell, idempotencyKey: "t1-same-day", clientOrderId: "t1-same-day" })).rejects.toThrow("T_PLUS_ONE_UNSETTLED_QUANTITY");
+      await expect(repository.reserveResource({ ...sell, asOf: "2026-09-28T01:00:00.000Z", idempotencyKey: "t1-next-trading-day", clientOrderId: "t1-next-trading-day" })).resolves.toMatchObject({ replayed: false, reservation: { status: "HELD" } });
+      console.info(`[Portfolio CN T+1] ${JSON.stringify({ testRunId: isolatedRunId, accountId: isolatedAccountId, sameDay: "REJECTED/T_PLUS_ONE_UNSETTLED_QUANTITY", nextShanghaiDate: "HELD" })}`);
+    } finally {
+      await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM account_positions WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM accounts WHERE account_id=$1", [isolatedAccountId]);
+    }
+    const usRunId = randomUUID(); const usNamespace = `us-settlement-test/${usRunId}`; const usOwner = `owner-${usRunId}`;
+    const usAccount = await repository.initialize({ fixtureAccountRef: `fixture-${usRunId}`, ownerId: usOwner, market: "US_EQUITY", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "USD" }, namespace: usNamespace, testRunId: usRunId, idempotencyKey: `init-${usRunId}` });
+    try {
+      const buy = await repository.reserveResource({ accountId: usAccount.snapshot.accountId, namespace: usNamespace, testRunId: usRunId, ownerId: usOwner, idempotencyKey: "us-t1-buy", clientOrderId: "us-t1-buy", side: "BUY", currency: "USD", cashAmount: "250.0500", security: null, quantity: null });
+      await repository.recordFill({ accountId: usAccount.snapshot.accountId, namespace: usNamespace, externalFillId: randomUUID(), security: "AAPL", quantity: 10, price: "25.0000", fee: "0.0500", currency: "USD", effectiveAt: "2026-09-25T01:00:00.000Z", side: "BUY", reservation: { reservationId: buy.reservation.reservationId, ownerId: usOwner, testRunId: usRunId, clientOrderId: "us-t1-buy" } });
+      await expect(repository.reserveResource({ accountId: usAccount.snapshot.accountId, namespace: usNamespace, testRunId: usRunId, ownerId: usOwner, idempotencyKey: "us-same-day-sell", clientOrderId: "us-same-day-sell", side: "SELL", currency: "USD", cashAmount: null, security: "AAPL", quantity: 10, asOf: "2026-09-25T02:00:00.000Z" })).resolves.toMatchObject({ replayed: false, reservation: { status: "HELD" } });
+      console.info(`[Portfolio US same-day sell] ${JSON.stringify({ testRunId: usRunId, accountId: usAccount.snapshot.accountId, sameDay: "HELD" })}`);
+    } finally {
+      await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [usAccount.snapshot.accountId]);
+      await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [usAccount.snapshot.accountId]);
+      await pool.query("DELETE FROM account_positions WHERE account_id=$1", [usAccount.snapshot.accountId]);
+      await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [usAccount.snapshot.accountId]);
+      await pool.query("DELETE FROM accounts WHERE account_id=$1", [usAccount.snapshot.accountId]);
+    }
   });
 
   it("posts reserved partial BUY and SELL fills atomically and decrements the remaining hold", async () => {
@@ -131,13 +206,13 @@ run("persistent account resource reservations", () => {
     expect(afterPartialCancel.reservation.status).toBe("HELD");
     await repository.resolveReservation({ accountId, reservationId: afterPartialCancel.reservation.reservationId, namespace, testRunId, ownerId, outcome: "CANCELLED", evidenceRef: "cleanup:partial-cancel-after" });
 
-    const sell = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell", clientOrderId: "capture-sell-order", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 50 });
+    const sell = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell", clientOrderId: "capture-sell-order", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 50, asOf: "2026-09-25T01:00:00.000Z" });
     const sellFill = { accountId, namespace, externalFillId: randomUUID(), security: "600000.SH", quantity: 20, price: "100.0000", fee: "10.0000", currency: "CNY", effectiveAt: "2026-09-25T01:01:00.000Z", side: "SELL" as const, reservation: { reservationId: sell.reservation.reservationId, ownerId, testRunId, clientOrderId: "capture-sell-order" } };
     await expect(repository.recordFill(sellFill)).resolves.toMatchObject({ replayed: false, snapshot: { cash: { amount: "7969.0000" } } });
     await expect(repository.recordFill({ ...sellFill, externalFillId: randomUUID(), quantity: 31 })).rejects.toThrow("FILL_EXCEEDS_RESERVED_QUANTITY");
     await expect(repository.recordFill({ ...sellFill, externalFillId: randomUUID(), quantity: 1, reservation: { ...sellFill.reservation, ownerId: "foreign" } })).rejects.toThrow("FILL_RESERVATION_SCOPE_MISMATCH");
-    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-over", clientOrderId: "capture-sell-over", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 51 })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
+    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-over", clientOrderId: "capture-sell-over", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 51, asOf: "2026-09-25T01:00:00.000Z" })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
     await repository.resolveReservation({ accountId, reservationId: sell.reservation.reservationId, namespace, testRunId, ownerId, outcome: "FILLED", evidenceRef: `fill:${sellFill.externalFillId}` });
-    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-after", clientOrderId: "capture-sell-after", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80 })).resolves.toMatchObject({ replayed: false });
+    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-after", clientOrderId: "capture-sell-after", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80, asOf: "2026-09-25T01:00:00.000Z" })).resolves.toMatchObject({ replayed: false });
   });
 });

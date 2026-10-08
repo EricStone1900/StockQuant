@@ -1,0 +1,691 @@
+{
+  "schemaVersion": "stockquant.w1-v12-isolated-web-e2e.v1",
+  "stageId": "V1.2",
+  "status": "PASS",
+  "isolatedProject": "sq-v12-e2e-4214e76471cb6b2716fe",
+  "apiPort": 35782,
+  "webPort": 50288,
+  "testRunId": "af093dbe-d6e3-42b8-8a76-30dedb14eba2",
+  "testRunIds": [
+    "af093dbe-d6e3-42b8-8a76-30dedb14eba2",
+    "649d5c38-f23e-400c-8e33-0bf72d67c8cd",
+    "ca8ce4ab-b410-462c-89c1-1ebdcfac5aa0"
+  ],
+  "testRunSummaries": [
+    {
+      "testRunId": "af093dbe-d6e3-42b8-8a76-30dedb14eba2",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": {
+            "quality": "READY",
+            "barCount": 6,
+            "securityCount": 2
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "normal fixture"
+          },
+          "expected": {
+            "quality": "READY",
+            "barCount": 6,
+            "securityCount": 2
+          },
+          "assertionId": "V1.2-DATA-NORMAL-001"
+        },
+        {
+          "actual": "READY",
+          "status": "PASS",
+          "evidence": {
+            "source": "qlib probe"
+          },
+          "expected": "READY",
+          "assertionId": "V1.2-QLIB-001"
+        },
+        {
+          "actual": {
+            "errors": [],
+            "status": "COMPLETED",
+            "artifactId": "81df4c223fa2a735bb3cb8f30268ff6fbf1674f01ece01dfba4cb9b72422572f",
+            "marketFits": [
+              {
+                "market": "CN_A",
+                "version": "0.9.6",
+                "inputRows": 384,
+                "modelSha256": "1bf9328b52b2167c7d723d7a6f3f3e605541959e57c8df07d0dfd9d701860635",
+                "modelTraining": "PASS",
+                "temporalValidation": "PASS",
+                "testPredictionCount": 85,
+                "testPredictionsSha256": "613ee55843f9e356fd241985b087e3343ee2b83d0556d9ddcd8bf964fc4670f5"
+              },
+              {
+                "market": "US_EQUITY",
+                "version": "0.9.6",
+                "inputRows": 117,
+                "modelSha256": "eeac577c26fc509f92121a32aa85a5d4c46a08eaf857af4e639e1c2edfc54356",
+                "modelTraining": "PASS",
+                "temporalValidation": "PASS",
+                "testPredictionCount": 27,
+                "testPredictionsSha256": "921f58ab28d86becb1ca14bb896774d01fddef9a7325e82c424a18923e798434"
+              }
+            ],
+            "strategies": [
+              {
+                "asOf": "2024-03-22",
+                "mode": "TOPK",
+                "targets": [
+                  {
+                    "rank": 1,
+                    "factor": 0,
+                    "market": "CN_A",
+                    "signal": "TOPK_TARGET",
+                    "ticker": "000002.SZ",
+                    "currency": "CNY"
+                  },
+                  {
+                    "rank": 1,
+                    "factor": 0,
+                    "market": "US_EQUITY",
+                    "signal": "TOPK_TARGET",
+                    "ticker": "AAPL",
+                    "currency": "USD"
+                  }
+                ],
+                "strategyId": "v1.2-qlib-topk-1",
+                "strategyHash": "53e1b24120d8c5ed92736122f2d84ca988c0c807f13052fb9036a4a524c396ef"
+              },
+              {
+                "asOf": "2024-03-22",
+                "mode": "NO_TRADE",
+                "targets": [],
+                "strategyId": "v1.2-no-trade-1",
+                "strategyHash": "ab0b9d7f5b101dbbaf89a9a5ac7e67e3078c2c4aabad86c3cfa5d2a5595b1507"
+              }
+            ],
+            "marketTargets": [
+              {
+                "market": "CN_A",
+                "ticker": "000002.SZ",
+                "currency": "CNY"
+              },
+              {
+                "market": "US_EQUITY",
+                "ticker": "AAPL",
+                "currency": "USD"
+              }
+            ],
+            "modelTraining": "PASS",
+            "artifactSha256": "81df4c223fa2a735bb3cb8f30268ff6fbf1674f01ece01dfba4cb9b72422572f",
+            "predictionCount": 112,
+            "temporalValidation": "PASS"
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "locked Qlib workers over separate CN_A/US_EQUITY time axes in v1.2-market-data-4",
+            "fixtureVersion": "v1.2-market-data-4",
+            "dailyBarsSha256": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688"
+          },
+          "expected": "locked Qlib fits, per-market test-segment TOPK targets, and explicit NO_TRADE output",
+          "assertionId": "V1.2-FACTOR-PREVIEW-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0"
+        },
+        "qlibFit": {
+          "errors": [],
+          "inputRows": 501,
+          "artifactId": "81df4c223fa2a735bb3cb8f30268ff6fbf1674f01ece01dfba4cb9b72422572f",
+          "marketFits": [
+            {
+              "model": "qlib.contrib.model.gbdt.LGBModel",
+              "market": "CN_A",
+              "splits": {
+                "test": {
+                  "end": 384,
+                  "rows": 85,
+                  "start": 299
+                },
+                "train": {
+                  "end": 229,
+                  "rows": 229,
+                  "start": 0
+                },
+                "valid": {
+                  "end": 299,
+                  "rows": 70,
+                  "start": 229
+                }
+              },
+              "inputRows": 384,
+              "inputSha256": "b82179662a1bbc7f2c27a58fe6c57473bc1e2863dc1fa32f8fb7cce51d1eb632",
+              "modelSha256": "1bf9328b52b2167c7d723d7a6f3f3e605541959e57c8df07d0dfd9d701860635",
+              "qlibVersion": "0.9.6",
+              "featureCount": 3,
+              "modelTraining": "PASS",
+              "lightgbmVersion": "4.7.0",
+              "modelValidation": "NOT_RUN",
+              "temporalValidation": "PASS",
+              "testPredictionCount": 85,
+              "testPredictionsSha256": "613ee55843f9e356fd241985b087e3343ee2b83d0556d9ddcd8bf964fc4670f5"
+            },
+            {
+              "model": "qlib.contrib.model.gbdt.LGBModel",
+              "market": "US_EQUITY",
+              "splits": {
+                "test": {
+                  "end": 117,
+                  "rows": 27,
+                  "start": 90
+                },
+                "train": {
+                  "end": 69,
+                  "rows": 69,
+                  "start": 0
+                },
+                "valid": {
+                  "end": 90,
+                  "rows": 21,
+                  "start": 69
+                }
+              },
+              "inputRows": 117,
+              "inputSha256": "96f7bb264050245a46cdacb98dc3ca8384c093016cd2b9f914b058242e2441b3",
+              "modelSha256": "eeac577c26fc509f92121a32aa85a5d4c46a08eaf857af4e639e1c2edfc54356",
+              "qlibVersion": "0.9.6",
+              "featureCount": 3,
+              "modelTraining": "PASS",
+              "lightgbmVersion": "4.7.0",
+              "modelValidation": "NOT_RUN",
+              "temporalValidation": "PASS",
+              "testPredictionCount": 27,
+              "testPredictionsSha256": "921f58ab28d86becb1ca14bb896774d01fddef9a7325e82c424a18923e798434"
+            }
+          ],
+          "strategies": [
+            {
+              "asOf": "2024-03-22",
+              "mode": "TOPK",
+              "targets": [
+                {
+                  "rank": 1,
+                  "factor": 0,
+                  "market": "CN_A",
+                  "signal": "TOPK_TARGET",
+                  "ticker": "000002.SZ",
+                  "currency": "CNY"
+                },
+                {
+                  "rank": 1,
+                  "factor": 0,
+                  "market": "US_EQUITY",
+                  "signal": "TOPK_TARGET",
+                  "ticker": "AAPL",
+                  "currency": "USD"
+                }
+              ],
+              "strategyId": "v1.2-qlib-topk-1",
+              "strategyHash": "53e1b24120d8c5ed92736122f2d84ca988c0c807f13052fb9036a4a524c396ef"
+            },
+            {
+              "asOf": "2024-03-22",
+              "mode": "NO_TRADE",
+              "targets": [],
+              "strategyId": "v1.2-no-trade-1",
+              "strategyHash": "ab0b9d7f5b101dbbaf89a9a5ac7e67e3078c2c4aabad86c3cfa5d2a5595b1507"
+            }
+          ],
+          "artifactUrl": "/api/v1/acceptance/v1/v1.2/runs/af093dbe-d6e3-42b8-8a76-30dedb14eba2/artifacts/81df4c223fa2a735bb3cb8f30268ff6fbf1674f01ece01dfba4cb9b72422572f",
+          "inputSha256": "93dd122f6528f035306a965a7119a25e7258aa3034f3fdf742a383a2b6eb9aff",
+          "qlibVersion": "0.9.6",
+          "modelTraining": "PASS",
+          "artifactSha256": "81df4c223fa2a735bb3cb8f30268ff6fbf1674f01ece01dfba4cb9b72422572f",
+          "fixtureVersion": "v1.2-market-data-4",
+          "dailyBarsSha256": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688",
+          "lightgbmVersion": "4.7.0",
+          "temporalValidation": "PASS",
+          "testPredictionCount": 112,
+          "artifactSchemaVersion": "v1.2-qlib-strategy-artifact-v1"
+        },
+        "dataMode": "FIXTURE",
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-1",
+        "environmentMode": "BACKTEST"
+      }
+    },
+    {
+      "testRunId": "649d5c38-f23e-400c-8e33-0bf72d67c8cd",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": {
+            "status": "REJECTED",
+            "futureData": true
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "bad-future fixture"
+          },
+          "expected": "REJECTED with FUTURE_DATA",
+          "assertionId": "V1.2-DATA-PIT-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0"
+        },
+        "qlibFit": {
+          "status": "NOT_RUN"
+        },
+        "dataMode": "FIXTURE",
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-1",
+        "environmentMode": "BACKTEST"
+      }
+    },
+    {
+      "testRunId": "ca8ce4ab-b410-462c-89c1-1ebdcfac5aa0",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": "READY",
+          "status": "PASS",
+          "evidence": {
+            "source": "qlib probe after recovery preparation"
+          },
+          "expected": "READY",
+          "assertionId": "V1.2-QLIB-PROBE-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0"
+        },
+        "qlibFit": {
+          "status": "NOT_RUN"
+        },
+        "dataMode": "FIXTURE",
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-1",
+        "environmentMode": "BACKTEST"
+      }
+    }
+  ],
+  "browserOutput": "\nRunning 1 test using 1 worker\n[V1.2 Web/CLI same-run] testRunId=af093dbe-d6e3-42b8-8a76-30dedb14eba2\n[V1.2 Web/CLI same-run] testRunId=649d5c38-f23e-400c-8e33-0bf72d67c8cd\n[V1.2 Web/CLI same-run] testRunId=ca8ce4ab-b410-462c-89c1-1ebdcfac5aa0\n·\n  1 passed (4.0s)\n",
+  "browserError": "(node:53577) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "isolatedContainersVolumesNetworksAndImagesRemoved": true,
+  "marketSourceAuthorization": "NONE",
+  "marketSourceCalls": 0,
+  "qlibFitCalls": 2,
+  "externalModelCalls": 0,
+  "brokerCalls": 0,
+  "liveTradingEnabled": false,
+  "humanAcceptance": "NOT_CHANGED"
+}

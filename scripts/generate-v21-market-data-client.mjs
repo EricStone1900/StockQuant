@@ -19,6 +19,7 @@ const operations = [
   ["/v2/sources/{sourceId}/recover", "post", "recoverV21SourceCircuit", "market-data/source-circuit-state-v1.schema.json"],
   ["/v1/fixtures/normal/preview", "get", "getV12NormalFixturePreview", "market-data/v12-fixture-preview-v1.schema.json"],
   ["/v1/fixtures/bad-future/preview", "get", "getV12FutureFixturePreview", "market-data/v12-fixture-preview-v1.schema.json"],
+  ["/v1/fixtures/research-preview", "get", "getV12ResearchFixturePreview", "market-data/v12-research-fixture-preview-v1.schema.json"],
   ["/v2/collection-schedules/{subscriptionId}", "get", "getCollectionScheduleForPlatform", "market-data/collection-schedule-view-v1.schema.json"],
   ["/v2/minute/gaps/{subscriptionId}", "get", "getMinuteGapsForPlatform", "market-data/minute-open-gaps-v1.schema.json"],
   ["/v2/alerts", "get", "getMarketDataAlertIncidents", "market-data/alert-incidents-v1.schema.json"],
@@ -58,6 +59,7 @@ export class GeneratedV21MarketDataClient {
   recoverV21SourceCircuit(sourceId: string): Promise<Contracts.MarketDataSourceCircuitState> { return this.call("/v2/sources/" + encodeURIComponent(sourceId) + "/recover", "source circuit", "POST"); }
   getV12NormalFixturePreview(): Promise<Contracts.V12FixturePreview> { return this.call("/v1/fixtures/normal/preview", "V1.2 normal Fixture preview"); }
   getV12FutureFixturePreview(): Promise<Contracts.V12FixturePreview> { return this.call("/v1/fixtures/bad-future/preview", "V1.2 future Fixture preview"); }
+  getV12ResearchFixturePreview(): Promise<Contracts.V12ResearchFixturePreview> { return this.call("/v1/fixtures/research-preview", "V1.2 dual-market research Fixture preview"); }
   getCollectionScheduleForPlatform(subscriptionId: string): Promise<Contracts.CollectionScheduleView> { return this.call("/v2/collection-schedules/" + encodeURIComponent(subscriptionId), "collection schedule"); }
   getMinuteGapsForPlatform(subscriptionId: string): Promise<Contracts.MinuteOpenGaps> { return this.call("/v2/minute/gaps/" + encodeURIComponent(subscriptionId), "open minute gaps"); }
   getMarketDataAlertIncidents(): Promise<Contracts.MarketDataAlertIncidents> { return this.call("/v2/alerts", "active alert incidents"); }

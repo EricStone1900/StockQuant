@@ -9,12 +9,12 @@
 | V1.1 | 真数据库初始化/重启/幂等集成测试、生成契约检查、浏览器初始化与证据持久化E2E。 | [阶段验收步骤](./01-environment-and-web-center.md) |
 | V1.2 | 真实Qlib CPU烟测、PIT与手算因子测试、Artifact原子发布/取消集成、数据与策略浏览器E2E。 | [阶段验收步骤](./02-small-data-and-qlib.md) |
 | V1.3 | 领域金额/状态机、真实DB并发占用和事务、真事件幂等、FakeBroker API契约、两市场人工/自动授权Web E2E。 | [阶段验收步骤](./03-fake-broker-trading-loop.md) |
-| V1.4 | 无未来泄漏、费用/结算/公司行动手算、相同输入复跑、日线与Paper规则一致性及回测浏览器E2E。 | [阶段验收步骤](./04-daily-backtest.md) |
+| V1.4 | 无未来泄漏、费用/结算/公司行动手算、相同输入复跑、Quant落库前后Platform强制重启恢复、取消/幂等重放、日线与Paper规则一致性及回测浏览器E2E；固定CN_A费率计划的Quant/FakeBroker BUY/SELL、55bps滑点、部分成交及持久Fill Outbox对照现已验证，费用/结算全规则一致性仍未通过，详见[费率同规则对照审计](../../../evidence/audits/2026-10-07-v14-cn-a-fee-parity.md)。 | [阶段验收步骤](./04-daily-backtest.md) |
 | V1.5 | 真数据库/总线/Temporal进程恢复E2E、浏览器关闭与重连、双Worker、备份恢复及V1全阶段回归。 | [阶段验收步骤](./05-scheduling-and-recovery.md) |
 
 ## 2. 共同测试流程
 
-每阶段文件第7节为可勾选交付待办、第8节为验收操作手册。当前全部DRAFT_NOT_EXECUTABLE；阶段交付前开发者必须填齐实际环境/Fixture/URL/命令/测试清单并实测，才能改为VERIFIED_EXECUTABLE（仅表示手册实测可执行，不代表用户已验收）。
+每阶段文件第7节为可勾选交付待办、第8节为验收操作手册。当前手册状态按阶段记录：V1.1为DRAFT_NOT_EXECUTABLE，V1.2为VERIFIED_EXECUTABLE（仅限隔离Fixture/SIMULATION_ONLY范围），V1.3为DRAFT_NOT_EXECUTABLE，V1.4为PARTIALLY_VERIFIED_EXECUTABLE，V1.5为PARTIALLY_VERIFIED_EXECUTABLE。未验证的步骤仍是待办；只有按手册实测完整范围后才能改为VERIFIED_EXECUTABLE。该状态只说明手册可复现，不代表用户已验收或阶段通过。
 
 命令参数遵守共同规则第10节：normal/rejection/recovery与Web共享场景；code套件调用真实代码检查；check-only核对同一Web运行且不发起业务动作。保留预期异常的原业务状态，断言验证成功才退出0。人工确认不能由脚本生成。
 

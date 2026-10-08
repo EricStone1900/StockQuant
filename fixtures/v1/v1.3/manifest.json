@@ -1,0 +1,31 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.3-trading-loop",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V1.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Versioned deterministic V1.3 CN_A and US_EQUITY FakeBroker trading-loop scenario inputs, fault orderings, session advance and exact assertions",
+    "license": "Internal synthetic fixture; no external market data or broker access",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-07T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v1/v1.3/trading-loop-scenarios.json",
+      "sha256": "24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v13-trading-loop-fixture.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V1.3-CN-LOOP-001", "description": "CN normal buy settles to CNY 8995.0000 and 100 shares with independent FakeBroker reconciliation MATCH." },
+    { "assertionId": "V1.3-US-LOOP-001", "description": "US normal buy settles to USD 9749.9500 and 10 shares with independent FakeBroker reconciliation MATCH." },
+    { "assertionId": "V1.3-REJECTION-001", "description": "Rejection paths have no unauthorized order or ledger side effects." },
+    { "assertionId": "V1.3-RECOVERY-001", "description": "Unknown-order and ordered-report recovery use original stable business identities without duplicate orders or ledger writes." },
+    { "assertionId": "V1.3-TPLUS1-001", "description": "Same-session sell is rejected; persisted next-session advance allows a valid settled sell." }
+  ]
+}

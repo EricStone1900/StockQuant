@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "isolatedProject": "sq-v15-e2e-5fec044e380f12912533",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "c7172228-4a57-4b0a-abad-1ed552797585"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "886ef29e-d58d-47e1-be1f-3cdd714b042e"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "e128c14f-246e-4a54-b630-8d61004b4d56"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:32615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=c7172228-4a57-4b0a-abad-1ed552797585 elapsedMs=138\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=22362\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=22378\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=22510\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=c7172228-4a57-4b0a-abad-1ed552797585\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=886ef29e-d58d-47e1-be1f-3cdd714b042e elapsedMs=145\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=148\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=270\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=886ef29e-d58d-47e1-be1f-3cdd714b042e\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=e128c14f-246e-4a54-b630-8d61004b4d56 elapsedMs=144\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=147\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=278\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (23.2s)\n\n  1 passed (23.8s)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "c7172228-4a57-4b0a-abad-1ed552797585",
+      "at": "2026-10-07T09:54:53.141Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-07T09:54:53.348Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-07T09:54:56.516Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-07T09:55:08.399Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-c7172228-4a57-4b0a-abad-1ed552797585\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_MESSAGE_REDELIVERED seq=3",
+      "at": "2026-10-07T09:55:17.259Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "c7172228-4a57-4b0a-abad-1ed552797585",
+      "at": "2026-10-07T09:55:17.259Z"
+    },
+    {
+      "event": "original_outbox_message_acknowledged_after_relay_recovery",
+      "output": "{\"originalOutboxSequence\":4,\"consumerAckFloor\":4}",
+      "at": "2026-10-07T09:55:38.527Z"
+    },
+    {
+      "event": "injected_temporal_unavailable_caused_transient_nak",
+      "testRunId": "760e851c-ee69-49d6-9210-4832b82029c6",
+      "sequence": 5,
+      "marker": "platform-api-service-1  | STOCKQUANT_V15_TEST_TRANSIENT_NAK eventId=760e851c-ee69-49d6-9210-4832b82029c6 seq=5 error=TemporalServiceUnavailableError",
+      "at": "2026-10-07T09:55:39.361Z"
+    },
+    {
+      "event": "temporal_retry_run_completed_and_message_acknowledged",
+      "testRunId": "760e851c-ee69-49d6-9210-4832b82029c6",
+      "output": "{\"streamSequence\":5,\"consumerAckFloor\":5}",
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T09:55:47.492Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "e3f75a2663470ddd1fdb12a980400c9ad232996bb6c49b23b64c093f696e0544",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "7846e6b81a818530887063a90460bc3fff4ac3a7ee7edac0fb97b949e2a00be2",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6a9150940191efc21865d9ba68e02a386b66581579405b4626bf0b98001c2c62",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "2e4bf9696468f6e29b5b8e776b54346cf0da2a9b9f22f4be5ff14fff216863ed",
+    "scripts/test-v15-web-e2e-isolated.mjs": "e5aa3a085d90dc0fc78323a25079737a50c6024b44bbb116a82d48ee47662972"
+  },
+  "failureReason": null,
+  "additionalRuns": [
+    {
+      "scenario": "normal-temporal-transient-retry",
+      "testRunId": "760e851c-ee69-49d6-9210-4832b82029c6"
+    }
+  ],
+  "transientTemporalRetryE2E": "PASS: one isolated TemporalServiceUnavailableError at the Temporal call boundary; real JetStream NAK, redelivery, 120 authoritative observations and ACK floor 5",
+  "databaseTransientRetryE2E": "NOT_RUN",
+  "actualTemporalProcessOutageRecoveryE2E": "NOT_PROVEN; a separate attempt failed before the retry assertion and is preserved in failure history",
+  "concurrentWorkerE2E": "NOT_RUN"
+}

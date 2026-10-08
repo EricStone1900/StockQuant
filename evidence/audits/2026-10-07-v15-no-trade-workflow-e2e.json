@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-07",
+  "stage": "V1.5",
+  "isolatedProject": "sq-v15-e2e-c6da10b7e980bc5a5834",
+  "status": "PASS",
+  "command": "pnpm test:e2e -- --stage V1.5",
+  "exitCode": 0,
+  "playwright": {
+    "passed": 1,
+    "failed": 0,
+    "test": "V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING",
+    "duration": "3.1s"
+  },
+  "runs": [
+    {
+      "scenario": "normal",
+      "testRunId": "9e08dadd-c56f-422b-b7e6-aa3250b2d065",
+      "temporal": "COMPLETED",
+      "authoritativeObservations": 120,
+      "sessionsPerMarket": 60,
+      "holdAssertion": "PASS",
+      "automaticTradingAssertion": "WAITING",
+      "sameRunCliExitCode": 2,
+      "sameRunCliStatus": "WAITING",
+      "evidenceExportExitCode": 0
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "b0e2f24e-1977-42c1-8d15-3fc381aa2eed",
+      "businessWorkflow": "NOT_CONNECTED",
+      "businessAssertions": "NOT_RUN",
+      "sameRunCliExitCode": 2,
+      "sameRunCliStatus": "WAITING",
+      "evidenceExportExitCode": 0
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "37619e69-5c30-4571-8ba9-8ea4f8c5ead1",
+      "businessWorkflow": "NOT_CONNECTED",
+      "businessAssertions": "NOT_RUN",
+      "sameRunCliExitCode": 2,
+      "sameRunCliStatus": "WAITING",
+      "evidenceExportExitCode": 0
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "resources": {
+    "containersRemoved": true,
+    "volumesRemoved": true,
+    "networkRemoved": true,
+    "projectImagesRemoved": true
+  },
+  "knownLimitations": [
+    "The harness writes per-run evidence beneath a temporary export root and removes that root after assertions; this audit is the durable summary.",
+    "NATS is present and probed separately; the NO_TRADE Temporal workflow does not dispatch its session events through NATS.",
+    "Rejection, recovery, automatic approval-to-order dispatch, backup restore, Ubuntu deployment and human acceptance remain NOT_RUN."
+  ]
+}

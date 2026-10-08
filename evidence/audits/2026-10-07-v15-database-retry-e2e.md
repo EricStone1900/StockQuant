@@ -1,0 +1,5 @@
+# V1.5 injected database-boundary transient error and JetStream retry
+
+Date: 2026-10-07 (Asia/Shanghai). Command: `STOCKQUANT_V15_E2E_DATABASE_RETRY=true pnpm test:e2e -- --stage V1.5`; exit 0. In isolated LIVE=false/FakeBroker mode, the normal Run's JetStream message was given one deterministic `DatabaseConnectionError` at the TestRun repository boundary. Platform logged the initial NAK (`redelivered=false`); JetStream redelivered the same stream sequence and the same Run completed 120 authoritative observations. Web normal/rejection/recovery matrix, same-Run CLI/export and exact random-project cleanup passed. External data and real broker calls: 0.
+
+Run: `3d4153aa-0db7-4de9-b3b0-7037b7506cbf`. The [machine record](./2026-10-07-v15-database-retry-e2e.json) contains timestamps, sequence, browser output and source hashes. This proves injected repository-boundary error classification/NAK/redelivery/recovery only. PostgreSQL process stop/restore did not yield a verified transient DB error; actual database process outage recovery remains open.

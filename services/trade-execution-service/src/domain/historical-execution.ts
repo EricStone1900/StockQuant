@@ -14,6 +14,12 @@ export interface HistoricalExecutionCommand {
   participationRate?: number;
   slippageBps?: number;
   currency?: string;
+  /** Versioned CN_A Fixture fee inputs used for explicit Quant/Paper parity checks. */
+  marketFeeSchedule?: {
+    scheduleId: "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" | "CN_A_CASH_EQUITY_2023_08_28";
+    commissionRatePartsPerBillion: number;
+    minimumCommissionCents: number;
+  };
   reservation?: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string };
 }
 
@@ -44,6 +50,7 @@ export function historicalExecutionFingerprint(command: HistoricalExecutionComma
     participationRate: command.participationRate ?? 0.1,
     slippageBps: command.slippageBps ?? 10,
     currency: command.currency ?? "CNY",
+    marketFeeSchedule: command.marketFeeSchedule ?? null,
     reservation: command.reservation ?? null
   };
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
@@ -67,7 +74,7 @@ export class IdempotencyConflictError extends Error {
 
 export interface HistoricalExecutionResult {
   orderId: string;
-  status: "FILLED" | "PARTIALLY_FILLED" | "REJECTED" | "CANCEL_REQUESTED" | "CANCELLED" | "EXPIRED" | "UNKNOWN";
+  status: "ACCEPTED" | "FILLED" | "PARTIALLY_FILLED" | "REJECTED" | "CANCEL_REQUESTED" | "CANCELLED" | "EXPIRED" | "UNKNOWN";
   fill?: { externalFillId: string; quantity: number; price: string; fee: string; effectiveAt: string };
   rejectionReason?: "ZERO_VOLUME" | "INVALID_BAR" | "LIMIT_NOT_MARKETABLE" | "INVALID_RULE";
   brokerMode: "FAKE";
@@ -87,7 +94,47 @@ export function calculateFee(price: string, quantity: number): string {
   return `${rounded / 10000n}.${(rounded % 10000n).toString().padStart(4, "0")}`;
 }
 
+function calculateScheduledFee(price: string, quantity: number, side: "BUY" | "SELL", schedule: NonNullable<HistoricalExecutionCommand["marketFeeSchedule"]>): string {
+  const minimumCommissionRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68_700 : 54_100;
+  if (!Number.isSafeInteger(schedule.commissionRatePartsPerBillion) || schedule.commissionRatePartsPerBillion < minimumCommissionRate || schedule.commissionRatePartsPerBillion > 3_000_000 ||
+      !Number.isSafeInteger(schedule.minimumCommissionCents) || schedule.minimumCommissionCents < 0) throw new Error("INVALID_MARKET_FEE_SCHEDULE");
+  const [whole, fraction = ""] = price.split(".");
+  const priceCents = BigInt(`${whole}${fraction.padEnd(2, "0").slice(0, 2)}`);
+  const notionalCents = priceCents * BigInt(quantity);
+  const ceilRate = (rate: bigint) => (notionalCents * rate + 1_000_000_000n - 1n) / 1_000_000_000n;
+  const commission = [BigInt(schedule.minimumCommissionCents), ceilRate(BigInt(schedule.commissionRatePartsPerBillion))].reduce((a, b) => a > b ? a : b);
+  const transfer = ceilRate(100_000n);
+  const stampRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 1_000_000n : 500_000n;
+  const stamp = side === "SELL" ? ceilRate(stampRate) : 0n;
+  const totalCents = commission + transfer + stamp;
+  return `${totalCents / 100n}.${(totalCents % 100n).toString().padStart(2, "0")}00`;
+}
+
+function quantityAtParticipation(volume: number, participationRate: number): number {
+  const [mantissa, exponentText] = participationRate.toString().toLowerCase().split("e");
+  const exponent = exponentText === undefined ? 0 : Number(exponentText);
+  const [whole, fraction = ""] = mantissa!.split(".");
+  const numerator = BigInt(`${whole}${fraction}`) * 10n ** BigInt(Math.max(0, exponent));
+  const denominator = 10n ** BigInt(fraction.length + Math.max(0, -exponent));
+  return Number(BigInt(volume) * numerator / denominator);
+}
+
 export function calculateHistoricalExecution(command: HistoricalExecutionCommand, ids: { orderId: string; externalFillId: string }): HistoricalExecutionResult {
+  if (command.marketFeeSchedule) {
+    const schedule = command.marketFeeSchedule;
+    const executionDate = command.bar.timestamp.slice(0, 10);
+    const validSchedule = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" || schedule.scheduleId === "CN_A_CASH_EQUITY_2023_08_28";
+    const validDate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27"
+      ? executionDate >= "2022-04-29" && executionDate < "2023-08-28"
+      : executionDate >= "2023-08-28";
+    const minimumCommissionRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68_700 : 54_100;
+    const validRates = Number.isSafeInteger(schedule.commissionRatePartsPerBillion) && schedule.commissionRatePartsPerBillion >= minimumCommissionRate && schedule.commissionRatePartsPerBillion <= 3_000_000 &&
+      Number.isSafeInteger(schedule.minimumCommissionCents) && schedule.minimumCommissionCents >= 0;
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/u.test(command.bar.timestamp) ||
+        !validSchedule || !validDate || !validRates || (command.currency ?? "CNY") !== "CNY" || !/\.(?:SH|SZ)$/u.test(command.security)) {
+      return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "INVALID_RULE", brokerMode: "FAKE" };
+    }
+  }
   if (!Number.isSafeInteger(command.bar.volume) || command.bar.volume <= 0) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "ZERO_VOLUME", brokerMode: "FAKE" };
   if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.bar.open) || !Number.isSafeInteger(command.requestedQuantity) || command.requestedQuantity <= 0) {
     return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "INVALID_BAR", brokerMode: "FAKE" };
@@ -107,12 +154,20 @@ export function calculateHistoricalExecution(command: HistoricalExecutionCommand
     const limitScaled = BigInt(`${limitWhole}${limitFraction.padEnd(4, "0")}`);
     if (side === "BUY" ? openScaled > limitScaled : openScaled < limitScaled) return { orderId: ids.orderId, status: "EXPIRED", rejectionReason: "LIMIT_NOT_MARKETABLE", brokerMode: "FAKE" };
   }
-  const quantity = Math.min(command.requestedQuantity, Math.floor(command.bar.volume * participationRate));
+  // Convert the caller's canonical decimal rate to a rational before multiplying.
+  // Binary floating point made 1,000 × 0.1 truncate to 99 on some runtimes.
+  const quantity = Math.min(command.requestedQuantity, quantityAtParticipation(command.bar.volume, participationRate));
   if (quantity <= 0) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "ZERO_VOLUME", brokerMode: "FAKE" };
   // Decimal string arithmetic in SQL persists the canonical price. Slippage is
-  // a versioned bps coefficient and is applied away from the trader for buys.
+  // applied away from the trader, then conservatively rounded to the market's
+  // 0.01 quote tick so historical Paper fills match the V1.4 cent ledger.
   const numerator = side === "BUY" ? 10000n + BigInt(Math.round(slippageBps)) : 10000n - BigInt(Math.round(slippageBps));
-  const scaled = (openScaled * numerator + 5000n) / 10000n;
+  const slippedScaled = openScaled * numerator;
+  const tickScaled = 100n * 10000n;
+  const scaled = side === "BUY"
+    ? ((slippedScaled + tickScaled - 1n) / tickScaled) * 100n
+    : (slippedScaled / tickScaled) * 100n;
   const price = `${scaled / 10000n}.${(scaled % 10000n).toString().padStart(4, "0")}`;
-  return { orderId: ids.orderId, status: quantity === command.requestedQuantity ? "FILLED" : "PARTIALLY_FILLED", fill: { externalFillId: ids.externalFillId, quantity, price, fee: calculateFee(price, quantity), effectiveAt: command.bar.timestamp }, brokerMode: "FAKE" };
+  const fee = command.marketFeeSchedule ? calculateScheduledFee(price, quantity, side, command.marketFeeSchedule) : calculateFee(price, quantity);
+  return { orderId: ids.orderId, status: quantity === command.requestedQuantity ? "FILLED" : "PARTIALLY_FILLED", fill: { externalFillId: ids.externalFillId, quantity, price, fee, effectiveAt: command.bar.timestamp }, brokerMode: "FAKE" };
 }

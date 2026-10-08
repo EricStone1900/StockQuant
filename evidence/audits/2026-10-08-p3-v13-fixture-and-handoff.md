@@ -1,0 +1,39 @@
+# P3 V1.3 frozen Fixture, Web handoff and full matrix rerun
+
+Date: 2026-10-08 (Asia/Shanghai)
+Result: fixed-scenario engineering evidence `PASS`; user acceptance `NOT_RUN`.
+
+## Frozen inputs
+
+- Fixture: `v1.3-trading-loop` version `1.0.0`, `FIXTURE` / `SIMULATION_ONLY`, synthetic source; [manifest](../../fixtures/v1/v1.3/manifest.json), [scenario input](../../fixtures/v1/v1.3/trading-loop-scenarios.json), scenario SHA-256 `24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770`.
+- `pnpm contracts:check` passed (292 JSON checked, 204 schemas, 48 fixtures; no JSON failures; generated DTOs and 29 client generators current).
+- `pnpm fixtures:check` passed (34 fixture files checked, 0 failures; existing deterministic V3.2/V1.2 reference checks also passed).
+- V1.3 Web now reads seed, markets, securities, currencies, order quantities and AUTO Mandate limits from the frozen input. E2E recomputes the input SHA-256 against the versioned manifest and uses the same fixture values for CN/US output assertions. The container Web image includes the checked fixture and manifest.
+
+## Executed evidence
+
+- `pnpm --filter @stockquant/web build`: PASS; TypeScript build and Vite production bundle succeed.
+- `STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED=true pnpm test:e2e:v13-isolated`: PASS, 21/21 Playwright cases, individual Web-created TestRuns each checked by same-Run CLI and exported; `realBrokerCalls=0`, `externalSourceCalls=0`, exact random Compose project resources removed. Full output: [matrix log](2026-10-08-p3-v13-fixture-bound-matrix.log), SHA-256 `29216874fd2b8e19ded34f38eb05a6152c167d33012803a5e94bcf5a738a151a`.
+- `pnpm verify:stage -- --stage V1.3 --suite code`: PASS, exit 0; baseline/docs/contracts/Fixture, build, lint, typecheck, workspace tests, isolated Portfolio/Trade/Market Data PostgreSQL integrations, contract, Python adapter and ops checks all ran. Full output: [code suite log](2026-10-08-p3-v13-fixture-code-suite.log), SHA-256 `a5d137527a2f09160fe8217dd168e1b625582b4dcfb056200e6647bb19582e0c`.
+- `pnpm stack:up -- --stage V1.3`: started a random SCRAM-authenticated disposable stack, project `sq-v13-web-2158d0dbf7712dd527ba`, Web `http://127.0.0.1:56047/acceptance/v1/v1.3`, Platform API `http://127.0.0.1:25487`, Trade `http://127.0.0.1:35760`; PAPER/FAKE, LIVE false. Read-only probe returned Web 200, Platform `/live` 200 and confirmed the served Web asset contains fixture version and SHA. `pnpm stack:down -- --project sq-v13-web-2158d0dbf7712dd527ba` returned `STOPPED_AND_PURGED`, removing only that project's containers, PostgreSQL volume, network, images and credentials. Stack startup output: [log](2026-10-08-p3-v13-interactive-stack.log), SHA-256 `f0f97a7c7f9bc48c9c873763349b840da46c19093df762b63afc281f4cef51ec`.
+
+One prior ordinary-sandbox E2E attempt failed before startup because Docker socket access was denied. A subsequent controlled run hit a transient locked-image `unexpected EOF`; the Harness removed its exact volume. A retry passed 21/21. The final post-Fixture run also passed 21/21 and the cleanup check. All failed logs remain alongside this audit.
+
+## Boundaries and next work
+
+The full fixed V1.3 P3 matrix now has current evidence and the manual Web entry/stop lifecycle has been re-executed. That does not close all exchange-rule/calendar capabilities, untested cancellation race permutations, section 8 target-Ubuntu delivery, V1 stage acceptance or the current human sign-off. Historical prior-scope signature remains historical; new-scope human acceptance is `NOT_RUN`. The version verifier still determines the authoritative stage/version gate.
+
+## 2026-10-08 refresh recovery correction and final rerun
+
+Visual review of the first per-case screenshot set exposed that the V1.3 route restored Run/account/proposal/Mandate state but did not rehydrate the persisted order after browser refresh. The UI now queries the persisted AUTO and MANUAL client-order identities from the same TestRun/Proposal and restores order/fill/Outbox/reconciliation display. Normal MANUAL and L04 AUTO tests now assert `FILLED`, exact price/fee/cash and `MATCH` after refresh. The pre-fix captures and the first matrix without its required one-shot L08 failure-injection flag are retained as diagnosis evidence.
+
+- Final `STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED=true pnpm test:e2e:v13-isolated`: PASS, 21/21; same-Run CLI checks and evidence export for each Run; external sources 0, real broker 0, exact stack cleanup verified. [Final matrix log](2026-10-08-p3-v13-refresh-fix-matrix-enabled.log), SHA-256 `99e194119e1411ceb4d49169839e1bf512a0861e422343eaab47b17c7911b413`.
+- Final controlled `pnpm verify:stage -- --stage V1.3 --suite code`: exit 0 with the pinned Python Worker container available through the Docker-enabled execution context. [Final code suite before cancellation-race coverage](2026-10-08-p3-v13-refresh-fix-code-suite-controlled.log), SHA-256 `558393dd6d636232402ebccd3f21da90ad5cfe8aeffc554d4d629b0e1e2de0b2`. After adding the PostgreSQL cancellation/late-fill race assertion, the full V1.3 code suite passed again; final log [here](2026-10-08-p3-v13-final-code-suite-after-security-guard.log), SHA-256 `d099df6a5c99e50f0a329764f5ab21f8a8a4b16193a08e25b1f67d56bf4ed167`.
+- Per-case post-fix captures: 21 PNG screenshots and 21 Playwright traces in [`2026-10-08-v13-browser-captures-refresh-fix/`](2026-10-08-v13-browser-captures-refresh-fix/); [historical SHA-256 list](2026-10-08-v13-browser-captures-refresh-fix.sha256), list SHA-256 `9ab066e142d68ac1181f023d441786b57042381e1dbf1bb257daa219e241fd85` (the harness later reused and overwrote this directory, so these hashes no longer match its contents). The fresh post-refactor captures are preserved under [`2026-10-08-v13-browser-captures-after-app-service/`](2026-10-08-v13-browser-captures-after-app-service/) with a current [SHA-256 list](2026-10-08-v13-browser-captures-after-app-service.sha256).
+- A first matrix invocation omitted the required one-shot L08 injection environment variable: its retry-attempt assertion correctly failed because no delivery failure was injected. The failed run is preserved in [diagnostic log](2026-10-08-p3-v13-refresh-fix-matrix.log); the explicitly configured final run above passes.
+
+The isolated PostgreSQL FakeBroker persistence suite covers duplicate concurrent cancel requests, rejected cancel restoring the working partial-fill state, competing accepted/rejected cancel results at one sequence (one winner), cancellation results buffered behind an earlier missing Fill sequence, partial reports arriving after a cancel request, and the added race `CANCEL_REQUESTED → authoritative cumulative Fill reaches 100 → ACCEPTED cancel result`; the latter leaves exactly 100 shares filled and final order `FILLED`, without canceling already filled quantity. The integration passed in the full code suite; its explicit run is [here](2026-10-08-p3-v13-late-fill-cancel-race-rerun.log), SHA-256 `be709213d88846bf27307f44c6b68c38e7c26c441b3b2ecb7fe59256047160f0`. The first integration attempt asserted the wrong event count/PostgreSQL bigint representation; its failed log is preserved.
+
+A Governance API regression now attempts `environmentMode=LIVE` plus `brokerMode=REAL` on proposal creation and asserts HTTP 422 with no Proposal repository call. All 40 Governance service unit tests passed, and the complete V1.3 code suite passed again after this guard assertion; final log: [security-boundary code suite](2026-10-08-p3-v13-final-code-suite-after-security-guard.log), SHA-256 `daaa9d6a0f45d11d2af7f92f9741b0148f36d9097c02cf9c9a3918e2337e056e`.
+
+The refresh defect is fixed for the tested MANUAL and AUTO completed-order paths. Other in-flight race permutations, complete exchange rules/calendars, target-Ubuntu handoff and current-scope human acceptance remain open; P3 and V1 are not closed.

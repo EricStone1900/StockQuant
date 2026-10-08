@@ -10,6 +10,8 @@ V1.1建立身份/健康/TestRun，全部14阶段增量扩展；不新增独立�
 
 唯一拥有：本地身份/会话、偏好、平台审计、通知投影、TestScenario目录/版本、TestRun元数据、TestAssertion和AcceptanceRecord。
 
+2026-10-07本地会话实现增量：PostgreSQL `platform_local_sessions`存会话Token的SHA-256摘要与owner/创建/到期/撤销时间；原始256位随机Token仅通过HttpOnly SameSite Cookie发给浏览器，12小时过期，`POST /api/v1/session/logout`持久撤销。Platform API入口对每个带会话Cookie的请求查验数据库状态；数据库不可用时失败关闭。随机隔离V1.3 E2E证明logout后重启Platform再重放旧Token仍401。该实现覆盖本地单用户开发身份，不表示活动部署或外部身份提供方集成。
+
 边界：不拥有交易资金/订单事实，不直接跨库读写领域，不授予Web任意SQL/shell或Docker能力。
 
 ## 2. 内部分层
@@ -17,6 +19,12 @@ V1.1建立身份/健康/TestRun，全部14阶段增量扩展；不新增独立�
 domain：测试场景/运行/人工签署、访问范围；application：BFF聚合、测试编排、证据导出、暂停命令转发；ports：领域Clients/JobCoordinator/Artifact；adapters：DB、会话认证、只读投影；bootstrap：API/受控后台任务。
 
 目标目录：`services/platform-api-service/`，包含src、独立依赖锁、migrations、Dockerfile、README和分层tests。domain不依赖框架/SDK；application依赖ports，由bootstrap注入adapters。配置验证失败需明确依赖项。
+
+2026-10-07 V1.3 Session推进协调边界实现：`V13AcceptanceController`只解析可信owner并映射HTTP错误；`V13SessionAdvanceService`在Application层按ports查询owner/TestRun范围、Portfolio持仓/HELD预留、FakeBroker独立余额与持仓及未决对账，再从Market Data Calendar解析下一Session，并经StageRun Repository以`expectedClock`栅栏持久推进。Platform仍只保存TestRun/Fixture Clock事件，不创建组合或FakeBroker账本事实。定向应用服务单测5/5、V1.3完整code suite和随机隔离Web/API/CLI矩阵21/21通过；更广泛Proposal/审批/执行协调仍有部分位于Controller，不能据此标记P3全面完成。审计：[应用层Session推进复验](../../evidence/audits/2026-10-07-v13-session-advance-application-e2e.md)。
+
+2026-10-08 V1.3订单事件边界增量：L07/L08 sequenced Fill报告、撤单请求与撤单结果协调现由`V13SequencedFill`应用层流程执行，按ports查询owner/TestRun/Proposal/FakeBroker权威订单及Portfolio预留、用TestRun Clock生成确定性事件、调用Trade Execution并回读同Run投影；HTTP Controller只适配会话身份、下游clients和HTTP错误。应用流程7项定向用例；Platform全套60文件/268项单测、typecheck、V1.3完整代码套件及隔离Web/API/CLI矩阵21/21复验通过。领域订单/Fill/账本所有权与事件合同未改变。证据：[订单协调应用服务审计](../../evidence/audits/2026-10-08-p3-v13-sequenced-fill-application-service.md)。
+
+2026-10-07 V1.5受限持久派发实现：仅normal NO_TRADE由Platform事务写入owner/TestRun范围的`v15_workflow_dispatch_outbox`，Relay通过真实JetStream发布，durable Consumer校验持久TestRun再调用稳定Temporal Workflow ID；业务账户、订单、Fill与账本仍归Portfolio/Trade。此为V1受限能力切片，尚非独立Workflow Orchestration Service。真实隔离E2E验证NATS短停、派发前Platform API重启、坏JSON/错误owner终止、同Run重复消息首次ACK丢弃后的真实redelivery，以及原Outbox恢复；Temporal调用边界一次性UNAVAILABLE经NAK/redelivery恢复以及NO_TRADE Activity执行中重启承载Worker的Platform API后恢复已有隔离E2E；数据库瞬态重试、真实Temporal服务进程重启、多Consumer竞争、交易/日终流程仍未验证。完整E2E和代码Hash见[派发审计](../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.md)。
 
 ## 3. 数据与一致性
 

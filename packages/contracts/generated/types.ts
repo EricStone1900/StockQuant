@@ -100,7 +100,8 @@ export type QlibFitFixtureResult = {
 }
 
 export type V14DailyBacktestFixtureRequest = {
-  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees' | 'corporate-actions';
+  "testRunId"?: string;
   "seed": number;
   "policy": {
   "initialCashCents": number;
@@ -108,7 +109,11 @@ export type V14DailyBacktestFixtureRequest = {
   "participationRateBasisPoints": number;
   "slippageBasisPoints": number;
   "fixedFeeCents": number;
-  "marketFeeSchedule"?: unknown;
+  "marketFeeSchedule"?: {
+  "scheduleId": 'CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27' | 'CN_A_CASH_EQUITY_2023_08_28';
+  "commissionRatePartsPerBillion": number;
+  "minimumCommissionCents": number;
+} & unknown;
   "sellOrder"?: {
   "signalDate": string;
   "executionDate": string;
@@ -120,7 +125,7 @@ export type V14DailyBacktestFixtureRequest = {
 export type V14DailyBacktestFixtureResult = {
   "testRunId": string;
   "stageId": 'V1.4';
-  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'market-restrictions' | 'historical-fees' | 'corporate-actions';
   "seed": number;
   "status": 'COMPLETED' | 'FAILED';
   "assertions": Array<{
@@ -129,7 +134,26 @@ export type V14DailyBacktestFixtureResult = {
   "expected": unknown;
   "actual": unknown;
 }>;
-  "evidence": Record<string, unknown>;
+  "evidence": {
+  "orderOutcomes"?: Array<{
+  "side": 'BUY' | 'SELL';
+  "signalDate": string;
+  "executionDate": string;
+  "requestedQuantity": number;
+  "filledQuantity": number;
+  "status": 'FILLED' | 'PARTIALLY_FILLED' | 'REJECTED';
+  "reason"?: 'ZERO_VOLUME' | 'INSUFFICIENT_CASH' | 'PARTICIPATION_LIMIT' | 'T_PLUS_1_UNAVAILABLE' | 'NO_SELLABLE_POSITION';
+}>;
+  "metrics"?: {
+  "rejectedOrders"?: number;
+  "partiallyFilledOrders"?: number;
+  "unfilledQuantity"?: number;
+};
+};
+  "durableReport": {
+  "resultSha256": string;
+  "manifestSha256": string;
+};
 }
 
 export type V31ArtifactPublishCommand = {
@@ -478,7 +502,24 @@ export type V32CandidateMandateBindingCommand = {
 };
 }
 
-export type V32CandidateMandateBindingResult = unknown & unknown & unknown
+export type V32CandidateMandateBindingResult = {
+  "schemaVersion": 'v3.2-candidate-mandate-binding-result-v1';
+  "status": 'EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW' | 'WAITING' | 'REJECTED';
+  "reason": 'APPROVED_REGISTRY_VERSION_NOT_FOUND' | 'REGISTRY_LOOKUP_UNAVAILABLE' | 'APPROVED_VERSION_AND_CANDIDATE_ARTIFACT_MATCH' | 'REGISTRY_VERSION_OR_CANDIDATE_ARTIFACT_MISMATCH';
+  "mandateId": string;
+  "testRunId"?: string;
+  "ownerId"?: string;
+  "accountId"?: string;
+  "market"?: 'CN_A';
+  "environmentMode"?: 'PAPER';
+  "brokerMode"?: 'FAKE';
+  "versionFingerprint"?: string;
+  "registryStatus"?: 'CANDIDATE_APPROVED';
+  "activation"?: 'DISABLED_UNTIL_MANDATE';
+  "promotionRequestId"?: string;
+  "accountValidation"?: 'NOT_PERFORMED';
+  "mandatePersistence"?: 'NOT_PERFORMED';
+} & unknown & unknown & unknown
 
 export type V32PromotionDataManifest = {
   "schemaVersion": 'v3.2-data-manifest-v1';
@@ -569,7 +610,11 @@ export type V32PromotionDecisionResult = {
   "idempotent": boolean;
 }
 
-export type V32PromotionRequestPreparationResult = unknown & unknown
+export type V32PromotionRequestPreparationResult = {
+  "status": 'WAITING' | 'READY_FOR_GATE_CHECK';
+  "blockers": Array<string>;
+  "promotionRequest": null | V32PromotionRequest;
+} & unknown & unknown
 
 export type V32PromotionRegistryVersion = {
   "schemaVersion": 'v3.2-promotion-registry-version-v1';
@@ -638,7 +683,16 @@ export type V32PromotionRequest = {
   "idempotencyKey": string;
 }
 
-export type V32PromotionScenarioFixture = unknown & unknown
+export type V32PromotionScenarioFixture = {
+  "schemaVersion": 'v3.2-promotion-scenario-v1';
+  "scenarioId": 'eligible-fixture' | 'future-data-rejected-fixture';
+  "sourceMode": 'FIXTURE';
+  "request": V32PromotionRequest;
+  "independentValidationExpectation": {
+  "disposition": 'ELIGIBLE_FOR_REVIEW' | 'REJECTED';
+  "reason": 'WITHIN_FROZEN_RULES' | 'FUTURE_DATA_LEAKAGE';
+};
+} & unknown & unknown
 
 export type V32PromotionRequestSubmissionCommand = {
   "testRunId": string;
@@ -1000,7 +1054,41 @@ export type V33TestRunBudgetLimitResult = {
   "status": 'CONFIGURED';
 }
 
-export type V33TestRunExperimentBudgetSummary = unknown & unknown
+export type V33TestRunExperimentBudgetSummary = {
+  "schemaVersion": 'v3.3-test-run-budget-summary-v1';
+  "testRunId": string;
+  "offset": number;
+  "limit": number;
+  "afterCursor": string | null;
+  "nextAfterCursor": string | null;
+  "hasMore": boolean;
+  "rows": Array<{
+  "experimentId": string;
+  "rounds": number;
+  "requestedCents": number;
+  "reservedCents": number;
+  "roundBudget": Array<{
+  "roundIndex": number;
+  "allocatedCents": number;
+  "usedCents": number;
+  "unknownReservedCents": number;
+}>;
+  "status": 'RESERVED' | 'SETTLED' | 'UNKNOWN' | 'REJECTED';
+  "settledCents": number;
+  "unknownReservedCents": number;
+  "modelCallCount": number;
+}>;
+  "totals": null | {
+  "experiments": number;
+  "requestedCents": number;
+  "reservedCents": number;
+  "settledCents": number;
+  "unknownReservedCents": number;
+  "modelCallCount": number;
+};
+  "accountingScope": 'unique experiments bound to this TestRun; model-call attempts are counted once; no provider invoice reconciliation';
+  "stageBudgetControl": 'NOT_IMPLEMENTED' | 'TEST_RUN_CAP_ENFORCED_ROUND_CAP_NOT_IMPLEMENTED' | 'TEST_RUN_AND_ROUND_CAP_ENFORCED';
+} & unknown & unknown
 
 export type InitializeAccountCommand = {
   "fixtureAccountRef": string;
@@ -1081,7 +1169,12 @@ export type ArtifactRef = {
   "expiresAt"?: string | null;
 }
 
-export type ClockContext = unknown
+export type ClockContext = {
+  "clockMode": 'SYSTEM' | 'SIMULATION' | 'FIXED';
+  "asOf": string;
+  "runId"?: string | null;
+  "calendarVersion"?: string | null;
+} & unknown
 
 export type ErrorResponse = {
   "code": string;
@@ -1371,6 +1464,148 @@ export type TestRun = {
   "artifactRefs"?: Array<ArtifactRef>;
 }
 
+export type V12StrategySnapshotCommand = {
+  "ownerId": string;
+  "testRunId": string;
+  "artifactId": string;
+  "artifactSha256": string;
+  "fixtureVersion": 'v1.2-market-data-4';
+  "dataVersion": 'v1.2-market-data-4';
+  "factorVersion": 'v1.2-momentum-volume-1';
+  "strategyId": 'v1.2-qlib-topk-1' | 'v1.2-no-trade-1';
+  "strategyHash": string;
+  "mode": 'TOPK' | 'NO_TRADE';
+  "asOf": string;
+  "targets": Array<V12StrategyTarget>;
+}
+
+export type V12StrategyTarget = {
+  "ticker": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "reason": string;
+}
+
+export type V13AutoMandateCommand = {
+  "mandateId": string;
+  "mandateVersion": 1;
+  "testRunId": string;
+  "accountId": string;
+  "strategyVersion": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "securityScope": Array<string>;
+  "maxOrderAmount": string;
+  "maxTotalAmount": string;
+  "maxOrderCount": number;
+  "validFrom": string;
+  "expiresAt": string;
+  "reason": string;
+  "now": string;
+}
+
+export type V13AutoMandateOrderCommand = {
+  "mandateVersion": number;
+  "ownerId": string;
+  "clientOrderId": string;
+  "commandHash": string;
+  "proposal": V13AutoMandateProposal;
+  "now": string;
+}
+
+export type V13AutoMandateProposal = {
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "strategyVersion": string;
+  "operation": 'HOLD' | 'REBALANCE';
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "legs": Array<{
+  "securityId": string;
+  "side": 'BUY' | 'SELL';
+  "quantity": number;
+  "limitPrice": string;
+  "estimatedFee": string;
+}>;
+}
+
+export type V13AutoMandateSettlementCommand = {
+  "outcome": 'CONSUMED' | 'RELEASED';
+  "now": string;
+}
+
+export type V13AutoMandateTransitionCommand = {
+  "mandateVersion": number;
+  "testRunId": string;
+  "contentHash"?: string;
+  "reason": string;
+  "now": string;
+}
+
+export type V13AutoPaperExecutionCommand = {
+  "proposalId": string;
+  "mandateId": string;
+  "mandateVersion": number;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "namespace": string;
+  "clientOrderId": string;
+  "now": string;
+}
+
+export type V13ExecutionAuthorizationCommand = {
+  "proposalVersion": number;
+  "contentHash": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "clientOrderId": string;
+  "commandHash": string;
+  "now": string;
+}
+
+export type V13ExecutionAuthorizationResult = {
+  "authorizationId": string;
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "clientOrderId": string;
+  "commandHash": string;
+  "expiresAt": string;
+  "status": 'ACTIVE';
+  "replayed"?: boolean;
+}
+
+export type V13ExecutionAuthorizationValidation = {
+  "authorizationId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "clientOrderId": string;
+  "commandHash": string;
+  "now": string;
+}
+
+export type V13ManualPaperExecutionCommand = {
+  "proposalId": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "namespace": string;
+  "clientOrderId": string;
+  "now": string;
+}
+
 export type V13PaperStageRunAccepted = {
   "accepted": true;
   "testRunId": string;
@@ -1413,6 +1648,82 @@ export type V13PaperStageRunResult = {
 };
   "createdAt": string;
   "completedAt": null;
+}
+
+export type V13ProposalCommand = {
+  "ownerId": string;
+  "testRunId": string;
+  "idempotencyKey": string;
+  "accountId": string;
+  "strategyVersion": string;
+  "approvalMode"?: 'MANUAL_APPROVAL' | 'AUTO_POLICY';
+  "market"?: 'CN_A' | 'US_EQUITY';
+  "currency"?: 'CNY' | 'USD';
+  "operation": 'HOLD' | 'REBALANCE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "expiresAt": string;
+  "legs": Array<V13ProposalLeg>;
+} & unknown & unknown
+
+export type V13ProposalDecisionCommand = {
+  "expectedVersion": number;
+  "expectedContentHash": string;
+  "reason": string;
+  "now": string;
+}
+
+export type V13ProposalDecisionResult = {
+  "status": 'APPROVED_MANUAL';
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "decidedBy": string;
+  "reason": string;
+} | {
+  "status": 'REJECTED_MANUAL';
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "decidedBy": string;
+  "reason": string;
+}
+
+export type V13ProposalLeg = {
+  "legId": string;
+  "securityId": string;
+  "side": 'BUY' | 'SELL';
+  "quantity": number;
+}
+
+export type V13ProposalResult = {
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "status": 'MANUAL_APPROVAL_PENDING' | 'AUTO_POLICY_PENDING' | 'APPROVED_MANUAL' | 'REJECTED_MANUAL' | 'STALE';
+  "approvalMode": 'MANUAL_APPROVAL' | 'AUTO_POLICY';
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "operation": 'HOLD' | 'REBALANCE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "expiresAt": string;
+  "legs": Array<V13ProposalLeg>;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "strategyVersion": string;
+  "replayed"?: boolean;
+}
+
+export type V13ProposalRevisionCommand = {
+  "expectedVersion": number;
+  "expectedContentHash": string;
+  "operation": 'HOLD' | 'REBALANCE';
+  "expiresAt": string;
+  "legs": Array<V13ProposalLeg>;
+  "reason": string;
+  "now": string;
 }
 
 export type V24ObservationRevisionList = {
@@ -1824,9 +2135,87 @@ export type V24PaperStageRunResult = {
   "completedAt": null;
 }
 
-export type V24SnapshotFixtureExecutionV2 = unknown & unknown
+export type V24SnapshotFixtureExecutionV2 = {
+  "$schema"?: string;
+  "fixtureId": 'v24-snapshot-cn-paper-execution';
+  "fixtureVersion": '2.0.0';
+  "dataMode": 'FIXTURE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "clockNow": string;
+  "order": {
+  "security": string;
+  "acceptedAt": string;
+  "executionWindowStart": string;
+  "executionWindowEnd": string;
+  "requestedQuantity": number;
+};
+  "snapshot": {
+  "snapshotId": string;
+  "security": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "sourceMode": 'FIXTURE';
+  "status": 'READY';
+  "observedAt": string;
+  "ingestedAt": string;
+  "price": string;
+};
+  "fixtureFee": string;
+  "expected": {
+  "projectedQuantity": number;
+  "projectedPrice": string;
+  "projectedFee": string;
+  "executionModel": 'SNAPSHOT';
+  "liquidityParticipation": 'NOT_VERIFIED';
+};
+  "risk": {
+  "referencePrice": string;
+  "freshnessLimitSeconds": number;
+  "maxDeviationBps": number;
+  "supportedMarkets": Array<'CN_A' | 'US_EQUITY'>;
+};
+} & unknown & unknown
 
-export type V24SnapshotFixtureExecution = unknown & unknown
+export type V24SnapshotFixtureExecution = {
+  "$schema"?: string;
+  "fixtureId": 'v24-snapshot-cn-paper-execution';
+  "fixtureVersion": '1.0.0';
+  "dataMode": 'FIXTURE';
+  "environmentMode": 'PAPER';
+  "brokerMode": 'FAKE';
+  "liveTradingEnabled": false;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "clockNow": string;
+  "order": {
+  "security": string;
+  "acceptedAt": string;
+  "executionWindowStart": string;
+  "executionWindowEnd": string;
+  "requestedQuantity": number;
+};
+  "snapshot": {
+  "snapshotId": string;
+  "security": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "sourceMode": 'FIXTURE';
+  "status": 'READY';
+  "observedAt": string;
+  "ingestedAt": string;
+  "price": string;
+};
+  "fixtureFee": string;
+  "expected": {
+  "projectedQuantity": number;
+  "projectedPrice": string;
+  "projectedFee": string;
+  "executionModel": 'SNAPSHOT';
+  "liquidityParticipation": 'NOT_VERIFIED';
+};
+} & unknown & unknown
 
 export type V33NormalVerifyCommand = {
   "schemaVersion": 'v3.3-normal-verify-command-v1';
@@ -2257,7 +2646,42 @@ export type V12FixturePreview = {
 }>;
 }
 
-export type V22StageRunRequest = unknown
+export type V12ResearchFixturePreview = {
+  "fixtureVersion": 'v1.2-market-data-4';
+  "dataMode": 'FIXTURE';
+  "dailyBarsSha256": string;
+  "securities": Array<{
+  "securityId": string;
+  "ticker": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "timezone": string;
+  "listedAt": string;
+  "delistedAt": string | null;
+}>;
+  "bars": Array<{
+  "securityId": string;
+  "ticker": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "timezone": string;
+  "date": string;
+  "availableAt": string;
+  "open": string;
+  "high": string;
+  "low": string;
+  "close": string;
+  "volume": number;
+  "adjustment": 'raw';
+}>;
+}
+
+export type V22StageRunRequest = {
+  "scenarioId"?: 'normal' | 'rejection' | 'recovery' | 'uploaded-csv';
+  "seed"?: number;
+  "uploadId"?: string;
+  "fileFormat"?: 'CSV' | 'PARQUET';
+} & unknown
 
 export type MarketDataWatchlistUpdate = {
   "securities": Array<string>;
@@ -2307,6 +2731,8 @@ export type QlibSummaryValidateRequest = {
 }
 
 export type V12FactorPreview = {
+  "status": 'COMPLETED' | 'NOT_RUN';
+  "reason"?: string;
   "factorVersion": 'v1.2-sma-factor-1';
   "dataVersion": 'v1.2-market-data-1';
   "asOf": string;
@@ -2329,6 +2755,49 @@ export type V12QlibProbePreview = {
 };
   "executionModel"?: string;
   "modelCalls"?: string;
+}
+
+export type V12QlibStrategyArtifact = {
+  "schemaVersion": 'v1.2-qlib-strategy-artifact-v1';
+  "fixtureVersion": 'v1.2-market-data-4';
+  "dailyBarsSha256": string;
+  "inputSha256": string;
+  "factorVersion": 'v1.2-momentum-volume-1';
+  "dataVersion": 'v1.2-market-data-4';
+  "asOf": string;
+  "qlibModels": Array<{
+  "market": 'CN_A' | 'US_EQUITY';
+  "version": string;
+  "lightgbmVersion": string;
+  "model": 'qlib.contrib.model.gbdt.LGBModel';
+  "modelSha256": string;
+  "modelArtifactBase64": string;
+  "testPredictionsSha256": string;
+}>;
+  "predictions": Array<{
+  "ticker": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "date": string;
+  "momentum20": number;
+  "volumeRatio20": number;
+  "rangeRatio": number;
+  "label": number;
+  "prediction": number;
+}>;
+  "strategies": Array<{
+  "strategyId": 'v1.2-qlib-topk-1' | 'v1.2-no-trade-1';
+  "strategyHash": string;
+  "mode": 'TOPK' | 'NO_TRADE';
+  "asOf": string;
+  "reason": string;
+  "targets": Array<{
+  "ticker": string;
+  "market": 'CN_A' | 'US_EQUITY';
+  "currency": 'CNY' | 'USD';
+  "reason": string;
+}>;
+}>;
 }
 
 export type V12RDagentProbePreview = {

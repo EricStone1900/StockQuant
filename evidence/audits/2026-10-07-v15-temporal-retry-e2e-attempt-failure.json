@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "FAIL",
+  "isolatedProject": "sq-v15-e2e-6a5f7e3fe7150c698a14",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "aa2d91f1-8598-45c0-84a2-dedfaadcf30e"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "5eadca52-0e0c-4070-baad-ab955d26413a"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "cf724756-3341-4172-a845-0633f874e522"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:30613) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=aa2d91f1-8598-45c0-84a2-dedfaadcf30e elapsedMs=131\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=17269\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=17286\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=17417\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=aa2d91f1-8598-45c0-84a2-dedfaadcf30e\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=5eadca52-0e0c-4070-baad-ab955d26413a elapsedMs=153\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=155\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=285\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=5eadca52-0e0c-4070-baad-ab955d26413a\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=cf724756-3341-4172-a845-0633f874e522 elapsedMs=150\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=153\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=272\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:654:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (18.1s)\n\n  1 passed (18.7s)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "aa2d91f1-8598-45c0-84a2-dedfaadcf30e",
+      "at": "2026-10-07T09:42:30.579Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-07T09:42:30.812Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-07T09:42:34.030Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-07T09:42:45.934Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-aa2d91f1-8598-45c0-84a2-dedfaadcf30e\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_MESSAGE_REDELIVERED seq=3",
+      "at": "2026-10-07T09:42:49.752Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "aa2d91f1-8598-45c0-84a2-dedfaadcf30e",
+      "at": "2026-10-07T09:42:49.752Z"
+    },
+    {
+      "event": "original_outbox_message_acknowledged_after_relay_recovery",
+      "output": "{\"originalOutboxSequence\":4,\"consumerAckFloor\":4}",
+      "at": "2026-10-07T09:43:16.020Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "5565607c651435a8ac15c2ab7562f5358fc4ba5ca229b3fdcc3536e1aca1492a",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "7846e6b81a818530887063a90460bc3fff4ac3a7ee7edac0fb97b949e2a00be2",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "43cbbe038aac644bf985e26dc4986932d2809759ed744375ed6d1191e27e2bbd",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "2e4bf9696468f6e29b5b8e776b54346cf0da2a9b9f22f4be5ff14fff216863ed",
+    "scripts/test-v15-web-e2e-isolated.mjs": "e4c9a4f5eeee1a44edc49113419d0e747761c790c8526150fee0f68f745196f7"
+  },
+  "failureReason": "fetch failed"
+}

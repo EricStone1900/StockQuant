@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v13-proposal-result.schema.json",
+  "title": "V13ProposalResult",
+  "type": "object",
+  "required": ["proposalId", "proposalVersion", "contentHash", "status", "approvalMode", "market", "currency", "operation", "environmentMode", "brokerMode", "expiresAt", "legs", "ownerId", "testRunId", "accountId", "strategyVersion"],
+  "properties": {
+    "proposalId": { "type": "string", "format": "uuid" },
+    "proposalVersion": { "type": "integer", "minimum": 1 },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["MANUAL_APPROVAL_PENDING", "AUTO_POLICY_PENDING", "APPROVED_MANUAL", "REJECTED_MANUAL", "STALE"] },
+    "approvalMode": { "enum": ["MANUAL_APPROVAL", "AUTO_POLICY"] },
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "currency": { "enum": ["CNY", "USD"] },
+    "operation": { "enum": ["HOLD", "REBALANCE"] },
+    "environmentMode": { "const": "PAPER" },
+    "brokerMode": { "const": "FAKE" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "legs": { "type": "array", "items": { "$ref": "https://stockquant.local/schemas/common/v13-proposal-leg.schema.json" } },
+    "ownerId": { "type": "string" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "strategyVersion": { "type": "string" },
+    "replayed": { "type": "boolean" }
+  }
+}

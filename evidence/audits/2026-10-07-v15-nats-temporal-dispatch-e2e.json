@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "NATS_AND_WORKER_RECOVERY",
+  "isolatedProject": "sq-v15-e2e-48fb2269b885ec6c938b",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "63a2dbb7-9d5f-4374-8910-4cdb202605e3"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "e99e7009-52b4-48ce-84d7-9dde308013f4"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "9e0c5b80-9d6d-4a08-9aae-923a2e8258ab"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:10674) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=63a2dbb7-9d5f-4374-8910-4cdb202605e3 elapsedMs=140\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=40557\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=41388\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=41518\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=63a2dbb7-9d5f-4374-8910-4cdb202605e3\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=e99e7009-52b4-48ce-84d7-9dde308013f4 elapsedMs=148\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=151\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=271\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=e99e7009-52b4-48ce-84d7-9dde308013f4\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=9e0c5b80-9d6d-4a08-9aae-923a2e8258ab elapsedMs=142\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=145\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=272\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:681:1 › V1.5 NO_TRADE workflow reads 60 sessions per market while automatic trading and recovery remain WAITING (42.3s)\n\n  1 passed (43.0s)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "63a2dbb7-9d5f-4374-8910-4cdb202605e3",
+      "at": "2026-10-07T23:45:28.037Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-07T23:45:28.270Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-07T23:45:31.458Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-07T23:45:43.327Z"
+    },
+    {
+      "event": "platform_temporal_worker_restarted_during_workflow_activity",
+      "testRunId": "63a2dbb7-9d5f-4374-8910-4cdb202605e3",
+      "activityMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=63a2dbb7-9d5f-4374-8910-4cdb202605e3 market=CN_A",
+      "workflowCompleteBeforeRestart": false,
+      "at": "2026-10-07T23:46:04.074Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-63a2dbb7-9d5f-4374-8910-4cdb202605e3\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_DISPATCH_REDELIVERED eventId=63a2dbb7-9d5f-4374-8910-4cdb202605e3 seq=3",
+      "at": "2026-10-07T23:46:04.189Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "63a2dbb7-9d5f-4374-8910-4cdb202605e3",
+      "at": "2026-10-07T23:46:08.454Z"
+    },
+    {
+      "event": "original_outbox_message_acknowledged_after_relay_recovery",
+      "output": "{\"originalOutboxSequence\":4,\"consumerAckFloor\":4}",
+      "at": "2026-10-07T23:46:42.178Z"
+    },
+    {
+      "event": "injected_temporal_unavailable_caused_transient_nak",
+      "testRunId": "8ede3b83-80ca-4be5-b42e-0e57303be98e",
+      "sequence": 5,
+      "marker": "platform-api-service-1  | STOCKQUANT_V15_TEST_TRANSIENT_NAK eventId=8ede3b83-80ca-4be5-b42e-0e57303be98e seq=5 error=TemporalServiceUnavailableError",
+      "at": "2026-10-07T23:46:43.036Z"
+    },
+    {
+      "event": "temporal_retry_run_completed_and_message_acknowledged",
+      "testRunId": "8ede3b83-80ca-4be5-b42e-0e57303be98e",
+      "output": "{\"streamSequence\":5,\"consumerAckFloor\":5}",
+      "authoritativeObservations": 120,
+      "at": "2026-10-07T23:46:56.800Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "743d828ee481ba6520db25635b953bf7cad7c8bc2062fb0436f5ac0566ca96ad",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ea17e645c25f1009080ee831b738876398ad49b6e987f9c53c553df59d32faee",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "a650300b1ff33843f1f219591e5f6136af9cac972cc31f105dd1b2dd820019da",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "8acb788f459205e6250270e7498722ad369545b443abe17740611ef2d274abdd",
+    "services/platform-api-service/src/main.ts": "6a7d8cd4c15cdfd408d0188521de1416eb04600b58a390f32dc00e06de948355",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/bootstrap/main.ts": "7e6abdeeb10ab6ee06962a1425b8f7a0448cb4beb93b2793fa2839e5104734bf",
+    "services/quant-research-service/src/bootstrap/main.ts": "651ba3ee467ead9288387fd8633474486c46010109cacd90e4fc503f742695d4",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "55e71a051ac6eb94dea9f69ac1b3d6874e45222d8222df35d025f696b34d2b84",
+    "scripts/test-v15-web-e2e-isolated.mjs": "36133fcfc3d412ff5e792191c7199a6bbeeaea5bebd103342e261c510a8fe6f3"
+  },
+  "failureReason": null
+}

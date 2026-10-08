@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-07",
+  "stageId": "V1.3",
+  "applicationServices": [
+    "services/platform-api-service/src/application/v13-auto-execution.ts",
+    "services/platform-api-service/src/application/v13-manual-execution.ts",
+    "services/platform-api-service/src/application/v13-proposal-decision.ts"
+  ],
+  "focusedTests": { "passed": 15, "failed": 0 },
+  "codeSuite": {
+    "command": "pnpm verify:stage -- --stage V1.3 --suite code",
+    "exitCode": 0,
+    "platformFiles": 58,
+    "platformTests": 256,
+    "researchAutomationFiles": 38,
+    "researchAutomationTests": 218,
+    "quantPythonWorkerTests": 14
+  },
+  "e2e": {
+    "command": "STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED=true pnpm test:e2e -- --stage V1.3",
+    "playwrightPassed": 21,
+    "playwrightFailed": 0,
+    "exitCode": 0,
+    "isolatedProject": "sq-v13-web-67943a7bb1f2416919d5",
+    "exactProjectResourcesRemoved": true,
+    "realBrokerCalls": 0,
+    "externalSourceCalls": 0
+  },
+  "representativeTestRuns": {
+    "cnManualNormal": "39b51551-b1b2-4434-b3ec-40fef680dedb",
+    "usManualNormal": "8e2366c7-0699-47ff-a326-8558bf76d0f9",
+    "recovery": "5f8c2faf-d43a-4b36-ac1e-bcb528b6abe3",
+    "tPlusOne": "5658be2f-9393-4b85-bd95-94c15ab2736c"
+  },
+  "manualConclusion": "NOT_RUN",
+  "versionGate": "INCOMPLETE"
+}

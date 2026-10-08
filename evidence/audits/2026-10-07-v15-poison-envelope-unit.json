@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-07",
+  "stage": "V1.5",
+  "result": "PASS",
+  "scope": "unit-only",
+  "checks": [
+    { "command": "pnpm --filter @stockquant/platform-api-service typecheck", "exitCode": 0 },
+    { "command": "pnpm --filter @stockquant/platform-api-service test", "exitCode": 0, "files": 55, "tests": 241 }
+  ],
+  "behavior": {
+    "permanentEnvelopeErrors": "JetStream term",
+    "transientDatabaseOrTemporalErrors": "NAK with 5 second delay",
+    "jetStreamPoisonMessageE2E": "NOT_RUN",
+    "duplicateRedeliveryE2E": "NOT_RUN",
+    "concurrentWorkerE2E": "NOT_RUN"
+  },
+  "sha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "eae7bd8ace9a0fac5e2540bd0e1fce78c10c3f76b87b7713b1b2d5e1fcab933a",
+    "services/platform-api-service/tests/unit/v15-nats-dispatch.spec.ts": "2c47eaa18d1a165f3f2f52b6a407b045d2949d498f5c8932b3c599497c750f97"
+  }
+}

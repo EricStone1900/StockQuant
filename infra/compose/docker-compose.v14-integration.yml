@@ -11,9 +11,10 @@ services:
       STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH: ${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:?isolated test password is required}
       STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION: ${STOCKQUANT_DATABASE_PASSWORD_RESEARCH_AUTOMATION:?isolated test password is required}
       STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA: ${STOCKQUANT_DATABASE_PASSWORD_MARKET_DATA:?isolated test password is required}
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD:?isolated V1.4 superuser password is required}
     volumes:
       - v14-integration-postgres:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
@@ -31,10 +32,10 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3001
-      STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk@postgres:5432/portfolio_risk
-      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: v14-isolated-platform-token-20260926-0000000000000000
-      STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: v11-isolated-execution-token-20260926-000000000000000000
-      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: v11-isolated-replay-token-20260926-0000000000000000000
+      STOCKQUANT_DATABASE_URL: postgresql://portfolio_risk:${STOCKQUANT_DATABASE_PASSWORD_PORTFOLIO_RISK:?isolated password required}@postgres:5432/portfolio_risk
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated token required}
+      STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: ${STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION:?isolated token required}
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: ${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:?isolated token required}
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
     depends_on:
@@ -54,9 +55,9 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3003
-      STOCKQUANT_DATABASE_URL: postgresql://quant_research@postgres:5432/quant_research
-      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: v14-isolated-platform-token-20260926-0000000000000000
-      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: v14-isolated-replay-token-20260926-000000000000000000
+      STOCKQUANT_DATABASE_URL: postgresql://quant_research:${STOCKQUANT_DATABASE_PASSWORD_QUANT_RESEARCH:?isolated password required}@postgres:5432/quant_research
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated token required}
+      STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: ${STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY:?isolated token required}
       STOCKQUANT_CODE_VERSION: ${STOCKQUANT_CODE_VERSION:?isolated V1.4 source/contract/fixture digest is required}
       QLIB_WORKER_URL: http://127.0.0.1:3999
     depends_on:
@@ -76,16 +77,19 @@ services:
     environment:
       STOCKQUANT_BIND_HOST: 0.0.0.0
       STOCKQUANT_PORT: 3000
-      STOCKQUANT_DATABASE_URL: postgresql://platform_api@postgres:5432/platform_api
+      STOCKQUANT_DATABASE_URL: postgresql://platform_api:${STOCKQUANT_DATABASE_PASSWORD_PLATFORM_API:?isolated password required}@postgres:5432/platform_api
       STOCKQUANT_PORTFOLIO_API_URL: http://portfolio-risk-service:3001
       STOCKQUANT_QUANT_RESEARCH_URL: http://quant-research-service:3003
-      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: v14-isolated-platform-token-20260926-0000000000000000
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: ${STOCKQUANT_SERVICE_TOKEN_PLATFORM_API:?isolated token required}
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: acceptance-owner-1
       STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "true"
       STOCKQUANT_LIVE_TRADING_ENABLED: "false"
       STOCKQUANT_BROKER_MODE: FAKE
       STOCKQUANT_V11_RUN_STORAGE: stage
       STOCKQUANT_V24_AUTO_START: "false"
+      STOCKQUANT_V14_TEST_HOOKS_ENABLED: "true"
+      STOCKQUANT_V14_TEST_DELAY_MS: "1500"
+      STOCKQUANT_V14_TEST_AFTER_QUANT_DELAY_MS: "2500"
     ports:
       - "127.0.0.1:${V11_HOST_PORT:-33000}:3000"
     depends_on:
@@ -97,6 +101,25 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [integration]
+
+  web:
+    profiles: [interactive]
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      STOCKQUANT_PLATFORM_API_URL: http://platform-api-service:3000
+    ports:
+      - "127.0.0.1:${V14_WEB_HOST_PORT:?isolated V1.4 Web host port is required}:8080"
+    depends_on:
+      platform-api-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/acceptance/v1/v1.4').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 2s
       timeout: 3s
       retries: 30

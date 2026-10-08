@@ -3,9 +3,9 @@
   "$id": "https://stockquant.local/schemas/research/v12-factor-preview.schema.json",
   "title": "V12FactorPreview",
   "type": "object",
-  "required": ["factorVersion", "dataVersion", "asOf", "qlibStatus", "ranking", "noTrade", "lookbackBars"],
+  "required": ["status", "factorVersion", "dataVersion", "asOf", "qlibStatus", "ranking", "noTrade", "lookbackBars"],
   "properties": {
-    "factorVersion": { "const": "v1.2-sma-factor-1" }, "dataVersion": { "const": "v1.2-market-data-1" }, "asOf": { "type": "string", "format": "date" }, "qlibStatus": { "type": "string" }, "noTrade": { "type": "boolean" }, "lookbackBars": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["COMPLETED", "NOT_RUN"] }, "reason": { "type": "string" }, "factorVersion": { "const": "v1.2-sma-factor-1" }, "dataVersion": { "const": "v1.2-market-data-1" }, "asOf": { "type": "string", "format": "date" }, "qlibStatus": { "type": "string" }, "noTrade": { "type": "boolean" }, "lookbackBars": { "type": "integer", "minimum": 0 },
     "ranking": { "type": "array", "items": { "type": "object", "required": ["ticker", "factor", "signal"], "properties": { "ticker": { "type": "string" }, "factor": { "type": "string" }, "signal": { "type": "string" } }, "additionalProperties": false } }
   },
   "additionalProperties": false

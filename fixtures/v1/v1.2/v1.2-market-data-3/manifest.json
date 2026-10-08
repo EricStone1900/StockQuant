@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.2-dual-market-research",
+  "fixtureVersion": "v1.2-market-data-3",
+  "stageId": "V1.2",
+  "status": "RETIRED",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Deterministically generated synthetic daily bars for local V1.2 quant-pipeline and temporal-window validation; no market provider data. Corrected revision; the previous v2 authoring candidate was retired after its intended missing-bar case did not validate.",
+    "license": "Internal synthetic fixture"
+  },
+  "createdAt": "2026-10-06T00:00:00+08:00",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "Per-security IANA timezone; available_at is after local close",
+    "prices": "Raw OHLCV; split action is separate and is not adjusted into bars",
+    "sessions": {
+      "count": 60,
+      "start": "2024-01-02",
+      "end": "2024-03-25",
+      "calendar": "Synthetic weekdays; no exchange-holiday claim"
+    },
+    "securities": {
+      "CN_A": 10,
+      "US_EQUITY": 3
+    },
+    "qualityCases": [
+      "one intentionally missing CN bar",
+      "one CN security delisted after session 55",
+      "one separate raw-price split event",
+      "one future PIT probe excluded from usable bars"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.2/v1.2-market-data-3/securities.csv",
+      "sha256": "197ee21b1099d9353c99f69f1d3d27330d4c3bf23657ad80b2bde6befee760d0",
+      "mediaType": "text/csv",
+      "schemaRef": "security-master-fixture-v1"
+    },
+    {
+      "path": "fixtures/v1/v1.2/v1.2-market-data-3/daily_bars.csv",
+      "sha256": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688",
+      "mediaType": "text/csv",
+      "schemaRef": "daily-bar-fixture-v2"
+    },
+    {
+      "path": "fixtures/v1/v1.2/v1.2-market-data-3/corporate_actions.csv",
+      "sha256": "fe9fe46c07ccc20304b9229a228f2a7b8f3c76fa82a9bb1e6c7546214820a72a",
+      "mediaType": "text/csv",
+      "schemaRef": "corporate-action-fixture-v1"
+    },
+    {
+      "path": "fixtures/v1/v1.2/v1.2-market-data-3/pit_future_probe.csv",
+      "sha256": "266151f1ed07e9f144d1fb9fac8826de18cff266502497891edadac543a8da46",
+      "mediaType": "text/csv",
+      "schemaRef": "daily-bar-fixture-v2"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.2-DATA-DUAL-MARKET-001",
+      "description": "10 CN_A and 3 US_EQUITY securities have enough synthetic weekday bars for temporal fit/validation/test windows"
+    },
+    {
+      "assertionId": "V1.2-PIT-001",
+      "description": "features are available by decision time and prior labels finish before the next split begins"
+    },
+    {
+      "assertionId": "V1.2-CORPORATE-ACTION-001",
+      "description": "split is represented separately from raw OHLCV"
+    }
+  ]
+}

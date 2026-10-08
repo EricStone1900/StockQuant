@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-07",
+  "stage": "V1.5",
+  "result": "PASS",
+  "project": "sq-v15-e2e-dd63cd312344c6388b09",
+  "testRunId": "b9f80880-aa85-42ff-bc42-734a5b69f36a",
+  "faultSequence": [
+    "normal TestRun persisted",
+    "isolated NATS stopped and restored",
+    "Platform API restarted and ready",
+    "malformed JSON published to JetStream",
+    "durable consumer ack floor advanced to sequence 1 after malformed JSON termination",
+    "well-formed wrong-owner message terminated at sequence 2",
+    "duplicate same-TestRun message accepted at sequence 3; first ACK intentionally dropped",
+    "same sequence redelivered with message.info.redelivered=true and acknowledged under stable workflow ID",
+    "recovered Relay published original Outbox event and consumer ack floor advanced to sequence 4",
+    "one normal Workflow completed 120 authoritative observations"
+  ],
+  "playwright": { "passed": 1, "failed": 0 },
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "invalidScopeIdentityE2E": "PASS for wrong owner on the fixed TestRun",
+  "transientFailureRetryE2E": "NOT_RUN",
+  "sameTestRunDuplicateDispatchE2E": "PASS",
+  "lostAckRedeliveryE2E": "PASS, per-message delivery metadata observed",
+  "postAckConsumerInfoRedeliveredSnapshot": 0,
+  "concurrentWorkerE2E": "NOT_RUN"
+}

@@ -43,6 +43,7 @@ let serviceTokens: ReturnType<typeof loadMarketDataServiceTokens> | null = null;
 try { serviceTokens = loadMarketDataServiceTokens(process.env); } catch { /* Import endpoints remain closed until the platform credential is configured. */ }
 const fixture = resolve(root, "fixtures/v1/v1.2/cn_daily.csv");
 const badFixture = resolve(root, "fixtures/v1/v1.2/cn_daily_bad_future.csv");
+const v12ResearchFixtureRoot = resolve(root, "fixtures/v1/v1.2/v1.2-market-data-4");
 const minuteFixture = resolve(root, "fixtures/v2/v2.2/minute_bars.csv");
 const minuteBadFixture = resolve(root, "fixtures/v2/v2.2/minute_bars_bad.csv");
 const minuteSourceIds = ["baostock", "sina", "eastmoney", "tdx"] as const;
@@ -123,6 +124,30 @@ const collectionExecutor = collectionRuns && shouldEnableCollectionExecutor(proc
 async function parse(path: string): Promise<Bar[]> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
   return lines.map((line: string) => { const [securityId,ticker,date,open,high,low,close,volume,adjustment] = line.split(","); return { securityId,ticker,date,open:Number(open),high:Number(high),low:Number(low),close:Number(close),volume:Number(volume),adjustment: adjustment as "raw" }; });
+}
+async function parseCsvObjects(path: string): Promise<Array<Record<string, string>>> {
+  const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/u);
+  const headers = lines.shift()?.split(",") ?? [];
+  return lines.map((line) => Object.fromEntries(line.split(",").map((value, index) => [headers[index], value])));
+}
+async function readV12ResearchFixture() {
+  const manifest = JSON.parse(await readFile(resolve(v12ResearchFixtureRoot, "manifest.json"), "utf8")) as { fixtureVersion?: string; files?: Array<{ path: string; sha256: string }> };
+  if (manifest.fixtureVersion !== "v1.2-market-data-4" || !Array.isArray(manifest.files)) throw new Error("V1.2 research Fixture manifest is invalid");
+  const dailyEntry = manifest.files.find((entry) => entry.path.endsWith("/daily_bars.csv"));
+  if (!dailyEntry) throw new Error("V1.2 research Fixture daily bars are not in its manifest");
+  const dailyPath = resolve(root, dailyEntry.path);
+  const dailyBytes = await readFile(dailyPath);
+  const dailyBarsSha256 = createHash("sha256").update(dailyBytes).digest("hex");
+  if (dailyBarsSha256 !== dailyEntry.sha256) throw new Error("V1.2 research Fixture daily bars do not match the frozen manifest");
+  const securities = await parseCsvObjects(resolve(v12ResearchFixtureRoot, "securities.csv"));
+  const bars = await parseCsvObjects(dailyPath);
+  return {
+    fixtureVersion: manifest.fixtureVersion,
+    dataMode: "FIXTURE" as const,
+    dailyBarsSha256,
+    securities: securities.map((item) => ({ securityId: item.security_id, ticker: item.ticker, market: item.market, currency: item.currency, timezone: item.timezone, listedAt: item.listed_at, delistedAt: item.delisted_at || null })),
+    bars: bars.map((item) => ({ securityId: item.security_id, ticker: item.ticker, market: item.market, currency: item.currency, timezone: item.timezone, date: item.date, availableAt: item.available_at, open: item.open, high: item.high, low: item.low, close: item.close, volume: Number(item.volume), adjustment: item.adjustment })),
+  };
 }
 function quality(bars: Bar[], asOf: string) {
   const errors = bars.filter((bar) => bar.date > asOf).map((bar) => ({ code: "FUTURE_DATA", ticker: bar.ticker, date: bar.date }));
@@ -608,6 +633,10 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
     if (req.url === "/v1/fixtures/bad-future/preview") { const bars = await parse(badFixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", quality: quality(bars, "2024-12-31"), bars }); }
+    if (req.url === "/v1/fixtures/research-preview" && req.method === "GET") {
+      try { return json(res, await readV12ResearchFixture()); }
+      catch (error) { return json(res, { status: "NOT_RUN", reason: error instanceof Error ? error.message : "V1.2 research Fixture unavailable" }, 503); }
+    }
     if (req.url === "/v1/artifacts/normal/publish" && req.method === "POST") { const content = await readFile(fixture); return json(res, { artifactId: "artifact-v1.2-cn-daily-1", status: "PUBLISHED", immutable: true, sha256: createHash("sha256").update(content).digest("hex"), fixtureVersion: "v1.2-market-data-1" }); }
     if (req.url === "/v1/artifacts/tasks" && req.method === "POST") {
       if (!artifactDeliveryRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);

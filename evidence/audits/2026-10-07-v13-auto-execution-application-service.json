@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-07",
+  "stageId": "V1.3",
+  "scope": "AUTO_POLICY application-service extraction and isolated Web/API/CLI matrix",
+  "applicationService": "services/platform-api-service/src/application/v13-auto-execution.ts",
+  "unitTests": { "passed": 5, "failed": 0 },
+  "platformTypecheckExitCode": 0,
+  "codeSuite": { "command": "pnpm verify:stage -- --stage V1.3 --suite code", "exitCode": 0, "platformFiles": 56, "platformTests": 246 },
+  "e2e": {
+    "command": "STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED=true pnpm test:e2e -- --stage V1.3",
+    "playwrightPassed": 21,
+    "playwrightFailed": 0,
+    "exitCode": 0,
+    "isolatedProject": "sq-v13-web-da3bed64c74257163886",
+    "exactProjectResourcesRemoved": true,
+    "realBrokerCalls": 0,
+    "externalSourceCalls": 0
+  },
+  "representativeTestRuns": {
+    "autoPolicy": "feaa6ca0-12d2-4901-881a-51d179a85280",
+    "unknownOriginalOrderRecovery": "52462eb5-515d-4d6c-b724-3dd9f09d7056",
+    "tradeRestartRecovery": "7eb7b96e-2891-457a-8803-e6a4cccb6c54"
+  },
+  "manualConclusion": "NOT_RUN",
+  "versionGate": "INCOMPLETE",
+  "firstAttempt": "A preceding full-matrix attempt omitted the dedicated L08 Outbox failure-injection environment variable and failed the expected retry-attempt assertion. The corrected run supplied the declared injection and passed; the successful full terminal log is preserved adjacent to this audit."
+}

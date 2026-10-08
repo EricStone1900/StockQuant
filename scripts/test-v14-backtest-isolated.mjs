@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import { V14_MANIFEST_INPUTS } from "./v14-code-version-inputs.mjs";
 
 const project = `sq-v14-backtest-${randomBytes(10).toString("hex")}`;
 const apiPort = 20000 + randomBytes(2).readUInt16BE(0) % 30000;
 const webPort = 50000 + randomBytes(2).readUInt16BE(0) % 10000;
 const composeFile = "infra/compose/docker-compose.v14-integration.yml";
-const manifestInputs = ["fixtures/v1/v1.4/manifest.json", "fixtures/v1/v1.4/backtest_daily.csv", "fixtures/v1/v1.4/historical-fees-manifest.json", "fixtures/v1/v1.4/backtest_historical_fees.csv", "fixtures/v1/v1.4/market-restrictions-manifest.json", "fixtures/v1/v1.4/market_restrictions_synthetic.csv", "packages/contracts/research/v14-daily-backtest-request.schema.json", "packages/contracts/research/v14-daily-backtest-result.schema.json", "packages/contracts/openapi/quant-v14-daily-backtest.v1.json", "packages/contracts/generated/types.ts", "services/quant-research-service/src/domain/v14-daily-backtest.ts", "services/quant-research-service/src/contracts/generated-types.ts", "services/quant-research-service/tests/unit/v14-daily-backtest-service.spec.ts", "services/quant-research-service/src/application/v14-daily-backtest-service.ts", "services/quant-research-service/src/ports/v14-daily-backtest-fixture.ts", "services/quant-research-service/src/adapters/v14-daily-backtest-fixture.ts", "services/quant-research-service/src/adapters/postgres-v14-backtest-repository.ts", "services/quant-research-service/src/adapters/postgres-schema.ts", "services/quant-research-service/src/bootstrap/main.ts", "services/platform-api-service/src/adapters/v14-quant-backtest-adapter.ts", "services/platform-api-service/src/application/v14-backtest.ts", "services/platform-api-service/tests/unit/v14-backtest-adapter.spec.ts", "services/platform-api-service/src/contracts/generated-types.ts", "services/platform-api-service/src/application/persistent-stage-run.ts", "services/platform-api-service/src/contracts/generated-quant-v14-backtest-client.ts", "services/platform-api-service/src/bootstrap/app.module.ts", "apps/web/src/main.tsx", "apps/web/src/styles.css", "apps/web/tests/e2e/v11-acceptance.spec.ts", "infra/compose/docker-compose.v14-integration.yml", "services/quant-research-service/Dockerfile", "scripts/test-v14-backtest-isolated.mjs", "scripts/verify-stage.mjs", "pnpm-lock.yaml"];
+const manifestInputs = V14_MANIFEST_INPUTS;
 const codeVersion = `sha256:${createHash("sha256").update(manifestInputs.map((path) => `${path}\0${createHash("sha256").update(readFileSync(resolve(path))).digest("hex")}`).join("\n")).digest("hex")}`;
 const passwordNames = ["PLATFORM_API", "PORTFOLIO_RISK", "TRADE_EXECUTION", "TRADE_EXECUTION_TEST", "HISTORICAL_REPLAY", "DECISION_GOVERNANCE", "QUANT_RESEARCH", "RESEARCH_AUTOMATION", "MARKET_DATA"];
-const env = { ...process.env, ...Object.fromEntries(passwordNames.map((name) => [`STOCKQUANT_DATABASE_PASSWORD_${name}`, randomBytes(32).toString("hex")])), STOCKQUANT_CODE_VERSION: codeVersion, COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(apiPort) };
+const env = { ...process.env, ...Object.fromEntries(passwordNames.map((name) => [`STOCKQUANT_DATABASE_PASSWORD_${name}`, randomBytes(32).toString("hex")])), STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD: randomBytes(32).toString("hex"), STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: randomBytes(32).toString("hex"), STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: randomBytes(32).toString("hex"), STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: randomBytes(32).toString("hex"), STOCKQUANT_CODE_VERSION: codeVersion, COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(apiPort), V14_WEB_HOST_PORT: String(webPort) };
 const compose = (args, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "-f", composeFile, ...args], { env, encoding: "utf8", stdio });
 const apiUrl = `http://127.0.0.1:${apiPort}`;
 let started = false;
@@ -27,6 +29,23 @@ let restrictionsTestRunId;
 const testRuns = [];
 const fixtureSha256 = "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef";
 let quantRunCount = 0;
+let quantRetryIdempotent = false;
+let quantRetryConflictRejected = false;
+let artifactExportSummary;
+async function waitForTestRun(id, headers, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${id}`, { headers, signal: AbortSignal.timeout(3000) });
+      if (response.ok) {
+        const run = await response.json();
+        if (["COMPLETED", "FAILED", "CANCELLED"].includes(run.status)) return run;
+      }
+    } catch { /* the isolated Platform may be between process termination and startup */ }
+    await delay(100);
+  }
+  throw new Error(`V1.4 TestRun ${id} did not finish before timeout`);
+}
 
 function run(command, args, runEnv = env) {
   const result = spawnSync(command, args, { env: runEnv, encoding: "utf8" });
@@ -55,11 +74,80 @@ try {
   assert.equal(invalidPolicy.status, 422, "unknown execution-policy fields must be rejected before creating a TestRun");
 
   const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
+  const quantCountBeforeCancellation = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
+  const cancelAccepted = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "recovery", seed: 20260907 }) }).then((response) => response.json());
+  assert.equal((await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}/cancel`, { method: "POST", headers, body: "{}" })).status, 202);
+  const cancelledRun = await waitForTestRun(cancelAccepted.testRunId, headers);
+  assert.equal(cancelledRun.status, "CANCELLED");
+  assert.equal(cancelledRun.evidence.v14Task.phase, "CANCELLED");
+  testRuns.push({ origin: "cancelled-before-Quant", testRun: cancelledRun });
+  const quantCountAfterCancellation = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
+  assert.equal(quantCountAfterCancellation, quantCountBeforeCancellation, "pre-execution cancellation must not create a Quant report");
+
+  const recoveryAccepted = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "recovery", seed: 20260907 }) }).then((response) => response.json());
+  await delay(250);
+  const beforeRestart = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${recoveryAccepted.testRunId}`, { headers }).then((response) => response.json());
+  assert.equal(beforeRestart.status, "RUNNING");
+  assert.equal(beforeRestart.evidence.v14Task.phase, "RUNNING_QUANT");
+  assert.equal(compose(["kill", "platform-api-service"]).status, 0, "Platform API process termination failed during the active V1.4 task");
+  assert.equal(compose(["up", "-d", "platform-api-service"]).status, 0, "Platform API did not start after the active-task crash probe");
+  ready = false;
+  for (let i = 0; i < 60; i += 1) {
+    try { if ((await fetch(`${apiUrl}/live`)).ok) { ready = true; break; } } catch { /* restarting Platform */ }
+    await delay(250);
+  }
+  assert.equal(ready, true, "Platform API did not recover after the V1.4 restart probe");
+  const resumedRun = await waitForTestRun(recoveryAccepted.testRunId, headers);
+  assert.equal(resumedRun.status, "COMPLETED");
+  assert.ok(resumedRun.evidence.v14Task.resumeCount >= 1, "restart recovery must be recorded on the original TestRun");
+  assert.equal(resumedRun.evidence.v14Task.quantBacktestRunId, recoveryAccepted.testRunId);
+  testRuns.push({ origin: "platform-restart-recovery", testRun: resumedRun });
+
+  const postQuantRecovery = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "recovery", seed: 20260907 }) }).then((response) => response.json());
+  let quantReportPersisted = false;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const query = compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", `SELECT count(*) FROM research_backtest_runs WHERE backtest_run_id='${postQuantRecovery.testRunId}'`], "pipe");
+    assert.equal(query.status, 0, query.stderr);
+    if (query.stdout.trim() === "1") { quantReportPersisted = true; break; }
+    await delay(100);
+  }
+  assert.equal(quantReportPersisted, true, "Quant must persist the report before the Platform crash probe");
+  const unfinishedAfterQuant = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${postQuantRecovery.testRunId}`, { headers }).then((response) => response.json());
+  assert.equal(unfinishedAfterQuant.status, "RUNNING", "Platform must not publish before the persisted Quant response is finalized");
+  assert.equal(compose(["kill", "platform-api-service"]).status, 0, "Platform termination failed after Quant report persistence");
+  assert.equal(compose(["up", "-d", "platform-api-service"]).status, 0, "Platform did not restart after the post-Quant persistence crash");
+  ready = false;
+  for (let i = 0; i < 60; i += 1) {
+    try { if ((await fetch(`${apiUrl}/live`)).ok) { ready = true; break; } } catch { /* restarting Platform */ }
+    await delay(250);
+  }
+  assert.equal(ready, true, "Platform API did not recover after the post-Quant persistence crash");
+  const postQuantResumedRun = await waitForTestRun(postQuantRecovery.testRunId, headers);
+  assert.equal(postQuantResumedRun.status, "COMPLETED");
+  assert.ok(postQuantResumedRun.evidence.v14Task.resumeCount >= 1);
+  assert.equal(postQuantResumedRun.evidence.v14Task.quantBacktestRunId, postQuantRecovery.testRunId);
+  testRuns.push({ origin: "platform-post-Quant-crash-recovery", testRun: postQuantResumedRun });
+  const retryPolicy = { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500 };
+  const quantRetry = async (policy) => {
+    const body = JSON.stringify({ scenarioId: "recovery", seed: 20260907, policy, testRunId: recoveryAccepted.testRunId });
+    const source = `const response=await fetch('http://quant-research-service:3003/v1/research/backtests/daily-fixture',{method:'POST',headers:{authorization:${JSON.stringify(`Bearer ${env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API}`)},'x-stockquant-service-id':'platform-api-service','content-type':'application/json'},body:${JSON.stringify(body)}}); console.log(JSON.stringify({status:response.status,body:await response.json()}));`;
+    const result = compose(["exec", "-T", "platform-api-service", "node", "--input-type=module", "-e", source], "pipe");
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout.trim());
+  };
+  const duplicateQuantResult = await quantRetry(retryPolicy);
+  assert.equal(duplicateQuantResult.status, 200);
+  assert.equal(duplicateQuantResult.body.testRunId, recoveryAccepted.testRunId);
+  quantRetryIdempotent = true;
+  const conflictingQuantResult = await quantRetry({ ...retryPolicy, targetQuantity: 99 });
+  assert.equal(conflictingQuantResult.status, 409);
+  quantRetryConflictRejected = true;
+
   const accepted = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "normal", seed: 20260907 }) });
   assert.equal(accepted.status, 202);
   webTestRunId = (await accepted.json()).testRunId;
   assert.match(webTestRunId, /^[0-9a-f-]{36}$/i);
-  const sameRun = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${webTestRunId}`, { headers }).then((response) => response.json());
+  const sameRun = await waitForTestRun(webTestRunId, headers);
   assert.equal(sameRun.status, "COMPLETED");
   assert.equal(sameRun.evidence.fixtureSha256, fixtureSha256);
   assert.equal(sameRun.evidence.codeVersion, codeVersion, "V1.4 evidence must bind the run to the exact source/contract/fixture workspace digest");
@@ -67,16 +155,17 @@ try {
   testRuns.push({ origin: "platform-api", testRun: sameRun });
   run("pnpm", ["verify:stage", "--", "--stage", "V1.4", "--run", webTestRunId, "--check-only"], { ...env, STOCKQUANT_PLATFORM_API_URL: apiUrl });
 
-  for (const scenario of ["rejection", "recovery", "market-restrictions", "historical-fees"]) {
+  for (const scenario of ["rejection", "recovery", "market-restrictions", "historical-fees", "corporate-actions"]) {
     const output = run("pnpm", ["verify:stage", "--", "--stage", "V1.4", "--scenario", scenario, "--seed", "20260907"], { ...env, STOCKQUANT_PLATFORM_API_URL: apiUrl });
     const testRunId = output.match(/"testRunId": "([0-9a-f-]{36})"/iu)?.[1];
     assert.ok(testRunId, `${scenario} CLI output omitted its TestRun id`);
-    const testRun = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${testRunId}`, { headers }).then((response) => response.json());
+    const testRun = await waitForTestRun(testRunId, headers);
     assert.equal(testRun.status, "COMPLETED");
     assert.equal(testRun.evidence.codeVersion, codeVersion, `${scenario} run must preserve its workspace digest`);
     if (scenario === "rejection") assert.equal(testRun.assertions.find((item) => item.assertionId === "V1.4-BT-TPLUS1-REJECT-009")?.actual, "T_PLUS_1_UNAVAILABLE");
     if (scenario === "market-restrictions") { assert.equal(testRun.scenarioVersion, "1.2.0"); assert.equal(testRun.evidence.fixtureSha256, "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a"); assert.equal(testRun.assertions[0]?.status, "PASS"); }
     if (scenario === "historical-fees") { assert.equal(testRun.scenarioVersion, "1.3.0"); assert.equal(testRun.evidence.fixtureSha256, "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573"); assert.equal(testRun.assertions.find((item) => item.assertionId === "V1.4-BT-HISTORICAL-FEE-001")?.status, "PASS"); }
+    if (scenario === "corporate-actions") { assert.equal(testRun.scenarioVersion, "1.4.0"); assert.equal(testRun.evidence.fixtureSha256, "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc"); assert.equal(testRun.evidence.priceBasis, "RAW"); assert.ok(testRun.assertions.every((item) => item.status === "PASS")); }
     testRuns.push({ origin: `cli-${scenario}`, testRun });
     if (scenario === "rejection") rejectionTestRunId = testRunId;
     else if (scenario === "recovery") recoveryTestRunId = testRunId;
@@ -91,23 +180,23 @@ try {
     await delay(250);
   }
   assert.equal(webReady, true, "isolated V1.4 Web did not become ready");
-  const browser = spawnSync("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "--grep", "V1\\.4 (?:daily backtest page|web accepts a bounded policy|synthetic suspension|historical fee fixture)"], {
+  const browser = spawnSync("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "--grep", "V1\\.4 (?:daily backtest page|web accepts a bounded policy|synthetic suspension|historical fee fixture|RAW corporate actions)"], {
     env: { ...env, PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}`, STOCKQUANT_PLATFORM_API_URL: apiUrl }, encoding: "utf8"
   });
   process.stdout.write(browser.stdout ?? "");
   process.stderr.write(browser.stderr ?? "");
   assert.equal(browser.status, 0, "V1.4 browser test failed");
   browserCreatedTestRunIds = [...(browser.stdout ?? "").matchAll(/\[V1\.4 Web\/CLI same-run\] testRunId=([0-9a-f-]{36})/giu)].map((match) => match[1]);
-  assert.equal(browserCreatedTestRunIds.length, 6, "all V1.4 browser scenarios must report each Web-created TestRun checked by CLI");
-  const browserRuns = await Promise.all(browserCreatedTestRunIds.map(async (testRunId) => {
-    const response = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${testRunId}`, { headers });
-    assert.equal(response.status, 200);
-    const testRun = await response.json();
+  assert.equal(browserCreatedTestRunIds.length, 8, "all V1.4 browser scenarios must report each Web-created TestRun checked by CLI");
+  const browserRuns = [];
+  for (const testRunId of browserCreatedTestRunIds) {
+    const testRun = await waitForTestRun(testRunId, headers);
     assert.equal(testRun.status, "COMPLETED");
     assert.equal(testRun.evidence.codeVersion, codeVersion, "browser-created run must preserve its workspace digest");
     if (testRun.scenarioId === "market-restrictions") { assert.equal(testRun.scenarioVersion, "1.2.0"); assert.equal(testRun.evidence.ruleScope, "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY"); }
-    return testRun;
-  }));
+    if (testRun.scenarioId === "corporate-actions") { assert.equal(testRun.scenarioVersion, "1.4.0"); assert.equal(testRun.evidence.priceBasis, "RAW"); assert.equal(testRun.assertions.length, 3); }
+    browserRuns.push(testRun);
+  }
   assert.ok(browserRuns.some((run) => run.evidence.executionPolicy?.initialCashCents === 102_000 && run.evidence.executionPolicy?.slippageBasisPoints === 100), "the configured browser run did not persist its policy in Quant evidence");
   assert.ok(browserRuns.some((run) => run.evidence.executionPolicy?.targetQuantity === 50), "the comparison run did not persist the changed target quantity");
   const feeScheduleRun = browserRuns.find((run) => run.evidence.executionPolicy?.marketFeeSchedule?.scheduleId === "CN_A_CASH_EQUITY_2023_08_28");
@@ -118,18 +207,40 @@ try {
   ]);
   const soldRun = browserRuns.find((run) => run.evidence.trades?.some((trade) => trade.side === "SELL" && trade.executionDate === "2024-01-04"));
   assert.ok(soldRun, "the Web policy did not create a real SELL fill in the Quant result");
-  assert.equal(soldRun.evidence.orderOutcomes?.[0]?.status, "FILLED");
+  assert.equal(soldRun.evidence.orderOutcomes?.find((outcome) => outcome.side === "SELL")?.status, "FILLED");
   assert.equal(soldRun.evidence.settlements?.[0]?.status, "SETTLED");
   assert.equal(soldRun.evidence.settlements?.[0]?.settlementDate, "2024-01-05");
   assert.equal(soldRun.evidence.metrics?.finalCashCents, 99_812);
   testRuns.push(...browserRuns.map((testRun, index) => ({ origin: `web-created-${index + 1}-and-cli-checked`, testRun })));
+  const sessionResponse = await fetch(`${apiUrl}/api/v1/session`);
+  assert.equal(sessionResponse.status, 200, "could not issue an isolated owner session for the V1.4 report export check");
+  const sessionCookie = sessionResponse.headers.getSetCookie().map((cookie) => cookie.split(";", 1)[0]).find((cookie) => cookie.startsWith("sq_session="));
+  assert.match(sessionCookie ?? "", /^sq_session=[a-f0-9]{64}$/u);
+  const exportRoot = await mkdtemp(resolve(tmpdir(), "stockquant-v14-export-"));
+  try {
+    const exported = spawnSync(process.execPath, [resolve("scripts/evidence-export.mjs"), "--stage", "V1.4", "--run", webTestRunId], {
+      cwd: exportRoot, encoding: "utf8", env: { ...env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_EVIDENCE_SESSION_COOKIE: sessionCookie }, timeout: 30_000
+    });
+    assert.equal(exported.status, 0, `V1.4 report evidence export failed: ${exported.stderr}`);
+    const exportResult = JSON.parse(exported.stdout);
+    const exportedEvidence = JSON.parse(await readFile(resolve(exportResult.outputDirectory, "evidence.json"), "utf8"));
+    assert.equal(exportedEvidence.manualConclusion, "NOT_RUN");
+    assert.equal(exportedEvidence.artifacts?.length, 1, "V1.4 report ref was not included in the exported bundle");
+    const reportFile = exportResult.attachments.find(({ filename }) => filename.startsWith(`v14-report-${webTestRunId}-`));
+    assert.ok(reportFile, "V1.4 export omitted its durable report bytes");
+    const reportBytes = await readFile(resolve(exportResult.outputDirectory, reportFile.filename));
+    assert.equal(createHash("sha256").update(reportBytes).digest("hex"), exportedEvidence.artifacts[0].sha256);
+    artifactExportSummary = { testRunId: webTestRunId, manifestHash: exportResult.manifestHash, reportFilename: reportFile.filename, reportSha256: exportedEvidence.artifacts[0].sha256, manualConclusion: exportedEvidence.manualConclusion };
+  } finally {
+    await rm(exportRoot, { recursive: true, force: true });
+  }
   const persisted = compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) || ':' || count(m.backtest_run_id) || ':' || count(*) FILTER (WHERE r.result_sha256 = m.manifest_payload->>'resultSha256') FROM research_backtest_runs r LEFT JOIN research_backtest_manifests m USING (backtest_run_id)"], "pipe");
   assert.equal(persisted.status, 0, persisted.stderr);
-  assert.equal(persisted.stdout.trim(), "11:11:11", "Quant must persist all eleven result/Manifest pairs with matching hashes");
+  assert.equal(persisted.stdout.trim(), "16:16:16", "Quant must persist all sixteen result/Manifest pairs with matching hashes; pre-execution cancellation creates none");
   quantRunCount = Number(persisted.stdout.trim().split(":")[0]);
   const stageRunCount = compose(["exec", "-T", "postgres", "psql", "-U", "platform_api", "-d", "platform_api", "-Atc", "SELECT count(*) FROM acceptance_stage_runs WHERE stage_id='V1.4'"], "pipe");
   assert.equal(stageRunCount.status, 0, stageRunCount.stderr);
-  assert.equal(stageRunCount.stdout.trim(), "11", "rejected policy must not create a Platform TestRun");
+  assert.equal(stageRunCount.stdout.trim(), "17", "rejected policy must not create a Platform TestRun");
   exitCode = 0;
 } finally {
   if (web && web.exitCode === null) {
@@ -137,6 +248,11 @@ try {
     await new Promise((resolveExit) => web.once("exit", resolveExit));
   }
   if (started) {
+    if (exitCode !== 0) {
+      const logs = compose(["logs", "--no-color", "--tail", "160"], "pipe");
+      process.stderr.write(logs.stdout ?? "");
+      process.stderr.write(logs.stderr ?? "");
+    }
     const down = compose(["down", "--volumes", "--remove-orphans"]);
     if (down.status !== 0) exitCode ||= down.status ?? 1;
   }
@@ -157,9 +273,9 @@ try {
   assert.deepEqual(remainingImages.stdout.split(/\r?\n/u).filter((image) => image.startsWith(`${project}-`)), [], `isolated images remain for ${project}`);
 }
 assert.equal(exitCode, 0, "V1.4 isolated acceptance failed");
-const report = { schemaVersion: "stockquant.w1-v14-quant-boundary-isolated-run.v1", createdAt: new Date().toISOString(), stageId: "V1.4", status: "PASS", suite: "isolated-Compose-PostgreSQL-Quant-Platform-Web-CLI", isolatedProject: project, codeVersion, fixtureSha256, quantServiceOwnsComputation: true, invalidPolicyRejectedWithoutRun: true, restrictionFixtureSha256: "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a", quantPersistence: { status: "PASS", backtestRunCount: quantRunCount, manifestCount: quantRunCount, resultHashMatchesManifest: quantRunCount }, testRuns, containersVolumesNetworksRemoved: true, externalMarketCalls: 0, providerCalls: 0, paperOrBrokerCalls: 0, activeServicesTouched: false, humanAcceptance: "NOT_CHANGED", limitations: ["Fixture-only small sample", "Exchange-specific limit formulas, intraday queue/fills, full market fees, corporate actions, Qlib/Paper parity, current complete manual acceptance and Ubuntu remain incomplete"] };
+const report = { schemaVersion: "stockquant.w1-v14-quant-boundary-isolated-run.v1", createdAt: new Date().toISOString(), stageId: "V1.4", status: "PASS", suite: "isolated-Compose-PostgreSQL-Quant-Platform-Web-CLI", isolatedProject: project, codeVersion, fixtureSha256, quantServiceOwnsComputation: true, invalidPolicyRejectedWithoutRun: true, quantRetryIdempotent, quantRetryConflictRejected, cancellationBeforeQuantVerified: true, platformCrashBeforeQuantRecoveryVerified: true, platformCrashAfterQuantPersistenceRecoveryVerified: true, artifactExportSummary, restrictionFixtureSha256: "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a", corporateActionFixtureSha256: "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc", quantPersistence: { status: "PASS", backtestRunCount: quantRunCount, manifestCount: quantRunCount, resultHashMatchesManifest: quantRunCount }, testRuns, containersVolumesNetworksRemoved: true, externalMarketCalls: 0, providerCalls: 0, paperOrBrokerCalls: 0, activeServicesTouched: false, humanAcceptance: "NOT_CHANGED", limitations: ["Fixture-only small sample", "Exchange-specific limit formulas, intraday queue/fills, full market fees, Qlib/Paper parity, complete independent failure coverage, current complete manual acceptance and Ubuntu remain incomplete"] };
 const evidenceSuffix = project.slice(project.lastIndexOf("-") + 1);
-const reportPath = `evidence/audits/2026-10-02-w1-v14-quant-configurable-web-${evidenceSuffix}.json`;
+const reportPath = `evidence/audits/2026-10-07-v14-durable-tasks-${evidenceSuffix}.json`;
 await mkdir(dirname(reportPath), { recursive: true });
 await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n");
 const sourceReportSha256 = createHash("sha256").update(readFileSync(resolve(reportPath))).digest("hex");
@@ -197,13 +313,13 @@ for (const { testRun } of testRuns) {
   await writeFile(resolve(bundleDirectory, "manifest.sha256"), bundleManifest, { flag: "wx" });
   bundlePaths.push(`${bundleDirectory}/evidence.json`, `${bundleDirectory}/source-evidence.json`, `${bundleDirectory}/manifest.sha256`);
 }
-const markdownPath = `evidence/audits/2026-10-02-w1-v14-quant-configurable-web-${evidenceSuffix}.md`;
+const markdownPath = `evidence/audits/2026-10-07-v14-durable-tasks-${evidenceSuffix}.md`;
 const runLines = testRuns.map(({ origin, testRun }) => `- ${origin}: \`${testRun.testRunId}\`, ${testRun.status}, ${testRun.assertions.length} assertions (${testRun.assertions.map((item) => `${item.assertionId}=${item.status}`).join(", ")}).`);
-const markdown = `# W1 / V1.4 configurable Web and isolated end-to-end audit\n\nDate: 2026-10-02 (Asia/Shanghai)\n\n## Change\n\nDaily Fixture calculation, Fixture hash verification and durable BacktestRun/Manifest persistence now run in Quant Research. Platform uses the generated OpenAPI Bearer client and stores TestRun metadata plus returned evidence. The isolated Compose stack includes Quant, Platform, Portfolio, PostgreSQL, Web and CLI verification.\n\n## Verification\n\n- pnpm contracts:check: PASS; 151 schemas, 106 compatibility rules, 25 client generators registered.\n- Quant build: PASS; focused service/auth/engine tests passed.\n- Platform build and focused adapter/client tests passed.\n- pnpm test:integration:v14-backtest: PASS. Fresh PostgreSQL and service containers; Web/CLI normal, rejection, recovery and synthetic market restrictions; unknown policy fields rejected without a Platform TestRun; configured Web runs and same-session metric comparison; every browser-created TestRun checked by CLI; database assertion confirmed eight Quant BacktestRuns, eight Manifests and matching result hashes; all temporary containers, volume, network and images removed.\n- Workspace codeVersion: \`${codeVersion}\`; computed from the exact V1.4 contract, Fixture, Quant/Platform/Web sources, integration harness and lockfile, and asserted in each TestRun.\n- Each TestRun has an immutable evidence/local/V1.4/<testRunId>/ bundle with unchanged source evidence, SHA-256 manifest, and manualConclusion=NOT_RUN.\n- Frozen Fixture SHA-256: ${fixtureSha256}.\n\nTestRuns:\n\n${runLines.join("\n")}\n\n## Boundaries\n\nExternal market calls: 0. Provider calls: 0. Paper/broker calls: 0. Active services touched: no. Human acceptance: unchanged.\n\nThe original Fixture contains one security's daily close/volume; the restriction case uses a separate synthetic OHLCV Manifest. It does not implement exchange-specific limit formulas, intraday queue/fills, full fee schedules, corporate actions, Qlib/Paper rule parity, complete current-scope manual acceptance or Ubuntu acceptance. This audit does not close V1.4, W1 or the delivery plan.\n`;
+const markdown = `# V1.4 durable task, cancellation, restart recovery, Web and CLI audit\n\nDate: 2026-10-07 (Asia/Shanghai)\n\n## Change\n\nPlatform now persists V1.4 TestRun metadata before asynchronous Quant dispatch. Quant accepts that stable TestRun UUID as its BacktestRun/Manifest identity and returns the exact prior report on an identical retry; an input mismatch returns 409. Platform restart scans RUNNING tasks and resumes under a per-TestRun PostgreSQL advisory lock. Cancellation is durable and suppresses report publication when requested before Quant dispatch. Web and CLI poll the same persisted TestRun through a terminal state.\n\n## Verification\n\n- Contract generation/check: PASS; the Quant request contract carries optional testRunId, and response identity remains bound to request scenario/seed.\n- Platform and Quant TypeScript checks: PASS; Platform persistent-task unit tests and Quant backtest service tests: PASS.\n- pnpm test:integration:v14-backtest: PASS against fresh isolated PostgreSQL, Quant, Platform and Playwright Web. Two recovery tasks were interrupted with forced Platform process termination: one while RUNNING before Quant dispatch, and one after Quant durably persisted its BacktestRun/Manifest but before Platform finalized the TestRun. Both completed after startup recovery with the original TestRun UUID; the post-Quant retry returned the existing Quant report without a duplicate row. A separate cancellation completed as CANCELLED before Quant dispatch and created no BacktestRun. Identical Quant retry returned the prior report; same ID with a changed policy returned 409.\n- Normal/rejection/recovery/market restrictions/historical fees/corporate actions, eight browser-created runs and same-run CLI checks passed. Quant persisted ${quantRunCount} BacktestRun/Manifest pairs with matching result hashes; Platform persisted 17 V1.4 TestRuns. Unknown policy fields were rejected before TestRun creation.\n- Workspace codeVersion: \`${codeVersion}\`. Each exported run has an immutable evidence/local/V1.4/<testRunId>/ bundle with a SHA-256 manifest and manualConclusion=NOT_RUN. Random Compose containers, volume, network and images were removed.\n\nTestRuns:\n\n${runLines.join("\n")}\n\n## Boundaries\n\nExternal market calls: 0. Provider calls: 0. Paper/broker calls: 0. Active services touched: no. Human acceptance: unchanged.\n\nThe small deterministic fixtures do not establish full exchange rules, calendar coverage, complete fee/tax policy, Qlib/Paper parity, user sign-off or Ubuntu acceptance. V1.4 and the full V1 plan remain open.\n`;
 await writeFile(markdownPath, markdown);
 const root = process.cwd();
-const evidenceManifestInputs = [...new Set([reportPath, markdownPath, ...bundlePaths, ...manifestInputs, "services/quant-research-service/tests/unit/v14-daily-backtest-service.spec.ts", "services/quant-research-service/tests/unit/postgres-v14-backtest-repository.spec.ts", "services/platform-api-service/tests/unit/v14-backtest-adapter.spec.ts", "scripts/e2e-stage-command.mjs", "scripts/e2e-stage-command.test.mjs"])];
+const evidenceManifestInputs = [...new Set([reportPath, markdownPath, ...bundlePaths, ...manifestInputs, "scripts/evidence-export.mjs", "scripts/evidence-export-core.mjs", "scripts/evidence-export.test.mjs", "services/quant-research-service/tests/unit/v14-daily-backtest-service.spec.ts", "services/quant-research-service/tests/unit/postgres-v14-backtest-repository.spec.ts", "services/platform-api-service/tests/unit/v14-backtest-adapter.spec.ts", "scripts/e2e-stage-command.mjs", "scripts/e2e-stage-command.test.mjs"])];
 const manifest = [];
 for (const path of evidenceManifestInputs) manifest.push(`${createHash("sha256").update(await readFile(resolve(root, path))).digest("hex")}  ${path}`);
-await writeFile(`evidence/audits/2026-10-02-w1-v14-quant-configurable-web-${evidenceSuffix}.sha256`, manifest.join("\n") + "\n");
+await writeFile(`evidence/audits/2026-10-07-v14-durable-tasks-${evidenceSuffix}.sha256`, manifest.join("\n") + "\n");
 console.log(JSON.stringify({ status: "PASS", isolatedProject: project, codeVersion, webNormal: "PASS", apiCreatedRunCheckedByCli: webTestRunId, browserCreatedRunsCheckedByCli: browserCreatedTestRunIds, cliRejectionTestRunId: rejectionTestRunId, cliRecoveryTestRunId: recoveryTestRunId, restrictionsTestRunId, fixtureSha256, containersVolumesNetworksRemoved: true, evidence: reportPath }));
