@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "auditId": "A01-PARENT-DECOMPOSITION-V1.1-CROSS-SERVICE-FOUNDATION",
+  "sourceCrosswalk": {
+    "path": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+    "sha256": "ac923b7a33c7c1a4ceb7b832fe66fcc7a5571584c26b3d61f978bfbf1749333b"
+  },
+  "requirementId": "V1.1-S2-L14",
+  "atomicElements": [
+    {
+      "element": "Every registered generated-client generator participates in generation and drift checking.",
+      "status": "PASS_FOR_GENERATOR_REGISTRATION",
+      "tests": [
+        {
+          "path": "scripts/contract-generator-registration.test.mjs",
+          "name": "all client generators must be part of generation and drift checks"
+        }
+      ],
+      "currentExecution": "pnpm baseline:check exit 0; its contracts:check ran 29 client generators and 111 consumer rules."
+    },
+    {
+      "element": "Selected V1 cross-service clients carry caller/service identity, encode route parameters, preserve error/replay responses and use generated routes.",
+      "status": "PARTIAL_SELECTED_CALLERS_ONLY",
+      "tests": [
+        {
+          "path": "services/platform-api-service/tests/unit/account-details.spec.ts",
+          "name": "forwards the authenticated owner to portfolio and returns evidence"
+        },
+        {
+          "path": "services/platform-api-service/tests/unit/account-details.spec.ts",
+          "name": "rejects a portfolio owner-scope denial"
+        },
+        {
+          "path": "services/platform-api-service/tests/unit/account-details.spec.ts",
+          "name": "initializes a US account under the same owner and TestRun namespace"
+        },
+        {
+          "path": "services/trade-execution-service/tests/unit/portfolio-account-client.spec.ts",
+          "name": "uses the Trade Execution identity and encodes reservation paths"
+        },
+        {
+          "path": "services/trade-execution-service/tests/unit/portfolio-account-client.spec.ts",
+          "name": "posts a canonical Fill body through the generated route"
+        },
+        {
+          "path": "services/trade-execution-service/tests/unit/portfolio-account-client.spec.ts",
+          "name": "keeps conflict status and body for exact reservation replay handling"
+        }
+      ],
+      "remainingGap": "These tests prove selected Platform/Trade→Portfolio calls. They are not a full inventory of every V1 caller, operationId, auth identity, error/retry path and release action."
+    },
+    {
+      "element": "Required service layering rules reject framework/adapter violations; selected V1 services are scanned by baseline.",
+      "status": "PASS_FOR_SCANNED_SERVICES_ONLY",
+      "tests": [
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "portfolio-risk application depends on its repository port, not the Postgres adapter"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "market-data application separates persistence adapters and the bootstrap composition root"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "trade-execution application uses its outbox and Portfolio ports"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "decision-governance application uses authorization and Registry ports"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "historical replay use cases depend on repository and downstream ports"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "Quant Research bootstrap delegates PostgreSQL access to repository adapters"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "layer check rejects adapters/framework dependencies in domain and application"
+        },
+        {
+          "path": "scripts/check-service-layers.test.mjs",
+          "name": "Market Data layer check rejects outbound provider HTTP in bootstrap"
+        }
+      ],
+      "remainingGap": "Baseline exits 0 for its eight configured service scans. This does not prove every service or all dependency directions."
+    },
+    {
+      "element": "V1.1 Platform persistence/migration integration runs in a disposable PostgreSQL database.",
+      "status": "PASS_FOR_V1_1_ISOLATED_SLICE",
+      "tests": [
+        {
+          "path": "scripts/code-suite-plan.test.mjs",
+          "name": "the V1.1 code suite verifies platform migration and unified-store persistence on disposable PostgreSQL"
+        }
+      ],
+      "evidence": [
+        "evidence/audits/2026-10-09-v11-code-suite-a04.log",
+        "evidence/audits/2026-10-09-v11-persistence-migration-a04.json",
+        "evidence/audits/2026-10-09-v1-governance-migration-http-a01.log",
+        "evidence/audits/2026-10-09-v1-replay-migration-http-a01.log",
+        "evidence/audits/2026-10-09-v13-migration-ledgers-code-suite-a03.log",
+        "evidence/audits/2026-10-09-v14-replay-migration-code-suite-a01.log",
+        "evidence/audits/2026-10-09-v14-quant-migration-a01.log",
+        "evidence/audits/2026-10-09-v14-quant-migration-code-suite-a03.log"
+      ],
+      "remainingGap": "Platform/Portfolio/Governance/Trade/Replay/Quant have selected isolated migration coverage, including service-specific ledgers; Governance and Replay shared-DB concurrency is verified. Market Data V1 migration/release workflow remains unverified; active API storage cutover remains NOT_AUTHORIZED."
+    },
+    {
+      "element": "Complete V1 caller→OpenAPI operation→generated client→identity→migration/release matrix and Artifact producer lifecycle inventory.",
+      "status": "OPEN",
+      "remainingGap": "No complete route-by-route V1 matrix exists; this is the parent requirement exit criterion."
+    }
+  ],
+  "validation": {
+    "exactTestReferences": 16,
+    "uniqueExactTests": 16,
+    "baselineCommand": "pnpm baseline:check",
+    "baselineExitCode": 0,
+    "V1_1CodeSuiteEvidence": "2026-10-09 V1.1 isolated code suite evidence a04, exit 0",
+    "generatorCount": 29,
+    "contractConsumerRules": 111,
+    "configuredLayerScans": 8,
+    "failures": []
+  },
+  "scopeNote": "Mapping is progress and selected-slice evidence only. V1.1-S2-L14 remains OPEN until the complete V1 route and release matrix is audited."
+}

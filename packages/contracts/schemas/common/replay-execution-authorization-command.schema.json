@@ -16,7 +16,8 @@
       "properties": {
         "namespace": { "type": "string", "minLength": 1 }, "accountId": { "type": "string", "format": "uuid" },
         "clientOrderId": { "type": "string", "minLength": 1 }, "security": { "type": "string", "minLength": 1 }, "requestedQuantity": { "type": "integer", "minimum": 1 },
-        "bar": { "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"], "properties": { "timestamp": { "type": "string", "format": "date-time" }, "open": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 } } }
+        "initialAccountCash": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "bar": { "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"], "properties": { "timestamp": { "type": "string", "format": "date-time" }, "open": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 }, "high": { "type": "string" }, "low": { "type": "string" }, "close": { "type": "string" }, "tradingStatus": { "enum": ["TRADED", "SUSPENDED"] }, "upperLimit": { "type": "string" }, "lowerLimit": { "type": "string" } } }
       }
     }
   }

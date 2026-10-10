@@ -8,8 +8,8 @@ const document = JSON.parse(await readFile(source, "utf8"));
 const operation = document.paths?.["/internal/v1/historical-orders/execute"]?.post;
 if (operation?.operationId !== "executeHistoricalFakeOrder" || operation.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "historical-replay-worker" || !operation.security?.some((rule) => rule.ServiceBearer)) throw new Error("Expected the replay-worker-only historical FakeBroker operation");
 if (!JSON.stringify(operation.requestBody).includes("historical-fake-execution-command.schema.json") || !JSON.stringify(operation.responses?.["200"]).includes("historical-fake-execution-result.schema.json")) throw new Error("Historical execution operation requires canonical request/response schemas");
-const readOrder = document.paths?.["/internal/v1/orders/{orderId}"]?.get;
-if (readOrder?.operationId !== "readHistoricalFakeOrderById" || !readOrder.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.enum?.includes("historical-replay-worker") || !JSON.stringify(readOrder.responses?.["200"]).includes("historical-fake-order-state.schema.json")) throw new Error("Historical original-order recovery operation is incomplete");
+const readOrder = document.paths?.["/internal/v1/historical-orders/{orderId}"]?.get;
+if (readOrder?.operationId !== "readHistoricalFakeOrderById" || readOrder.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "historical-replay-worker" || !readOrder.parameters?.some((parameter) => parameter.name === "namespace" && parameter.in === "query" && parameter.required) || !JSON.stringify(readOrder.responses?.["200"]).includes("historical-fake-order-state.schema.json")) throw new Error("Historical original-order recovery operation is incomplete");
 
 const expected = `// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/trade-execution-historical.v1.json
 import type * as Contracts from "./generated-types.js";
@@ -31,8 +31,8 @@ export class GeneratedTradeExecutionClient {
     if (!response.ok) throw new TradeExecutionHttpError(response.status, await response.text().catch(() => ""));
     return await response.json() as Contracts.HistoricalFakeExecutionResult;
   }
-  async readHistoricalFakeOrderById(orderId: string, timeoutMs: number = 5000): Promise<Contracts.HistoricalFakeOrderState> {
-    const response = await this.request(this.baseUrl + "/internal/v1/orders/" + encodeURIComponent(orderId), { headers: { "x-stockquant-service-id": "historical-replay-worker", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
+  async readHistoricalFakeOrderById(orderId: string, namespace: string, timeoutMs: number = 5000): Promise<Contracts.HistoricalFakeOrderState> {
+    const response = await this.request(this.baseUrl + "/internal/v1/historical-orders/" + encodeURIComponent(orderId) + "?namespace=" + encodeURIComponent(namespace), { headers: { "x-stockquant-service-id": "historical-replay-worker", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
     if (!response.ok) throw new TradeExecutionHttpError(response.status, await response.text().catch(() => ""));
     return await response.json() as Contracts.HistoricalFakeOrderState;
   }

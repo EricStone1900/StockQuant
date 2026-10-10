@@ -90,5 +90,26 @@ run("PostgreSQL V1.2 Qlib TestRun task lifecycle", () => {
     expect(second.sha256).toBe(first.sha256);
     await expect(artifactRepository.find(firstRunId, first.artifactId, ownerId)).resolves.toMatchObject({ artifactId: first.artifactId, sha256: first.sha256 });
     await expect(artifactRepository.find(secondRunId, second.artifactId, ownerId)).resolves.toMatchObject({ artifactId: second.artifactId, sha256: second.sha256 });
+    await expect(artifactRepository.find(firstRunId, first.artifactId, "another-owner")).rejects.toThrow("not found in user scope");
+    await expect(artifactRepository.find(randomUUID(), first.artifactId, ownerId)).rejects.toThrow("not found in user scope");
+    await expect(artifactRepository.findLifecycle(firstRunId, first.artifactId, ownerId)).resolves.toEqual({ status: "PUBLISHED" });
+    await expect(artifactRepository.findLifecycle(firstRunId, first.artifactId, "another-owner")).rejects.toThrow("not found in user scope");
+  });
+
+  it("keeps V1.2 artifacts unreadable while pending and exposes them only after explicit publish", async () => {
+    const testRunId = randomUUID();
+    await repository.save({ testRunId, stageId: "V1.2", scenarioId: "normal", scenarioVersion: "v12-task-v1", ownerId, status: "RUNNING", seed: 7, assertions: [], evidence: { qlibTask: { phase: "PUBLISHING_ARTIFACT" } } });
+    const input = { testRunId, ownerId, mediaType: "application/vnd.stockquant.qlib-fixture-model+json", payload: { schemaVersion: "v1.2-qlib-strategy-artifact-v1", fixtureVersion: "v1.2-market-data-4", predictions: [0.3] } } as const;
+    const staged = await artifactRepository.savePending(input);
+    await expect(artifactRepository.find(testRunId, staged.artifactId, ownerId)).rejects.toThrow("not found in user scope");
+    await expect(artifactRepository.findLifecycle(testRunId, staged.artifactId, ownerId)).resolves.toEqual({ status: "PENDING" });
+    const published = await artifactRepository.publishPending(testRunId, staged.artifactId, ownerId);
+    await expect(artifactRepository.find(testRunId, staged.artifactId, ownerId)).resolves.toMatchObject({ status: "PUBLISHED", artifactId: staged.artifactId });
+    await expect(artifactRepository.publishPending(testRunId, staged.artifactId, ownerId)).resolves.toMatchObject({ status: "PUBLISHED" });
+    expect(published.status).toBe("PUBLISHED");
+    await artifactRepository.setExpiry(testRunId, staged.artifactId, ownerId, new Date(Date.now() - 60_000).toISOString());
+    await artifactRepository.transition(testRunId, staged.artifactId, ownerId, "EXPIRED");
+    await expect(artifactRepository.savePending(input)).rejects.toThrow("expired immutable Qlib artifact cannot be reused or republished");
+    await expect(artifactRepository.find(testRunId, staged.artifactId, ownerId)).rejects.toThrow("not found in user scope");
   });
 });

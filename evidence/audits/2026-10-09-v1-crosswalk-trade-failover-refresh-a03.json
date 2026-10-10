@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "v1-crosswalk-trade-failover-refresh-v3",
+  "date": "2026-10-09",
+  "auditId": "V1-CROSSWALK-TRADE-FAILOVER-A03",
+  "status": "PASS",
+  "requirementId": "V1.5-S2-L18",
+  "uniqueEvidencePathsChecked": 41,
+  "missingEvidencePaths": [],
+  "exactTestNamesChecked": [
+    {
+      "path": "services/platform-api-service/tests/unit/v15-nats-dispatch.spec.ts",
+      "name": "accepts the durable UNKNOWN original-order recovery scenario",
+      "present": true
+    },
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+      "name": "records a partial FakeBroker Fill, accepted cancellation and released remainder while leaving full AUTO acceptance waiting",
+      "present": true
+    },
+    {
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows",
+      "present": true
+    },
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade-cancellation.spec.ts",
+      "name": "records the request with the injected clock",
+      "present": true
+    },
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+      "name": "arbitrates AUTO cancellation after an authoritative partial Fill and releases the unfilled remainder",
+      "present": true
+    }
+  ],
+  "currentSourceAnchorExactTextPresent": true,
+  "crosswalkSha256": "6f1da64246f548dd7147438c5b0f64e977698c0fd487eb4a57abcdbdc6286817",
+  "scope": "Checks linked path existence, exact test names and source text for the Trade failover requirement row; it does not prove broad requirement acceptance."
+}

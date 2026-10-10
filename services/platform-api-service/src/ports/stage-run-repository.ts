@@ -5,6 +5,12 @@ export type StoredStageRun = {
 };
 
 export type NewStageRun = Omit<StoredStageRun, "createdAt" | "completedAt" | "namespace"> & { namespace?: string };
+export type StageRunSummary = Pick<StoredStageRun, "testRunId" | "stageId" | "scenarioId" | "scenarioVersion" | "status" | "seed" | "createdAt" | "completedAt">;
+export type V15RunIncident = {
+  incidentId: string; testRunId: string; alertKey: string; code: string; severity: "BLOCKER" | "ERROR";
+  title: string; detail: Record<string, unknown>; state: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+  firstSeenAt: string; lastSeenAt: string; acknowledgedBy: string | null; acknowledgedAt: string | null; resolvedAt: string | null;
+};
 export type V33WorkflowStatus = "QUEUED" | "RUNNING" | "WAITING" | "COMPLETED" | "FAILED" | "CANCELLED";
 export type V13SessionAdvance = {
   sequence: number; fromClock: string; toClock: string; calendarVersion: string; idempotencyKey: string; recordedAt: string;
@@ -15,6 +21,10 @@ export interface StageRunRepository {
   markV15DispatchPublished(eventId: string): Promise<void>;
   save(run: NewStageRun): Promise<StoredStageRun>;
   find(testRunId: string, ownerId: string): Promise<StoredStageRun | null>;
+  listV15Runs(ownerId: string, limit: number): Promise<StageRunSummary[]>;
+  projectV15RunIncidents(testRunId: string, ownerId: string): Promise<V15RunIncident[]>;
+  acknowledgeV15RunIncident(testRunId: string, ownerId: string, incidentId: string, actorId: string): Promise<V15RunIncident>;
+  requestV15AutoTradeCancellation(testRunId: string, ownerId: string, requestedAt: string): Promise<StoredStageRun>;
   listRunnableV12Runs(): Promise<StoredStageRun[]>;
   withV12RunLock<T>(testRunId: string, work: () => Promise<T>): Promise<T | undefined>;
   updateV12Progress(testRunId: string, ownerId: string, progress: Record<string, unknown>): Promise<boolean>;

@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-09",
+  "auditId": "V1-CROSSWALK-TRADE-FAILOVER-A01",
+  "status": "PASS",
+  "requirementId": "V1.5-S2-L18",
+  "uniqueEvidencePathsChecked": 19,
+  "missingEvidencePaths": [],
+  "exactPlaywrightTestTitleChecked": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows",
+  "sourceMarkersChecked": [
+    {
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "literal": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows",
+      "present": true
+    },
+    {
+      "path": "scripts/test-v15-web-e2e-isolated.mjs",
+      "literal": "STOCKQUANT_V15_E2E_TRADE_FAILOVER",
+      "present": true
+    },
+    {
+      "path": "scripts/test-v15-web-e2e-isolated.mjs",
+      "literal": "trade_execution_worker_terminated_after_fakebroker_commit_before_http_response",
+      "present": true
+    },
+    {
+      "path": "services/trade-execution-service/src/bootstrap/main.ts",
+      "literal": "V15_AUTO_ORIGINAL_ORDER_LOOKUP_AFTER_TRADE_RESTART",
+      "present": true
+    }
+  ],
+  "scope": "Verifies path existence and literal source markers for the new Trade failover evidence mapping only. Does not assert semantic sufficiency, actual test execution, or V1 acceptance.",
+  "sourceCrosswalkSha256": "d71a0b3323ca674fe5b2526861b68c85ad26decb1774f50631e8ee87b4c74c8f"
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "stockquant.execution-audit.v1",
+  "status": "PASS",
+  "stageId": "V1.3",
+  "command": "pnpm test:e2e -- --stage V1.3",
+  "exitCode": 0,
+  "isolatedProject": "sq-v13-web-0e845ea7dc36ed872def",
+  "testRunId": "0e2dbca1-ae62-4a4c-b00c-514b02f66698",
+  "evidenceBundle": {
+    "path": "evidence/local/V1.3/0e2dbca1-ae62-4a4c-b00c-514b02f66698/evidence.json",
+    "sha256": "4fd988405eacf3a2ab65c9167702d48f5236e4b120541d07349c05a36b21f43f",
+    "manifestSha256": "b0ab9abff7e14fd95d38b750248871da0bf05bb9c1646333b09141b32d83a585"
+  },
+  "suite": {
+    "passed": 21,
+    "failed": 0,
+    "scope": "V1.3 isolated Web/API/CLI fixed-Fixture matrix, including L07 cancellation reservation and in-flight Fill recovery across Trade Execution restart"
+  },
+  "faultSequence": [
+    "broker sequence 2 buffered while sequence 1 is applied",
+    "cancel request persisted",
+    "Trade Execution restarted with reservation HELD",
+    "broker sequence 3 accepted cancellation result applied"
+  ],
+  "assertions": {
+    "deliveredFillSequences": [1, 2],
+    "filledQuantity": 150,
+    "acceptedCancellationRemainder": 50,
+    "reservationStatus": "RELEASED",
+    "reconciliation": "MATCH",
+    "sameRunCliAndEvidenceExport": true
+  },
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "ab818e2aea6c9b64187691f4af58e8331ba74cfe070316a2ede2850ae5d845a7",
+    "scripts/test-v13-web-e2e-isolated.mjs": "57f76107d0df026f719e12ce0ac1a2a1161eab4bd2d2a761997e83a7327680e8",
+    "services/trade-execution-service/src/bootstrap/main.ts": "70cd78922439c5509586982835b1a22522771a2a75f94f43a7cb0cfd12dbae5c",
+    "infra/compose/docker-compose.v13-integration.yml": "c868a4f47389136d2f92f4077ebf924e44040cceceb88d938b51bc2b79b4fed1"
+  },
+  "limitations": [
+    "This verifies shared V1.3 FakeBroker cancellation and Trade restart semantics; it does not verify cancellation orchestration in a V1.5 AUTO TestRun.",
+    "The command result and scenario event sequence were observed directly from the isolated harness terminal; no separate full terminal transcript was captured."
+  ]
+}

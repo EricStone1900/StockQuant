@@ -7,7 +7,7 @@ import { GeneratedQlibWorkerAdapter } from "../adapters/generated-qlib-worker-ad
 import { QlibResearchService } from "../application/qlib-research-service.js";
 import { CandidateRegistrationService } from "../application/candidate-registration-service.js";
 import { PostgresCandidateRegistrationRepository } from "../adapters/postgres-candidate-registration-repository.js";
-import { initializeQuantResearchSchema } from "../adapters/postgres-schema.js";
+import { migrateQuantResearchSchema } from "../adapters/postgres-schema-migrations.js";
 import { PostgresPromotionRequestRepository } from "../adapters/postgres-promotion-request-repository.js";
 import { PromotionRequestService } from "../application/promotion-request-service.js";
 import { PostgresValidationReportRepository } from "../adapters/postgres-validation-report-repository.js";
@@ -40,7 +40,7 @@ const promotionReads = new PromotionReadService(new PostgresPromotionReadReposit
 const promotionDecisions = new PromotionDecisionService(new PostgresPromotionDecisionRepository(pool));
 const callerTokens = loadQuantResearchTokens(process.env);
 async function json(res: import("node:http").ServerResponse, body: unknown, status=200) { res.writeHead(status,{"content-type":"application/json"}); res.end(JSON.stringify(body)); }
-await initializeQuantResearchSchema(pool);
+await migrateQuantResearchSchema(pool);
 const server = createServer(async (req,res) => {
   if (req.url === "/live") return json(res,{status:"live",service:"quant-research-service"});
   if (req.url === "/ready") return json(res,{status:"ready",service:"quant-research-service",qlib:(await qlibResearch.probe()).status});
@@ -95,7 +95,17 @@ const server = createServer(async (req,res) => {
     }
   }
   if (req.url === "/v1/qlib/probe") return json(res,{adapter:"qlib",sourceCommit:process.env.QLIB_SOURCE_COMMIT??"UNSET",dependencyImage:process.env.QLIB_IMAGE??"UNSET",probe:await qlibResearch.probe(),executionModel:"CPU",modelCalls:"NOT_RUN"});
-  if (req.url === "/v1/rdagent/probe") return json(res,{adapter:"rdagent",executionBoundary:"isolated-container",dockerSocketMounted:false,codeProbe:{status:"READY",result:"fixed-probe-ok"},modelCalls:"NOT_RUN",reason:"No model credentials configured in V1.2"});
+  if (req.url === "/v1/rdagent/probe") {
+    const workerProbe = await qlibResearch.probe();
+    return json(res, {
+      adapter: "rdagent",
+      executionBoundary: workerProbe.codeProbe ? "isolated-qlib-worker-container" : "UNAVAILABLE",
+      dockerSocketMounted: workerProbe.dockerSocketMounted ?? true,
+      codeProbe: workerProbe.codeProbe ?? { status: "NOT_RUN", reason: workerProbe.detail ?? "isolated worker probe unavailable" },
+      modelCalls: "NOT_RUN",
+      reason: "The fixed Python compatibility snippet runs in the isolated worker; model execution is disabled for V1.2.",
+    });
+  }
   if (req.method === "GET" && /^\/v1\/promotions\/[^/]+\/validation-input$/.test(req.url ?? "")) {
     const id = /^\/v1\/promotions\/([^/]+)\/validation-input$/.exec(req.url ?? "")?.[1] ?? "";
     const result = await validationReports.getInput(id);

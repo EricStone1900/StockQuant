@@ -1,0 +1,32 @@
+# V1.5 持久调度与恢复责任映射 A01
+
+日期：2026-10-10。A31中20条V1.5第2/7/8节要求已人工核对主责、协作方和外部操作责任。结构化明细见[JSON](./2026-10-10-v1-v15-responsibility-a01.json)，SHA-256 `5c6c36757a39978b47757db2f72b678917fa95ea4633633134ca13d5403a7983`。
+
+| 要求 | 主责 | 协作方/外部动作 | 仍开放的边界 |
+|---|---|---|---|
+| `V1.5-S2-L17` | platform-api-service owns current V1.5 orchestration/progress projection | NATS and Temporal provide durable dispatch/workflow state; Market Data owns calendars; Governance, Trade and Portfolio own each business decision/fact | Current code coordinates durable NO_TRADE/AUTO runs and fixed calendar re-evaluation; no standalone workflow-orchestration-service is deployed as V1.5 owner. Full real-time calendar, continuous schedule and daily settlement remain unverified. |
+| `V1.5-S2-L18` | trade-execution-service owns FakeBroker order state, UNKNOWN query and idempotent original-clientOrderId recovery | platform-api-service orchestrates; decision-governance-service owns mandates/authorization; portfolio-risk-service owns reservations/ledger; Temporal retries durable activities | Named fixed fault/restart/UNKNOWN paths pass in isolation. Complete domain-wide recovery, actual clock/sleep and all multi-fault combinations remain open. |
+| `V1.5-S2-L19` | platform-api-service owns TestRun, Incident projection, capability status, history/comparison APIs | Trade, Governance and Portfolio expose authoritative domain facts; apps/web renders them | Incident lifecycle and selected history comparisons exist; traceability from every Fill through all domains is not complete. Platform projection is not ledger authority. |
+| `V1.5-S2-L20` | shared test/operations responsibility; scripts and runbook own exact isolated fault actions | project operator executes host sleep/wake; service owners supply fault semantics and recovery checks | Worker/bus/network/dual-worker and fixed DB failures have isolated evidence. Mac sleep/wake remains NOT_RUN because host is locked; runbook preflight stack is live. No service code can substitute for the real host observation. |
+| `V1.5-S2-L21` | operations/scripts own isolated backup/restore and environment evidence | each service owns its volume facts; project owner supplies actual Ubuntu host/architecture and acceptance | V1.5 four-volume isolated restore is bounded to its stack. It is not V1.1–V1.4 full business restore, host/remote disaster recovery, RPO/RTO or Ubuntu evidence. |
+| `V1.5-S2-L22` | platform-api-service | apps/web and stage CLI; downstream dispatch is owned by Platform orchestration | Run creation accepts scenarioId/seed and fixes PAPER/FAKE before dispatch; tested mode injection returns 422. This atomic entry check does not establish every service/worker write-path mode boundary. |
+| `V1.5-S7-L56` | packages/contracts and Platform scenario/TestRun contracts | Trade/Portfolio/Governance and shared Fixture owners | Scenario and assertion contracts are cross-domain; freeze status does not mean every workflow branch or market rule is complete. |
+| `V1.5-S7-L57` | each service owns its backend behavior | platform-api-service owns orchestration; NATS/Temporal infrastructure operators own durable engine operation | Fixed backend slices exist; full scheduling, settlement and restore tasks remain open. |
+| `V1.5-S7-L58` | apps/web and platform-api-service | domain APIs own source facts | Normal/rejection/recovery and selected AUTO Web paths are exercised. Current scope human acceptance remains NOT_RUN. |
+| `V1.5-S7-L59` | scripts and Platform stage docs | service owners for configs; operator for actual host | Runbook now records exact inputs/config/session and distinguishes automated checks from user sign-off; host sleep/wake and Ubuntu remain not run. |
+| `V1.5-S7-L60` | cross-service test/evidence harness | Platform Web/API/CLI, Trade/Portfolio/Governance; operator for host recovery | Developer fixed-scenario E2E is extensively recorded; actual Mac sleep/wake and full-V1 recovery still need independent observation. |
+| `V1.5-S7-L61` | domain service owners for idempotency/recovery; operations owner for runtime disruptions | Platform and durable infrastructure for coordination | Bounded service/worker/database interruption cases are tested. Long real-time observation, Mac wake, full cross-version restore and Ubuntu remain incomplete. |
+| `V1.5-S7-L62` | project owner / human acceptor | none | 2026-09-09 historical sign-off is limited to its original scope; current V1.5 additions cannot be signed by the agent. |
+| `V1.5-S7-L63` | Platform/stage documentation owner | service owners for operational limits; project owner for final acceptance record | Documentation has executable selected paths and limitations; acceptance table remains authoritative and current user signature is NOT_RUN. |
+| `V1.5-S8-L67` | Platform runbook/evidence owner | stack operator and service owners | Readiness facts and capability state are presented; the pending host sleep/wake must continue the existing isolated run or record a failure, not infer a pass. |
+| `V1.5-S8-L87` | stack-up/down scripts | operator | Random isolated project startup/cleanup is owned by the scripts and operator, not an active service deployment. |
+| `V1.5-S8-L105` | apps/web | platform-api-service and domain APIs | Web interactions are projections/commands through APIs; they do not own scheduling or order/ledger truth. |
+| `V1.5-S8-L120` | verify-stage/evidence-export scripts | platform-api-service authenticated owner-scoped API | CLI must use exact stage, local API URL and current session; stage-specific evidence export is required. WAITING aggregate assertions correctly retain exit 2. |
+| `V1.5-S8-L155` | domain owners per authoritative fact | Platform coordinates TestRun; operations restores host/dependencies | Reconciliation requires original Run/Order/Fill/ledger/workflow facts; isolated service restarts do not prove full V1 cross-domain restore. |
+| `V1.5-S8-L163` | Platform acceptance records | project owner / human acceptor | Record only actual human conclusion and preserve historical failures/signatures; current scope remains unsigned. |
+
+## 汇总
+
+- 当前V1.5的TestRun和调度/恢复编排责任在Platform API及其NATS/Temporal集成；Trade、Governance、Portfolio分别持有订单成交、Mandate授权、资源预留/账本等领域事实。Workflow orchestration独立服务架构文档描述的是目标边界，不能被当作该服务已部署。
+- 真实睡眠/唤醒和Ubuntu是宿主操作，不是服务单测。当前隔离NO_TRADE Run前置已完成，但Mac锁屏期间没有执行系统睡眠/唤醒；仍保持NOT_RUN。
+- 本审计只厘清责任，不关闭P5、业务恢复、跨版本全域恢复、OD-014、Ubuntu、人工验收或P0全版矩阵。

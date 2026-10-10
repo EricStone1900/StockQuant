@@ -39,6 +39,7 @@ export type V13AutoExecutionPorts = {
   readProposal(proposalId: string, ownerId: string): Promise<{ status: number; body?: V13AutoProposal }>;
   readAccount(accountId: string, ownerId: string): Promise<V13AutoAccount | null>;
   executeTrade(command: V13AutoTradeRequest): Promise<{ status: number; body?: unknown }>;
+  readMandateBudget(mandateId: string, testRunId: string, mandateVersion: number, ownerId: string): Promise<{ status: number; body?: Record<string, unknown> }>;
 };
 
 export class V13AutoExecutionError extends Error {
@@ -78,7 +79,25 @@ export async function executeV13AutoProposal(command: V13AutoExecutionCommand, p
   }
 
   const executed = await ports.executeTrade({ ...command, accountId: proposal.accountId, namespace: run.namespace, now: run.evidence.runClockNow });
-  if ([200, 201, 202].includes(executed.status) && executed.body !== undefined) return executed.body;
+  if ([200, 201, 202].includes(executed.status) && executed.body !== undefined) {
+    // Trade may already have committed an order. A failed readback must remain
+    // visible as incomplete evidence, never turn a completed trade into a retry.
+    let budgetRead: { status: number; body?: Record<string, unknown> } | undefined;
+    try { budgetRead = await ports.readMandateBudget(command.mandateId, command.testRunId, command.mandateVersion, command.ownerId); }
+    catch { budgetRead = undefined; }
+    const budget = budgetRead?.body;
+    const verified = budgetRead?.status === 200 && budget !== undefined
+      && budget.ownerId === command.ownerId && budget.testRunId === command.testRunId
+      && budget.mandateId === command.mandateId && budget.mandateVersion === command.mandateVersion
+      && budget.reservedAmount === "0.00" && budget.consumedAmount !== undefined
+      && budget.releasedAmount === "0.00" && budget.reservationCount === 1
+      && budget.consumedCount === 1 && budget.releasedCount === 0;
+    return { ...(executed.body as Record<string, unknown>), mandateBudgetVerification: {
+      status: verified ? "VERIFIED" : "NOT_VERIFIED",
+      readStatus: budgetRead?.status ?? "UNAVAILABLE",
+      snapshot: budget ?? null,
+    } };
+  }
   if ([403, 409, 422].includes(executed.status)) throw new V13AutoExecutionError(executed.status, "V1.3 AUTO Trade Execution was rejected", executed.body);
   throw new V13AutoExecutionError(503, `V1.3 AUTO Trade Execution failed (${executed.status})`);
 }

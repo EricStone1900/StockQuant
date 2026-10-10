@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-CROSSWALK-CURRENT-TREE-A02",
+  "status": "OPEN_FINDINGS",
+  "sourceCrosswalk": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "sourceCrosswalkSha256": "69faf074519e2fa6bd386d7b78521386c29efc14100e7a23f3a0ccb685b0d372",
+  "requirementCount": 147,
+  "checked": {
+    "requiredAndEvidencePathReferences": 1329,
+    "exactTestNameReferences": 151,
+    "literalExactTestNameMatches": 138,
+    "unlocatedTestNameStrings": 0,
+    "currentSourceAnchorTextsPresent": 147
+  },
+  "missingPaths": [],
+  "badTestNames": [
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/test-persistence.mjs",
+      "name": "persistent same-key execution returns the identical FakeBroker orderId across concurrent and post-reconnect retries"
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/p5-7-outbox-http-smoke.mjs",
+      "name": "V1.3 FakeBroker by-clientId HTTP lookup returns same orderId and complete final fills after Trade restart"
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 independent FakeBroker asset HTTP read returns scoped persisted cash and positions only to Platform identity"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "scripts/service-auth-http-smokes.mjs",
+      "name": "V1.3 Proposal approval and revision reject all injected LIVE/REAL modes without changing persisted Proposal state"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "scripts/service-auth-http-smokes.mjs",
+      "name": "V1.3 AUTO Mandate pause rejects injected LIVE/REAL modes without status or event changes and preserves valid pause"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 Trade cancel, expire, unknown and cancel-result reject mode payloads without changing persisted order facts"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 Trade Outbox compensation rejects non-empty mode payload without changing persisted event facts"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (asserts prior-run comparison selection)"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/src/v15-capability-status.test.ts",
+      "name": "V1.5 capability blocker projection: explicit missing dispatch, queued/completed state and persisted failures"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 displays explicit capability blockers without converting NOT_RUN into failure (also verifies system alert overview link)"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "services/platform-api-service/tests/integration/v15-run-incidents.spec.ts",
+      "name": "projects persisted Run blocker evidence to owner-scoped incidents on save, resolves on recovery, and creates a new incident on recurrence"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (incident projection E2E)"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.4",
+      "path": "../../scripts/test-v14-backtest-isolated.mjs",
+      "name": "V1.4 run creation must reject client mode injection for PAPER/FAKE, LIVE/FAKE, BACKTEST/REAL, LIVE/REAL with HTTP 422 and no Quant run"
+    }
+  ],
+  "unlocatedTestNames": [],
+  "staleAnchors": [],
+  "scope": "Fresh structural audit. Requirement/evidence paths resolve against repository root and evidence/audits for legacy mixed forms. Test names must occur literally in their mapped source file. Current source anchor text is checked anywhere in its source document, not by historical line number. This does not judge behavior, semantic sufficiency, execution, business acceptance, or external sign-off."
+}

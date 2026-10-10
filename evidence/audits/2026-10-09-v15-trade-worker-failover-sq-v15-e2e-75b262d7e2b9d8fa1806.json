@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "TRADE_EXECUTION_WORKER_TERMINATED_AFTER_COMMIT_SECONDARY_RECOVERY",
+  "isolatedProject": "sq-v15-e2e-75b262d7e2b9d8fa1806",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "df2da7f6-8890-41d8-82a5-37343296faeb"
+    },
+    {
+      "scenario": "auto-trade",
+      "testRunId": "21caf4d1-ecd3-466a-a518-b7d429ac086f"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "688f1c87-e0d3-4a48-ad7c-33ba76b1fef1"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "67e7d5da-0c45-412c-920f-e80334089a37"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:2088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=df2da7f6-8890-41d8-82a5-37343296faeb elapsedMs=134\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=10284\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=10311\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=10441\n[V1.5 E2E] scenario=auto-trade begin\n[V1.5 E2E] scenario=auto-trade selector visible\n[V1.5 E2E] scenario=auto-trade priorRun=df2da7f6-8890-41d8-82a5-37343296faeb\n[V1.5 E2E] scenario=auto-trade selected\n[V1.5 E2E] scenario=auto-trade submit dispatched\n[V1.5 E2E] scenario=auto-trade created testRunId=21caf4d1-ecd3-466a-a518-b7d429ac086f elapsedMs=157\n[V1.5 E2E] scenario=auto-trade starting same-run CLI/export elapsedMs=5389\n[V1.5 E2E] scenario=auto-trade CLI/export complete elapsedMs=5517\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=21caf4d1-ecd3-466a-a518-b7d429ac086f\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=688f1c87-e0d3-4a48-ad7c-33ba76b1fef1 elapsedMs=148\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=2064\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=2191\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=688f1c87-e0d3-4a48-ad7c-33ba76b1fef1\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=67e7d5da-0c45-412c-920f-e80334089a37 elapsedMs=138\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=6137\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=6267\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:733:1 › V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (24.6s)\n\n  1 passed (25.2s)\n",
+  "faultSequence": [
+    {
+      "event": "secondary_trade_execution_worker_ready_on_shared_database_and_service_alias",
+      "worker": "sq-v15-e2e-75b262d7e2b9d8fa1806-trade-execution-worker-2",
+      "aliases": [
+        "sq-v15-e2e-75b262d7e2b9d8fa1806-trade-execution-worker-2",
+        "trade-execution-service"
+      ],
+      "at": "2026-10-09T05:55:42.580Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "df2da7f6-8890-41d8-82a5-37343296faeb",
+      "at": "2026-10-09T05:55:54.251Z"
+    },
+    {
+      "event": "trade_execution_worker_terminated_after_fakebroker_commit_before_http_response",
+      "testRunId": "21caf4d1-ecd3-466a-a518-b7d429ac086f",
+      "failedWorker": "sq-v15-e2e-75b262d7e2b9d8fa1806-trade-execution-service-1",
+      "marker": {
+        "faultScenario": "V15_AUTO_RESPONSE_PENDING_BEFORE_TRADE_RESTART",
+        "testRunId": "21caf4d1-ecd3-466a-a518-b7d429ac086f",
+        "clientOrderId": "v15-auto-CN_A-21caf4d1-ecd3-466a-a518-b7d429ac086f-session-2",
+        "eventSequence": 1
+      },
+      "remainingWorker": "sq-v15-e2e-75b262d7e2b9d8fa1806-trade-execution-worker-2",
+      "at": "2026-10-09T05:55:55.834Z"
+    },
+    {
+      "event": "temporal_retried_same_auto_command_on_surviving_trade_worker_and_read_original_order",
+      "testRunId": "21caf4d1-ecd3-466a-a518-b7d429ac086f",
+      "survivingWorker": "sq-v15-e2e-75b262d7e2b9d8fa1806-trade-execution-worker-2",
+      "marker": {
+        "faultScenario": "V15_AUTO_ORIGINAL_ORDER_LOOKUP_AFTER_TRADE_RESTART",
+        "testRunId": "21caf4d1-ecd3-466a-a518-b7d429ac086f",
+        "clientOrderId": "v15-auto-CN_A-21caf4d1-ecd3-466a-a518-b7d429ac086f-session-2",
+        "eventSequence": 2
+      },
+      "at": "2026-10-09T05:55:57.543Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "92f593a8e99da39e9a12980864377cf96a3b72a91f2ccbbf23e6c2ac9d3af90a",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "ffd219c86999726c8e484ceb9b7256204e2cd51032a83dd49bfecca380a73736",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "a2c915f0c1ae40384d3217813899f32f6f66efb203d7f8753a34c599d4de054b",
+    "services/platform-api-service/src/application/v15-auto-trade.ts": "81cfc3828da0d3ade2c6d62a07edfc79531c50e4744e1f93c4e2ed9bec27d8da",
+    "services/platform-api-service/src/application/v15-auto-trade-calendar.ts": "3cb4d20f9742bee2f357f5cdf30de9463012d2245be5b294972c55ce08dabe73",
+    "services/platform-api-service/src/application/v15-orchestration.ts": "d32c49d266328a1a08ad48399f9cb4ad5c94043db31c3452e8763c9b39d4235c",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "6474d5b7a446f3d05a5c09d886616ba93378d82e0c5203d9d1321e956c5cf1eb",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "6320a3d560643a626856c841eed3a85793d864b631cdacb315189d995908a8b2",
+    "services/platform-api-service/src/main.ts": "600e0e920e89b36d5afe6132f1ab8392127e7c8d399c1f24f3618b1c11b9d132",
+    "services/platform-api-service/src/contracts/generated-v13-auto-mandate-client.ts": "7c68a528d824bd88011531d7fbaf8d65fb7816b9358553b630823c32bee06901",
+    "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts": "e22549991994f5747c92c2bafbc3f981e066c1e887dbd8201a1e67a96ab29127",
+    "services/decision-governance-service/src/application/governance-api.ts": "c737409d4ee87b778f8f11e83aed7e504a889dd6fd4414271014c3a138e5b73c",
+    "services/decision-governance-service/src/application/service-auth.ts": "3e3397935e5ca7ce1b267a98bb52d80e027d10c472e0de02c0c59a087bdd250e",
+    "services/decision-governance-service/src/ports/auto-mandate-repository.ts": "c22ac3c392efdce265d4e304c829ef989d78e8d7ef23cc432b20f699baaa7f32",
+    "services/decision-governance-service/src/adapters/postgres-auto-mandate-repository.ts": "eacbc9e8d4cc83d64c39e6eb59f58f957417f883676a294b24f7d090656424c0",
+    "services/decision-governance-service/src/bootstrap/main.ts": "87fd8c3e7a1e8da862929f56c36c5825f3388411aec82a3880793b750f4987e6",
+    "services/decision-governance-service/tests/unit/governance-api.spec.ts": "b5a5dc6802b27dfd787154a724369c8512fc9a6b66397a4429c14cf7fdea191f",
+    "packages/contracts/openapi/decision-governance-v13-auto-mandates.v1.json": "36a4daf418032bdbeb03f2311c49630f7ef8e67374d4c9335c0bed7537bc9e10",
+    "scripts/generate-v13-auto-mandate-client.mjs": "4022220aede8bdfba7f5803dfaaf4b034b4fbafc6b0d58b14b1de78d71d46b1a",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/application/v13-manual-execution.ts": "37e5bd0d0ec338a19a9b93329836bab6f63d7671cbfd0998468701bd95fbc1d8",
+    "services/trade-execution-service/src/bootstrap/main.ts": "70cd78922439c5509586982835b1a22522771a2a75f94f43a7cb0cfd12dbae5c",
+    "services/quant-research-service/src/bootstrap/main.ts": "4a64dae0300df5817e0eed37b4b948a1723098f91403b48780a105fba4689321",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "fixtures/v1/v1.5/auto-trade-calendar.json": "a2d16e34a79594304a52bbd690c9f276e69edf98e19984e383d0a6360345c854",
+    "fixtures/v1/v1.5/auto-trade-calendar-manifest.json": "f263e5c37f9b4f11295ae1cf0126f547d256e5ec425c8db7ef682235417b0662",
+    "fixtures/v1/v1.5/auto-trade-calendar-2.json": "793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc",
+    "fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json": "d8a7e2adf550c67404cf874551b5aa2f2587c00952b479ef2829b8866fcf6b01",
+    "infra/compose/docker-compose.v15-integration.yml": "055a1cc7b033159f5657f526a7747c97d5be07dd5307fe7c1eea8a90f3912ac9",
+    "apps/web/src/main.tsx": "ce73e81ed3e3d7da17609a5e105c2f87a1d25f888062110c9b6b8e5e28d19e0b",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "ab818e2aea6c9b64187691f4af58e8331ba74cfe070316a2ede2850ae5d845a7",
+    "services/trade-execution-service/tests/unit/v13-manual-execution.spec.ts": "a9d0512d8f0508566c0e88f3c1aec72b48abf932e7e68fc1d9870c8b3c9a3fda",
+    "scripts/unique-evidence.mjs": "440bdcbcf64d9df68524eb8c16acb1fb2d76fd9e17cb952c6ba422f15e8b3067",
+    "scripts/test-v15-web-e2e-isolated.mjs": "cc4a6a0c0f59c7b1cb36f1b7b070539db098a0bf09610d1f45f208faf5c18e87"
+  },
+  "failureReason": null,
+  "evidencePath": "evidence/audits/2026-10-09-v15-trade-worker-failover-sq-v15-e2e-75b262d7e2b9d8fa1806.json"
+}

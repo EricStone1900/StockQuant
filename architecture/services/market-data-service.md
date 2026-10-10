@@ -8,6 +8,8 @@
 
 V1.2日线与Fixture；V2.1免费来源；V2.2分钟导入；V2.5扩容。
 
+V1.2研究Fixture当前使用不可变`v1.2-market-data-5`。它显式携带每个市场的合成预期交易日列表；Quant/Platform窗口构造以该列表为时间轴，不能从剩余Bars反推日历。整市场某日无Bars时，该日及其受影响的lookback/next-session标签被排除，历史不足则在Qlib调用前失败关闭。该日历只用于固定合成样本，不能替代真实交易所日历或Market Data服务的生产Calendar事实。
+
 唯一拥有：Security及历史标识、Calendar、MarketRuleSet来源证据、DataVersion、质量报告、行情/FX/公司行动/财务PIT修订与数据Artifact元数据。
 
 边界：不持有账户账本，不发布交易建议，不执行撮合；未知数据不解释为确认停牌。
@@ -129,3 +131,6 @@ Docker Desktop ARM64复验（2026-09-26）：当前源码Market Data镜像`sha25
 2026-10-02边界维护：V2.1 Tencent行情预览、新闻页面读取和来源Smoke的外发HTTP传输现封装于`adapters/PublicSourceHttpAdapter`，bootstrap保留逐用途来源授权门禁并只在授权后调用该adapter。通过注入fetch/clock的单测覆盖请求头、有限超时、来源错误STALE结果和稳定新闻ID；没有实际Provider请求。源许可仍未确认，相关真实来源能力和V2.1验收保持NOT_RUN。
 
 告警事件生命周期与运维UI增量（2026-10-03）：PostgreSQL adapter以部分唯一索引保证每个`alertKey`最多一个`OPEN/ACKNOWLEDGED`事件；重复异常更新`last_seen_at`与载荷，`GET /v2/alerts`列出活动事件，`POST /v2/alerts/{incidentId}/acknowledge`记录首次确认人且幂等。采集完成回调关闭对应订阅/窗口事件，后续再次失败生成新事件；OPEN/RESOLVED通知事件与Incident状态在同一PostgreSQL事务提交并进入本地outbox。Platform通过登录会话代理读取/确认，Web `/paper`展示告警并提供显式确认。除Mock页面回归外，V2.4隔离HTTP/Chromium Harness现启动临时Market Data PostgreSQL/服务及Platform/Web，浏览器对真实Market Data incident执行读取/确认，并校验数据库持久状态和确认人来自登录Cookie；采集执行器/调度器关闭、行情请求0、活动服务未触碰，详见[W3告警浏览器集成审计](../../evidence/audits/2026-10-03-v24-paper-smoke-alert-integration-bd05a5f4f8464a03aeccc172bc3f1ead.json)及[SHA-256](../../evidence/audits/2026-10-03-w3-alert-browser-integration.sha256)。尚无通知dispatcher、真实外发或完整交易日终对账接线；来源授权为NONE时采集执行器继续关闭。本切片不代表W3完成。隔离生命周期行为见[W3告警生命周期审计](../../evidence/audits/2026-10-03-w3-alert-incident-lifecycle.md)。
+
+
+2026-10-09 V1数据库迁移增量：Market Data八组PostgreSQL schema现由`market_data_schema_migrations`服务专属ledger统一登记，既有initializer在同一事务内执行并由transaction advisory lock串行化；拒绝未知较新版本。隔离PostgreSQL先以旧版无ledger方式建表并插入采集run，再执行并发baseline纳管，记录保留；双进程、重复启动、未知版本拒绝均通过。28项Market Data集成和Project Delivery HTTP/PG smoke通过，见[迁移测试](../../evidence/audits/2026-10-09-v12-market-data-migration-a03.log)及[完整集成](../../evidence/audits/2026-10-09-v12-market-data-migration-integration-a02.log)。没有活动库升级、降级脚本或部署前独立迁移CLI。

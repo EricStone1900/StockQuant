@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { loadV14DailyBacktestFixture, loadV14RestrictionFixture } from "../../src/adapters/v14-daily-backtest-fixture.js";
-import { evaluateV14RestrictionBar, V14BacktestEngine, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
+import { loadV14CorporateActionFixture, loadV14DailyBacktestFixture, loadV14RestrictionFixture } from "../../src/adapters/v14-daily-backtest-fixture.js";
+import { evaluateV14RestrictionBar, runV14CorporateActionScenario, V14BacktestEngine, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
 
 describe("V1.4 fixture-backed daily backtest", () => {
   it("uses frozen synthetic restriction cases to reject suspension and locked limits by side", () => {
@@ -18,6 +18,29 @@ describe("V1.4 fixture-backed daily backtest", () => {
   it("does not infer a locked limit from a bar whose daily range includes other prices", () => {
     const restrictions = loadV14RestrictionFixture();
     expect(evaluateV14RestrictionBar({ ...restrictions.bars[3]!, openCents: 1100, highCents: 1120, lowCents: 1090, closeCents: 1110 })).toEqual({ caseId: "open-market-buy", side: "BUY", status: "FILLABLE" });
+  });
+
+  it("fails closed on conflicting duplicate corporate-action identity", () => {
+    const fixture = loadV14CorporateActionFixture();
+    const original = fixture.actions[0]!;
+    const conflicting = original.kind === "SPLIT"
+      ? { ...original, numerator: original.numerator! + 1 }
+      : { ...original, amountPerShareCents: original.amountPerShareCents! + 1 };
+    expect(() => runV14CorporateActionScenario(fixture.bars, [...fixture.actions, conflicting], fixture.sha256, 20260907))
+      .toThrow(`V1.4 conflicting corporate action replay: ${original.actionId}`);
+  });
+
+  it("rejects fractional-share splits and dividend payments outside the frozen calendar", () => {
+    const fixture = loadV14CorporateActionFixture();
+    const split = fixture.actions.find((action) => action.kind === "SPLIT")!;
+    const fractionalSplit = { ...split, numerator: 1, denominator: 3 };
+    expect(() => runV14CorporateActionScenario(fixture.bars, [fractionalSplit], fixture.sha256, 20260907))
+      .toThrow(`V1.4 split creates fractional Fixture shares: ${split.actionId}`);
+
+    const dividend = fixture.actions.find((action) => action.kind === "CASH_DIVIDEND")!;
+    const outsideCalendar = { ...dividend, payDate: "2024-01-09" };
+    expect(() => runV14CorporateActionScenario(fixture.bars, [outsideCalendar], fixture.sha256, 20260907))
+      .toThrow("V1.4 cash dividend requires non-negative cents per share and a Fixture payment date on/after ex-date");
   });
 
   const fixture = loadV14DailyBacktestFixture();

@@ -868,6 +868,7 @@ HistoricalFakeExecutionCommand = TypedDict("HistoricalFakeExecutionCommand", {
   "clientOrderId": Required[str],
   "security": Required[str],
   "requestedQuantity": Required[int],
+  "initialAccountCash": NotRequired[str],
   "bar": Required[dict[str, object]],
   "side": NotRequired[Literal['BUY', 'SELL']],
   "orderType": NotRequired[Literal['MARKET', 'LIMIT']],
@@ -876,6 +877,7 @@ HistoricalFakeExecutionCommand = TypedDict("HistoricalFakeExecutionCommand", {
   "participationRate": NotRequired[float],
   "slippageBps": NotRequired[float],
   "currency": NotRequired[str],
+  "marketFeeSchedule": NotRequired[dict[str, object]],
   "reservation": NotRequired[dict[str, object]],
 })
 
@@ -1034,8 +1036,8 @@ V12StrategySnapshotCommand = TypedDict("V12StrategySnapshotCommand", {
   "testRunId": Required[str],
   "artifactId": Required[str],
   "artifactSha256": Required[str],
-  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
-  "dataVersion": Required[Literal['v1.2-market-data-4']],
+  "fixtureVersion": Required[Literal['v1.2-market-data-4', 'v1.2-market-data-5']],
+  "dataVersion": Required[Literal['v1.2-market-data-4', 'v1.2-market-data-5']],
   "factorVersion": Required[Literal['v1.2-momentum-volume-1']],
   "strategyId": Required[Literal['v1.2-qlib-topk-1', 'v1.2-no-trade-1']],
   "strategyHash": Required[str],
@@ -1115,6 +1117,7 @@ V13AutoPaperExecutionCommand = TypedDict("V13AutoPaperExecutionCommand", {
   "namespace": Required[str],
   "clientOrderId": Required[str],
   "now": Required[str],
+  "executionMode": NotRequired[Literal['IMMEDIATE', 'SEQUENCED']],
 })
 
 V13ExecutionAuthorizationCommand = TypedDict("V13ExecutionAuthorizationCommand", {
@@ -1253,6 +1256,22 @@ V13ProposalRevisionCommand = TypedDict("V13ProposalRevisionCommand", {
   "legs": Required[list[V13ProposalLeg]],
   "reason": Required[str],
   "now": Required[str],
+})
+
+V15RunIncident = TypedDict("V15RunIncident", {
+  "incidentId": Required[str],
+  "testRunId": Required[str],
+  "alertKey": Required[str],
+  "code": Required[str],
+  "severity": Required[Literal['BLOCKER', 'ERROR']],
+  "title": Required[str],
+  "detail": Required[dict[str, object]],
+  "state": Required[Literal['OPEN', 'ACKNOWLEDGED', 'RESOLVED']],
+  "firstSeenAt": Required[str],
+  "lastSeenAt": Required[str],
+  "acknowledgedBy": Required[str | None],
+  "acknowledgedAt": Required[str | None],
+  "resolvedAt": Required[str | None],
 })
 
 V24ObservationRevisionList = TypedDict("V24ObservationRevisionList", {
@@ -1777,10 +1796,11 @@ V12FixturePreview = TypedDict("V12FixturePreview", {
 })
 
 V12ResearchFixturePreview = TypedDict("V12ResearchFixturePreview", {
-  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
+  "fixtureVersion": Required[Literal['v1.2-market-data-4', 'v1.2-market-data-5']],
   "dataMode": Required[Literal['FIXTURE']],
   "dailyBarsSha256": Required[str],
   "securities": Required[list[dict[str, object]]],
+  "marketSessions": Required[list[dict[str, object]]],
   "bars": Required[list[dict[str, object]]],
 })
 
@@ -1849,11 +1869,11 @@ V12QlibProbePreview = TypedDict("V12QlibProbePreview", {
 
 V12QlibStrategyArtifact = TypedDict("V12QlibStrategyArtifact", {
   "schemaVersion": Required[Literal['v1.2-qlib-strategy-artifact-v1']],
-  "fixtureVersion": Required[Literal['v1.2-market-data-4']],
+  "fixtureVersion": Required[Literal['v1.2-market-data-4', 'v1.2-market-data-5']],
   "dailyBarsSha256": Required[str],
   "inputSha256": Required[str],
   "factorVersion": Required[Literal['v1.2-momentum-volume-1']],
-  "dataVersion": Required[Literal['v1.2-market-data-4']],
+  "dataVersion": Required[Literal['v1.2-market-data-4', 'v1.2-market-data-5']],
   "asOf": Required[str],
   "qlibModels": Required[list[dict[str, object]]],
   "predictions": Required[list[dict[str, object]]],

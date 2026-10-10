@@ -2,7 +2,8 @@ import { Client, Connection } from "@temporalio/client";
 import { NativeConnection, Worker } from "@temporalio/worker";
 import { randomUUID } from "node:crypto";
 import type { V15Account, V15NoTradeInput, V15Session } from "../application/v15-no-trade.js";
-import { v15EventWorkflow, v15NoTradeWorkflow } from "./temporal-workflow.js";
+import type { V15AutoExecutionResult, V15AutoOrderResult } from "../application/v15-auto-trade.js";
+import { v15AutoTradeWorkflow, v15EventWorkflow, v15NoTradeWorkflow, v15PausedRejectionWorkflow, v15RecoveryWorkflow } from "./temporal-workflow.js";
 
 const taskQueue = process.env.STOCKQUANT_TEMPORAL_TASK_QUEUE ?? "stockquant-v1-5";
 const address = process.env.STOCKQUANT_TEMPORAL_ADDRESS;
@@ -15,6 +16,12 @@ export type V15NoTradeRuntimeActivities = {
   verifyNoTradeSessions(input: V15NoTradeInput, sessions: V15Session[], baseline: V15Account): Promise<unknown[]>;
   completeNoTrade(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>, observations: unknown[]): Promise<unknown>;
   failNoTrade(input: V15NoTradeInput, message: string): Promise<unknown>;
+  executeAutoTrade(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>): Promise<V15AutoExecutionResult>;
+  completeAutoTrade(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>, orders: V15AutoOrderResult[]): Promise<unknown>;
+  completeCancelledAutoTrade(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>, result: V15AutoExecutionResult): Promise<unknown>;
+  completeRecovery(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>, orders: V15AutoOrderResult[]): Promise<unknown>;
+  rejectPausedMandate(input: V15NoTradeInput, accounts: Record<"CN_A" | "US_EQUITY", V15Account>): Promise<unknown[]>;
+  completePausedRejection(input: V15NoTradeInput, rejections: unknown[]): Promise<unknown>;
 };
 
 export async function startTemporalRuntime(v15Activities?: V15NoTradeRuntimeActivities): Promise<void> {
@@ -48,13 +55,14 @@ export async function runTemporalProbe(): Promise<Record<string, unknown>> {
   return { status: "PASS", workflowId, activityResult: result, activityAttempts: attempts, activityRetry: attempts > 1 };
 }
 
-export async function startV15NoTradeWorkflow(input: V15NoTradeInput): Promise<{ workflowId: string; started: boolean }> {
+export async function startV15Workflow(input: V15NoTradeInput): Promise<{ workflowId: string; started: boolean }> {
   if (!address) throw new Error("STOCKQUANT_TEMPORAL_ADDRESS is not configured");
   const connection = await Connection.connect({ address });
   client = client ?? new Client({ connection, namespace: process.env.STOCKQUANT_TEMPORAL_NAMESPACE ?? "default" });
-  const workflowId = `v15-no-trade-${input.testRunId}`;
+  const workflowId = `${input.scenarioId === "auto-trade" ? "v15-auto-trade" : input.scenarioId === "recovery" ? "v15-recovery" : input.scenarioId === "rejection" ? "v15-rejection" : "v15-no-trade"}-${input.testRunId}`;
   try {
-    await client.workflow.start(v15NoTradeWorkflow, { args: [input], taskQueue, workflowId, workflowIdReusePolicy: "REJECT_DUPLICATE" });
+    const workflow = input.scenarioId === "auto-trade" ? v15AutoTradeWorkflow : input.scenarioId === "recovery" ? v15RecoveryWorkflow : input.scenarioId === "rejection" ? v15PausedRejectionWorkflow : v15NoTradeWorkflow;
+    await client.workflow.start(workflow, { args: [input], taskQueue, workflowId, workflowIdReusePolicy: "REJECT_DUPLICATE" });
     return { workflowId, started: true };
   } catch (error) {
     if (error instanceof Error && error.name === "WorkflowExecutionAlreadyStartedError") return { workflowId, started: false };

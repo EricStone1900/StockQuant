@@ -43,11 +43,16 @@ describe("V1.4 Platform-to-Quant adapter", () => {
   it("uses the service bearer and preserves typed HTTP rejection", async () => {
     const request = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ status: "REJECTED" }), { status: 422, headers: { "content-type": "application/json" } }));
     const client = new GeneratedQuantV14BacktestClient("http://quant.test/", () => ({ authorization: "Bearer " + "q".repeat(32), "x-stockquant-service-id": "platform-api-service" }), request as typeof fetch);
-    await expect(client.runV14DailyFixtureBacktest({ scenarioId: "normal", seed: 20260907, policy: V14_DEFAULT_EXECUTION_POLICY })).rejects.toBeInstanceOf(QuantV14BacktestHttpError);
+    const input = { scenarioId: "normal" as const, seed: 20260907, policy: V14_DEFAULT_EXECUTION_POLICY };
+    await expect(client.runV14DailyFixtureBacktest(input)).rejects.toMatchObject<Partial<QuantV14BacktestHttpError>>({ status: 422, body: { status: "REJECTED" } });
     const [url, init] = request.mock.calls[0]!;
     expect(String(url)).toBe("http://quant.test/v1/research/backtests/daily-fixture");
-    expect(init?.method).toBe("POST");
-    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer " + "q".repeat(32));
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: { authorization: "Bearer " + "q".repeat(32), "x-stockquant-service-id": "platform-api-service", "content-type": "application/json" },
+      body: JSON.stringify(input),
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("rejects a successful response bound to a different scenario", async () => {

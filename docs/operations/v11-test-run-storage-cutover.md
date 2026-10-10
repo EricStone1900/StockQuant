@@ -15,6 +15,22 @@
 
 迁移入口此前拒绝任何非空目标表，这与当前44条合法 shadow 行冲突；现在按 `sourceRows - existingShadowRows` 计算应插数，并保留超额目标及字段冲突拒绝。旧版本的脚本只拒绝最近24小时的非终态；但当前快照中虽该计数为0，仍有2条旧 RUNNING 和1条旧 WAITING，存在迁移后把未处置Run永久留在非终态的风险。2026-10-05已加固为拒绝任何QUEUED/RUNNING/WAITING legacy行，须由操作负责人先处置并保留证据；不得以年龄视为已处置。维护窗口尚未安排，因此活动切换/回退仍为NOT_AUTHORIZED/NOT_DEPLOYED。
 
+## 2026-10-09 当前容器配置漂移复核
+
+获批的只读Docker检查发现`stockquant-v12`下13个容器仍在运行。Platform API容器的实际`STOCKQUANT_V11_RUN_STORAGE=legacy`，且挂载清单为空；PostgreSQL挂载`stockquant-v12_postgres-v11`，Research Automation挂载`stockquant-v12_research-artifacts-v1`。当前仓库Compose文件则为Platform API和Research Automation都声明了同一Artifact卷。Platform API未显式设置Artifact root，源码回退至`/var/lib/stockquant/research-artifacts`，但该运行容器没有挂载此路径对应的持久卷。没有读取Artifact目录或数据库，故不判断其是否有数据；但不能据仓库Compose推定运行实例与之相同，也不能开始TestRun切换或配对备份。维护负责人须先确认此实例是否为目标、核对现有Artifact文件与PostgreSQL引用，并将运行/Compose漂移处理纳入获批窗口和隔离恢复验证。只读清单及Hash见[活动容器审计A01](../../evidence/audits/2026-10-09-v1-active-container-inventory-a01.md)与[原始输出](../../evidence/audits/2026-10-09-v1-active-container-inventory-a01.log)。本次未操作任何容器、数据库、卷或网络；多个随机E2E项目仍运行，未清理。
+
+同日继续在只读事务中核查活动`platform_api`数据库：legacy `test_runs` 59条（COMPLETED 53、FAILED 3、RUNNING 2、WAITING 1），V1.1 stage表44条（COMPLETED 38、FAILED 3、RUNNING 2、WAITING 1）；legacy中3条非终态违反本Runbook的迁移前置，需操作负责人先处置并留证。`acceptance_stage_runs`全表288条，其中12条非终态。四个门禁缺失UUID在legacy和stage表均无记录；当前数据库也不存在`qlib_fixture_artifacts`表。旧49/44快照是历史值，当前legacy/stage数量差15尚未经逐行parity定位，不能直接推断可迁移条数。完整边界与查询Hash见[活动DB前置审计A01](../../evidence/audits/2026-10-09-v1-active-db-preflight-a01.md)。本次查询没有读取Run正文或执行备份；离线/外部历史来源仍未知。
+
+随后按当前迁移器的字段投影和比较项执行只读逐行Parity：15条legacy源Run缺失stage目标行，全部为COMPLETED；现有目标没有发现字段divergence。另两条V1.1 RUNNING均为`normal`且尚无assertion/acceptance行；一条WAITING为`recovery`，有一条assertion、无acceptance。Run UUID及差异/元数据清单见[Parity审计A01](../../evidence/audits/2026-10-09-v1-active-db-parity-diff-a01.md)。这给出了后续迁移差异集，但不授权写入；3条非终态仍须负责人逐项处置，不能从空断言或记录年龄推断结果。
+
+## 2026-10-10 活动运行时只读复核 A02
+
+当前`stockquant-v12`仍运行13个容器。Platform API实际`STOCKQUANT_V11_RUN_STORAGE=legacy`且无挂载，尽管Compose仍为Platform API声明`research-artifacts-v1`；该Artifact卷目前只挂载在Research Automation。PostgreSQL仍挂`stockquant-v12_postgres-v11`，服务健康状态与端口/卷信息见[A02机器报告](../../evidence/audits/2026-10-10-v1-active-runtime-preflight-a02.json)和[审计说明](../../evidence/audits/2026-10-10-v1-active-runtime-preflight-a02.md)。本轮只读查询未查看Artifact字节或Run正文。
+
+活动`platform_api` legacy表当前60条（COMPLETED 54、FAILED 3、RUNNING 2、WAITING 1），比A01的59条多1条COMPLETED；V1.1 stage仍44条，stage全表非终态12条。两个RUNNING和一个WAITING的legacy Run仍存在，ID分别为`221157ba-dde4-4fe4-92ff-0bb942c066b4`、`49a6dfa0-4c96-480f-9d64-7680fa61a626`、`fbb122dc-2543-4680-b3fb-bf474161ce45`。四个历史缺失UUID仍不在本地两表中。首轮只读探针使用错误列名并回滚；列名核实后只读复查成功。记录与Hash见[A02](../../evidence/audits/2026-10-10-v1-active-runtime-preflight-a02.md)。
+
+结论仍为`NOT_READY / NOT_AUTHORIZED / NOT_DEPLOYED`。维护负责人须确认目标实例，判断容器/Compose漂移并核对Artifact字节与数据库引用；三个legacy非终态Run需逐项有责任人处置；维护窗口前再做最新逐行Parity和配对备份隔离恢复。没有因本次只读复核而停止、重启、改挂载、导出备份或处置业务Run。
+
 ## 放行前置条件
 
 1. 维护负责人确认本地目标、影响服务、开始/结束时间和回退负责人；本流程需要短暂停止 Platform API 写入。

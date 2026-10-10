@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-RETAINED-STACK-WAITING-RUN-DETAIL-A04",
+  "status": "READ_ONLY_SNAPSHOT",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "query": "SELECT scenario_id,status,created_at,completed_at,jsonb_array_length(assertions) FROM acceptance_stage_runs WHERE stage_id='V1.5' AND status='WAITING'",
+  "waitingRuns": [
+    {
+      "scenario": "normal",
+      "status": "WAITING",
+      "createdAt": "2026-10-10 04:13:37.728431+00",
+      "completedAt": null,
+      "assertionCount": 2
+    }
+  ],
+  "actionTaken": "none",
+  "decision": "Do not restart NATS until this normal scenario TestRun reaches a terminal state or a maintenance window is explicitly approved."
+}

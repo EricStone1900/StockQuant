@@ -6,14 +6,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { serviceAuthAdminEndpoint } from "./service-auth-admin-endpoint.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const requirePg = createRequire(resolve(root, "services/decision-governance-service/package.json"));
 const { Client } = requirePg("pg");
-const adminUrl = new URL(process.env.STOCKQUANT_AUTH_SMOKE_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
-if (adminUrl.hostname !== "127.0.0.1" || adminUrl.port !== "5433" || adminUrl.username !== "postgres" || adminUrl.pathname !== "/postgres") {
-  throw new Error("service auth HTTP smokes require the dedicated local PostgreSQL admin endpoint at 127.0.0.1:5433/postgres");
-}
+const adminUrl = serviceAuthAdminEndpoint(process.env.STOCKQUANT_AUTH_SMOKE_ADMIN_DATABASE_URL, process.env.STOCKQUANT_ISOLATED_PG_CONTAINER);
 
 const databaseName = `stockquant_auth_smoke_${randomUUID().replaceAll("-", "")}`;
 const databaseUrl = new URL(adminUrl);
@@ -65,10 +63,12 @@ async function runService(serviceName, assertions) {
     if (output.length < 6000) output += chunk.toString().slice(0, 6000 - output.length);
   });
   const base = `http://127.0.0.1:${port}`;
-  const request = (path, { caller, bearer, method = "GET", body } = {}) => fetch(`${base}${path}`, {
+  const request = (path, { caller, bearer, owner, actor, method = "GET", body } = {}) => fetch(`${base}${path}`, {
     method,
     headers: {
       ...(caller ? { "x-stockquant-service-id": caller } : {}),
+      ...(owner ? { "x-stockquant-owner-id": owner } : {}),
+      ...(actor ? { "x-stockquant-actor-id": actor } : {}),
       ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
       ...(body !== undefined ? { "content-type": "application/json" } : {})
     },
@@ -101,10 +101,138 @@ try {
   await admin.query(`CREATE DATABASE "${databaseName}"`);
   created = true;
 
+  await Promise.all([1, 2].map(() => runService("decision-governance-service", async (request) => {
+    const ready = await request("/ready");
+    assert.equal(ready.status, 200, "concurrent Governance startup must serialize and complete the schema baseline");
+  })));
+
   await runService("decision-governance-service", async (request) => {
     const testDb = new Client({ connectionString: databaseUrl.toString() });
     await testDb.connect();
     try {
+    const governanceMigrations = await testDb.query("SELECT version, description, count(*) OVER ()::text AS count FROM decision_governance_schema_migrations");
+    assert.deepEqual(governanceMigrations.rows, [{
+      version: 1,
+      description: "V1 execution authorization, proposal, mandate, and strategy snapshot schema",
+      count: "1"
+    }], "Decision Governance startup must apply exactly one transactional V1 schema baseline");
+    console.info(`[Decision Governance schema migration] ${JSON.stringify({ version: 1, count: governanceMigrations.rows[0].count, isolatedDatabase: databaseName })}`);
+    const governanceRouteScopes = [
+      { method: "GET", path: `/internal/v1/proposals/${randomUUID()}`, callers: ["platform-api-service", "trade-execution-service"] },
+      { method: "GET", path: `/internal/v1/auto-mandates/${randomUUID()}/runs/${randomUUID()}`, callers: ["platform-api-service"] },
+      { method: "GET", path: `/internal/v1/auto-mandates/${randomUUID()}/runs/${randomUUID()}/versions/1/budget`, callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/v12/strategy-snapshots", callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/authorizations", callers: ["historical-replay-worker"] },
+      { method: "POST", path: `/internal/v1/proposals/${randomUUID()}/execution-authorizations`, callers: ["trade-execution-service"] },
+      { method: "POST", path: `/internal/v1/proposals/${randomUUID()}/execution-authorizations/validate`, callers: ["trade-execution-service"] },
+      { method: "POST", path: `/internal/v1/auto-mandates/${randomUUID()}/orders/authorize`, callers: ["trade-execution-service"] },
+      { method: "POST", path: `/internal/v1/auto-mandates/reservations/${randomUUID()}/settle`, callers: ["trade-execution-service"] },
+      { method: "POST", path: "/internal/v1/paper-authorizations", callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/paper-authorizations/revoke", callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/candidate-mandates/readiness", callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/proposals", callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/auto-mandates", callers: ["platform-api-service"] },
+      { method: "POST", path: `/internal/v1/auto-mandates/${randomUUID()}/activate`, callers: ["platform-api-service"] },
+      { method: "POST", path: `/internal/v1/auto-mandates/${randomUUID()}/pause`, callers: ["platform-api-service"] },
+      { method: "POST", path: `/internal/v1/proposals/${randomUUID()}/approve`, callers: ["platform-api-service"] },
+      { method: "POST", path: `/internal/v1/proposals/${randomUUID()}/reject`, callers: ["platform-api-service"] },
+      { method: "POST", path: `/internal/v1/proposals/${randomUUID()}/revise`, callers: ["platform-api-service"] },
+      { method: "POST", path: "/internal/v1/paper-authorizations/validate", callers: ["trade-execution-service"] },
+      { method: "POST", path: "/internal/v1/authorizations/validate", callers: ["trade-execution-service"] }
+    ];
+    const governanceIdentities = [
+      { id: "platform-api-service", token: tokens.platform },
+      { id: "trade-execution-service", token: tokens.trade },
+      { id: "historical-replay-worker", token: tokens.replay }
+    ];
+    const factTables = ["proposals", "proposal_versions", "proposal_decisions", "proposal_revisions", "proposal_execution_authorizations", "execution_authorizations", "auto_policy_mandates", "auto_policy_mandate_events", "auto_policy_budget_reservations", "governed_strategy_snapshots"];
+    const governanceFacts = async () => Object.fromEntries(await Promise.all(factTables.map(async (table) => [table, (await testDb.query(`SELECT count(*)::text AS count FROM ${table}`)).rows[0].count])));
+    const factsBeforeRouteProbes = await governanceFacts();
+    let rejectedRouteProbes = 0;
+    for (const route of governanceRouteScopes) {
+      for (const identity of governanceIdentities.filter((item) => !route.callers.includes(item.id))) {
+        const response = await request(route.path, { method: route.method, caller: identity.id, bearer: identity.token, body: route.method === "POST" ? "{" : undefined });
+        assert.equal(response.status, 403, `wrong service ${identity.id} must be rejected before parsing ${route.method} ${route.path}`);
+        rejectedRouteProbes += 1;
+      }
+      const allowedIdentity = governanceIdentities.find((item) => route.callers.includes(item.id));
+      const wrongMethod = route.method === "GET" ? "POST" : "GET";
+      const methodResponse = await request(route.path, { method: wrongMethod, caller: allowedIdentity.id, bearer: allowedIdentity.token, body: wrongMethod === "POST" ? "{" : undefined });
+      assert.equal(methodResponse.status, 403, `wrong HTTP method must be rejected for ${route.path}`);
+      rejectedRouteProbes += 1;
+      const wrongBearer = await request(route.path, { method: route.method, caller: allowedIdentity.id, bearer: tokens.runner, body: route.method === "POST" ? "{" : undefined });
+      assert.equal(wrongBearer.status, 403, `wrong Bearer must be rejected for ${route.method} ${route.path}`);
+      rejectedRouteProbes += 1;
+    }
+    assert.deepEqual(await governanceFacts(), factsBeforeRouteProbes, "unauthorized route probes must not mutate Governance business facts");
+    console.info(`[Decision Governance route-scope HTTP+PG matrix] ${JSON.stringify({ status: "PASS", admittedRoutes: governanceRouteScopes.length, identities: governanceIdentities.map((item) => item.id), rejectedRouteProbes, malformedPostRejectedBeforeParsing: true, businessFactsUnchanged: true })}`);
+    const budgetOwner = `budget-owner-${randomUUID()}`;
+    const budgetRun = randomUUID();
+    const budgetMandate = randomUUID();
+    const budgetAccount = randomUUID();
+    const budgetCreatedAt = "2026-09-25T01:00:00.000Z";
+    await testDb.query("INSERT INTO auto_policy_mandates(mandate_id,mandate_version,content_hash,owner_id,test_run_id,account_id,strategy_version,market,currency,security_scope,max_order_amount,max_total_amount,max_order_count,valid_from,expires_at,status,created_at) VALUES($1,1,$2,$3,$4,$5,'fixture-auto-policy-test-v1','CN_A','CNY','[\"600000.SH\"]'::jsonb,1000,3000,3,$6,$7,'ACTIVE',$6)", [budgetMandate, "a".repeat(64), budgetOwner, budgetRun, budgetAccount, budgetCreatedAt, "2026-09-25T07:00:00.000Z"]);
+    for (const [status, amount] of [["RESERVED", "100.00"], ["CONSUMED", "200.00"], ["RELEASED", "50.00"]]) {
+      await testDb.query("INSERT INTO auto_policy_budget_reservations(reservation_id,mandate_id,mandate_version,proposal_id,proposal_version,proposal_hash,client_order_id,command_hash,amount,status,created_at,updated_at) VALUES($1,$2,1,$3,1,$4,$5,$6,$7,$8,$9,$9)", [randomUUID(), budgetMandate, randomUUID(), "b".repeat(64), `client-${status}`, "c".repeat(64), amount, status, budgetCreatedAt]);
+    }
+    const budgetPath = `/internal/v1/auto-mandates/${budgetMandate}/runs/${budgetRun}/versions/1/budget`;
+    const budgetRead = await request(budgetPath, { caller: "platform-api-service", bearer: tokens.platform, owner: budgetOwner });
+    assert.equal(budgetRead.status, 200, "Platform identity with the exact owner/TestRun scope may independently read budget totals");
+    assert.deepEqual(await budgetRead.json(), { mandateId: budgetMandate, mandateVersion: 1, ownerId: budgetOwner, testRunId: budgetRun, reservedAmount: "100.00", consumedAmount: "200.00", releasedAmount: "50.00", reservationCount: 3, consumedCount: 1, releasedCount: 1 });
+    assert.equal((await request(budgetPath, { caller: "trade-execution-service", bearer: tokens.trade })).status, 403, "Trade identity cannot use the Platform-only budget read");
+    const wrongOwnerBudget = await request(budgetPath, { caller: "platform-api-service", bearer: tokens.platform, owner: "wrong-owner" });
+    assert.equal(wrongOwnerBudget.status, 404, "budget reads cannot cross owner scope");
+    console.info(`[Decision Governance Mandate budget read] ${JSON.stringify({ status: "PASS", reservedAmount: "100.00", consumedAmount: "200.00", releasedAmount: "50.00", reservationCount: 3, ownerScoped: true, testRunScoped: true })}`);
+    const mandateOwner = `mandate-boundary-${randomUUID()}`;
+    const mandateRun = randomUUID();
+    const mandateId = randomUUID();
+    const mandatePath = "/internal/v1/auto-mandates";
+    const mandateCommand = { mandateId, mandateVersion: 1, testRunId: mandateRun, accountId: randomUUID(), strategyVersion: "fixture-auto-policy-test-v1", market: "CN_A", currency: "CNY", securityScope: ["600000.SH"], maxOrderAmount: "1000.00", maxTotalAmount: "2000.00", maxOrderCount: 2, validFrom: "2026-09-25T01:00:00.000Z", expiresAt: "2026-09-25T07:00:00.000Z", reason: "isolated mode-boundary smoke", now: "2026-09-25T01:00:00.000Z" };
+    const injectedModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    for (const [environmentMode, brokerMode] of injectedModes) {
+      const rejected = await request(mandatePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify({ ...mandateCommand, environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `AUTO Mandate create must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    assert.equal((await testDb.query("SELECT count(*)::text AS count FROM auto_policy_mandates WHERE mandate_id=$1", [mandateId])).rows[0].count, "0", "mode-injected AUTO Mandate create attempts must not persist a Mandate");
+    const mandateCreated = await request(mandatePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify(mandateCommand) });
+    assert.equal(mandateCreated.status, 201, "a valid owner-scoped PAPER/FAKE AUTO Mandate must persist");
+    const mandateCreatedBody = await mandateCreated.json();
+    const activationPath = `${mandatePath}/${mandateId}/activate`;
+    const activationCommand = { mandateVersion: 1, testRunId: mandateRun, contentHash: mandateCreatedBody.contentHash, reason: "activate exact isolated Mandate", now: "2026-09-25T01:01:00.000Z" };
+    for (const [environmentMode, brokerMode] of injectedModes) {
+      const rejected = await request(activationPath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify({ ...activationCommand, environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `AUTO Mandate activation must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    assert.equal((await testDb.query("SELECT status FROM auto_policy_mandates WHERE mandate_id=$1", [mandateId])).rows[0].status, "PENDING", "mode-injected activation attempts must leave the Mandate pending");
+    const activatedMandate = await request(activationPath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify(activationCommand) });
+    const activatedMandateBody = await activatedMandate.json();
+    assert.equal(activatedMandate.status, 200, `the exact valid activation must remain available after rejected injection attempts: ${JSON.stringify(activatedMandateBody)}`);
+    const pausePath = `${mandatePath}/${mandateId}/pause`;
+    const pauseCommand = { mandateVersion: 1, testRunId: mandateRun, reason: "pause exact isolated Mandate", now: "2026-09-25T01:02:00.000Z" };
+    const pauseModeResults = [];
+    for (const [environmentMode, brokerMode] of injectedModes) {
+      const rejected = await request(pausePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify({ ...pauseCommand, environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `AUTO Mandate pause must reject injected ${environmentMode}/${brokerMode}`);
+      pauseModeResults.push({ environmentMode, brokerMode, status: rejected.status });
+    }
+    const mandateAfterPauseInjection = await testDb.query("SELECT m.status,(SELECT count(*)::text FROM auto_policy_mandate_events e WHERE e.mandate_id=m.mandate_id) AS event_count FROM auto_policy_mandates m WHERE m.mandate_id=$1", [mandateId]);
+    assert.deepEqual(mandateAfterPauseInjection.rows, [{ status: "ACTIVE", event_count: "2" }], "mode-injected pause attempts must leave the active mandate and event history unchanged");
+    const mandateAuthPath = `${mandatePath}/${mandateId}/orders/authorize`;
+    const reservationCountBeforeInjection = (await testDb.query("SELECT count(*)::text AS count FROM auto_policy_budget_reservations")).rows[0].count;
+    for (const [environmentMode, brokerMode] of injectedModes) {
+      const rejected = await request(mandateAuthPath, { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, owner: mandateOwner, body: JSON.stringify({ mandateVersion: 1, ownerId: mandateOwner, clientOrderId: `injected-${randomUUID()}`, commandHash: "e".repeat(64), proposal: {}, now: "2026-09-25T01:02:00.000Z", environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `AUTO Mandate order authorization must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    assert.equal((await testDb.query("SELECT count(*)::text AS count FROM auto_policy_budget_reservations")).rows[0].count, reservationCountBeforeInjection, "mode-injected AUTO order attempts must not reserve budget");
+    const settlementPath = `/internal/v1/auto-mandates/reservations/${randomUUID()}/settle`;
+    for (const [environmentMode, brokerMode] of injectedModes) {
+      const rejected = await request(settlementPath, { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify({ outcome: "CONSUMED", now: "2026-09-25T01:03:00.000Z", environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `AUTO budget settlement must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    const validPause = await request(pausePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify(pauseCommand) });
+    assert.equal(validPause.status, 200, "valid Mandate pause must remain available after mode injection rejections");
+    assert.equal((await testDb.query("SELECT status FROM auto_policy_mandates WHERE mandate_id=$1", [mandateId])).rows[0].status, "PAUSED");
+    console.info(`[V1.3 AUTO Mandate mode-injection HTTP+PG] ${JSON.stringify({ status: "PASS", attemptedModes: injectedModes, createRowsAfterRejection: 0, activationRemainedPending: true, validCreateAndActivation: true, pauseModeResults, mandateUnchangedAfterPauseInjection: mandateAfterPauseInjection.rows[0].status === "ACTIVE" && mandateAfterPauseInjection.rows[0].event_count === "2", validPauseStatus: validPause.status, orderBudgetSideEffects: 0, settlementModeInjectionRejected: true })}`);
     const missing = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", body: "{" });
     const mismatched = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.trade, body: "{" });
     const forgedScope = await request("/internal/v1/authorizations", { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: "{" });
@@ -116,7 +244,125 @@ try {
     assert.equal(requestAuthorized.status, 422, "valid replay identity must reach JSON validation without writing a row");
     assert.equal(validateAuthorized.status, 422, "valid execution identity must reach JSON validation without writing a row");
 
+    const proposalId = randomUUID();
+    const proposalGrantPath = `/internal/v1/proposals/${proposalId}/execution-authorizations`;
+    const proposalValidatePath = `${proposalGrantPath}/validate`;
+    assert.equal((await request(proposalGrantPath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, body: "{" })).status, 403, "Platform must not create a V1.3 execution grant");
+    assert.equal((await request(proposalValidatePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, body: "{" })).status, 403, "Platform must not validate a V1.3 execution grant");
+    assert.equal((await request(proposalGrantPath, { method: "POST", caller: "trade-execution-service", bearer: tokens.platform, body: "{" })).status, 403, "Trade caller with another service's token must be rejected");
+    assert.equal((await request(proposalGrantPath, { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: "{" })).status, 422, "authorized Trade request must reach V1.3 payload validation");
+    assert.equal((await testDb.query("SELECT count(*)::text AS count FROM proposal_execution_authorizations")).rows[0].count, "0", "unauthorized and invalid V1.3 grant attempts must not persist rows");
+    console.info(`[V1.3 Proposal execution authorization HTTP boundary] ${JSON.stringify({ status: "PASS", unauthorizedCallerRejected: true, mismatchedBearerRejected: true, malformedAuthorizedRequestRejected: true, persistedAuthorizationRows: 0 })}`);
+
+    const proposalOwner = `proposal-owner-${randomUUID()}`;
+    const proposalRun = randomUUID();
+    const proposalAccount = randomUUID();
+    const proposalNow = "2026-10-07T00:00:00.000Z";
+    const proposalExpiry = "2026-10-08T00:00:00.000Z";
+    const proposalCreate = await request("/internal/v1/proposals", {
+      method: "POST", caller: "platform-api-service", bearer: tokens.platform,
+      body: JSON.stringify({ ownerId: proposalOwner, testRunId: proposalRun, idempotencyKey: `auth-smoke-${randomUUID()}`, accountId: proposalAccount, strategyVersion: "fixture-manual-auth-smoke-v1", operation: "REBALANCE", environmentMode: "PAPER", brokerMode: "FAKE", expiresAt: proposalExpiry, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "BUY", quantity: 100 }] })
+    });
+    assert.equal(proposalCreate.status, 201, "Platform may create an isolated PAPER/FAKE Proposal for the TestRun");
+    const proposal = await proposalCreate.json();
+    const platformActor = `approver-${randomUUID()}`;
+    const proposalModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    const proposalRevision = { expectedVersion: proposal.proposalVersion, expectedContentHash: proposal.contentHash, operation: "REBALANCE", expiresAt: proposalExpiry, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "BUY", quantity: 100 }], reason: "mode-boundary smoke", now: proposalNow };
+    const proposalMutationModeResults = [];
+    for (const [environmentMode, brokerMode] of proposalModes) {
+      const decisionResponse = await request(`/internal/v1/proposals/${proposal.proposalId}/approve`, {
+        method: "POST", caller: "platform-api-service", bearer: tokens.platform, actor: platformActor,
+        body: JSON.stringify({ expectedVersion: proposal.proposalVersion, expectedContentHash: proposal.contentHash, reason: "mode injection must be rejected", now: proposalNow, environmentMode, brokerMode })
+      });
+      assert.equal(decisionResponse.status, 422, `Proposal approval must reject injected ${environmentMode}/${brokerMode}`);
+      const rejectionResponse = await request(`/internal/v1/proposals/${proposal.proposalId}/reject`, {
+        method: "POST", caller: "platform-api-service", bearer: tokens.platform, actor: platformActor,
+        body: JSON.stringify({ expectedVersion: proposal.proposalVersion, expectedContentHash: proposal.contentHash, reason: "mode injection must be rejected", now: proposalNow, environmentMode, brokerMode })
+      });
+      assert.equal(rejectionResponse.status, 422, `Proposal rejection must reject injected ${environmentMode}/${brokerMode}`);
+      const revisionResponse = await request(`/internal/v1/proposals/${proposal.proposalId}/revise`, {
+        method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: proposalOwner, actor: platformActor,
+        body: JSON.stringify({ ...proposalRevision, environmentMode, brokerMode })
+      });
+      assert.equal(revisionResponse.status, 422, `Proposal revision must reject injected ${environmentMode}/${brokerMode}`);
+      proposalMutationModeResults.push({ environmentMode, brokerMode, approvalStatus: decisionResponse.status, rejectionStatus: rejectionResponse.status, revisionStatus: revisionResponse.status });
+    }
+    const proposalAfterModeInjection = await testDb.query(`SELECT p.status,p.proposal_version,p.content_hash,
+      (SELECT count(*)::text FROM proposal_decisions d WHERE d.proposal_id=p.proposal_id) AS decision_count,
+      (SELECT count(*)::text FROM proposal_revisions r WHERE r.proposal_id=p.proposal_id) AS revision_count
+      FROM proposals p WHERE p.proposal_id=$1`, [proposal.proposalId]);
+    assert.deepEqual(proposalAfterModeInjection.rows, [{ status: "MANUAL_APPROVAL_PENDING", proposal_version: 1, content_hash: proposal.contentHash, decision_count: "0", revision_count: "0" }], "mode injection on approval/rejection/revision must not change proposal state or create decision/revision rows");
+    const approvedResponse = await request(`/internal/v1/proposals/${proposal.proposalId}/approve`, {
+      method: "POST", caller: "platform-api-service", bearer: tokens.platform, actor: platformActor,
+      body: JSON.stringify({ expectedVersion: proposal.proposalVersion, expectedContentHash: proposal.contentHash, reason: "isolated authorization smoke approval", now: proposalNow })
+    });
+    assert.equal(approvedResponse.status, 200, "Platform approval must persist before Trade can request execution authorization");
+    assert.equal((await approvedResponse.json()).status, "APPROVED_MANUAL");
+    const proposalCommand = { proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, ownerId: proposalOwner, testRunId: proposalRun, accountId: proposalAccount, clientOrderId: `client-${randomUUID()}`, commandHash: "d".repeat(64), now: proposalNow };
+    const rejectedProposalModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    for (const [scope, changedScope] of [
+      ["owner", { ownerId: `wrong-owner-${randomUUID()}` }],
+      ["TestRun", { testRunId: randomUUID() }],
+      ["account", { accountId: randomUUID() }]
+    ]) {
+      const wrongScope = await request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations`, {
+        method: "POST", caller: "trade-execution-service", bearer: tokens.trade,
+        body: JSON.stringify({ ...proposalCommand, ...changedScope, clientOrderId: `wrong-${String(scope).toLowerCase()}-${randomUUID()}` })
+      });
+      assert.equal(wrongScope.status, 403, `Trade authorization must reject a Proposal ${scope} scope mismatch`);
+    }
+    for (const [environmentMode, brokerMode] of rejectedProposalModes) {
+      const rejectedMode = await request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations`, {
+        method: "POST", caller: "trade-execution-service", bearer: tokens.trade,
+        body: JSON.stringify({ ...proposalCommand, environmentMode, brokerMode, clientOrderId: `wrong-mode-${environmentMode}-${brokerMode}-${randomUUID()}` })
+      });
+      assert.equal(rejectedMode.status, 422, `Proposal execution authorization must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    assert.equal((await testDb.query("SELECT count(*)::text AS count FROM proposal_execution_authorizations")).rows[0].count, "0", "wrong owner/TestRun/account authorization attempts must not create grants");
+    const grantResponse = await request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations`, {
+      method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify(proposalCommand)
+    });
+    assert.equal(grantResponse.status, 200, "Trade may receive a grant only for the exact approved Proposal scope");
+    const grant = await grantResponse.json();
+    assert.equal(grant.status, "ACTIVE");
+    for (const [environmentMode, brokerMode] of rejectedProposalModes) {
+      const rejectedModeValidation = await request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations/validate`, {
+        method: "POST", caller: "trade-execution-service", bearer: tokens.trade,
+        body: JSON.stringify({ ...proposalCommand, authorizationId: grant.authorizationId, environmentMode, brokerMode })
+      });
+      assert.equal(rejectedModeValidation.status, 422, `Proposal execution validation must reject injected ${environmentMode}/${brokerMode}`);
+    }
+    const activeAfterModeInjection = await testDb.query("SELECT status FROM proposal_execution_authorizations WHERE authorization_id=$1", [grant.authorizationId]);
+    assert.deepEqual(activeAfterModeInjection.rows, [{ status: "ACTIVE" }], "mode-injection validation attempts must not consume the execution grant");
+    const changedCommand = await request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations/validate`, {
+      method: "POST", caller: "trade-execution-service", bearer: tokens.trade,
+      body: JSON.stringify({ ...proposalCommand, authorizationId: grant.authorizationId, commandHash: "e".repeat(64) })
+    });
+    assert.equal(changedCommand.status, 403, "changed command hash must not consume the Proposal grant");
+    const validateProposal = () => request(`/internal/v1/proposals/${proposal.proposalId}/execution-authorizations/validate`, {
+      method: "POST", caller: "trade-execution-service", bearer: tokens.trade,
+      body: JSON.stringify({ ...proposalCommand, authorizationId: grant.authorizationId })
+    });
+    const proposalValidations = await Promise.all([validateProposal(), validateProposal()]);
+    const proposalValidationResults = await Promise.all(proposalValidations.map(async (response) => ({ status: response.status, body: await response.json() })));
+    assert.deepEqual(proposalValidationResults.map((result) => result.status).sort(), [200, 200], "exact Proposal command may safely retry an uncertain validation response");
+    assert.equal(proposalValidationResults.filter((result) => result.body.replayed === false).length, 1, "exactly one validation consumes the Proposal authorization");
+    assert.equal(proposalValidationResults.filter((result) => result.body.replayed === true).length, 1, "concurrent retry is reported as a replay");
+    const proposalAuthorizationState = await testDb.query("SELECT status, owner_id, test_run_id, account_id, command_hash FROM proposal_execution_authorizations WHERE authorization_id=$1", [grant.authorizationId]);
+    assert.deepEqual(proposalAuthorizationState.rows, [{ status: "CONSUMED", owner_id: proposalOwner, test_run_id: proposalRun, account_id: proposalAccount, command_hash: proposalCommand.commandHash }], "the persisted authorization is consumed once and remains bound to the exact owner/TestRun/account/command");
+    assert.equal((await testDb.query("SELECT count(*)::text AS count FROM proposal_execution_authorizations")).rows[0].count, "1", "authorized retries must not create duplicate grant rows");
+    console.info(`[V1.3 Proposal execution authorization HTTP+PG] ${JSON.stringify({ status: "PASS", proposalStatus: "APPROVED_MANUAL", proposalMutationModeResults, proposalUnchangedAfterModeInjection: proposalAfterModeInjection.rows[0].decision_count === "0" && proposalAfterModeInjection.rows[0].revision_count === "0" && proposalAfterModeInjection.rows[0].proposal_version === 1, grantStatus: grant.status, wrongOwnerRejected: true, wrongTestRunRejected: true, wrongAccountRejected: true, modeInjectionRejectedAtGrant: rejectedProposalModes, modeInjectionRejectedAtValidation: rejectedProposalModes, modeInjectionDidNotConsumeGrant: activeAfterModeInjection.rows[0].status === "ACTIVE", changedCommandRejected: true, concurrentValidationStatuses: proposalValidationResults.map((result) => result.body.replayed ? "REPLAYED" : "CONSUMED"), persistedStatus: proposalAuthorizationState.rows[0].status, ownerBound: true, testRunBound: true, accountBound: true, commandBound: true, authorizationRows: 1 })}`);
+
     const command = { namespace: `auth-smoke-${randomUUID()}`, accountId: randomUUID(), clientOrderId: `order-${randomUUID()}`, security: "600000.SH", requestedQuantity: 100, bar: { timestamp: "2026-09-25T01:32:00.000Z", open: "10.0000", volume: 1000 } };
+    const replayAuthorizationRowsBeforeInjection = (await testDb.query("SELECT count(*)::text AS count FROM execution_authorizations")).rows[0].count;
+    const replayModeResults = [];
+    for (const [environmentMode, brokerMode] of [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+      const rejected = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command, environmentMode, brokerMode }) });
+      assert.equal(rejected.status, 422, `historical replay authorization must reject injected ${environmentMode}/${brokerMode}`);
+      replayModeResults.push({ environmentMode, brokerMode, status: rejected.status });
+    }
+    const replayAuthorizationRowsAfterInjection = (await testDb.query("SELECT count(*)::text AS count FROM execution_authorizations")).rows[0].count;
+    assert.equal(replayAuthorizationRowsAfterInjection, replayAuthorizationRowsBeforeInjection, "mode-injected replay grants must not persist authorization rows");
     const issuedResponse = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command, environmentMode: "BACKTEST", brokerMode: "FAKE" }) });
     assert.equal(issuedResponse.status, 200, "valid replay command should receive a scoped one-time authorization");
     const { authorizationId } = await issuedResponse.json();
@@ -129,6 +375,7 @@ try {
     assert.equal(replayedResults.filter((result) => result.body.replayed === true).length, 1, "the other concurrent validation must be identified as an idempotent replay");
     const authorizationState = await testDb.query("SELECT status FROM execution_authorizations WHERE authorization_id=$1", [authorizationId]);
     assert.equal(authorizationState.rows[0]?.status, "CONSUMED", "concurrent validation must leave the authorization consumed exactly once");
+    console.info(`[V1.3 historical replay mode boundary HTTP+PG] ${JSON.stringify({ status: "PASS", rejectedModes: replayModeResults, authorizationRowsBeforeInjection: replayAuthorizationRowsBeforeInjection, authorizationRowsAfterInjection: replayAuthorizationRowsAfterInjection, authorizationRowsUnchanged: replayAuthorizationRowsBeforeInjection === replayAuthorizationRowsAfterInjection, acceptedMode: "BACKTEST/FAKE", consumedOnce: authorizationState.rows[0]?.status === "CONSUMED" })}`);
 
     const renewedCommand = { ...command, clientOrderId: `order-${randomUUID()}`, requestedQuantity: 50 };
     const renewedResponse = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command: renewedCommand, environmentMode: "BACKTEST", brokerMode: "FAKE" }) });
@@ -150,6 +397,11 @@ try {
     }
   });
 
+  await Promise.all([1, 2].map(() => runService("historical-replay-worker", async (request) => {
+    const ready = await request("/ready");
+    assert.equal(ready.status, 200, "concurrent Replay startup must serialize and complete the schema baseline");
+  })));
+
   await runService("historical-replay-worker", async (request) => {
     const runId = randomUUID();
     const missingPath = `/internal/v1/replays/${randomUUID()}`;
@@ -157,6 +409,13 @@ try {
     replayDb.on("error", () => {});
     await replayDb.connect();
     try {
+    const replayMigrations = await replayDb.query("SELECT version, description, count(*) OVER ()::text AS count FROM historical_replay_schema_migrations");
+    assert.deepEqual(replayMigrations.rows, [{
+      version: 1,
+      description: "V1 historical replay run and checkpoint schema",
+      count: "1"
+    }], "Historical Replay startup must apply exactly one transactional V1 schema baseline");
+    console.info(`[Historical Replay schema migration] ${JSON.stringify({ version: 1, count: replayMigrations.rows[0].count, isolatedDatabase: databaseName })}`);
     const path = `/internal/v1/replays/${runId}`;
     const missing = await request(path, { caller: "platform-api-service" });
     const mismatched = await request(path, { caller: "platform-api-service", bearer: tokens.replay });
@@ -173,6 +432,14 @@ try {
     assert.equal(persistedRead.status, 200, "authorized read returns an existing persisted replay run");
     assert.equal(persistedRun.testRunId, runId);
     assert.equal(Object.hasOwn(persistedRun, "requestHash"), false, "internal idempotency fingerprint must not leak through the public run response");
+    const bodyInjectionResults = await Promise.all([
+      ...["pause", "resume", "cancel"].map((action) => request(`${path}/${action}`, { caller: "platform-api-service", bearer: tokens.platform, method: "POST", body: JSON.stringify({ status: "CANCELLED", result: { status: "FILLED" } }) })),
+      request(`${path}/recover-unknown`, { caller: "platform-api-service", bearer: tokens.platform, method: "POST", body: JSON.stringify({ status: "FILLED", orderId: "forged-order" }) })
+    ]);
+    assert.deepEqual(bodyInjectionResults.map((response) => response.status), [422, 422, 422, 422], "bodyless lifecycle/recovery commands must reject client-supplied service facts");
+    const unchangedAfterBodyInjection = await replayDb.query("SELECT status,result FROM replay_worker_runs WHERE test_run_id=$1", [runId]);
+    assert.equal(unchangedAfterBodyInjection.rows[0].status, "COMPLETED");
+    assert.deepEqual(unchangedAfterBodyInjection.rows[0].result, {}, "rejected lifecycle/recovery payloads must not mutate persisted replay state");
 
     const platform = { caller: "platform-api-service", bearer: tokens.platform };
     const forbiddenCallers = [
@@ -224,7 +491,7 @@ try {
     assert.equal(allowedPlatformInvalidCandidate.status, 422, "authorized request must reach input validation before any insert");
   });
 
-  console.log(JSON.stringify({ status: "PASS", database: "temporary isolated database", services: ["decision-governance-service", "historical-replay-worker", "quant-research-service"], historicalReplayRoutes: { unauthorizedRouteProbes: 14, unauthorizedServiceIdentities: ["runner-host", "platform-api-service with replay-worker Bearer"], malformedAuthorizedSubmissions: 3, missingRunLifecycleActions: 3, missingRunRecovery: 1 }, governanceAuthorization: { commandBinding: "PASS", concurrentSingleUse: "PASS", namespaceRenewalRotatesId: "PASS", expiredAuthorization: "REJECTED", environmentMode: "BACKTEST", brokerMode: "FAKE" } }));
+  console.log(JSON.stringify({ status: "PASS", database: "temporary isolated database", services: ["decision-governance-service", "historical-replay-worker", "quant-research-service"], historicalReplayRoutes: { unauthorizedRouteProbes: 14, unauthorizedServiceIdentities: ["runner-host", "platform-api-service with replay-worker Bearer"], malformedAuthorizedSubmissions: 3, bodyInjectionLifecycleRecovery: [422, 422, 422, 422], stateUnchangedAfterBodyInjection: true, missingRunLifecycleActions: 3, missingRunRecovery: 1 }, governanceAuthorization: { commandBinding: "PASS", concurrentSingleUse: "PASS", namespaceRenewalRotatesId: "PASS", expiredAuthorization: "REJECTED", environmentMode: "BACKTEST", brokerMode: "FAKE" } }));
 } finally {
   if (created) {
     await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);

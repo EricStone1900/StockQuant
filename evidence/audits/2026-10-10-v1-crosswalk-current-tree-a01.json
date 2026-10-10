@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-CROSSWALK-CURRENT-TREE-A01",
+  "status": "OPEN_FINDINGS",
+  "sourceCrosswalk": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "sourceCrosswalkSha256": "39d819a5e4a39934349f231dfbae528e665720be3e43a26d075c61c8448a7b53",
+  "requirementCount": 147,
+  "checked": {
+    "requiredAndEvidencePathReferences": 1329,
+    "exactTestNameReferences": 145,
+    "literalExactTestNameMatches": 132,
+    "unlocatedTestNameStrings": 6,
+    "currentSourceAnchorTextsPresent": 134
+  },
+  "missingPaths": [],
+  "badTestNames": [
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/test-persistence.mjs",
+      "name": "persistent same-key execution returns the identical FakeBroker orderId across concurrent and post-reconnect retries"
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/p5-7-outbox-http-smoke.mjs",
+      "name": "V1.3 FakeBroker by-clientId HTTP lookup returns same orderId and complete final fills after Trade restart"
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 independent FakeBroker asset HTTP read returns scoped persisted cash and positions only to Platform identity"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "scripts/service-auth-http-smokes.mjs",
+      "name": "V1.3 Proposal approval and revision reject all injected LIVE/REAL modes without changing persisted Proposal state"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "scripts/service-auth-http-smokes.mjs",
+      "name": "V1.3 AUTO Mandate pause rejects injected LIVE/REAL modes without status or event changes and preserves valid pause"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 Trade cancel, expire, unknown and cancel-result reject mode payloads without changing persisted order facts"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "path": "services/trade-execution-service/scripts/service-auth-http-smoke.mjs",
+      "name": "V1.3 Trade Outbox compensation rejects non-empty mode payload without changing persisted event facts"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (asserts prior-run comparison selection)"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/src/v15-capability-status.test.ts",
+      "name": "V1.5 capability blocker projection: explicit missing dispatch, queued/completed state and persisted failures"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 displays explicit capability blockers without converting NOT_RUN into failure (also verifies system alert overview link)"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "services/platform-api-service/tests/integration/v15-run-incidents.spec.ts",
+      "name": "projects persisted Run blocker evidence to owner-scoped incidents on save, resolves on recovery, and creates a new incident on recurrence"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (incident projection E2E)"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.4",
+      "path": "../../scripts/test-v14-backtest-isolated.mjs",
+      "name": "V1.4 run creation must reject client mode injection for PAPER/FAKE, LIVE/FAKE, BACKTEST/REAL, LIVE/REAL with HTTP 422 and no Quant run"
+    }
+  ],
+  "unlocatedTestNames": [
+    {
+      "requirementId": "V1.4-S7-L65",
+      "name": "V1.4 daily backtest page shows report evidence"
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "name": "V1.4 synthetic suspension and locked-limit scenario is readable and same-run CLI verifiable"
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "name": "V1.4 historical fee fixture uses the pre-cut date schedule"
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "name": "V1.4 RAW corporate actions preserve hand-checked NAV and ignore duplicate event delivery"
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "name": "V1.4 web accepts a bounded policy and compares persisted runs"
+    },
+    {
+      "requirementId": "V1-90-FLOW-04",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows"
+    }
+  ],
+  "staleAnchors": [
+    {
+      "requirementId": "V1.5-S2-L17",
+      "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+      "recordedLine": 23,
+      "anchor": "- [ ] 实现市场日历交易工作流与自动日终对账。固定AUTO由真实NATS/Temporal后台串接持久Proposal、Mandate、FakeBroker订单/Fill、Portfolio和独立预算账本；最新四场景隔离E2E覆盖双日Fixture错过窗口后次日重评估及收盘双账本对账（[报告](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json)，详见第8.13节）。真实交易日历、多日连续调度、结算语义和完整日终运行仍未完成，本父项保持未关闭。"
+    },
+    {
+      "requirementId": "V1.5-S2-L20",
+      "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+      "recordedLine": 30,
+      "anchor": "- [ ] 提供外部故障演练脚本和操作Runbook，覆盖Worker/总线重启、断网、睡眠恢复、双Worker竞争；Web仅记录操作提示和回收证据。"
+    },
+    {
+      "requirementId": "V1.5-S2-L21",
+      "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+      "recordedLine": 33,
+      "anchor": "- [ ] 全V1隔离备份恢复；执行Mac M1完整模拟E2E及目标Ubuntu架构烟测，记录未覆盖环境，V1证据打包。2026-10-09新增真实隔离集群备份器端到端测试：建立全部V1服务数据库/角色、一个合成Published ArtifactRef及匹配内容，调用生产集群备份器并恢复到无网络PostgreSQL临时实例，校验十个数据库、角色属性与Artifact字节Hash；[证据](../../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-a9366d9c50ee4001.json)。此为工具链/结构切片，不含真实业务Run账本、NATS/Temporal同点配对，也不替代当前存储备份/异地/RPO/RTO及Ubuntu实测。Mac ARM64宿主上的`linux/amd64` Platform API兼容性构建/Node探针仿真通过，明确标记为模拟架构，不能替代Ubuntu主机烟测；[日志](../../../evidence/audits/2026-10-09-v1-linux-amd64-compat-a173.log)，SHA-256 `d05179876661cc97b12ccd0d3ffcb98767a77954ed544d43b1522f94231f254f`。"
+    },
+    {
+      "requirementId": "V1.5-S7-L63",
+      "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+      "recordedLine": 75,
+      "anchor": "- [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步（2026-10-09：§8.1–8.4实测信息/命令更新；四场景状态和交互栈生命周期同步至验收表；当前人工验收仍NOT_RUN）。"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.1",
+      "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+      "recordedLine": 9,
+      "anchor": "| V1.1 | 真数据库初始化/重启/幂等集成测试、生成契约检查、浏览器初始化与证据持久化E2E。 | [阶段验收步骤](./01-environment-and-web-center.md) |"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.2",
+      "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+      "recordedLine": 10,
+      "anchor": "| V1.2 | 真实Qlib CPU烟测、PIT与手算因子测试、缺失市场会话不得压缩成相邻样本、证券上市区间及Artifact原子发布/取消集成、数据与策略浏览器E2E。 | [阶段验收步骤](./02-small-data-and-qlib.md) |"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.3",
+      "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+      "recordedLine": 11,
+      "anchor": "| V1.3 | 领域金额/状态机、Proposal多腿逐腿Mandate范围与聚合预算、真实DB并发占用和事务、真事件幂等、FakeBroker API契约、两市场人工/自动授权Web E2E。 | [阶段验收步骤](./03-fake-broker-trading-loop.md) |"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.4",
+      "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+      "recordedLine": 12,
+      "anchor": "| V1.4 | 无未来泄漏、费用/结算/公司行动手算、相同输入复跑、Quant落库前后Platform强制重启恢复、取消/幂等重放、日线与Paper规则一致性及回测浏览器E2E；固定CN_A费率计划的Quant/FakeBroker BUY/SELL、55bps滑点、部分成交及持久Fill Outbox对照现已验证，费用/结算全规则一致性仍未通过，详见[费率同规则对照审计](../../../evidence/audits/2026-10-07-v14-cn-a-fee-parity.md)。 | [阶段验收步骤](./04-daily-backtest.md) |"
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.5",
+      "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+      "recordedLine": 13,
+      "anchor": "| V1.5 | 真数据库/总线/Temporal进程恢复E2E、浏览器关闭与重连、双Worker、备份恢复及V1全阶段回归；`auto-trade`固定CN/US Fixture应验证真实持久Mandate授权、FakeBroker订单/Fill、Portfolio入账与独立账本对照，使用版本化双日开/收市Fixture验证首日过窗不下旧单、次日重评估后Fill位于交易时段内并于收盘独立账本匹配（`V1.5-AUTO-MISSED-WINDOW-001`、`V1.5-AUTO-EOD-RECON-001`）；真实时钟延迟、多日循环和结算仍单独验收。 | [阶段验收步骤](./05-scheduling-and-recovery.md) |"
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.2",
+      "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+      "recordedLine": 17,
+      "anchor": "| [V1.2 小样本数据、真实 Qlib 与环境探针](./02-small-data-and-qlib.md) | PARTIALLY_IMPLEMENTED（历史范围保留；2026-10-09完整code suite及隔离Web/API/CLI回归通过（含Market Data事务迁移的[最终套件日志](../../../evidence/audits/2026-10-09-v12-market-data-migration-code-suite-a01.log)）；固定RD-Agent兼容探针在隔离Qlib Worker执行value=42且Web同Run核验modelCalls=NOT_RUN；新增范围人工验收和Ubuntu未完成） | 历史用户确认PASS（2026-09-09）；新增范围人工验收NOT_RUN；Ubuntu NOT_RUN | `v1.2-market-data-4`；Qlib 0.9.6；历史平台Run `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`（结构化导出缺失，W9未恢复）；当前normal TestRun `890f3fab-e689-471b-8c45-97abd531d3d5`（[结构化证据包](../../../evidence/local/V1.2/890f3fab-e689-471b-8c45-97abd531d3d5/evidence.json)，3/3断言PASS、manualConclusion NOT_RUN）；2026-10-07完整`pnpm verify:stage -- --stage V1.2 --suite code`exit 0并含最新隔离Web/API/CLI 1/1，四个Run及输入Hash见[机器结果](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-1dd2d38c42f2392cb0b4.json)和[历史执行快照SHA清单](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-1dd2d38c42f2392cb0b4.sha256) | Qlib容器为Mac ARM64上的linux/amd64仿真；真实市场数据、全量数据、Ubuntu x86_64及新增范围人工验收仍未验证 | 用户历史确认保留 / 2026-09-09；本轮不新增签署 |"
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.3",
+      "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+      "recordedLine": 18,
+      "anchor": "| [V1.3 治理、风控与模拟券商完整交易链路](./03-fake-broker-trading-loop.md) | PARTIALLY_IMPLEMENTED（历史范围保留；2026-10-08版本化Fixture/Schema/Web消费、修复刷新后订单恢复、Portfolio/Trade/Governance三处LIVE/REAL拒绝与无副作用断言通过、当前完整code suite exit 0、固定隔离Web/API/CLI矩阵21/21通过及逐项截图/Trace重新验证；完整交易所规则/目标Ubuntu交接与本轮人工验收未完成；2026-10-09当前树完整code suite exit 0，正式`pnpm test:e2e -- --stage V1.3`21/21，独立stack Web/session探针200且精确清理PASS，报告见[结构化证据](../../../evidence/audits/2026-10-09-v13-current-worktree-evidence-a01.json)） | 历史用户Web确认PASS（2026-09-09）；新Fixture范围当前自动矩阵21/21 PASS；新增范围人工验收NOT_RUN | [V1.3 Fixture与交接审计](../../../evidence/audits/2026-10-08-p3-v13-fixture-and-handoff.md)；[Paper/Fake服务端边界代码套件](../../../evidence/audits/2026-10-08-p3-paper-fake-server-boundary.md)；[新Fixture绑定的完整矩阵](../../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log)；[订单协调应用服务后的完整代码套件](../../../evidence/audits/2026-10-08-p3-v13-order-coordination-application-services-code-suite.log)；[订单协调应用服务后的21项Web/API/CLI矩阵](../../../evidence/audits/2026-10-08-p3-v13-order-coordination-application-services-e2e.log)；[应用服务提取后21项截图与Trace Hash清单](../../../evidence/audits/2026-10-08-v13-browser-captures-after-app-service.sha256)；[刷新修复轮历史执行快照Hash清单（Harness复用原目录后已失配）](../../../evidence/audits/2026-10-08-v13-browser-captures-refresh-fix.sha256)；[修订协调后最终审计](../../../evidence/audits/2026-10-07-v13-governance-coordination-after-revision.md)；[治理应用服务最终审计](../../../evidence/audits/2026-10-07-v13-governance-application-services.md)；[MANUAL执行应用服务审计](../../../evidence/audits/2026-10-07-v13-manual-execution-application-service.md)；[AUTO_POLICY应用服务审计](../../../evidence/audits/2026-10-07-v13-auto-execution-application-service.md)；[持久Session推进与T+1审计](../../../evidence/audits/2026-10-07-v13-tplus1-session-advance.md) | FakeBroker为隔离模拟，未接触真实券商；固定矩阵不是完整交易所规则、长期观察、Ubuntu或用户验收 |"
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.5",
+      "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+      "recordedLine": 20,
+      "anchor": "| [V1.5 无人逐笔操作、故障恢复与 V1 验收](./05-scheduling-and-recovery.md) | PARTIALLY_IMPLEMENTED（normal NO_TRADE、AUTO交易、暂停拒绝、UNKNOWN原单恢复、已完成AUTO Run重复派发无副作用及基础设施恢复子项均有隔离E2E；最新完整V1.5 code suite exit 0，含锁版Python Worker 14/14及隔离数据库/HTTP检查（[最终a02日志](../../../evidence/audits/2026-10-09-v15-single-session-eod-code-suite-a02.log)；重复AUTO派发证据见[四场景E2E](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9d20807a341936dceaf1.json)）；治理预算汇总HTTP/PG验证RESERVED/CONSUMED/RELEASED汇总和owner scope（[日志](../../../evidence/audits/2026-10-09-v13-mandate-budget-http-pg-a01.log)）；AUTO Web/API/CLI/export E2E逐市场核对CN CNY 1005.00、US USD 250.05各消费一次（[JSON](../../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-0d837e9c09a10e5b6d31.json)）；本轮新增AUTO工作流终态独立账本复读断言通过[四场景E2E](../../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-230c4258f848db04ca52.json)；关闭原验收页后重开并恢复同一TestRun已通过隔离E2E（[报告](../../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-391873c1eb80223c45ee.json)）；AUTO工作流终态双账本复读、双日合成Fixture错过窗口重评估及收盘对账均已通过四场景隔离E2E（[报告](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json)）；多日交易/日历完整性及结算、关浏览器持续运行观察、任意Run成交全链路追溯（固定AUTO Run逐字段追溯视图和工作流终态双账本复读已通过隔离E2E）、撤销/在途Fill/真实时钟延迟调度/完整交易恢复、全V1跨Artifact卷恢复及宿主/异地恢复仍未完成，第2/7/8节待办未完成） | 历史用户Web与Ubuntu烟测确认PASS（2026-09-09）；当前W8目标主机明细/范围重验NOT_RUN；当前V1.5新增范围人工验收NOT_RUN | 历史业务Run `25fe0718-5a76-4477-a02b-5e954f621dde`、`48e32a09-4901-424f-8585-7b01ab9f83f7`、`113fea95-5fee-42ee-b702-f8423b8a173c`结构化导出缺失；本轮NO_TRADE及Web/API/CLI/export证据：[V1.5 NO_TRADE Temporal E2E](../../../evidence/audits/2026-10-07-v15-no-trade-workflow-e2e.md)、[UNKNOWN恢复E2E](../../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-e09b3c5a08f1a6594056.json)、[预算读取AUTO E2E](../../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-0d837e9c09a10e5b6d31.json)、[预算HTTP/PG汇总](../../../evidence/audits/2026-10-09-v13-mandate-budget-http-pg-a01.log)、[坏消息/错误owner/重复派发与原Outbox恢复E2E](../../../evidence/audits/2026-10-07-v15-poison-envelope-e2e.md)、[双Worker E2E](../../../evidence/audits/2026-10-07-v15-multiworker-e2e.md)、[配对卷恢复E2E](../../../evidence/audits/2026-10-07-v15-paired-backup-restore-e2e.md)、[7个历史Run恢复源审计](../../../evidence/audits/2026-10-07-v1-history-run-recovery-check.md) | 120个当地日期是虚拟Fixture观察，不是实际日历等待；宿主/异地恢复、Artifact卷、双Worker同时故障、交易/日终调度、目标Ubuntu和当前范围用户签署未完成。历史Run缺失证据未替代 | Ubuntu历史人工签署保留；本轮新增范围未签署 |"
+    },
+    {
+      "requirementId": "V1.2-S2-L20",
+      "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+      "recordedLine": 26,
+      "anchor": "- [x] V1.2 TestRun创建仅接受`scenarioId`和`seed`；四种PAPER/LIVE/REAL客户端模式注入均返回422且不创建TestRun或派发Qlib任务。隔离E2E同时复核11条路由身份边界及正常BACKTEST/FAKE流程，见[模式边界E2E日志](../../../evidence/audits/2026-10-10-v12-mode-injection-e2e-a01.log)和[机器报告](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-82d1d16c378eac819679.json)."
+    }
+  ],
+  "scope": "Fresh structural audit only. Paths are resolved against repository root and evidence/audits for legacy mixed forms. Test title string is checked as a literal in its mapped source file. Anchor text is checked anywhere in its source document; recorded line numbers are not treated as stable because prior edits insert content. This does not judge behavior, semantic sufficiency, execution, business acceptance, or external sign-off."
+}

@@ -1177,10 +1177,17 @@ export type HistoricalFakeExecutionCommand = {
   "clientOrderId": string;
   "security": string;
   "requestedQuantity": number;
+  "initialAccountCash"?: string;
   "bar": {
   "timestamp": string;
   "open": string;
   "volume": number;
+  "high"?: string;
+  "low"?: string;
+  "close"?: string;
+  "tradingStatus"?: 'TRADED' | 'SUSPENDED';
+  "upperLimit"?: string;
+  "lowerLimit"?: string;
 };
   "side"?: 'BUY' | 'SELL';
   "orderType"?: 'MARKET' | 'LIMIT';
@@ -1189,20 +1196,25 @@ export type HistoricalFakeExecutionCommand = {
   "participationRate"?: number;
   "slippageBps"?: number;
   "currency"?: string;
+  "marketFeeSchedule"?: {
+  "scheduleId": 'CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27' | 'CN_A_CASH_EQUITY_2023_08_28';
+  "commissionRatePartsPerBillion": number;
+  "minimumCommissionCents": number;
+};
   "reservation"?: {
   "reservationId": string;
   "ownerId": string;
   "testRunId": string;
   "clientOrderId": string;
 };
-}
+} & unknown
 
 export type HistoricalFakeExecutionResult = {
   "result": {
   "orderId": string;
   "status": 'FILLED' | 'PARTIALLY_FILLED' | 'REJECTED' | 'CANCEL_REQUESTED' | 'CANCELLED' | 'EXPIRED' | 'UNKNOWN';
   "brokerMode": 'FAKE';
-  "rejectionReason"?: 'ZERO_VOLUME' | 'INVALID_BAR' | 'LIMIT_NOT_MARKETABLE' | 'INVALID_RULE';
+  "rejectionReason"?: 'ZERO_VOLUME' | 'INVALID_BAR' | 'LIMIT_NOT_MARKETABLE' | 'INVALID_RULE' | 'SUSPENDED' | 'LOCKED_AT_UPPER_LIMIT' | 'LOCKED_AT_LOWER_LIMIT';
   "fill"?: {
   "externalFillId": string;
   "quantity": number;
@@ -1321,10 +1333,17 @@ export type ReplayExecutionAuthorizationCommand = {
   "clientOrderId": string;
   "security": string;
   "requestedQuantity": number;
+  "initialAccountCash"?: string;
   "bar": {
   "timestamp": string;
   "open": string;
   "volume": number;
+  "high"?: string;
+  "low"?: string;
+  "close"?: string;
+  "tradingStatus"?: 'TRADED' | 'SUSPENDED';
+  "upperLimit"?: string;
+  "lowerLimit"?: string;
 };
 };
 }
@@ -1342,6 +1361,7 @@ export type ReplayExecutionAuthorizationValidation = {
   "clientOrderId": string;
   "security": string;
   "requestedQuantity": number;
+  "initialAccountCash"?: string;
   "bar": {
   "timestamp": string;
   "open": string;
@@ -1445,8 +1465,8 @@ export type V12StrategySnapshotCommand = {
   "testRunId": string;
   "artifactId": string;
   "artifactSha256": string;
-  "fixtureVersion": 'v1.2-market-data-4';
-  "dataVersion": 'v1.2-market-data-4';
+  "fixtureVersion": 'v1.2-market-data-4' | 'v1.2-market-data-5';
+  "dataVersion": 'v1.2-market-data-4' | 'v1.2-market-data-5';
   "factorVersion": 'v1.2-momentum-volume-1';
   "strategyId": 'v1.2-qlib-topk-1' | 'v1.2-no-trade-1';
   "strategyHash": string;
@@ -1532,6 +1552,7 @@ export type V13AutoPaperExecutionCommand = {
   "namespace": string;
   "clientOrderId": string;
   "now": string;
+  "executionMode"?: 'IMMEDIATE' | 'SEQUENCED';
 }
 
 export type V13ExecutionAuthorizationCommand = {
@@ -1700,6 +1721,22 @@ export type V13ProposalRevisionCommand = {
   "legs": Array<V13ProposalLeg>;
   "reason": string;
   "now": string;
+}
+
+export type V15RunIncident = {
+  "incidentId": string;
+  "testRunId": string;
+  "alertKey": string;
+  "code": string;
+  "severity": 'BLOCKER' | 'ERROR';
+  "title": string;
+  "detail": Record<string, unknown>;
+  "state": 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+  "firstSeenAt": string;
+  "lastSeenAt": string;
+  "acknowledgedBy": string | null;
+  "acknowledgedAt": string | null;
+  "resolvedAt": string | null;
 }
 
 export type V24ObservationRevisionList = {
@@ -2623,7 +2660,7 @@ export type V12FixturePreview = {
 }
 
 export type V12ResearchFixturePreview = {
-  "fixtureVersion": 'v1.2-market-data-4';
+  "fixtureVersion": 'v1.2-market-data-4' | 'v1.2-market-data-5';
   "dataMode": 'FIXTURE';
   "dailyBarsSha256": string;
   "securities": Array<{
@@ -2634,6 +2671,10 @@ export type V12ResearchFixturePreview = {
   "timezone": string;
   "listedAt": string;
   "delistedAt": string | null;
+}>;
+  "marketSessions": Array<{
+  "market": 'CN_A' | 'US_EQUITY';
+  "sessionDate": string;
 }>;
   "bars": Array<{
   "securityId": string;
@@ -2735,11 +2776,11 @@ export type V12QlibProbePreview = {
 
 export type V12QlibStrategyArtifact = {
   "schemaVersion": 'v1.2-qlib-strategy-artifact-v1';
-  "fixtureVersion": 'v1.2-market-data-4';
+  "fixtureVersion": 'v1.2-market-data-4' | 'v1.2-market-data-5';
   "dailyBarsSha256": string;
   "inputSha256": string;
   "factorVersion": 'v1.2-momentum-volume-1';
-  "dataVersion": 'v1.2-market-data-4';
+  "dataVersion": 'v1.2-market-data-4' | 'v1.2-market-data-5';
   "asOf": string;
   "qlibModels": Array<{
   "market": 'CN_A' | 'US_EQUITY';

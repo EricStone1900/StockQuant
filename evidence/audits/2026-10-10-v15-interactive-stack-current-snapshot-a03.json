@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-RETAINED-STACK-PENDING-RUN-SNAPSHOT-A03",
+  "status": "READ_ONLY_SNAPSHOT",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "query": "SELECT stage_id,status,count(*) FROM acceptance_stage_runs WHERE stage_id='V1.5' GROUP BY stage_id,status",
+  "result": {
+    "WAITING": 1
+  },
+  "waitingRunCount": 1,
+  "actionTaken": "none",
+  "operationalDecision": "Do not restart/recreate NATS while a V1.5 WAITING TestRun exists; preserve its workflow and persistent NATS volume until resolved or an approved maintenance window."
+}

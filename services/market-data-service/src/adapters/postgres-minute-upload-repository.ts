@@ -16,8 +16,8 @@ function canonical(value: unknown): unknown {
 export class MinuteUploadRepository implements MinuteUploadPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_minute_uploads (
         upload_id UUID PRIMARY KEY,
         owner_id TEXT NOT NULL,

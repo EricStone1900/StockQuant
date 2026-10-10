@@ -48,6 +48,19 @@ export async function inspectBackupDirectory(directory) {
       const databases = manifest.databaseInventory?.databases;
       const roles = manifest.databaseInventory?.roles;
       if (!Array.isArray(databases) || databases.length < 1 || databases.some((name) => typeof name !== "string" || name.length < 1 || Buffer.byteLength(name) > 63 || name.includes("\0")) || new Set(databases).size !== databases.length || JSON.stringify([...databases].sort()) !== JSON.stringify(databases) || JSON.stringify(manifest.restoreValidation.restoredDatabases) !== JSON.stringify(databases) || !Array.isArray(roles) || roles.length < 1 || JSON.stringify(manifest.restoreValidation.restoredRoles) !== JSON.stringify(roles) || roles.some((role) => typeof role.name !== "string" || typeof role.superuser !== "boolean" || typeof role.inherit !== "boolean" || typeof role.createRole !== "boolean" || typeof role.createDb !== "boolean" || typeof role.login !== "boolean" || typeof role.replication !== "boolean" || typeof role.bypassRls !== "boolean" || !Number.isSafeInteger(role.connlimit) || (role.validUntil !== null && typeof role.validUntil !== "string"))) return { valid: false, reason: "invalid-cluster-inventory-or-restore-validation" };
+      const business = manifest.businessFactValidation;
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      if (business !== undefined && (
+        !uuid.test(business.testRunId ?? "") || business.run?.testRunId !== business.testRunId ||
+        typeof business.run?.namespace !== "string" || !business.run.namespace || typeof business.run?.status !== "string" || !business.run.status ||
+        !uuid.test(business.trade?.orderId ?? "") || !uuid.test(business.trade?.fillId ?? "") || business.trade?.outboxStatus !== "DELIVERED" ||
+        !Number.isSafeInteger(business.trade?.quantity) || business.trade.quantity < 1 || typeof business.trade?.price !== "string" || typeof business.trade?.fee !== "string" ||
+        !uuid.test(business.portfolio?.accountId ?? "") || business.portfolio?.testRunId !== business.testRunId || business.portfolio?.ownerId !== business.run?.ownerId ||
+        !Number.isSafeInteger(business.portfolio?.ledgerEntryCount) || business.portfolio.ledgerEntryCount < 1 || !Number.isSafeInteger(business.portfolio?.positionQuantity) || business.portfolio.positionQuantity < 0 ||
+        business.portfolio?.fillId !== business.trade?.fillId || typeof business.portfolio?.cashAmount !== "string" || typeof business.portfolio?.currency !== "string" ||
+        !Number.isSafeInteger(business.portfolio?.ledgerVersion) || business.portfolio.ledgerVersion < 1 ||
+        business.relationChecks?.namespaceMatches !== true || business.relationChecks?.orderFillOutboxLinked !== true || business.relationChecks?.portfolioAndBrokerFillIdsMatch !== true || business.relationChecks?.ledgerAndPositionRestored !== true
+      )) return { valid: false, reason: "invalid-business-fact-restore-validation" };
     }
     if (!Array.isArray(manifest.files) || manifest.files.length < 1) return { valid: false, reason: "manifest-has-no-files" };
     const declared = new Map();

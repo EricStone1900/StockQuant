@@ -6,7 +6,7 @@ describe("historical replay coordinator", () => {
     const orderId = "original-order-123";
     const saved: unknown[] = [];
     const runs = {
-      find: vi.fn().mockResolvedValue({ result: { execution: { result: { orderId } } } }),
+      find: vi.fn().mockResolvedValue({ namespace: "namespace-1", result: { execution: { result: { orderId } } } }),
       saveResult: vi.fn(async (_testRunId: string, result: unknown) => { saved.push(result); }),
       withRunLock: vi.fn(),
     };
@@ -23,10 +23,20 @@ describe("historical replay coordinator", () => {
 
     const result = await coordinator.recoverUnknown("test-run-1");
 
-    expect(tradeExecutionClient.readHistoricalFakeOrderById).toHaveBeenCalledExactlyOnceWith(orderId);
+    expect(tradeExecutionClient.readHistoricalFakeOrderById).toHaveBeenCalledExactlyOnceWith(orderId, "namespace-1");
     expect(tradeExecutionClient.executeHistoricalFakeOrder).not.toHaveBeenCalled();
     expect(result).toMatchObject({ unknownRecovery: { observedStatus: "UNKNOWN", action: "MANUAL_REVIEW_REQUIRED" } });
     expect(saved).toHaveLength(1);
+  });
+
+  it("fails closed when the persisted replay namespace is missing", async () => {
+    const runs = { find: vi.fn().mockResolvedValue({ result: { execution: { result: { orderId: "original-order-123" } } } }), withRunLock: vi.fn() };
+    const tradeExecutionClient = { readHistoricalFakeOrderById: vi.fn(), executeHistoricalFakeOrder: vi.fn() };
+    const coordinator = createReplayCoordinator({ runs: runs as never, portfolioClient: {} as never, tradeExecutionClient: tradeExecutionClient as never, replayDependencies: {} as never });
+
+    await expect(coordinator.recoverUnknown("test-run-1")).rejects.toThrow("replay run namespace is not available");
+    expect(tradeExecutionClient.readHistoricalFakeOrderById).not.toHaveBeenCalled();
+    expect(tradeExecutionClient.executeHistoricalFakeOrder).not.toHaveBeenCalled();
   });
 
   it("keeps the persisted request fingerprint out of the public run representation", async () => {

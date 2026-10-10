@@ -1,5 +1,5 @@
 import type { QlibFitFixtureRequest } from "../contracts/generated-types.js";
-import type { QlibWorkerPort } from "../ports/qlib-worker.js";
+import type { QlibWorkerPort, QlibWorkerProbe } from "../ports/qlib-worker.js";
 import { QlibWorkerPortError } from "../ports/qlib-worker.js";
 
 export type QlibServiceResult = { status: number; body: unknown };
@@ -7,7 +7,7 @@ export type QlibServiceResult = { status: number; body: unknown };
 export class QlibResearchService {
   constructor(private readonly worker?: QlibWorkerPort) {}
 
-  async probe(): Promise<{ status: string; version?: string; detail?: string }> {
+  async probe(): Promise<QlibWorkerProbe> {
     if (!this.worker) return { status: "NOT_RUN", detail: "quant-research-service Qlib worker identity is not configured" };
     try { return await this.worker.probe(); }
     catch (error) { return { status: "NOT_RUN", detail: this.detail(error) }; }

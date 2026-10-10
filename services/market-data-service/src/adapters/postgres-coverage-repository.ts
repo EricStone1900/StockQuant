@@ -12,8 +12,8 @@ type TaskRow = QueryResultRow & { task_id: string; subscription_id: string; from
 export class CoverageRepository implements CoveragePort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_gap_records (
         gap_id TEXT PRIMARY KEY,
         subscription_id TEXT NOT NULL,

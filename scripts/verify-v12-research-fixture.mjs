@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const base = "fixtures/v1/v1.2/v1.2-market-data-4";
+const base = "fixtures/v1/v1.2/v1.2-market-data-5";
 const csv = async (name) => {
   const lines = (await readFile(`${base}/${name}`, "utf8")).trim().split(/\r?\n/u);
   const columns = lines.shift().split(",");
@@ -11,9 +11,10 @@ const csv = async (name) => {
 const manifest = JSON.parse(await readFile(`${base}/manifest.json`, "utf8"));
 const securities = await csv("securities.csv");
 const bars = await csv("daily_bars.csv");
+const marketSessions = await csv("market_sessions.csv");
 const actions = await csv("corporate_actions.csv");
 const future = await csv("pit_future_probe.csv");
-assert.equal(manifest.fixtureVersion, "v1.2-market-data-4");
+assert.equal(manifest.fixtureVersion, "v1.2-market-data-5");
 await access(resolve(base, manifest.$schema));
 assert.equal(manifest.dataMode, "FIXTURE");
 assert.equal(manifest.usageEligibility, "SIMULATION_ONLY");
@@ -24,6 +25,8 @@ assert.equal(securities.filter((row) => row.market === "US_EQUITY").length, 3);
 assert.equal(new Set(bars.map((row) => row.date)).size, 60);
 assert.equal(new Set(bars.map((row) => row.security_id)).size, 13);
 assert.equal(new Set(bars.map((row) => `${row.security_id}:${row.date}`)).size, bars.length);
+assert.equal(marketSessions.length, 120);
+for (const market of ["CN_A", "US_EQUITY"]) assert.equal(new Set(marketSessions.filter((row) => row.market === market).map((row) => row.session_date)).size, 60);
 for (const bar of bars) {
   assert.ok(Number(bar.low) <= Number(bar.open) && Number(bar.open) <= Number(bar.high));
   assert.ok(Number(bar.low) <= Number(bar.close) && Number(bar.close) <= Number(bar.high));
@@ -48,14 +51,18 @@ const splitRows = {};
 const splitCounts = {};
 for (const market of ["CN_A", "US_EQUITY"]) {
   const marketRows = [];
+  const sessions = marketSessions.filter((row) => row.market === market).map((row) => row.session_date).sort();
   for (const security of securities.filter((item) => item.market === market)) {
-    const series = bars.filter((bar) => bar.security_id === security.security_id).sort((a, b) => a.date.localeCompare(b.date));
-    for (let index = 20; index < series.length - 1; index += 1) {
-      const window = series.slice(index - 19, index + 1);
-      const current = series[index];
-      const next = series[index + 1];
+    const series = new Map(bars.filter((bar) => bar.security_id === security.security_id).map((bar) => [bar.date, bar]));
+    for (let index = 20; index < sessions.length - 1; index += 1) {
+      const window = sessions.slice(index - 20, index + 1).map((date) => series.get(date));
+      const current = window.at(-1);
+      const next = series.get(sessions[index + 1]);
+      // Missing market sessions invalidate the lookback and/or target instead
+      // of compressing the history and creating a false adjacent-session label.
+      if (window.some((bar) => !bar) || !next) continue;
       const meanVolume = window.reduce((sum, item) => sum + Number(item.volume), 0) / window.length;
-      const features = [Number(current.close) / Number(series[index - 20].close) - 1, Number(current.volume) / meanVolume - 1, (Number(current.high) - Number(current.low)) / Number(current.close)];
+      const features = [Number(current.close) / Number(window[0].close) - 1, Number(current.volume) / meanVolume - 1, (Number(current.high) - Number(current.low)) / Number(current.close)];
       const label = Number(next.close) / Number(current.close) - 1;
       const labelAvailableAt = new Date(next.available_at);
       assert.ok(features.every(Number.isFinite) && Number.isFinite(label));
@@ -83,5 +90,26 @@ for (const market of ["CN_A", "US_EQUITY"]) {
   splitRows[market] = { train, valid, test };
   splitCounts[market] = { train: train.length, valid: valid.length, test: test.length, decisionDates: dates.length, purgedBoundaryDates: 2 };
 }
+const cnSessions = marketSessions.filter((row) => row.market === "CN_A").map((row) => row.session_date).sort();
+const missingSecurityRows = new Map(bars.filter((bar) => bar.security_id === "cn-000002").map((bar) => [bar.date, bar]));
+const missingSessionIndex = cnSessions.findIndex((date) => !missingSecurityRows.has(date));
+assert.notEqual(missingSessionIndex, -1, "frozen missing-bar case must remain present");
+const missingWindowDecisions = new Set(cnSessions.slice(missingSessionIndex - 1, missingSessionIndex + 21));
+assert.ok(!splitRows.CN_A.train.concat(splitRows.CN_A.valid, splitRows.CN_A.test).some((row) => row.ticker === securities.find((item) => item.security_id === "cn-000002").ticker && missingWindowDecisions.has(row.date)), "missing bar must invalidate its lookback and next-session label window");
+assert.ok(splitRows.CN_A.train.concat(splitRows.CN_A.valid, splitRows.CN_A.test).some((row) => row.ticker === securities.find((item) => item.security_id === "cn-000002").ticker && row.date === cnSessions[missingSessionIndex + 21]), "rows resume after the missing session leaves the 20-bar lookback");
+const wholeMarketMissingDate = cnSessions[30];
+const barsWithoutCnSession = bars.filter((bar) => !(bar.market === "CN_A" && bar.date === wholeMarketMissingDate));
+const wholeMarketMissingIndex = cnSessions.indexOf(wholeMarketMissingDate);
+const wholeMarketAffectedDates = new Set(cnSessions.slice(wholeMarketMissingIndex - 1, wholeMarketMissingIndex + 21));
+for (const security of securities.filter((item) => item.market === "CN_A")) {
+  const series = new Map(barsWithoutCnSession.filter((bar) => bar.security_id === security.security_id).map((bar) => [bar.date, bar]));
+  const validDecisionDates = [];
+  for (let index = 20; index < cnSessions.length - 1; index += 1) {
+    const window = cnSessions.slice(index - 20, index + 1).map((date) => series.get(date));
+    if (!window.some((bar) => !bar) && series.has(cnSessions[index + 1])) validDecisionDates.push(cnSessions[index]);
+  }
+  assert.ok(!validDecisionDates.some((date) => wholeMarketAffectedDates.has(date)), `${security.ticker} must not bridge a whole-market missing session`);
+  assert.ok(validDecisionDates.includes(cnSessions[wholeMarketMissingIndex + 21]), `${security.ticker} rows must recover after the gap leaves lookback`);
+}
 assert.ok(splitCounts.CN_A.train > splitCounts.US_EQUITY.train);
-console.log(JSON.stringify({ status: "PASS", fixtureVersion: manifest.fixtureVersion, securities: { CN_A: 10, US_EQUITY: 3 }, bars: bars.length, splitCounts, featureNames: ["momentum_20", "volume_ratio_20", "high_low_range_ratio"], featureLookbackBars: 20, label: "next-session close / decision close - 1", purgedBoundaryDates: 2, marketSpecificTimeAxes: true, labelAvailabilityBarriers: "PASS", missingBar: true, delistedSecurity: delisted.ticker, corporateActions: actions.length, futurePitProbe: "excluded", sourceMode: "SYNTHETIC FIXTURE", marketCalendarClaim: "NONE" }));
+console.log(JSON.stringify({ status: "PASS", fixtureVersion: manifest.fixtureVersion, securities: { CN_A: 10, US_EQUITY: 3 }, bars: bars.length, expectedMarketSessions: marketSessions.length, splitCounts, featureNames: ["momentum_20", "volume_ratio_20", "high_low_range_ratio"], featureLookbackBars: 20, label: "next-session close / decision close - 1", purgedBoundaryDates: 2, marketSpecificTimeAxes: true, labelAvailabilityBarriers: "PASS", missingBar: true, wholeMarketMissingSession: true, delistedSecurity: delisted.ticker, corporateActions: actions.length, futurePitProbe: "excluded", sourceMode: "SYNTHETIC FIXTURE", marketCalendarClaim: "SYNTHETIC ONLY; NO EXCHANGE-HOLIDAY CLAIM" }));

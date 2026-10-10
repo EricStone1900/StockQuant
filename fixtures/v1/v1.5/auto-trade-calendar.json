@@ -1,0 +1,47 @@
+{
+  "fixtureVersion": "v1.5-auto-trade-calendar-1",
+  "scenario": "missed AUTO window, next-session strategy re-evaluation, and simulated session-close reconciliation",
+  "markets": [
+    "CN_A",
+    "US_EQUITY"
+  ],
+  "semantics": "Two explicitly listed synthetic 2026-01-05 and 2026-01-06 sessions per market. The AUTO scenario marks the first session MISSED_WINDOW after its close, creates no order for that session, then re-evaluates and executes a new proposal in the second session. Session clocks are accelerated Fixture values, not a live exchange calendar, price source, or settlement rule.",
+  "sessions": [
+    {
+      "market": "CN_A",
+      "localDate": "2026-01-05",
+      "timeZone": "Asia/Shanghai",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sequence": 1,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "15:00"
+    },
+    {
+      "market": "CN_A",
+      "localDate": "2026-01-06",
+      "timeZone": "Asia/Shanghai",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sequence": 2,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "15:00"
+    },
+    {
+      "market": "US_EQUITY",
+      "localDate": "2026-01-05",
+      "timeZone": "America/New_York",
+      "calendarVersion": "nyse-2026-1",
+      "sequence": 1,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "16:00"
+    },
+    {
+      "market": "US_EQUITY",
+      "localDate": "2026-01-06",
+      "timeZone": "America/New_York",
+      "calendarVersion": "nyse-2026-1",
+      "sequence": 2,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "16:00"
+    }
+  ]
+}

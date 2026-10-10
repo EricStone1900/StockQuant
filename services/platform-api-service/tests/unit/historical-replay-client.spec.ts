@@ -26,4 +26,43 @@ describe("OpenAPI-generated Historical Replay client", () => {
     expect(request.mock.calls[0]?.[0]).toBe("http://worker:3006/internal/v1/replays/8bd87f3a-8741-4b0b-9610-46ae2fbcc4df/pause");
     await expect(client.readHistoricalReplayRun("8bd87f3a-8741-4b0b-9610-46ae2fbcc4df")).rejects.toMatchObject<Partial<HistoricalReplayHttpError>>({ status: 404 });
   });
+
+  it("maps single-bar replay start to the generated route with the typed command", async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ testRunId: "run-a" }), { status: 202 }));
+    const client = new GeneratedHistoricalReplayClient("http://worker:3006", token, request);
+    const command = { testRunId: "run-a", namespace: "owner/run-a", ownerId: "owner-a", scenarioId: "normal" as const, seed: 20260907, bars: [] };
+
+    await client.startHistoricalReplay(command);
+
+    expect(request).toHaveBeenCalledWith("http://worker:3006/internal/v1/replays", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({ "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${token}` }),
+      body: JSON.stringify(command),
+      signal: expect.any(AbortSignal),
+    }));
+  });
+
+  it("encodes replay IDs and sends bodyless control and UNKNOWN recovery commands", async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ status: "RUNNING" }), { status: 200 }));
+    const client = new GeneratedHistoricalReplayClient("http://worker:3006", token, request);
+
+    await client.readHistoricalReplayRun("run/a");
+    await client.controlHistoricalReplayRun("run/a", "pause");
+    await client.controlHistoricalReplayRun("run/a", "resume");
+    await client.controlHistoricalReplayRun("run/a", "cancel");
+    await client.recoverHistoricalReplayUnknownOrder("run/a");
+
+    const paths = [
+      "http://worker:3006/internal/v1/replays/run%2Fa",
+      "http://worker:3006/internal/v1/replays/run%2Fa/pause",
+      "http://worker:3006/internal/v1/replays/run%2Fa/resume",
+      "http://worker:3006/internal/v1/replays/run%2Fa/cancel",
+      "http://worker:3006/internal/v1/replays/run%2Fa/recover-unknown",
+    ];
+    expect(request.mock.calls.map(([url]) => url)).toEqual(paths);
+    for (const [url, init] of request.mock.calls) {
+      expect(init).toMatchObject({ method: url.endsWith("/run%2Fa") ? "GET" : "POST", headers: expect.objectContaining({ "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${token}` }), signal: expect.any(AbortSignal) });
+      expect(init).not.toHaveProperty("body");
+    }
+  });
 });

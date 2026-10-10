@@ -34,7 +34,9 @@ export function authorizeTradeExecutionRequest(input: {
   if (input.method === "GET" && input.pathname === "/internal/v1/v13/accounts/assets") return caller === "platform-api-service";
   if (input.method === "GET" && input.pathname === "/internal/v1/orders/by-client-id") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/fake-broker/external-orders") return caller === "platform-api-service";
-  if (input.method === "GET" && (/^\/internal\/v1\/orders\/[^/]+$/.test(input.pathname) || /^\/internal\/v1\/orders\/[^/]+\/outbox$/.test(input.pathname) || /^\/internal\/v1\/reconciliation\/summary$/.test(input.pathname))) return true;
+  if (input.method === "GET" && /^\/internal\/v1\/historical-orders\/[^/]+$/.test(input.pathname)) return caller === "historical-replay-worker";
+  if (input.method === "GET" && /^\/internal\/v1\/orders\/[^/]+$/.test(input.pathname)) return caller === "platform-api-service";
+  if (input.method === "GET" && (/^\/internal\/v1\/orders\/[^/]+\/outbox$/.test(input.pathname) || /^\/internal\/v1\/reconciliation\/summary$/.test(input.pathname))) return true;
   if (input.method === "POST" && (/^\/internal\/v1\/orders\/[^/]+\/(cancel|cancel-result|expire|unknown)$/.test(input.pathname) || /^\/internal\/v1\/orders\/[^/]+\/fills\/[^/]+\/fee-corrections$/.test(input.pathname) || /^\/internal\/v1\/orders\/[^/]+\/simulated-fill-reports$/.test(input.pathname) || /^\/internal\/v1\/outbox\/[^/]+\/compensate$/.test(input.pathname))) return caller === "platform-api-service";
   return false;
 }

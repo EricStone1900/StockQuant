@@ -1,0 +1,581 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-V12-RESPONSIBILITY-A01",
+  "status": "PASS_WITH_OPEN_DELIVERY_GAPS",
+  "sourceMatrix": "2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 25,
+  "rows": [
+    {
+      "requirementId": "V1.2-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "实现日线导入预览、原始行情、证券映射、数据版本及质量报告；坏数据不能标可用。复权分离与正式 Artifact 存储列为后续缺口。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service",
+      "collaborators": "platform-api-service; quant-research-service consumes fixed versioned output",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Market Data owns historical bars, securities, DataVersion and quality reports. Platform exposes the V1.2 Web/import and TestRun path; formal reusable Artifact delivery and adjustment semantics remain open.",
+      "existingGap": "The fixed V1.2 fixture preview validates strict column mapping, security identity, raw adjustment, date/numeric/OHLC/volume/duplicate semantics; invalid quality is rejected by the same publication gate used by the Artifact route. The E2E validates normal and future-data previews. This does not implement arbitrary user CSV import or a durable formal artifact store; those are outside this fixed Fixture slice and must not be inferred as complete.",
+      "closureEvidence": [
+        "../../services/market-data-service/src/application/v12-daily-fixture.ts",
+        "../../services/market-data-service/tests/unit/quality.spec.ts",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "./2026-10-09-v12-daily-quality-code-suite-a02.log",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-5d45bb5434e8b6405386.json",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-5d45bb5434e8b6405386.sha256"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 16,
+        "summary": "将固定版本 `pyqlib==0.9.6` 封装到独立 Qlib worker/quant adapter；完成 CPU 导入烟测和基础因子预览；模型训练与 NO_TRADE/TopK 完整策略留后续。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "quant-research-service",
+      "collaborators": "platform-api-service orchestrates TestRun/UI; locked Qlib worker is an adapter boundary",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Quant owns Qlib import/preview/train/predict execution. The currently verified V1 slice is the locked pyqlib 0.9.6 CPU/probe path and fixed output semantics, not profitability or full-scale capacity.",
+      "existingGap": "Locked Qlib and exact Artifact-to-Governance snapshot lineage are covered; snapshot receipt is intentionally not promotion or proposal activation. Independent model validation, full P2 input handoff review against P3 consumers, and real-source semantics remain open; this does not close P2.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/v12-acceptance.spec.ts",
+        "./2026-10-09-v12-lineage-unit-a06.log",
+        "./2026-10-07-v12-code-suite-current.md",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-1dd2d38c42f2392cb0b4.json",
+        "./2026-10-09-v12-session-gap-a06-summary.json",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-df4ff1bddd5ef54422f9.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 17,
+        "summary": "Artifact 异步任务将持久化状态、执行、取消与不可变产物发布关联；PostgreSQL事务原子提交Artifact字节与`COMPLETED`状态，取消/发布行锁竞态最多产生一个合法终态，租约接管通过fencing拒绝旧worker写入。边界为固定Fixture版本、单实例轮询工作器和数据库内BYTEA存储；大型产物/外部对象存储、Web任务界面及生产容量不在此切片内，阶段人工验收仍待执行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service for asynchronous import/task lifecycle",
+      "collaborators": "platform-api-service for Qlib Artifact/TestRun projection; shared artifact-content-store package for bytes",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "The row combines producer metadata and immutable bytes across owners. Cancellation/publish fencing is tested for named paths; all V1 producers, cross-service restore, default expiry/physical cleanup are not closed (OD-013 remains open).",
+      "existingGap": "The fixed-slice persistence, transaction atomicity, cancellation race, restart recovery and lease fencing have exact tests and passed the current V1.2 code suite. Qlib TestRun and Market Data Artifact task remain separate state machines. Stage/user acceptance, broader service-wide producer inventory and production capacity are not proven by these tests; retain parent and stage as partial.",
+      "closureEvidence": [
+        "../../services/market-data-service/tests/integration/collection-run-postgres.spec.ts",
+        "../../services/platform-api-service/tests/unit/v12-acceptance.spec.ts",
+        "../../services/platform-api-service/tests/integration/v12-run-lifecycle.spec.ts",
+        "./2026-10-09-v12-daily-quality-code-suite-a02.log",
+        "./2026-10-06-w1-v12-artifact-task-atomic-publication.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 18,
+        "summary": "提供双市场CN/US、缺失、退市、拆股及未来PIT Fixture；独立验证当前策略训练窗口的标签可用时间与边界purge。缺失会话不得按证券压缩后桥接特征或标签，行情日期必须落在证券上市区间内。合成日历不代表真实交易日历。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service owns securities, sessions, raw bars and data versions",
+      "collaborators": "quant-research-service owns PIT window/purge semantics; platform-api-service owns stage orchestration",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Frozen synthetic fixtures verify missing sessions, listing intervals and label boundaries for the fixed sample. They do not prove a complete exchange calendar or every corporate-action case.",
+      "existingGap": "Future PIT rejection, cross-market insufficient-history fail-closed behavior, single-security missing-session gaps, post-gap recovery, and listed/delisted bounds are covered for the frozen synthetic Fixture. An all-market absent session and real market-calendar/source semantics cannot be inferred from this Fixture; full current P2 handoff to P3 consumers remains open.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/v12-acceptance.spec.ts",
+        "../../services/market-data-service/tests/unit/quality.spec.ts",
+        "./2026-10-10-v12-after-v13-budget-readback-code-suite-a01.log",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-63049a2586980ac940ed.json",
+        "./2026-10-09-v12-insufficient-history-a06.log",
+        "./2026-10-09-v12-insufficient-history-a06-summary.json",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-a18684ac24a671e63a05.json",
+        "./2026-10-09-v12-session-gap-a06-summary.json",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-df4ff1bddd5ef54422f9.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "提供隔离容器内固定代码 RD-Agent 兼容探针；无模型凭证时明确 `modelCalls=NOT_RUN`，不伪称真实实验完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "quant-research-service",
+      "collaborators": "platform-api-service/container tooling",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "The fixed RD-Agent compatibility probe is a code/environment probe; `modelCalls=NOT_RUN` is honest. It does not establish real experiments or a production model credential.",
+      "existingGap": "Fixed deterministic Python compatibility code executes in isolated Qlib Worker, with observed value 42, result fixed-probe-ok, source SHA-256, and dockerSocketMounted=false; E2E verifies the same-run response. modelCalls remains NOT_RUN. This is not an RD-Agent package/model experiment, target Ubuntu run, or user acceptance; those remain open.",
+      "closureEvidence": [
+        "../../services/quant-research-service/qlib-worker.py",
+        "../../services/quant-research-service/tests/test_qlib_worker.py",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "./2026-10-09-v12-rdagent-probe-code-suite.log",
+        "./2026-10-09-v12-rdagent-probe-code-suite.log.sha256"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 26,
+        "summary": "V1.2 TestRun创建只接受scenarioId/seed；客户端交易模式由服务端固定，非法环境/券商模式注入须在创建TestRun和派发Qlib之前返回422。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "leadResponsibility": "platform-api-service",
+      "collaborators": "apps/web and stage API/test harness",
+      "currentGapClassification": "CURRENT_INCREMENTAL_BOUNDARY",
+      "reconciliation": "Platform owns V1.2 TestRun creation, owner-scoped run API and server-fixed PAPER/FAKE mode before dispatch. Qlib execution itself remains owned by Quant.",
+      "existingGap": "Four injected mode combinations return 422 and PostgreSQL confirms no V1.2 TestRun was created; the broader V1 mode-route inventory, active deployment, Ubuntu run and current human acceptance remain open.",
+      "closureEvidence": [
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../services/platform-api-service/src/bootstrap/app.module.ts",
+        "./2026-10-10-v12-mode-injection-e2e-a01.log",
+        "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-82d1d16c378eac819679.json",
+        "./2026-10-10-v12-mode-boundary-code-suite-a01.log",
+        "./2026-10-10-v1-crosswalk-v12-mode-a01.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L54",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 58,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "packages/contracts; Platform stage scenarios",
+      "collaborators": "Market Data, Quant and test Fixture owners",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Shared scenario and contract deliverable; frozen inputs exist, but this does not close every required data/strategy/acceptance assertion.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L55",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 59,
+        "summary": "第2节后端任务完成；Artifact task执行器、持久任务状态、原子Artifact字节发布、幂等取消、租约恢复/fencing均有隔离PostgreSQL/HTTP验证。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service and quant-research-service by their domain task",
+      "collaborators": "platform-api-service coordinates task/TestRun and Artifact projection",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Named artifact task/worker/database paths have isolated evidence. Formal general-purpose Artifact publication and active deployment remain separate.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L56",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 60,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "apps/web and platform-api-service",
+      "collaborators": "Market Data and Quant for authoritative data/research state",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Formal V1.2 Web path exists with normal/rejection/recovery; current-scope user acceptance and full general import/Artifact workflow remain open.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L57",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 61,
+        "summary": "当前隔离Fixture路径、动态实际Web URL、启动/停止命令、按钮、配置边界、超时、预期输出与失败恢复步骤已补齐，并按第8节实际启动页面、运行三场景浏览器/CLI同Run检查及精确清理。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "Platform stage docs/scripts",
+      "collaborators": "Market Data/Quant for configuration and result semantics; project operator for host values",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Runbook/Fixture/URL/timeout/cleanup are documented and isolated path was executed. Ubuntu target and current manual acceptance are separate.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L58",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 62,
+        "summary": "开发者已执行数据 normal/rejection、容器健康、Qlib 0.9.6 CPU 烟测及基础代码检查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service tests; quant-research-service locked worker tests",
+      "collaborators": "Platform Web/E2E and test evidence",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Deterministic data quality, fixed Qlib worker and code checks are evidenced; real RD-Agent/provider calls remain NOT_RUN.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L59",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 65,
+        "summary": "Artifact任务重复取消、取消/发布并发、进程重启后排队执行、运行worker租约接管和旧worker拒绝已由隔离测试验证。Qlib recovery-probe仍仅验证READY，不扩展为真实模型故障恢复；本阶段当前范围人工验收仍未签署。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service task repository/worker",
+      "collaborators": "platform-api-service Qlib task/repository; operations for process restart/lease recovery",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Fixed cancel/publish/restart/fencing combinations pass isolated PostgreSQL/HTTP checks. This is not full artifact lifecycle, cross-domain disaster recovery or real worker-host failure.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L60",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 66,
+        "summary": "当前新增范围用户验收未完成；2026-09-09历史签署保留在下方验收记录，不扩展为本轮签收。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "project owner / human acceptor",
+      "collaborators": "none",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Historical 2026-09-09 signature only applies to its original range; current expanded V1.2 scope remains unsigned.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S7-L61",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 67,
+        "summary": "可执行操作说明与限制已更新并实测；第8.6分开记录历史签署与当前自动证据，本版当前人工验收和Ubuntu门禁仍未签署/运行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "Platform/V1.2 documentation owner",
+      "collaborators": "Market Data and Quant for technical instructions; project owner for acceptance result",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Docs and executable isolated instructions are updated; Ubuntu and current user sign-off remain incomplete.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 71,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "Platform runbook and evidence owner",
+      "collaborators": "Market Data, Quant, project operator",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Readiness includes real dependency/version/fixture/code context. A green prior run is not evidence of current host or current human acceptance.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L85",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 91,
+        "summary": "8.2 隔离初始化与启动",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "stack scripts and platform-api-service",
+      "collaborators": "Market Data, Quant, PostgreSQL in the selected isolated Compose project",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Random isolated environment startup and teardown belong to tooling/operator; no activity service is modified by the test.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L100",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 106,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "apps/web",
+      "collaborators": "platform-api-service orchestration; Market Data/Quant authoritative results",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Web UI is a client; backend task/run and domain facts remain authoritative in their services. Chromium evidence covers fixed scenarios only.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L115",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 121,
+        "summary": "8.4 命令行复验与相同运行核对",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "scripts/verify-stage.mjs and evidence-export tooling",
+      "collaborators": "platform-api-service owner-scoped Run API; Quant/Market Data facts via Platform evidence",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Same-run check-only/export must use exact TestRun and authenticated owner; command output does not change human acceptance.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L153",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 159,
+        "summary": "8.7 早期代码套件复验（2026-10-06，历史边界）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "historical execution evidence owner",
+      "collaborators": "Platform documentation owner",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "This source row explicitly records an older suite; it must remain historical and must not be represented as current-tree verification.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L159",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 165,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service for data artifacts; quant-research-service for Qlib model outputs",
+      "collaborators": "Platform for run linkage; operator for process/environment recovery",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Recovery requires preserving source DataVersion, model/output hashes and original Run IDs; isolated restart tests do not prove external/host restore.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L167",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 173,
+        "summary": "8.6 历史验收记录与当前自动证据",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "Platform acceptance documentation",
+      "collaborators": "project owner / human acceptor",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Historical sign-off is preserved separately; current-range human acceptance cannot be inferred from automation.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L194",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 200,
+        "summary": "8.8 Web TestRun 与同Run CLI复核接线（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "platform-api-service",
+      "collaborators": "apps/web and verify-stage CLI",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "This section documents Web TestRun creation and same-Run CLI connection; business data and Qlib execution remain domain-owned.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L201",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 207,
+        "summary": "8.9 三场景当前代码回归（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "platform-api-service for orchestration",
+      "collaborators": "market-data-service and quant-research-service for service behavior",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Normal/rejection/recovery current-code regression only covers the declared fixed scenarios; no expansion to generic import or real research.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L205",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 211,
+        "summary": "8.10 Artifact task 持久状态切片（2026-10-06，历史结果）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service task execution and persistence",
+      "collaborators": "platform-api-service for Qlib Artifact task integration",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Historical slice evidence should remain dated and be superseded only by newer current-tree proof, not edited in place.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.2-S8-L213",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 219,
+        "summary": "8.11 Artifact task 原子发布与恢复验证（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "leadResponsibility": "market-data-service for task status/bytes fencing; platform-api-service for Qlib artifact/reference projection",
+      "collaborators": "shared artifact-content-store",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Named transactional publication/cancellation/recovery paths are tested. Unified retention decision, all-producer reference audit and physical cleanup remain open.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "../../scripts/test-v12-e2e-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    }
+  ],
+  "scopeBoundary": "Manual responsibility reconciliation for all 25 V1.2 section 2, 7 and 8 rows present in A31. It does not assert delivery sufficiency, real-provider activation, human acceptance or V1 completion."
+}

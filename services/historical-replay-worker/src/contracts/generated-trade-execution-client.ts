@@ -18,8 +18,8 @@ export class GeneratedTradeExecutionClient {
     if (!response.ok) throw new TradeExecutionHttpError(response.status, await response.text().catch(() => ""));
     return await response.json() as Contracts.HistoricalFakeExecutionResult;
   }
-  async readHistoricalFakeOrderById(orderId: string, timeoutMs: number = 5000): Promise<Contracts.HistoricalFakeOrderState> {
-    const response = await this.request(this.baseUrl + "/internal/v1/orders/" + encodeURIComponent(orderId), { headers: { "x-stockquant-service-id": "historical-replay-worker", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
+  async readHistoricalFakeOrderById(orderId: string, namespace: string, timeoutMs: number = 5000): Promise<Contracts.HistoricalFakeOrderState> {
+    const response = await this.request(this.baseUrl + "/internal/v1/historical-orders/" + encodeURIComponent(orderId) + "?namespace=" + encodeURIComponent(namespace), { headers: { "x-stockquant-service-id": "historical-replay-worker", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
     if (!response.ok) throw new TradeExecutionHttpError(response.status, await response.text().catch(() => ""));
     return await response.json() as Contracts.HistoricalFakeOrderState;
   }

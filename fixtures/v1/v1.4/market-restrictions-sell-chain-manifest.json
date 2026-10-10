@@ -1,0 +1,28 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.4-market-restrictions-sell-chain",
+  "fixtureVersion": "v1.4-market-restrictions-sell-chain-1",
+  "stageId": "V1.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Synthetic prior-session open-market BUY followed by a locked-lower-limit SELL on a later session, used only to verify a real held Portfolio position and sell reservation rejection/release",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v1/v1.4/market_restrictions_sell_chain.csv",
+      "sha256": "dcbb0ee08607ad46ac287b3c9ce912c008fa7a29b2f0bd55d4f7f7547805f9c2",
+      "mediaType": "text/csv",
+      "schemaRef": "synthetic-daily-bar-restrictions-v1"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V1.4-PAPER-SELL-SETUP-001", "description": "A prior-session open-market BUY creates a real Portfolio/FakeBroker holding" },
+    { "assertionId": "V1.4-PAPER-SELL-LOCKED-002", "description": "A locked-lower SELL with a real sell reservation is rejected, releases only that reservation, and leaves holdings and ledgers unchanged" }
+  ]
+}

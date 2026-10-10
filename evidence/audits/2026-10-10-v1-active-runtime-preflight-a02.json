@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "stockquant.v1-active-runtime-preflight.v1",
+  "observedAt": "2026-10-10 01:29 Asia/Shanghai",
+  "status": "PASS_READ_ONLY_PREFLIGHT",
+  "scope": "stockquant-v12 active Docker configuration and platform_api aggregate metadata only",
+  "containers": [
+    {
+      "name": "stockquant-v12-platform-api-service-1",
+      "configuredImage": "stockquant-v12-platform-api-service",
+      "imageId": "sha256:77c1521a431b7012b8a18815e5924d962e20cd1b5dbd6a975e47a97f18c71513",
+      "status": "running",
+      "health": "healthy",
+      "restartCount": 1,
+      "composeProject": "stockquant-v12",
+      "composeService": "platform-api-service",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [],
+      "publishedPorts": {
+        "3000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3000"
+          }
+        ]
+      },
+      "v11RunStorage": "legacy"
+    },
+    {
+      "name": "stockquant-v12-postgres-1",
+      "configuredImage": "postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7",
+      "imageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+      "status": "running",
+      "health": "healthy",
+      "restartCount": 0,
+      "composeProject": "stockquant-v12",
+      "composeService": "postgres",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [
+        {
+          "type": "volume",
+          "volumeName": "stockquant-v12_postgres-v11",
+          "destination": "/var/lib/postgresql/data",
+          "readWrite": true
+        },
+        {
+          "type": "bind",
+          "volumeName": null,
+          "destination": "/docker-entrypoint-initdb.d/10-init.sql",
+          "readWrite": false
+        }
+      ],
+      "publishedPorts": {
+        "5432/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5433"
+          }
+        ]
+      }
+    },
+    {
+      "name": "stockquant-v12-research-automation-service-1",
+      "configuredImage": "stockquant-v12-research-automation-service",
+      "imageId": "sha256:82cd446a31933cda355c3f4f4b584712b1b730ea93a81c37477e35078a3809af",
+      "status": "running",
+      "health": "healthy",
+      "restartCount": 0,
+      "composeProject": "stockquant-v12",
+      "composeService": "research-automation-service",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [
+        {
+          "type": "volume",
+          "volumeName": "stockquant-v12_research-artifacts-v1",
+          "destination": "/var/lib/stockquant/research-artifacts",
+          "readWrite": true
+        }
+      ],
+      "publishedPorts": {
+        "3008/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3008"
+          }
+        ]
+      }
+    },
+    {
+      "name": "stockquant-v12-market-data-service-1",
+      "configuredImage": "stockquant-v12-market-data-service",
+      "imageId": "sha256:e18e7956c1838ab7def0e7c185cc70ae76ecdf652fdf6d04a4d155dedecb9687",
+      "status": "running",
+      "health": "healthy",
+      "restartCount": 0,
+      "composeProject": "stockquant-v12",
+      "composeService": "market-data-service",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [
+        {
+          "type": "volume",
+          "volumeName": "stockquant-v12_market-data-health",
+          "destination": "/var/lib/stockquant",
+          "readWrite": true
+        }
+      ],
+      "publishedPorts": {
+        "3002/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "3002"
+          }
+        ]
+      }
+    },
+    {
+      "name": "stockquant-v12-nats-1",
+      "configuredImage": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+      "imageId": "sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9",
+      "status": "running",
+      "health": "no-healthcheck",
+      "restartCount": 0,
+      "composeProject": "stockquant-v12",
+      "composeService": "nats",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [
+        {
+          "type": "volume",
+          "volumeName": "stockquant-v12_nats-jetstream-v1",
+          "destination": "/data/jetstream",
+          "readWrite": true
+        }
+      ],
+      "publishedPorts": {
+        "4222/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "4222"
+          }
+        ],
+        "8222/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8222"
+          }
+        ]
+      }
+    },
+    {
+      "name": "stockquant-v12-temporal-1",
+      "configuredImage": "temporalio/temporal:1.8.3@sha256:cea463d98a8d6def4420f903ea5c3fcd0d85c8d10fbcc2770a50c12fff2eb26d",
+      "imageId": "sha256:6a84517bc49b4b5a18177a8abcd4f127c3e3c00f425238ec3636e0e13dc906a7",
+      "status": "running",
+      "health": "no-healthcheck",
+      "restartCount": 0,
+      "composeProject": "stockquant-v12",
+      "composeService": "temporal",
+      "composeFile": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose/docker-compose.yml",
+      "composeWorkingDir": "/Users/huangbosong/Documents/ChatGPT/StockQuant/infra/compose",
+      "mounts": [
+        {
+          "type": "volume",
+          "volumeName": "stockquant-v12_temporal-dev-state-v1",
+          "destination": "/home/temporal",
+          "readWrite": true
+        }
+      ],
+      "publishedPorts": {
+        "7233/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "7233"
+          }
+        ],
+        "8233/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8233"
+          }
+        ]
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "stockquant-v12_postgres-v11",
+      "driver": "local",
+      "composeProject": "stockquant-v12",
+      "composeVolume": "postgres-v11"
+    },
+    {
+      "name": "stockquant-v12_research-artifacts-v1",
+      "driver": "local",
+      "composeProject": "stockquant-v12",
+      "composeVolume": "research-artifacts-v1"
+    },
+    {
+      "name": "stockquant-v12_nats-jetstream-v1",
+      "driver": "local",
+      "composeProject": "stockquant-v12",
+      "composeVolume": "nats-jetstream-v1"
+    },
+    {
+      "name": "stockquant-v12_temporal-dev-state-v1",
+      "driver": "local",
+      "composeProject": "stockquant-v12",
+      "composeVolume": "temporal-dev-state-v1"
+    }
+  ],
+  "databaseOutput": "BEGIN\nlegacy_status|COMPLETED|54\nlegacy_status|FAILED|3\nlegacy_status|RUNNING|2\nlegacy_status|WAITING|1\nlegacy_total|60\nstage_status|COMPLETED|262\nstage_status|FAILED|14\nstage_status|RUNNING|11\nstage_status|WAITING|1\nstage_total|288\nv11_status|COMPLETED|38\nv11_status|FAILED|3\nv11_status|RUNNING|2\nv11_status|WAITING|1\nv11_total|44\nstage_nonterminal_total|12\nlegacy_nonterminal|V1.1|normal|RUNNING|221157ba-dde4-4fe4-92ff-0bb942c066b4|2026-09-15 14:42:58.67055+00\nlegacy_nonterminal|V1.1|normal|RUNNING|49a6dfa0-4c96-480f-9d64-7680fa61a626|2026-09-15 14:44:16.160814+00\nlegacy_nonterminal|V1.1|recovery|WAITING|fbb122dc-2543-4680-b3fb-bf474161ce45|2026-09-16 11:57:56.055377+00\nqlib_fixture_artifacts_table|absent\nuuid_presence|5dc2a5a7-28f1-4c9f-a867-3a676994f5b4|false|false\nuuid_presence|25fe0718-5a76-4477-a02b-5e954f621dde|false|false\nuuid_presence|48e32a09-4901-424f-8585-7b01ab9f83f7|false|false\nuuid_presence|113fea95-5fee-42ee-b702-f8423b8a173c|false|false\nROLLBACK\n",
+  "readOnly": true,
+  "runBodyRead": false,
+  "artifactBytesRead": false,
+  "credentialsRead": false,
+  "backupCreated": false,
+  "resourceMutations": [],
+  "storageCutoverAuthorized": false,
+  "storageCutoverStatus": "NOT_AUTHORIZED / NOT_DEPLOYED",
+  "diagnostics": [
+    {
+      "attempt": "initial UUID presence probe referenced non-existent test_runs.id column",
+      "result": "read-only transaction failed and rolled back; information_schema confirmed test_run_id; corrected probe passed"
+    }
+  ],
+  "limitations": [
+    "No database row bodies or artifact bytes were inspected",
+    "Counts and statuses do not authorize disposition of nonterminal runs",
+    "Four legacy UUID absences in this database do not prove external/offline archives absent",
+    "Current Compose drift still requires owner/maintainer target confirmation and maintenance window"
+  ]
+}

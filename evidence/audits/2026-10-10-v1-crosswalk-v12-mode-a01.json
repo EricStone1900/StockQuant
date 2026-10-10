@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "stockquant.v1-crosswalk-v12-mode-audit.v1",
+  "date": "2026-10-10",
+  "status": "PASS",
+  "requirementId": "V1.2-S2-L20",
+  "requirementClassification": "PASS_FOR_ATOMIC_ROUTE_ASSERTION_PARENT_OPEN",
+  "exactAssertion": {
+    "path": "../../scripts/test-v12-e2e-isolated.mjs",
+    "name": "V1.2 run creation must reject client mode injection ${JSON.stringify(modes)}"
+  },
+  "assertionPresentInScript": true,
+  "modeCases": [
+    "PAPER/FAKE",
+    "LIVE/FAKE",
+    "BACKTEST/REAL",
+    "LIVE/REAL"
+  ],
+  "httpStatusAssertionPresent": true,
+  "noRunSideEffectAssertionPresent": true,
+  "serverOwnedRequestAllowListPresent": true,
+  "evidencePaths": [
+    {
+      "path": "../../scripts/test-v12-e2e-isolated.mjs",
+      "exists": true
+    },
+    {
+      "path": "../../services/platform-api-service/src/bootstrap/app.module.ts",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-10-v12-mode-injection-e2e-a01.log",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-10-v12-mode-boundary-code-suite-a01.log",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-82d1d16c378eac819679.json",
+      "exists": true
+    }
+  ],
+  "evidenceHashes": {
+    "e2e": "b16b42bc47336186c18c14e93c6b32f59cf0ef00e7e60582e3c388b7d367de94",
+    "codeSuite": "3163404e01ff1c7ee1a3921a1c95bc3d31343d027d758fbbda13822fe99370a2",
+    "machineReport": "158b163593d6ebc57b8b5fbdf44f57c08a83176de2e12fb02a9e7aac7c4d6f8c"
+  },
+  "parentRequirementClosed": false,
+  "remainingGap": "Four mode combinations are rejected before persistence; this does not close the V1-wide route matrix, active deployment, Ubuntu validation, historical TestRun exports, or human acceptance.",
+  "evidencePathExistence": "ALL_PRESENT"
+}

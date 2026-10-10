@@ -21,6 +21,7 @@ function outboxPort() {
     markFeeCorrectionDelivered: vi.fn(async () => undefined),
     markFeeCorrectionFailed: vi.fn(async () => undefined),
     pendingReservationResolutionOutbox: vi.fn(async () => []),
+    reservationResolutionForOrder: vi.fn(async () => null),
     claimReservationResolutionOutbox: vi.fn(async () => null),
     markReservationResolutionDelivered: vi.fn(async () => undefined),
     markReservationResolutionFailed: vi.fn(async () => undefined),
@@ -73,6 +74,34 @@ describe("FillOutboxDelivery", () => {
     await expect(delivery.deliverReservationResolution("cancel-event")).resolves.toBe(true);
     expect(portfolio.resolveAccountReservation).toHaveBeenCalledWith("account-1", "reservation-1", expect.objectContaining({ outcome: "CANCELLED", evidenceRef: "fakebroker-cancel:order-1" }));
     expect(outbox.markReservationResolutionDelivered).toHaveBeenCalledWith("cancel-event", "cancel-claim");
+  });
+
+  it("delivers confirmed expiry reservation release through the durable outbox", async () => {
+    const outbox = outboxPort();
+    outbox.claimReservationResolutionOutbox.mockResolvedValue({ claim_token: "expiry-claim", payload: {
+      accountId: "account-1", reservationId: "reservation-1", namespace: "run-1", testRunId: "run-1", ownerId: "owner-1",
+      outcome: "EXPIRED", evidenceRef: "fakebroker-expired:order-1",
+    } });
+    const portfolio = { recordAccountFill: vi.fn(), correctAccountFillFee: vi.fn(), resolveAccountReservation: vi.fn(async () => undefined) };
+    const delivery = new FillOutboxDelivery(outbox, portfolio);
+
+    await expect(delivery.deliverReservationResolution("expiry-event")).resolves.toBe(true);
+    expect(portfolio.resolveAccountReservation).toHaveBeenCalledWith("account-1", "reservation-1", expect.objectContaining({ outcome: "EXPIRED", evidenceRef: "fakebroker-expired:order-1" }));
+    expect(outbox.markReservationResolutionDelivered).toHaveBeenCalledWith("expiry-event", "expiry-claim");
+  });
+
+  it("delivers a terminal FakeBroker rejection reservation release through the durable outbox", async () => {
+    const outbox = outboxPort();
+    outbox.claimReservationResolutionOutbox.mockResolvedValue({ claim_token: "rejection-claim", payload: {
+      accountId: "account-1", reservationId: "reservation-1", namespace: "run-1", testRunId: "run-1", ownerId: "owner-1",
+      outcome: "REJECTED", evidenceRef: "fakebroker-rejected:order-1:ZERO_VOLUME",
+    } });
+    const portfolio = { recordAccountFill: vi.fn(), correctAccountFillFee: vi.fn(), resolveAccountReservation: vi.fn(async () => undefined) };
+    const delivery = new FillOutboxDelivery(outbox, portfolio);
+
+    await expect(delivery.deliverReservationResolution("rejection-event")).resolves.toBe(true);
+    expect(portfolio.resolveAccountReservation).toHaveBeenCalledWith("account-1", "reservation-1", expect.objectContaining({ outcome: "REJECTED", evidenceRef: "fakebroker-rejected:order-1:ZERO_VOLUME" }));
+    expect(outbox.markReservationResolutionDelivered).toHaveBeenCalledWith("rejection-event", "rejection-claim");
   });
 
   it("keeps cancellation reservation release retryable when Portfolio is unavailable", async () => {

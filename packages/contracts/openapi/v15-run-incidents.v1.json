@@ -1,0 +1,40 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.5 Run Incident API", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "security": [{ "localSession": [] }],
+  "paths": {
+    "/api/v1/acceptance/v1/v1.5/runs/{testRunId}/incidents": {
+      "get": {
+        "operationId": "listOwnedV15RunIncidents",
+        "summary": "List incidents projected from the authenticated owner's persisted V1.5 Run evidence",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Run-scoped blocker and failed-assertion incidents, including resolved history", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "https://stockquant.local/schemas/common/v15-run-incident.schema.json" } } } } },
+          "401": { "description": "A local session is required" },
+          "404": { "description": "The run is missing, unowned, or not a V1.5 run" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.5/runs/{testRunId}/incidents/{incidentId}/acknowledge": {
+      "post": {
+        "operationId": "acknowledgeOwnedV15RunIncident",
+        "summary": "Acknowledge an active V1.5 Run incident using the authenticated session owner",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "incidentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "The same persisted incident with its first acknowledgment actor and time", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v15-run-incident.schema.json" } } } },
+          "401": { "description": "A local session is required" },
+          "404": { "description": "The incident is missing, resolved, or outside the authenticated owner's Run" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" } }
+  }
+}

@@ -24,6 +24,7 @@ describe("V1.3 fixed manual Paper execution command", () => {
     expect(() => buildV13FixedPaperOrder({ proposal: proposal(), ...input, now: "2026-10-07T10:00:00+08:00" })).toThrow("V13_EXECUTION_SCOPE_OR_EXPIRY_INVALID");
     expect(() => buildV13FixedPaperOrder({ proposal: { ...proposal(), strategyVersion: "other" }, ...input })).toThrow("V13_PROPOSAL_NOT_EXECUTABLE");
     expect(() => buildV13FixedPaperOrder({ proposal: proposal("600000.SH", 101), ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+    expect(() => buildV13FixedPaperOrder({ proposal: { ...proposal(), legs: [proposal().legs[0], { legId: "leg-2", securityId: "000001.SZ", side: "SELL", quantity: 100 }] }, ...input })).toThrow("V13_PROPOSAL_SHAPE_INVALID");
   });
   it("binds the exact execution facts into a stable authorization hash", () => {
     const first = buildV13FixedPaperOrder({ proposal: proposal(), ...input });
@@ -40,6 +41,13 @@ describe("V1.3 fixed AUTO_POLICY Paper execution command", () => {
     expect(() => buildV13FixedAutoPaperOrder({ proposal: proposal(), ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 })).toThrow("V13_PROPOSAL_NOT_EXECUTABLE");
     expect(() => buildV13FixedAutoPaperOrder({ proposal: autoProposal, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1, clientOrderId: "v13-order-2" })).not.toThrow();
     expect(buildV13FixedAutoPaperOrder({ proposal: autoProposal, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 }).commandHash).not.toBe(buildV13FixedAutoPaperOrder({ proposal: autoProposal, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a5", mandateVersion: 1 }).commandHash);
+  });
+  it("accepts only the frozen reduced AUTO quantities used by V1.5 multi-session runs", () => {
+    const cn = { ...proposal(), status: "AUTO_POLICY_PENDING", approvalMode: "AUTO_POLICY", strategyVersion: "fixture-auto-policy-test-v1", legs: [{ legId: "buy", securityId: "600000.SH", side: "BUY", quantity: 50 }] } as V13ProposalResult;
+    const us = { ...proposal("AAPL", 10), status: "AUTO_POLICY_PENDING", approvalMode: "AUTO_POLICY", strategyVersion: "fixture-auto-policy-test-v1", legs: [{ legId: "buy", securityId: "AAPL", side: "BUY", quantity: 5 }] } as V13ProposalResult;
+    expect(buildV13FixedAutoPaperOrder({ proposal: cn, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 }).reservedCash).toBe("505.00");
+    expect(buildV13FixedAutoPaperOrder({ proposal: us, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 }).reservedCash).toBe("125.05");
+    expect(() => buildV13FixedAutoPaperOrder({ proposal: { ...cn, legs: [{ ...cn.legs[0]!, quantity: 49 }] }, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
   });
 });
 

@@ -1,0 +1,56 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.5-auto-trade-calendar",
+  "fixtureVersion": "v1.5-auto-trade-calendar-1",
+  "stageId": "V1.5",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Two synthetic CN_A and US_EQUITY sessions per market to prove missed-window re-evaluation before FakeBroker execution.",
+    "license": "Internal synthetic simulation schedule; not a complete exchange calendar.",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-09T00:00:00Z",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "Per-session IANA timezone; open and close values are local wall-clock Fixture instants.",
+    "prices": "No prices or market data; the existing AUTO order input remains a separate fixed Fixture.",
+    "sessions": {
+      "count": 4,
+      "start": "2026-01-05",
+      "end": "2026-01-06",
+      "calendar": "Two explicitly listed synthetic sessions per market; the first AUTO window is missed and the second is re-evaluated."
+    },
+    "securities": {},
+    "qualityCases": [
+      "exactly two ordered sessions per market with distinct local timezones",
+      "each session close resolves strictly after its open",
+      "no order is created for a missed first session",
+      "AUTO execution occurs in the next session after a fresh Proposal and Mandate",
+      "day-end reconciliation reads actual Portfolio and independent FakeBroker facts"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.5/auto-trade-calendar.json",
+      "sha256": "a2d16e34a79594304a52bbd690c9f276e69edf98e19984e383d0a6360345c854",
+      "mediaType": "application/json",
+      "schemaRef": "v15-auto-trade-calendar-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.5-AUTO-MISSED-WINDOW-001",
+      "description": "The first session is marked MISSED_WINDOW with no stale order; the next session re-evaluates through a new Proposal and Mandate, executes one order per market, then reconciles at close."
+    }
+  ]
+}

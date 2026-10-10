@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-INTERACTIVE-STACK-NATS-HEALTH-A02",
+  "status": "PASS",
+  "stage": "V1.5",
+  "command": "pnpm stack:up -- --stage V1.5",
+  "stackStatus": "READY_FOR_MANUAL_ACCEPTANCE",
+  "project": "sq-v15-stack-fc8958c88b00bd563385",
+  "webUrl": "http://127.0.0.1:65019/acceptance/v1/v1.5",
+  "platformApiUrl": "http://127.0.0.1:65018",
+  "brokerMode": "FAKE",
+  "environmentMode": "PAPER",
+  "liveTradingEnabled": false,
+  "composeFile": "infra/compose/docker-compose.v15-integration.yml",
+  "composeSha256": "8253887bcd9a9d98b10125f8896dd4d978a3db434799b92de2ebec8082d1a0be",
+  "nats": {
+    "image": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+    "container": "sq-v15-stack-fc8958c88b00bd563385-nats-1",
+    "containerStatus": "running",
+    "healthStatus": "healthy",
+    "failingStreak": 0,
+    "jetStreamReadinessUrl": "http://127.0.0.1:8222/healthz?js-enabled-only=true",
+    "probeExitCode": 0
+  },
+  "cleanup": {
+    "command": "pnpm stack:down -- --project sq-v15-stack-fc8958c88b00bd563385",
+    "exitCode": 0,
+    "status": "STOPPED_AND_PURGED",
+    "resourcesRemoved": [
+      "containers",
+      "project-scoped PostgreSQL volume",
+      "project network",
+      "project images",
+      "credentials file"
+    ],
+    "postCleanupDockerInventory": "no matching containers, volumes, or networks",
+    "activeComposeTargeted": false
+  },
+  "limitations": [
+    "Mac remained locked; user sleep/wake and manual Web acceptance not performed.",
+    "This isolated run validates declared Compose healthcheck in a new stack; it does not apply the probe to the separately retained stack.",
+    "No external data source or real broker was called."
+  ]
+}

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { Pool } from "pg";
 import { checkpointForBars } from "../domain/checkpoint.js";
 import { PostgresReplayRunRepository } from "../adapters/postgres-replay-run-repository.js";
+import { migrateHistoricalReplaySchema } from "../adapters/postgres-schema-migrations.js";
 import { createReplayCoordinator, ReplayCancelled, ReplayConflict, requestHash } from "../application/replay-coordinator.js";
 import { isReplayWorkerPlatformRequest, loadReplayWorkerTokens } from "../service-auth.js";
 import { isReplayTestRunId, parseHistoricalReplayCommand, parseHistoricalReplayMultiCommand } from "../domain/commands.js";
@@ -31,7 +32,15 @@ async function withReplaySlot<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation(); } finally { activeReplays -= 1; replayWaiters.shift()?.(); }
 }
 const json = (res: import("node:http").ServerResponse, status: number, body: unknown) => { res.writeHead(status,{"content-type":"application/json"}); res.end(JSON.stringify(body)); };
-await runs.initialize();
+async function hasEmptyRequestBody(request: import("node:http").IncomingMessage): Promise<boolean> {
+  let byteLength = 0;
+  for await (const chunk of request) {
+    byteLength += Buffer.byteLength(chunk);
+    if (byteLength > 8192) return false;
+  }
+  return byteLength === 0;
+}
+await migrateHistoricalReplaySchema(pool);
 const coordinator = createReplayCoordinator({ runs, portfolioClient, tradeExecutionClient, replayDependencies });
 const { start, startMulti, getRun, recoverUnknown, transition, withRunLock } = coordinator;
 
@@ -41,6 +50,7 @@ createServer(async(req,res)=>{
   const recoveryMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/recover-unknown$/);
   if (req.method === "POST" && recoveryMatch) {
     if (!isPlatformRequest(req.headers)) return json(res, 403, { error: "service identity is not allowed" });
+    if (!await hasEmptyRequestBody(req)) return json(res, 422, { error: "UNKNOWN recovery does not accept a request body" });
     if (!isReplayTestRunId(recoveryMatch[1])) return json(res, 422, { error: "testRunId must be a UUID" });
     try { return json(res, 200, await recoverUnknown(recoveryMatch[1])); } catch (error) { return json(res, 422, { error: error instanceof Error ? error.message : "invalid recovery" }); }
   }
@@ -53,6 +63,7 @@ createServer(async(req,res)=>{
   const actionMatch = req.url?.match(/^\/internal\/v1\/replays\/([^/]+)\/(pause|resume|cancel)$/);
   if (actionMatch && req.method === "POST") {
     if (!isPlatformRequest(req.headers)) return json(res, 403, { error: "service identity is not allowed" });
+    if (!await hasEmptyRequestBody(req)) return json(res, 422, { error: "replay lifecycle commands do not accept a request body" });
     if (!isReplayTestRunId(actionMatch[1])) return json(res, 422, { error: "testRunId must be a UUID" });
     try {
       const run = await getRun(actionMatch[1]);

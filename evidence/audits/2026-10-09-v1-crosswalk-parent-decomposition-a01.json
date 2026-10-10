@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "auditId": "A01-PARENT-DECOMPOSITION-V1.3-FAKEBROKER",
+  "sourceCrosswalk": {
+    "path": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+    "sha256": "a5664bdc95c386fcefdfa4fbfa1d0eac0100714904eb833810937c7017547128"
+  },
+  "requirements": [
+    {
+      "requirementId": "V1.3-S2-L14",
+      "atomicElements": [
+        {
+          "element": "固定场景提交订单并经Fill Outbox入账，FakeBroker资产与Portfolio独立核对",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "services/trade-execution-service/tests/unit/v13-manual-paper-execution.spec.ts",
+              "name": "sequences scope read, portfolio reserve, short grant, single-use consume, FakeBroker and Portfolio posting"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L02 independent USD account executes and reconciles its frozen US Fixture"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-order-coordination-application-services-e2e.log",
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "原namespace/clientOrderId查询、部分Fill及取消/重启后的订单事实",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L08 applies a partial fill, accepted cancellation and fee correction through Web and same-Run CLI"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 keeps a cancel reservation through Trade restart until the sequenced result arrives"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-07-v13-l07-causal-fill-sequencing.md",
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "稳定brokerOrderId且不复制内部账本的独立Broker契约/全操作覆盖",
+          "status": "OPEN",
+          "tests": [],
+          "evidencePaths": [],
+          "remainingGap": "现有固定Web与持久化场景证明部分操作和账本分离；尚未找到逐操作断言证明稳定brokerOrderId及完整place/query/cancel/fills/account契约。"
+        }
+      ]
+    },
+    {
+      "requirementId": "V1.3-S2-L15",
+      "atomicElements": [
+        {
+          "element": "接受、部分成交、终态取消及权威Fill保留",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L08 applies a partial fill, accepted cancellation and fee correction through Web and same-Run CLI"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 keeps a cancel reservation through Trade restart until the sequenced result arrives"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "UNKNOWN不盲目重发，按原单查询并恢复",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L06 recovers an AUTO_POLICY order after committed response loss and a temporary original-order query failure"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L06 recovers the same AUTO_POLICY order after Trade Execution restarts"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "重复与乱序回报幂等、保持序号因果和无重复入账",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 Web resumes a buffered out-of-order Fill after Trade Execution restarts"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-07-v13-l07-causal-fill-sequencing.md",
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "完整状态转移/故障事件矩阵超出现有固定CN/US Fixture",
+          "status": "OPEN",
+          "tests": [],
+          "evidencePaths": [],
+          "remainingGap": "现有证据限定固定Fixture，未覆盖全部市场、拒单及生产故障分支。"
+        }
+      ]
+    },
+    {
+      "requirementId": "V1.3-S2-L16",
+      "atomicElements": [
+        {
+          "element": "固定正常/拒绝/取消场景由Web运行且CLI核对同一TestRun",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L08 applies a partial fill, accepted cancellation and fee correction through Web and same-Run CLI"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 Web resumes a buffered out-of-order Fill after Trade Execution restarts"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "接受响应丢失、查询不可用/Trade重启、重复/乱序回报等固定故障时序",
+          "status": "PASS_FOR_V1_3_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L06 recovers an AUTO_POLICY order after committed response loss and a temporary original-order query failure"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L06 recovers the same AUTO_POLICY order after Trade Execution restarts"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 Web resumes a buffered out-of-order Fill after Trade Execution restarts"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ]
+        },
+        {
+          "element": "每次运行保存实际seed、TestRun ID及注入事件序列；超出固定测试组的种子矩阵",
+          "status": "PARTIAL",
+          "tests": [
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.3 L07 keeps a cancel reservation through Trade restart until the sequenced result arrives"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log"
+          ],
+          "remainingGap": "固定场景保留TestRun与实际事件日志；未证实任意seed/故障组合覆盖。"
+        }
+      ]
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "atomicElements": [
+        {
+          "element": "V1.3 Paper写路径要求PAPER+FAKE且服务端拒绝LIVE/REAL",
+          "status": "PASS_FOR_VERIFIED_BOUNDARIES",
+          "tests": [
+            {
+              "path": "services/platform-api-service/tests/unit/v13-auto-execution.spec.ts",
+              "name": "rejects a non-FAKE or cross-namespace account without calling Trade"
+            }
+          ],
+          "evidencePaths": [
+            "../../evidence/audits/2026-10-08-p3-paper-fake-server-boundary.md",
+            "../../evidence/audits/2026-10-08-p3-paper-fake-server-boundary-code-suite.log"
+          ]
+        },
+        {
+          "element": "跨服务/所有版本写入路由及拒绝无副作用的完整接受路径清单",
+          "status": "OPEN",
+          "tests": [],
+          "evidencePaths": [],
+          "remainingGap": "已有治理、Portfolio、Trade关键边界测试，但未完成所有V1 Paper与Backtest写入路由逐项清单；页面状态/余额篡改及BACKTEST+FAKE路径另须分别审计。"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "atomicRequirements": 4,
+    "atomicElements": 12,
+    "exactTestReferences": 16,
+    "uniqueExactTests": 8,
+    "testNamesAndEvidencePathsVerified": true,
+    "failures": [],
+    "remainingOpenElements": 4
+  },
+  "scopeNote": "V1.3 fixed-Fixture evidence only; no coverage transfers to V1.5 or untested market/order cases. Parent rows remain partial."
+}

@@ -6,6 +6,18 @@ describe("historical FakeBroker execution", () => {
     expect(result).toMatchObject({ status:"PARTIALLY_FILLED", fill:{ quantity:50, price:"10.2200", fee:"0.5110" } });
   });
   it("rejects zero-volume bars", () => expect(calculateHistoricalExecution({ namespace:"n", accountId:"a", clientOrderId:"o", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:0 } }, { orderId:"o", externalFillId:"f" }).rejectionReason).toBe("ZERO_VOLUME"));
+  it("applies complete market restriction bars to Paper execution and binds them to idempotency", () => {
+    const base = { namespace:"n", accountId:"a", clientOrderId:"restriction", security:"600000.SH", requestedQuantity:100, bar:{ timestamp:"2024-02-01T01:30:00.000Z", open:"10.0000", high:"10.0000", low:"10.0000", close:"10.0000", volume:0, tradingStatus:"SUSPENDED" as const, upperLimit:"11.0000", lowerLimit:"9.0000" } };
+    expect(calculateHistoricalExecution(base, { orderId:"s", externalFillId:"f" })).toMatchObject({ status:"REJECTED", rejectionReason:"SUSPENDED" });
+    const upper = { ...base, bar:{ ...base.bar, timestamp:"2024-02-02T01:30:00.000Z", open:"11.0000", high:"11.0000", low:"11.0000", close:"11.0000", volume:500, tradingStatus:"TRADED" as const } };
+    expect(calculateHistoricalExecution(upper, { orderId:"u", externalFillId:"f" })).toMatchObject({ status:"REJECTED", rejectionReason:"LOCKED_AT_UPPER_LIMIT" });
+    const lower = { ...upper, side:"SELL" as const, bar:{ ...upper.bar, timestamp:"2024-02-05T01:30:00.000Z", open:"9.0000", high:"9.0000", low:"9.0000", close:"9.0000" } };
+    expect(calculateHistoricalExecution(lower, { orderId:"l", externalFillId:"f" })).toMatchObject({ status:"REJECTED", rejectionReason:"LOCKED_AT_LOWER_LIMIT" });
+    const open = { ...upper, bar:{ ...upper.bar, timestamp:"2024-02-06T01:30:00.000Z", open:"10.0000", high:"10.2000", low:"9.9000", close:"10.1000" } };
+    expect(calculateHistoricalExecution(open, { orderId:"o", externalFillId:"f" }).fill).toBeDefined();
+    expect(historicalExecutionFingerprint(open)).not.toBe(historicalExecutionFingerprint({ ...open, bar:{ ...open.bar, upperLimit:"10.5000" } }));
+    expect(calculateHistoricalExecution({ ...open, bar:{ ...open.bar, high:undefined } }, { orderId:"bad", externalFillId:"f" }).rejectionReason).toBe("INVALID_BAR");
+  });
   it("requests cancellation before reaching a cancellation fact", () => {
     expect(cancelTransition("PARTIALLY_FILLED")).toBe("CANCEL_REQUESTED");
     expect(cancelTransition("CANCEL_REQUESTED")).toBe("CANCELLED");
@@ -42,10 +54,13 @@ describe("historical FakeBroker execution", () => {
     expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, bar:{ ...command.bar, open:"10.2100" } }));
   });
   it("binds reservation identity and side/currency to the idempotent request", () => {
-    const command = { namespace:"n", accountId:"a", clientOrderId:"o6", security:"600000.SH", requestedQuantity:100, side:"SELL" as const, currency:"CNY", reservation:{ reservationId:"r", ownerId:"owner", testRunId:"run", clientOrderId:"o6" }, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } };
+    const command = { namespace:"n", accountId:"a", clientOrderId:"o6", security:"600000.SH", requestedQuantity:100, initialAccountCash:"10000.0000", side:"SELL" as const, currency:"CNY", reservation:{ reservationId:"r", ownerId:"owner", testRunId:"run", clientOrderId:"o6" }, bar:{ timestamp:"2024-01-03T01:30:00.000Z", open:"10.2000", volume:500 } };
     expect(() => validateExecutionReservation(command)).not.toThrow();
     expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, reservation:undefined }));
     expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, side:"BUY" }));
+    expect(historicalExecutionFingerprint(command)).not.toBe(historicalExecutionFingerprint({ ...command, initialAccountCash:"9999.0000" }));
+    expect(() => validateExecutionReservation({ ...command, initialAccountCash:undefined })).toThrow("INITIAL_ASSET_CASH_REQUIRED");
+    expect(() => validateExecutionReservation({ ...command, initialAccountCash:"NaN" })).toThrow("INVALID_INITIAL_ACCOUNT_CASH");
     expect(() => validateExecutionReservation({ ...command, reservation:{ ...command.reservation, clientOrderId:"other-order" } })).toThrow("RESERVATION_ORDER_MISMATCH");
     expect(() => validateExecutionReservation({ ...command, currency:"CNY;DROP" })).toThrow("INVALID_CURRENCY");
   });

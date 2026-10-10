@@ -12,12 +12,22 @@ V1.1通过；Clock、Artifact、账户和验收中心入口已存在。
 
 ## 2. 开发任务
 
-- [x] 实现日线导入预览、原始行情、证券映射、数据版本及质量报告；坏数据不能标可用。复权分离与正式 Artifact 存储列为后续缺口。
+2026-10-10 P0责任复核：本阶段第2/7/8节25条当前交叉索引来源的服务主责、协作和外部责任已核对，见[责任映射A01](../../../evidence/audits/2026-10-10-v1-v12-responsibility-a01.md)及[JSON](../../../evidence/audits/2026-10-10-v1-v12-responsibility-a01.json)。Market Data拥有行情/DataVersion/质量事实，Quant拥有Qlib适配器与PIT研究执行，Platform拥有TestRun/Web编排；Artifact引用/字节存储跨服务。只澄清责任，不关闭实现、OD-013、Ubuntu、历史证据或人工验收缺口。
+
+- [x] 实现固定日线 Fixture 导入预览、原始行情、证券映射、Fixture/DataVersion 标识及质量报告；未来/格式/数值/OHLC/重复/证券映射/复权语义错误均不可通过发布门。复权分离与正式 Artifact 存储列为后续缺口。
 - [x] 将固定版本 `pyqlib==0.9.6` 封装到独立 Qlib worker/quant adapter；完成 CPU 导入、CN/US真实Fixture fit/predict、分市场TopK与NO_TRADE策略Artifact，并经合同向Governance提交两个策略快照；本轮Web/CLI隔离E2E可复现。模型独立有效性验证仍为NOT_RUN。
+- [x] Platform→Quant Qlib Fixture fit生成客户端合同直接断言Platform service身份/Bearer、准确Fixture请求body和120秒长任务超时；定向客户端测试及当前V1.2完整代码套件通过，见§8.42。仅关闭客户端传输合同子项，不代表模型独立有效性已验证。
 - [x] Artifact 异步任务将持久化状态、执行、取消与不可变产物发布关联；PostgreSQL事务原子提交Artifact字节与`COMPLETED`状态，取消/发布行锁竞态最多产生一个合法终态，租约接管通过fencing拒绝旧worker写入。另有独立Qlib TestRun任务状态，Web显示阶段/错误并支持安全点取消；Platform真实容器重启后按同一Run自动恢复并幂等发布Artifact。Artifact上传任务与Qlib策略Run是两种状态机；边界为固定Fixture、单实例轮询工作器和隔离容器，阶段人工验收仍待执行。
-- [x] 提供双市场CN/US、缺失、退市、拆股及未来PIT Fixture；独立验证当前策略训练窗口的标签可用时间与边界purge。合成日历不代表真实交易日历。
+- [x] 提供双市场CN/US、缺失、退市、拆股及未来PIT Fixture；独立验证当前策略训练窗口的标签可用时间与边界purge。缺失会话不得按证券压缩后桥接特征或标签，行情日期必须落在证券上市区间内。合成日历不代表真实交易日历。2026-10-10新增v1.2-market-data-5显式预期会话日历及整市场缺日失败关闭单测，详见§8.41；真实交易所日历仍未验证。
 - [x] 提供隔离容器内固定代码 RD-Agent 兼容探针；无模型凭证时明确 `modelCalls=NOT_RUN`，不伪称真实实验完成。
 - [x] TopK与NO_TRADE精确Artifact策略通过服务Bearer/OpenAPI合同写入Governance独立收件箱；owner/TestRun/strategy幂等，冲突拒绝；短历史、未来数据和未知策略规则失败路径具有零写入/零Proposal/零执行授权断言。收件箱只证明收到研究输出，不激活策略或产生交易命令。
+
+
+2026-10-09身份边界增量：V1.2代码套件现在包含Governance、Replay和Quant HTTP身份/路由scope smoke，实际用锁定依赖构建并在隔离PostgreSQL中并发启动Governance/Replay；错误Bearer与跨调用方拒绝、有效调用到输入校验、授权幂等消费均通过。改后的完整V1.2套件exit 0，见[套件日志](../../../evidence/audits/2026-10-09-v12-service-auth-code-suite-a02.log)。此验证不等于真实RD-Agent实验、真实市场日历或当前范围人工/Ubuntu验收，阶段仍未关闭。
+
+- [x] Platform V1.2 Acceptance API全部11条路由在匿名请求返回401、伪造owner返回403；正常用户仍可运行Web/CLI同Run场景。新增定向路由矩阵并纳入完整V1.2代码套件验证，详见[身份边界审计](../../../evidence/audits/2026-10-09-v12-platform-identity-boundary-a01.md)。
+- [x] V1.2 TestRun创建仅接受`scenarioId`和`seed`；四种PAPER/LIVE/REAL客户端模式注入均返回422且不创建TestRun或派发Qlib任务。隔离E2E同时复核11条路由身份边界及正常BACKTEST/FAKE流程，见[模式边界E2E日志](../../../evidence/audits/2026-10-10-v12-mode-injection-e2e-a01.log)和[机器报告](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-82d1d16c378eac819679.json)。
+- [x] V1.2取消命令拒绝客户端status/cash等业务事实载荷，拒绝后状态不变且正常取消仍通过，见§8.34。
 
 ## 3. 同步 Web 开发
 
@@ -57,11 +67,17 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 - [x] 正式Web功能页及验收中心正常/异常场景完成；TestRun任务阶段、错误、运行中安全取消和刷新/Platform重启后的同Run恢复均已接线验证。
 - [x] 当前隔离Fixture路径、动态实际Web URL、启动/停止命令、按钮、配置边界、超时、预期输出与失败恢复步骤已补齐，并按第8节实际启动页面、运行三场景浏览器/CLI同Run检查及精确清理。
 - [x] 开发者已执行数据 normal/rejection、容器健康、Qlib 0.9.6 CPU 烟测及基础代码检查。
+- [x] Platform→Quant Qlib请求保留预期长任务超时与完整身份/请求体合同，当前代码回归见§8.42。
 - [x] Web/API/同Run CLI隔离回归已验证真实Qlib双市场输出及Governance持久回执；PostgreSQL确认normal写入2条策略快照、未来数据拒绝Run写入0条快照、Proposal与执行授权均为0。
 - [x] V1.2 Qlib策略Artifact在TestRun证据和owner-scoped读取响应中投影同一公共`artifact-ref.v1`（owner/TestRun/kind/namespace/hash/status/sourceRef）；OpenAPI、定向单测及隔离Web/API/CLI E2E通过，见[P1 ArtifactRef审计](../../../evidence/audits/2026-10-07-p1-v12-artifact-ref.md)。此项只关闭Qlib策略Artifact切片，不代表V1.3交易或V1.4报告Artifact已统一。
 - [x] Artifact任务重复取消、取消/发布并发、进程重启后排队执行、运行worker租约接管和旧worker拒绝已由隔离测试验证；Qlib Run运行中取消和真实Platform容器重启恢复通过同Run Web/CLI E2E。Qlib recovery-probe仍仅验证READY，不扩展为Qlib数值故障恢复；本阶段当前范围人工验收仍未签署。
+- [x] Platform V1.2 Acceptance API 11条控制器路由均拒绝匿名和伪造owner访问；改后完整V1.2代码套件exit 0，详见[身份边界审计](../../../evidence/audits/2026-10-09-v12-platform-identity-boundary-a01.md)。
+- [x] TestRun创建拒绝四种客户端交易模式注入（422，持久TestRun数量不变）；隔离Web/API/CLI E2E四个Run、平台重启恢复、随机资源清理通过。日志SHA-256：`b16b42bc47336186c18c14e93c6b32f59cf0ef00e7e60582e3c388b7d367de94`，详见[执行日志](../../../evidence/audits/2026-10-10-v12-mode-injection-e2e-a01.log)。
+- [x] V1.2取消命令拒绝客户端status/cash载荷；422后Run及Qlib取消标记不变，合法空体取消通过，见§8.34。
+- [x] Platform→Governance `receiveV12StrategySnapshot`由OpenAPI生成客户端承载，并纳入全局生成/漂移检查；路径、身份、Bearer、命令body和超时直接测试及完整V1.2代码套件通过，见§8.45。只记录此调用边，不代表P1/A04矩阵完整。
 - [ ] 当前新增范围用户验收未完成；2026-09-09历史签署保留在下方验收记录，不扩展为本轮签收。
 - [x] 可执行操作说明与限制已更新并实测；第8.6分开记录历史签署与当前自动证据，本版当前人工验收和Ubuntu门禁仍未签署/运行。
+- [x] Platform→Governance策略快照客户端生成与漂移验证已纳入可重复开发流程，测试及执行证据见§8.45。
 
 ## 8. 阶段验收操作手册
 
@@ -71,11 +87,11 @@ Qlib编译或运行失败不得切换到假排名并报成功；RD-Agent探针�
 
 前置服务：Docker Desktop可用；脚本自行启动隔离Platform、Market Data、Quant、PostgreSQL、Qlib worker及Vite，不依赖V1.1活动栈。
 
-固定输入：当前V1.2研究路径使用冻结版本`v1.2-market-data-4`，10只CN_A、3只US_EQUITY、60个合成工作日、774条raw日线；合成工作日不代表交易所日历。`seed=20260907`。旧版`v1.2-market-data-1`仅2只CN证券、6条日线，仅供其历史Artifact task验证，不满足研究训练窗口。
+固定输入：当前V1.2研究路径使用冻结版本`v1.2-market-data-5`，10只CN_A、3只US_EQUITY、CN/US各60个合成预期交易日、774条raw日线；显式日历文件可识别某市场整日缺失Bars。合成工作日不代表交易所日历。日线SHA-256 `28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688`；预期交易日SHA-256 `45337e8eafcea34716d629204bfb4d99d99c8c019ccbd5c36b99938c613c360e`；Manifest SHA-256 `2af281326ff825aa904001893206864b16b22dd05646066098cadec452302b0f`。`seed=20260907`。旧版本`v1.2-market-data-4`仍保留不可变，旧版`v1.2-market-data-1`仅2只CN证券、6条日线，仅供其历史Artifact task验证，不满足研究训练窗口。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 当前未提交工作树；2026-10-06；完整输入Hash见本节最新审计Manifest |
+| 实测代码Commit或工作区Hash/验证日期 | 当前未提交工作树；2026-10-10；本次完整V1.2 code suite及输入Hash见§8.41与本节Fixture Manifest |
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node 24.1.0、pnpm 10.34.5；Docker Linux/ARM64仿真环境 |
 | Web基础URL/身份登录或会话建立方式 | 执行`pnpm v12:acceptance`后从`READY_FOR_MANUAL_ACCEPTANCE.webUrl`读取实际随机URL；示例`http://127.0.0.1:58205/acceptance/v1/v1.2`。仅绑定本机，Platform使用隔离开发身份`acceptance-owner-1` |
 | 本阶段Web路由 | `/acceptance/v1/v1.2` |
@@ -279,3 +295,126 @@ normal场景对`v1.2-market-data-4`分别按CN_A和US_EQUITY时间轴生成20日
 ### 8.22 隔离交互栈启动与精确关停（2026-10-07）
 
 开发/人工走查需要保持容器栈时，在项目根目录执行`pnpm stack:up -- --stage V1.2`；等待输出`READY_FOR_MANUAL_ACCEPTANCE`，使用其实际随机Web URL与Platform API URL。该命令启动容器化Web、PostgreSQL、Market Data、Qlib worker、Quant Research、Governance和Platform API；固定为`brokerMode=FAKE`、`liveTradingEnabled=false`、数据源授权NONE。使用该命令输出的唯一`isolatedProject`执行`pnpm stack:down -- --project <isolatedProject>`；关停命令通知前台Harness仅清理该Compose项目，并核对容器、卷、网络和镜像。凭据和状态保存在忽略目录`.codex/isolated-stacks/`且文件权限0600。关闭环境不等于人工验收；本次没有创建TestRun，新增范围人工验收仍为NOT_RUN。该启动/关停切片的实际观察见[P1 V1.2隔离交互栈审计](../../../evidence/audits/2026-10-07-p1-v12-isolated-interactive-stack.md)及[历史执行快照源码/审计SHA-256清单](../../../evidence/audits/2026-10-07-p1-v12-isolated-interactive-stack.sha256)，按对应历史工作树生成，不与当前源码Hash比较。
+
+
+### 8.35 Artifact至Governance策略快照血缘断言（2026-10-09）
+
+新增定向断言：正常V1.2 Run发布的Artifact与Governance收到的两条策略快照逐项核对`ownerId`、`testRunId`、Artifact ID/Hash、Fixture/Data/Factor版本、`strategyId`/Hash、`asOf`及目标；NO_TRADE快照必须保持空目标，TopK在CN/US各有一个目标。`pnpm --filter @stockquant/platform-api-service exec vitest run tests/unit/v12-acceptance.spec.ts`退出0（7/7），[日志](../../../evidence/audits/2026-10-09-v12-lineage-unit-a06.log)，SHA-256：`bc8536925fb2facca3113c4b4e0c251b3891f4c3472985e98497f8340b2f3d4a`。这补强服务边界的数据血缘；没有重新执行Qlib容器E2E，也没有关闭P2、当前人工验收或Ubuntu验证。
+
+
+### 8.36 双市场不足历史的拟合前置拒绝（2026-10-09）
+
+V1.2 normal Run现在先为CN_A与US_EQUITY两组冻结历史分别构建并校验lookback及train/validation/test切分，再调用任一Qlib worker。若任一市场不足30个可用决策日，Run失败并保留错误；不会先拟合另一个市场，也不会发布部分Artifact或发送Governance快照。定向测试`pnpm --filter @stockquant/platform-api-service exec vitest run tests/unit/v12-acceptance.spec.ts`退出0（8/8），且Platform API typecheck通过；日志见[不足历史拒绝证据](../../../evidence/audits/2026-10-09-v12-insufficient-history-a06.log)，SHA-256：`000d258bfa4bc8273e5482eb927b9e181beaefb2ecb1476404d6cda3506cba7d`。该Run级测试使用Qlib/Governance替身，只证明编排服务零副作用前置边界，不替代真实容器E2E。随后完整`pnpm verify:stage -- --stage V1.2 --suite code`退出0：基线/合同/Fixture、构建、lint/typecheck、全仓单测、隔离PostgreSQL集成、锁版Qlib 0.9.6 fit smoke及真实容器Web/API/CLI E2E均完成；Platform API单测61文件/286项通过。隔离E2E报告含四个TestRun、双市场真实Qlib、取消与Platform重启恢复及清理证据，见[本次P2机器摘要](../../../evidence/audits/2026-10-09-v12-insufficient-history-a06-summary.json)和[E2E报告](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-a18684ac24a671e63a05.json)。不足历史特例由定向unit覆盖，不在有效Fixture E2E中注入。P2及阶段状态不因此关闭。
+
+### 8.37 缺失会话与证券上市区间（2026-10-09）
+
+Qlib样本改为依据同市场共享日期轴生成：缺失一根证券日线时，受影响的lookback和下一会话标签窗口跳过，不把缺口两侧行情压成相邻观察；证券主数据身份、重复日期及上市/退市边界也在样本构造时校验。独立Fixture校验器使用独立实现核对相同语义，并确认缺口离开20-bar lookback后恢复出样本、其他同市场证券不受影响。定向V1.2测试10/10、Platform API typecheck及`pnpm fixtures:check`退出0。改动后完整`pnpm verify:stage -- --stage V1.2 --suite code`通过：Platform API 61文件/288项、Python适配器69项、隔离PostgreSQL及服务集成、锁版Qlib 0.9.6拟合、Web/API/CLI四Run的normal/rejection/recovery-probe及同Run核验均通过，隔离资源清理核验完成；详细摘要见[本次缺失会话机器证据](../../../evidence/audits/2026-10-09-v12-session-gap-a06-summary.json)，E2E报告[JSON](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-df4ff1bddd5ef54422f9.json)及[历史执行快照 SHA-256 清单](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-df4ff1bddd5ef54422f9.sha256)。真实缺失交易日历（全市场同日缺失）仍不由合成Fixture证明；P2、阶段和当前人工验收仍开放。
+
+### 8.38 固定兼容探针实际执行（2026-10-09）
+
+RD-Agent兼容探针现由`/probe`调用隔离Qlib Worker中的受限固定Python代码，返回实际执行结果`value=42`、`fixed-probe-ok`及源码SHA-256；同时报告Worker容器未挂载Docker socket。Web同Run断言检查隔离边界、结果和`modelCalls=NOT_RUN`。改动后完整V1.2代码套件与容器化Web E2E均退出0（1 passed），详见[完整门禁日志](../../../evidence/audits/2026-10-09-v12-rdagent-probe-code-suite.log)及[SHA-256](../../../evidence/audits/2026-10-09-v12-rdagent-probe-code-suite.log.sha256)。这只是固定代码的运行时兼容探针，不代表安装/运行RD-Agent包、调用模型或实验通过；Ubuntu实机及本轮人工验收仍NOT_RUN。历史源码快照清单继续保留原始哈希，不随本轮源码变化重写。
+
+### 8.39 日线质量与发布拒绝门（2026-10-09）
+
+V1.2固定CSV解析与质量检查已收敛到Market Data application：校验列映射、securityId/ticker、日历日期、asOf、数值完整性、OHLC、非负成交量、重复证券/日期键和RAW语义。正常Fixture质量为READY；未来日期、损坏/不完整字段、非法数值、非法OHLC、负量、重复或不支持复权标记返回REJECTED。Artifact normal发布路由复用同一quality gate，非READY返回422且不产生PUBLISHED响应。质量单测覆盖通过/拒绝样本；隔离Web E2E解析正常与未来数据预览并验证READY/REJECTED。完整`pnpm verify:stage -- --stage V1.2 --suite code`退出0；Market Data unit 19文件/84项、Web typecheck、锁版Qlib和Web/API/CLI四Run通过，详见[完整门禁日志](../../../evidence/audits/2026-10-09-v12-daily-quality-code-suite-a02.log)及[日志SHA-256](../../../evidence/audits/2026-10-09-v12-daily-quality-code-suite-a02.log.sha256)。隔离E2E报告为[JSON](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-5d45bb5434e8b6405386.json)，源码/Fixture清单是[历史执行快照SHA-256清单](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-5d45bb5434e8b6405386.sha256)。该改动仅验证固定Fixture路径，不表示通用用户导入、正式持久Artifact存储或人工验收已完成。
+
+
+### 8.23 Market Data数据库迁移账本（2026-10-09）
+
+Market Data采集run/schedule、coverage、Artifact、分钟导入/上传、告警Outbox及Project Access表现统一由`market_data_schema_migrations`事务化baseline管理。隔离PG测试模拟无账本旧结构并插入业务Run，再并发启动迁移，验证旧行保留、单一v1记录、重复启动幂等及未知更高版本拒绝；随机容器/网络已清理。[聚焦迁移测试](../../../evidence/audits/2026-10-09-v12-market-data-migration-a03.log)、[28项集成与Project Delivery smoke](../../../evidence/audits/2026-10-09-v12-market-data-migration-integration-a02.log)。这只是隔离库兼容纳管，不代表活动数据库升级，也没有独立部署前CLI、降级流程或新增范围用户签收。
+
+
+### 8.24 Market Data事务迁移后的V1.2完整复验（2026-10-09）
+
+`pnpm verify:stage -- --stage V1.2 --suite code`退出0：baseline/合同/Fixture、构建、lint/typecheck、全仓单测、隔离PostgreSQL、Market Data 28项数据库集成、迁移账本旧行保留/并发/未知版本测试、Qlib 0.9.6拟合及容器化Web/API/CLI E2E均通过。E2E 1/1，四个TestRun覆盖双市场normal、拒绝、取消与Platform重启恢复，固定Qlib在隔离容器执行；随机Compose容器、卷、网络清理已核验。[完整日志](../../../evidence/audits/2026-10-09-v12-market-data-migration-code-suite-a01.log)及[SHA-256](../../../evidence/audits/2026-10-09-v12-market-data-migration-code-suite-a01.log.sha256)。该代码复验不补回历史Run导出，不代表人工验收、Ubuntu或完整V1关闭。
+
+### 8.25 V1.2独立迁移CLI完整套件（2026-10-09）
+
+`pnpm test:db:migrate:v1 -- --stage V1.2`在Market Data、Decision Governance、Quant Research各自的临时PostgreSQL验证`MIGRATION_REQUIRED → READY → READY`、幂等重复应用及未知版本fail-closed，三个隔离环境清理均核验；纳入迁移CLI后完整V1.2代码套件exit 0。[完整日志](../../../evidence/audits/2026-10-09-v12-migration-cli-code-suite-a01.log)及[SHA-256](../../../evidence/audits/2026-10-09-v12-migration-cli-code-suite-a01.log.sha256)，通用运行边界见[迁移操作说明](../../operations/v1-database-migrations.md)。不代表活动库迁移、完整配对恢复/回退或人工验收。
+
+### 8.26 Platform Acceptance API身份边界（2026-10-09）
+
+正式V1.2控制器的11条路由（场景、Fixture读取、Quant探针、TestRun创建/取消/读取及Artifact读取）统一要求会话身份；此前`quant/probe`、`quant/factors`、`quant/rdagent-probe`可匿名转发至内部服务，此次补齐保护。E2E逐条以匿名请求验证401、以伪造用户验证403；正常会话下Web/CLI共享TestRun、normal/rejection/取消/重启恢复场景仍通过。完整代码套件已重新运行，原始日志与Hash见[身份边界审计](../../../evidence/audits/2026-10-09-v12-platform-identity-boundary-a01.md)。短暂代理socket断连后的原Run恢复完成；临时容器、网络和卷已清理。本子项只证明V1.2此控制器边界，不代表全平台/API路由矩阵关闭、人工验收或V1完成。
+
+
+### 8.27 V1.2 Qlib 快照与 V1.3 Paper Proposal 血缘边界（2026-10-09）
+
+复核确认：V1.2 已将冻结DataVersion、双市场Qlib结果、Artifact ID/SHA、策略Hash、owner/TestRun与目标绑定到Governance研究快照收件箱；真实容器E2E数据库断言为2条快照、0个Proposal、0个执行授权。V1.3 Paper路径使用独立Fixture策略版本，没有消费V1.2快照。OD-007仅批准NO_TRADE只读基线，TopK活动策略参数未授权，因此当前不存在Qlib到Paper Proposal的来源绑定；不得宣称该跨阶段血缘已完成或据此激活策略。完整源码/运行证据和剩余决策见[血缘边界审计](../../../evidence/audits/2026-10-09-v1-v12-proposal-lineage-boundary-a01.md)。P2此子项保持OPEN，待明确是否要求隔离FakeBroker测试专用绑定及其持有/再平衡语义后再决定合同和验证范围。
+
+### 8.28 Qlib Artifact owner/TestRun读取隔离及保留默认值（2026-10-09）
+
+`pnpm verify:stage -- --stage V1.2 --suite code`现包含隔离PostgreSQL `v12-run-lifecycle.spec.ts`新增断言：不同owner不能读取Artifact或生命周期状态；不属于当前TestRun的随机UUID不能读取同Artifact ID；新Artifact状态为`PUBLISHED`且没有隐式`expiresAt`；同内容允许不同Run各自引用、同Run重复发布保持幂等。原有同测试文件继续验证运行锁、取消/Artifact发布fencing、崩溃接管和取消时不发布。该完整code suite exit 0，含锁版Qlib Worker和Web/API/CLI同Run、Platform重启恢复；完整输出见[套件日志](../../../evidence/audits/2026-10-09-v12-artifact-scope-code-suite-a01.log)，SHA-256 `9b80a38eb48c9f460fc4ae96e37b88f627163f1bfcb7522649fb9d035eeead4c`。
+
+本项仅验证V1.2 Qlib Artifact范围读取和无默认过期时间；不证明所有Artifact Producer统一、过期政策/物理清理已获批准、内容卷活动切换/回退或当前范围人工验收完成。OD-013未决时不得自行设置默认期限或清理字节。
+
+### 8.29 Artifact暂存与失败不可见（2026-10-09）
+
+修复了V1.2 Qlib normal流程中的发布时序：模型产物先以`PENDING`写入Artifact元数据，读取接口仅返回`PUBLISHED`/`RETAINED`；只有后续断言没有`FAILED`且任务没有被取消时，才通过owner/TestRun范围内的显式幂等转换发布。Governance handoff故障的应用层单测确认Run进入`FAILED`、Artifact保持不可读且没有调用发布；取消继续在发布前安全检查。V2.3既有`save()`仍保持直接发布语义。最近一次完整代码套件中Platform全单测300/300、`v12-acceptance.spec.ts`11/11、Artifact内容存储单测2/2，隔离PostgreSQL生命周期4/4验证暂存不可读、发布后可读、重复发布幂等及`EXPIRED`内容拒绝重用；完整`pnpm verify:stage -- --stage V1.2 --suite code`退出0，覆盖全仓检查、隔离服务集成、锁版Qlib、Web/API/CLI normal/rejection/cancellation/Platform重启恢复和资源清理。最新容器E2E TestRun为`ee08bd5b-6dbd-4305-91f1-aa5f1893ca74`、`dcbb969a-be23-463b-9509-5fb6ca8bb76c`、`ba0ed63c-a993-4800-a3e6-b400ae810718`及重启恢复Run `451f5684-cac3-4ad9-b7b7-e817fc81f8a6`；报告与输入快照见[E2E机器报告](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-582d3f5551519a09e5f6.json)和[历史源码快照SHA清单](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-582d3f5551519a09e5f6.sha256)。此证据不改变V1.2仍PARTIALLY_IMPLEMENTED状态，不代替当前范围人工验收、历史Run导出、Ubuntu或全V1门禁。
+
+### 8.30 共享Platform API变更后的V1.2兼容复验（2026-10-09）
+
+Run Incident更新了共享Platform API，故重跑`pnpm verify:stage -- --stage V1.2 --suite code`。完整隔离套件exit 0：全仓检查、V1.2服务测试、迁移与Artifact生命周期、Market Data数据库路径、锁版Qlib Worker及Web/API/CLI同Run E2E均通过；11条V1.2入口匿名401/伪造owner403，四个TestRun覆盖normal、rejection、取消与重启恢复，随机Compose容器、卷和网络精确清理通过，外部来源调用0。日志[兼容套件](../../../evidence/audits/2026-10-09-v12-run-incidents-compat-code-suite-a01.log)，SHA-256 `05b25c638a62b1263e160cb69c8b44ce20bb37a5177803d90f18fc7dce53d1a8`。
+
+此回归不改变V1.2`PARTIALLY_IMPLEMENTED`状态；不补回历史Run结构化导出，不代表活动Artifact/DB切换、目标Ubuntu实机或人工验收通过。
+
+### 8.31 共享Platform Run保存事务变更后的V1.2当前树复验（2026-10-09）
+
+`pnpm test:e2e -- --stage V1.2`同命令复跑后exit 0；隔离Web/API/CLI same-TestRun normal/rejection/recovery-probe套件PASS，共4个TestRun：`12ee5aa4-586a-4224-aaea-df9471147efa`、`2a6b4e20-7dff-4ce0-9721-7fe98a3ecb86`、`536671bf-b5e0-4a74-8140-9b15d3c637fb`、`0691f632-e8bc-4535-88c2-fa504c4761fc`。随机项目`sq-v12-e2e-0f80bb2e7e87c129bac8`清理验证通过；机器报告[JSON](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-0f80bb2e7e87c129bac8.json)及[历史执行快照SHA清单](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-0f80bb2e7e87c129bac8.sha256)。完整复验日志[见此](../../../evidence/audits/2026-10-09-v12-current-tree-shared-run-save-e2e-a02.log)，SHA-256 `700a4237dfce2103fbedea9f24e66704621b661c7effb80b3446d23b32d666bd`。首轮固定基础镜像读取EOF、未进入业务测试，日志保留为[a01](../../../evidence/audits/2026-10-09-v12-current-tree-shared-run-save-e2e-a01.log)。此项只补共享Run保存变更的V1.2当前隔离兼容，人工验收、Ubuntu和历史Run缺失仍未关闭。
+
+### 8.32 V1.3 Mandate预算读回共享Platform变更后的V1.2代码兼容复验（2026-10-10）
+
+`pnpm verify:stage -- --stage V1.2 --suite code`退出0；全仓baseline、生成合同、Fixtures、构建、类型检查和单测通过，Market Data隔离HTTP/PG、锁版Qlib Worker、Artifact生命周期/隔离、V1.2迁移及四Run Web/API/CLI/export E2E通过。TestRun：`bcd5b122-d103-4d3e-83c3-4929b58f8a20`、`6d1769be-6d87-4df3-8181-0188eb6a9904`、`a2911715-4b39-4318-9b21-ae7c2dda8777`、`2225e8bf-511d-42c6-a860-e7b677f949a5`；Qlib Worker在Mac上的linux/amd64仿真运行，不能代替Ubuntu证据。完整日志[见此](../../../evidence/audits/2026-10-10-v12-after-v13-budget-readback-code-suite-a01.log)，SHA-256 `17c6bf45c95f5649e066243f57e5562a496341f3c36f19a07b34a4eec7b7a75b`；最终E2E项目/卷/网络清理验证通过。套件不关闭历史Run恢复、人工验收或Ubuntu门槛。
+
+### 8.33 V1.2 TestRun创建拒绝客户端交易模式注入（2026-10-10）
+
+Platform `POST /api/v1/acceptance/v1/v1.2/runs`仅接受`scenarioId`、`seed`，额外字段返回422。隔离E2E提交`PAPER/FAKE`、`LIVE/FAKE`、`BACKTEST/REAL`、`LIVE/REAL`四种组合；PostgreSQL核验拒绝前后V1.2 `acceptance_stage_runs`数量不变，证明没有创建TestRun或派发Qlib任务。原子交叉映射复核[见此](../../../evidence/audits/2026-10-10-v1-crosswalk-v12-mode-a01.json)。同次完整Web/API/CLI流程确认11条V1.2路由匿名401/伪造owner403、双市场锁版Qlib、取消和Platform重启恢复均通过，临时容器/卷/网络清理通过。完整代码套件日志[见此](../../../evidence/audits/2026-10-10-v12-mode-boundary-code-suite-a01.log)，SHA-256 `3163404e01ff1c7ee1a3921a1c95bc3d31343d027d758fbbda13822fe99370a2`；隔离E2E日志[见此](../../../evidence/audits/2026-10-10-v12-mode-injection-e2e-a01.log)，TestRun为`f5ce399a-bc05-460b-845f-8e818bc83f0c`、`7996dd61-6d75-4341-a326-b601cdb3919e`、`bf35615b-dad9-4478-bf24-11249ddc19a2`、`14607337-6de0-4a23-a3da-1261eb9f029e`；机器报告[见此](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-82d1d16c378eac819679.json)。此增量不改变阶段`PARTIALLY_IMPLEMENTED`状态，不代表活动服务部署、真实券商/数据、Ubuntu或当前范围人工验收通过。
+
+### 8.34 V1.2取消命令拒绝客户端状态/资金注入（2026-10-10）
+
+`POST /api/v1/acceptance/v1/v1.2/runs/:testRunId/cancel`现只接受空请求体；提交`status`或`cash`字段返回422，Run状态与`qlibTask.cancelRequested`不变，随后合法取消仍使Run进入CANCELLED。完整`pnpm test:e2e -- --stage V1.2`退出0，包含代码套件、隔离PostgreSQL迁移/持久化、11路由身份矩阵及四个TestRun Web/API/CLI和证据导出，隔离资源清理通过。日志[见此](../../../evidence/audits/2026-10-10-v12-body-injection-code-e2e-a01.log)，SHA-256 `8bf5375703bc1afee95e4e896455792e44fa18dd459638122af72282f5b8677d`。不代表V1.2其它业务交付、Ubuntu或人工验收完成。
+
+### 8.40 公共Schema字段回归后的V1.2完整兼容复验（2026-10-10）
+
+在V1.1生成类型回归加入六类核心Schema字段/required性校验后，重跑`pnpm verify:stage -- --stage V1.2 --suite code`。受控本机复跑exit 0：Market Data隔离数据库迁移/集成、Artifact取消与重启持久化、Platform迁移及V1.2完整隔离Web/API/CLI四Run（normal、rejection、取消、Platform恢复）通过；Playwright/固定Qlib容器执行，随机Compose资源精确清理。四个TestRun：`d14c7f35-d39b-410c-a518-2cfc5916ce24`、`e1353f04-7133-4d71-b98a-01032993fa38`、`0f2f034c-1ba2-4c3d-8537-a8f6117135a4`、`957b9972-cda4-4b34-89e3-070d138b5d5e`。普通沙箱首轮仅因本机HTTP测试监听`127.0.0.1`被EPERM阻止，失败保留于[a01](../../../evidence/audits/2026-10-10-v12-post-core-schema-compat-code-suite-a01.log)；受控完整复验[a02](../../../evidence/audits/2026-10-10-v12-post-core-schema-compat-code-suite-a02.log)，SHA-256 `d33270fca698367dbd50262821122b25e3218fab3f0dca40b548ca778d4fd8eb`。此为共享合同改动后的兼容复验，不关闭V1.2历史Run导出、目标Ubuntu或新增范围人工验收。
+
+### 2026-10-10 共享PostgreSQL恢复兼容复验
+
+Decision Governance idle PostgreSQL Pool client error处理变更后，受控完整`pnpm verify:stage -- --stage V1.2 --suite code`退出0；隔离Qlib/PostgreSQL、Web/API/CLI正常/拒绝/恢复探针及取消/Platform重启恢复通过，四Run及精确项目资源清理见[执行日志](../../../evidence/audits/2026-10-10-v12-post-governance-pg-resilience-code-suite-a03.log)，SHA-256 `c28333183c70661b7f886c2d393f0c1d7d2f42a4acfaa7aa990526e64f9130bd`。普通沙箱loopback EPERM及固定镜像拉取EOF失败保留在前序日志；此复验不改变阶段PARTIAL及用户验收NOT_RUN状态。
+
+### 8.41 显式市场会话日历与整市场缺失日失败关闭（2026-10-10）
+
+新增不可变`v1.2-market-data-5`，保留v4原始输入不变；Manifest增加`market_sessions.csv`，明确记录CN_A和US_EQUITY各60个合成预期会话日。Market Data校验日历文件Hash并通过研究Fixture预览合同返回会话日期；Platform以显式时间轴构造Qlib窗口，不再只从幸存Bars反推会话。新增单测删除某一CN_A预期日期的全部市场Bars，仍保留该会话日，验证窗口/标签数据不足时在Qlib前以`fewer than 30 usable decision dates`失败关闭；若删除日期后错误地压缩日历并桥接，测试会失败。独立Fixture校验器也逐市场用Manifest日历计算并验证整市场缺失日、窗口恢复和标签可用时间。
+
+`pnpm contracts:check`、`pnpm fixtures:check`、V1.2定向Platform单测12/12、独立研究Fixture校验器均PASS。完整`pnpm verify:stage -- --stage V1.2 --suite code`受控loopback执行exit 0，包含baseline、隔离迁移/数据库、锁版Qlib 0.9.6及Web/API/CLI；新Web/API/CLI E2E四个TestRun及结构化导出PASS，随机项目` sq-v12-e2e-b8ba70b2115aa4208ee8`容器、卷、网络精确清理通过。完整套件[a02日志](../../../evidence/audits/2026-10-10-v12-market-session-calendar-code-suite-a02.log)，SHA-256 `fe0ca1ff4359148fd66c5c50ac99d715a69657059520182d49501fff5541f202`；独立E2E[a01日志](../../../evidence/audits/2026-10-10-v12-market-session-calendar-web-e2e-a01.log)，SHA-256 `561928e161e9d89ac8c67d83b30b6633822995903f080bad45118f680d9e4c53`；机器报告[JSON](../../../evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-b8ba70b2115aa4208ee8.json)，4个Run ID及输入Hash见其Manifest。首轮完整套件因E2E仍预期v4而失败，修正展示断言后重跑通过；此前沙箱首轮两项本机HTTP测试因EPERM失败也保留在[a01套件日志](../../../evidence/audits/2026-10-10-v12-market-session-calendar-code-suite-a01.log)。本项关闭合成Fixture整市场缺失会话子项，不证明真实交易所日历、真实来源、完整P2→P3策略交接、Ubuntu或人工验收；阶段仍PARTIALLY_IMPLEMENTED，人工验收NOT_RUN。
+
+### 8.42 Platform→Quant Qlib客户端长任务超时合同复验（2026-10-10）
+
+增强`services/platform-api-service/tests/unit/quant-qlib-client.spec.ts`：在已有固定fit路由、Platform Bearer/身份与确定性Fixture精确JSON断言上，新增请求`AbortSignal`及默认超时120000毫秒的逐项断言，并保留422运行失败状态与响应体检查。定向文件2/2、Platform typecheck通过。
+
+当前`pnpm verify:stage -- --stage V1.2 --suite code`退出0：Platform单测323/323、全局基线66/66，迁移CLI、Market Data/Quant隔离服务、V1.2真实Qlib CPU及固定Web/API/CLI same-TestRun normal/rejection/recovery-probe验证通过；4个TestRun均被同Run CLI检查，随机隔离Compose/PG/卷/网络清理核验。Browser期间有一次Platform重启窗口的ECONNREFUSED日志，但恢复重试成功，完整Harness最终PASS。完整日志[见此](../../../evidence/audits/2026-10-10-v12-qlib-client-timeout-code-suite-a01.log)，exit 0，SHA-256 `00d3ecd56c582ced01bf184299be18b71593f648f8fb7942b096a9236d2ea074`。
+
+这仅闭合Platform→Quant Qlib fit客户端传输/超时合同。真实Ubuntu、RD-Agent模型调用、策略独立有效性、OD-007决定及本轮用户验收仍按各自状态记录。
+
+### 8.43 Platform→Quant研究预览只读请求合同复验（2026-10-10）
+
+增强`services/platform-api-service/tests/unit/quant-v12-preview-client.spec.ts`：三条固定研究预览路由均断言Platform身份头、只读无body请求、有效AbortSignal与默认5000ms超时；保留Quant HTTP拒绝状态检查。定向文件2/2及Platform typecheck通过。
+
+当前`pnpm verify:stage -- --stage V1.2 --suite code`退出0：Platform单测66文件/323测试、全局基线66项、隔离迁移/Market Data集成、锁版Qlib Worker及Web/API/CLI normal/rejection/cancel/Platform重启恢复四Run同Run验证通过。运行中Platform恢复窗口出现一次ECONNREFUSED，原Run恢复并完成；隔离容器、卷、网络清理验证通过。日志[见此](../../../evidence/audits/2026-10-10-v12-preview-read-contract-code-suite-a01.log)，exit 0，SHA-256见[sidecar](../../../evidence/audits/2026-10-10-v12-preview-read-contract-code-suite-a01.log.sha256)。
+
+本项只验证Platform→Quant预览读取的传输边界，不证明RD-Agent模型调用、策略有效性、目标Ubuntu、历史Run导出或人工验收完成。
+
+### 8.44 Platform→Market Data双市场研究Fixture读取合同（2026-10-10）
+
+增强`services/platform-api-service/tests/unit/generated-v12-fixture-client.spec.ts`，为V1.2不可变`v1.2-market-data-5`双市场研究Fixture增加Platform消费者直接测试。测试精确验证`GET /v1/fixtures/research-preview`、Platform Bearer与服务身份、空body、AbortSignal及默认5000ms超时；定向文件3/3、Platform typecheck通过。
+
+完整`pnpm verify:stage -- --stage V1.2 --suite code`退出0：Platform单测66文件/324测试，基线66项、隔离服务/迁移、Market Data异步任务PostgreSQL恢复、锁版Qlib CPU与四个Web/API/CLI same-TestRun场景通过。恢复窗口单次ECONNREFUSED后同一Run恢复完成；随机Compose容器/卷/网络清理通过。日志[见此](../../../evidence/audits/2026-10-10-v12-market-research-preview-contract-code-suite-a01.log)，退出码与SHA见旁侧文件。
+
+此原子增量只验证研究Fixture传输路径，不宣称真实市场日历、行情来源、模型策略有效性、Ubuntu或人工验收完成。
+
+### 8.45 Platform→Governance V1.2策略快照生成客户端合同（2026-10-10）
+
+为`POST /internal/v1/v12/strategy-snapshots`增加由`decision-governance-v12-strategy-snapshots.v1.json`生成的Platform客户端，并接入`contracts:generate`与`contracts:check`漂移检查；生产适配器委托该生成客户端。直接测试使用满足所有required字段的完整`V12StrategySnapshotCommand`，无类型断言；逐项断言固定URL、Platform服务身份、Bearer、Content-Type、JSON body、AbortSignal、默认5000ms超时，以及URL/Token配置校验。定向2/2、Platform typecheck及全局`pnpm contracts:check`通过（30个客户端生成器均有生成与漂移检查），本轮定向验证日志见[命令记录](../../../evidence/audits/2026-10-10-v12-snapshot-valid-command-tests-a01.log)，退出码与SHA旁附。
+
+完整`pnpm verify:stage -- --stage V1.2 --suite code`在允许本机回环的受控环境exit 0：baseline脚本66/66、Platform 67文件/326测试、Market Data集成28/28、Governance/Replay/Quant身份边界及独立迁移、真实锁版Qlib CPU拟合通过；隔离Web/API/CLI normal、rejection、cancel、Platform重启恢复4个TestRun均由同Run核验，Platform恢复Run为`026bf270-e501-4d82-a8b6-0a136ff924ca`，临时容器/卷/网络清理验证通过。首次受限沙箱执行因本机loopback EPERM在两项基线测试失败，日志保留；受控完整运行的Vite代理曾报一次`socket hang up`，同一恢复Run随后完成、E2E最终PASS。日志[见此](../../../evidence/audits/2026-10-10-v12-governance-snapshot-generated-client-code-suite-a02.log)，exit与SHA见旁侧文件。
+
+该项关闭Platform→Governance快照调用的生成客户端子项，不代表V1.2人工验收、Ubuntu验证或P1/A04/V1整体完成。

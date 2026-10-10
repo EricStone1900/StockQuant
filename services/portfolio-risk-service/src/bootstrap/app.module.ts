@@ -1,6 +1,6 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { Pool } from "pg";
-import { authorizePortfolioRequest, loadPortfolioCredentials } from "../application/service-auth.js";
+import { arePortfolioServiceCredentialsValid, authorizePortfolioRequest, loadPortfolioCredentials } from "../application/service-auth.js";
 import { AccountService } from "../application/account-service.js";
 import { PostgresAccountRepository } from "../adapters/postgres-account-repository.js";
 import type { CorrectFillFeeCommand, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand } from "../domain/account.js";
@@ -11,6 +11,14 @@ function assertService(serviceId: string | undefined, authorization: string | un
   if (result === "NOT_CONFIGURED") throw new ServiceUnavailableException("calling service bearer credential is not configured");
   if (result === "UNAUTHENTICATED") throw new UnauthorizedException("valid service bearer credential is required");
   if (result === "FORBIDDEN") throw new ForbiddenException("service identity is not allowed for this route");
+}
+
+function rejectClientTradingMode(body: unknown): void {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return;
+  const record = body as Record<string, unknown>;
+  if (Object.hasOwn(record, "environmentMode") || Object.hasOwn(record, "brokerMode")) {
+    throw new UnprocessableEntityException("account trading mode is fixed at initialization and cannot be supplied to this operation");
+  }
 }
 
 @Injectable()
@@ -26,8 +34,7 @@ export class PortfolioContainer {
 
   async ready(): Promise<void> {
     const credentials = loadPortfolioCredentials(process.env);
-    const requiredCredentials = [credentials["platform-api-service"], credentials["trade-execution-service"], credentials["historical-replay-worker"]];
-    if (requiredCredentials.some((credential) => !credential || credential.length < 32)) throw new Error("required caller bearer credentials are not configured");
+    if (!arePortfolioServiceCredentialsValid(credentials)) throw new Error("required caller bearer credentials must be strong and distinct");
     await this.pool.query("SELECT 1");
   }
 }
@@ -82,6 +89,7 @@ export class AccountController {
     @Body() body: Omit<RecordFillCommand, "accountId">
   ) {
     assertService(serviceId, authorization, "POST", `/internal/v1/accounts/${accountId}/fills`);
+    rejectClientTradingMode(body);
     try { return await this.container.accounts.recordFill({ ...body, accountId }); }
     catch (error) {
       if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found in namespace");
@@ -103,6 +111,7 @@ export class AccountController {
   ) {
     const path = `/internal/v1/accounts/${accountId}/fills/${externalFillId}/fee-corrections`;
     assertService(serviceId, authorization, "POST", path);
+    rejectClientTradingMode(body);
     try { return await this.container.accounts.correctFillFee({ ...body, accountId, externalFillId }); }
     catch (error) {
       if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found");
@@ -121,6 +130,7 @@ export class AccountController {
     @Body() body: Omit<ReserveResourceCommand, "accountId">
   ) {
     assertService(serviceId, authorization, "POST", `/internal/v1/accounts/${accountId}/reservations`);
+    rejectClientTradingMode(body);
     try { return await this.container.accounts.reserveResource({ ...body, accountId }); }
     catch (error) {
       if (error instanceof Error && error.message.startsWith("INVALID_")) throw new BadRequestException(error.message);
@@ -140,6 +150,7 @@ export class AccountController {
     @Body() body: { namespace: string; testRunId: string; ownerId: string; outcome: "FILLED" | "CANCELLED" | "REJECTED" | "EXPIRED" | "UNKNOWN"; evidenceRef: string }
   ) {
     assertService(serviceId, authorization, "POST", `/internal/v1/accounts/${accountId}/reservations/${reservationId}/resolve`);
+    rejectClientTradingMode(body);
     try {
       const reservation = await this.container.accounts.resolveReservation({ ...body, accountId, reservationId });
       if (!reservation) throw new NotFoundException("reservation was not found");

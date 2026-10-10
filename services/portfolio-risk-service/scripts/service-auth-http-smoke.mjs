@@ -41,8 +41,52 @@ async function request(path, method, caller, bearer, body, extraHeaders = {}) {
   return fetch(`${base}${path}`, { method, headers: { ...(body ? { "content-type": "application/json" } : {}), ...(caller ? { "x-stockquant-service-id": caller } : {}), ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...extraHeaders }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
 let accountId;
+let backtestAccountId;
 try {
   await waitReady();
+  const matrixAccountId = randomUUID();
+  const portfolioRoutes = [
+    { method: "POST", path: () => "/internal/v1/accounts/initialize", callers: ["platform-api-service", "historical-replay-worker"] },
+    { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/fills`, callers: ["trade-execution-service"] },
+    { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/fills/fill-auth-matrix/fee-corrections`, callers: ["trade-execution-service"] },
+    { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/reservations`, callers: ["trade-execution-service"] },
+    { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/reservations/${randomUUID()}/resolve`, callers: ["trade-execution-service"] },
+    { method: "GET", path: (accountId) => `/internal/v1/accounts/${accountId}/snapshot`, callers: ["platform-api-service", "historical-replay-worker"] },
+    { method: "POST", path: () => "/internal/v1/faults/fill", callers: ["test-harness"] },
+  ];
+  const portfolioCallers = [
+    { id: "platform-api-service", token: tokens.platform },
+    { id: "trade-execution-service", token: tokens.trade },
+    { id: "historical-replay-worker", token: tokens.replay },
+    { id: "test-harness", token: tokens.harness },
+  ];
+  const readPortfolioFactCounts = async () => (await pool.query(`SELECT
+    (SELECT count(*)::int FROM accounts) AS accounts,
+    (SELECT count(*)::int FROM ledger_entries) AS ledger_entries,
+    (SELECT count(*)::int FROM account_positions) AS account_positions,
+    (SELECT count(*)::int FROM recorded_fills) AS recorded_fills,
+    (SELECT count(*)::int FROM fill_fee_corrections) AS fill_fee_corrections,
+    (SELECT count(*)::int FROM resource_reservations) AS resource_reservations`)).rows[0];
+  const portfolioFactCountsBeforeAuthMatrix = await readPortfolioFactCounts();
+  const portfolioAuthMatrixProbes = [];
+  for (const route of portfolioRoutes) {
+    for (const caller of portfolioCallers) {
+      const path = route.path(matrixAccountId);
+      if ((route.callers).includes(caller.id)) {
+        const wrongBearer = portfolioCallers.find((candidate) => candidate.id !== caller.id).token;
+        const response = await request(path, route.method, caller.id, wrongBearer, route.method === "GET" ? undefined : {});
+        portfolioAuthMatrixProbes.push({ method: route.method, path, caller: caller.id, kind: "wrong-bearer", status: response.status, expected: 401 });
+      } else {
+        const response = await request(path, route.method, caller.id, caller.token, route.method === "GET" ? undefined : {});
+        portfolioAuthMatrixProbes.push({ method: route.method, path, caller: caller.id, kind: "wrong-scope", status: response.status, expected: 403 });
+      }
+    }
+  }
+  const portfolioFactCountsAfterAuthMatrix = await readPortfolioFactCounts();
+  if (portfolioAuthMatrixProbes.some((probe) => probe.status !== probe.expected)
+    || JSON.stringify(portfolioFactCountsBeforeAuthMatrix) !== JSON.stringify(portfolioFactCountsAfterAuthMatrix)) {
+    throw new Error(`Portfolio caller/route HTTP matrix mismatch or rejected-request side effects: ${JSON.stringify({ probes: portfolioAuthMatrixProbes, before: portfolioFactCountsBeforeAuthMatrix, after: portfolioFactCountsAfterAuthMatrix })}`);
+  }
   const command = { fixtureAccountRef: "service-auth-http-smoke", ownerId, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" }, namespace, testRunId, idempotencyKey: "initialize-1" };
   const missing = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", null, command);
   const bad = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.trade, command);
@@ -55,6 +99,13 @@ try {
   }
   const rejectedModeSideEffects = await pool.query("SELECT count(*)::int AS count FROM accounts WHERE namespace=$1 AND test_run_id=$2", [namespace, testRunId]);
   if (rejectedModeAttempts.some((attempt) => attempt.status !== 403) || rejectedModeSideEffects.rows[0].count !== 0) throw new Error(`unsupported environment/broker modes must be rejected before persistence: ${JSON.stringify({ attempts: rejectedModeAttempts, accountsCreated: rejectedModeSideEffects.rows[0].count })}`);
+  const backtestCommand = { ...command, fixtureAccountRef: "service-auth-http-smoke-backtest", environmentMode: "BACKTEST", idempotencyKey: "initialize-backtest-1" };
+  const backtestInitialized = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.platform, backtestCommand);
+  if (backtestInitialized.status !== 201 && backtestInitialized.status !== 200) throw new Error(`valid BACKTEST/FAKE identity could not initialize isolated account: ${backtestInitialized.status} ${await backtestInitialized.text()}`);
+  const backtestResult = await backtestInitialized.json();
+  backtestAccountId = backtestResult.snapshot.accountId;
+  const backtestFacts = await pool.query("SELECT environment_mode, broker_mode, cash_amount::text AS cash_amount FROM accounts WHERE account_id=$1 AND namespace=$2 AND test_run_id=$3 AND owner_id=$4", [backtestAccountId, namespace, testRunId, ownerId]);
+  if (backtestResult.snapshot.environmentMode !== "BACKTEST" || backtestFacts.rowCount !== 1 || backtestFacts.rows[0].environment_mode !== "BACKTEST" || backtestFacts.rows[0].broker_mode !== "FAKE" || backtestFacts.rows[0].cash_amount !== "10000.0000") throw new Error("BACKTEST/FAKE mode was not persisted exactly on the owner/TestRun-scoped account");
   const initialized = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.platform, command);
   if (initialized.status !== 201 && initialized.status !== 200) throw new Error(`valid platform identity could not initialize isolated account: ${initialized.status} ${await initialized.text()}`);
   const result = await initialized.json();
@@ -70,6 +121,9 @@ try {
   const unauthenticatedReserve = await request(reservationPath, "POST", "trade-execution-service", null, reservationCommand);
   const wrongScopeReserve = await request(reservationPath, "POST", "platform-api-service", tokens.platform, reservationCommand);
   if (unauthenticatedReserve.status !== 401 || wrongScopeReserve.status !== 403) throw new Error("reservation endpoint auth scope mismatch");
+  const injectedReservationMode = await request(reservationPath, "POST", "trade-execution-service", tokens.trade, { ...reservationCommand, environmentMode: "LIVE", brokerMode: "REAL" });
+  const reservationsBeforeValidRequest = await pool.query("SELECT count(*)::int AS count FROM resource_reservations WHERE account_id=$1", [accountId]);
+  if (injectedReservationMode.status !== 422 || reservationsBeforeValidRequest.rows[0].count !== 0) throw new Error("reservation route accepted injected modes or wrote a reservation before rejecting them");
   const reserveResponse = await request(reservationPath, "POST", "trade-execution-service", tokens.trade, reservationCommand);
   if (reserveResponse.status !== 201 && reserveResponse.status !== 200) throw new Error(`valid trade identity could not reserve resources: ${reserveResponse.status} ${await reserveResponse.text()}`);
   const reserved = await reserveResponse.json();
@@ -78,12 +132,18 @@ try {
   const replay = await replayResponse.json();
   if (replayResponse.status !== 201 && replayResponse.status !== 200 || replay.replayed !== true || replay.reservation.reservationId !== reserved.reservation.reservationId) throw new Error("reservation retry was not idempotent");
   const fillCommand = { namespace, externalFillId: randomUUID(), security: "600000.SH", quantity: 10, price: "100.0000", fee: "1.0000", currency: "CNY", effectiveAt: "2026-09-25T01:00:00.000Z", side: "BUY", reservation: { reservationId: reserved.reservation.reservationId, ownerId, testRunId, clientOrderId: reservationCommand.clientOrderId } };
+  const injectedFillMode = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, { ...fillCommand, environmentMode: "LIVE", brokerMode: "REAL" });
+  const fillsBeforeValidRequest = await pool.query("SELECT count(*)::int AS count FROM recorded_fills WHERE account_id=$1", [accountId]);
+  if (injectedFillMode.status !== 422 || fillsBeforeValidRequest.rows[0].count !== 0) throw new Error("Fill route accepted injected modes or wrote a Fill before rejecting them");
   const fillResponse = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
   const fillReplayResponse = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
   if (![200, 201].includes(fillResponse.status) || ![200, 201].includes(fillReplayResponse.status) || !(await fillReplayResponse.json()).replayed) throw new Error("reserved fill posting or retry was not idempotent");
   const feeCorrectionPath = `/internal/v1/accounts/${accountId}/fills/${fillCommand.externalFillId}/fee-corrections`;
   const feeCorrection = { revision: 1, previousFee: "1.0000", correctedFee: "2.0000", effectiveAt: "2026-09-25T01:02:00.000Z", evidenceRef: "fakebroker-fee-correction:smoke-1" };
   const wrongFeeCaller = await request(feeCorrectionPath, "POST", "platform-api-service", tokens.platform, feeCorrection);
+  const injectedFeeCorrectionMode = await request(feeCorrectionPath, "POST", "trade-execution-service", tokens.trade, { ...feeCorrection, environmentMode: "LIVE", brokerMode: "REAL" });
+  const correctionsBeforeValidRequest = await pool.query("SELECT count(*)::int AS count FROM fill_fee_corrections WHERE external_fill_id=$1", [fillCommand.externalFillId]);
+  if (injectedFeeCorrectionMode.status !== 422 || correctionsBeforeValidRequest.rows[0].count !== 0) throw new Error("fee correction route accepted injected modes or wrote a correction before rejecting them");
   const feeCorrectionResponse = await request(feeCorrectionPath, "POST", "trade-execution-service", tokens.trade, feeCorrection);
   const feeCorrectionReplay = await request(feeCorrectionPath, "POST", "trade-execution-service", tokens.trade, feeCorrection);
   const fillReplayAfterCorrection = await request(`/internal/v1/accounts/${accountId}/fills`, "POST", "trade-execution-service", tokens.trade, fillCommand);
@@ -98,25 +158,29 @@ try {
   const foreignResolve = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, ownerId: "foreign-owner" });
   const invalidOutcome = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, outcome: "MAYBE" });
   if (replayResolve.status !== 403 || foreignResolve.status !== 403 || invalidOutcome.status !== 400) throw new Error("reservation resolution caller, owner or outcome scope was not enforced");
+  const injectedResolutionMode = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, environmentMode: "LIVE", brokerMode: "REAL" });
+  const reservationBeforeValidResolution = await pool.query("SELECT status FROM resource_reservations WHERE reservation_id=$1", [reserved.reservation.reservationId]);
+  if (injectedResolutionMode.status !== 422 || reservationBeforeValidResolution.rows[0]?.status !== "HELD") throw new Error("reservation resolution accepted injected modes or changed the hold before rejecting them");
   const unknownResolve = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, resolution);
   if (unknownResolve.status !== 200 || (await unknownResolve.json()).status !== "UNKNOWN") throw new Error("UNKNOWN did not preserve the resource hold with update status 200");
   const release = await request(resolvePath, "POST", "trade-execution-service", tokens.trade, { ...resolution, outcome: "CANCELLED", evidenceRef: "smoke:authoritative-cancel-confirmed" });
   if (release.status !== 200 || (await release.json()).status !== "RELEASED") throw new Error("authoritative cancellation did not release the reservation with update status 200");
-  console.log(JSON.stringify({ status: "PASS", testRunId, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, rejectedModeAttempts, rejectedModeAccountsCreated: rejectedModeSideEffects.rows[0].count, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, feeCorrection: feeCorrectionResponse.status, feeCorrectionReplay: true, originalFillReplayAfterCorrection: true, exactCorrectedCash: correctedSnapshot.cash.amount, wrongFeeCaller: wrongFeeCaller.status, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
+  console.log(JSON.stringify({ status: "PASS", testRunId, portfolioAuthMatrix: { routeCount: portfolioRoutes.length, callerCount: portfolioCallers.length, probeCount: portfolioAuthMatrixProbes.length, deniedAndForgedRequestsRejected: true, businessFactsUnchanged: portfolioFactCountsBeforeAuthMatrix, unauthorizedRequestsNoEffects: true }, caller: "platform-api-service", missingBearer: missing.status, wrongBearer: bad.status, wrongRouteScope: wrongScope.status, rejectedModeAttempts, rejectedModeAccountsCreated: rejectedModeSideEffects.rows[0].count, paperInitialize: initialized.status, backtestInitialize: backtestInitialized.status, backtestPersistedMode: backtestFacts.rows[0].environment_mode, backtestPersistedBroker: backtestFacts.rows[0].broker_mode, ownSnapshot: own.status, foreignOwner: foreign.status, platformFillDenied: tradeOwn.status, rejectedMutationModeAttempts: { reservation: injectedReservationMode.status, fill: injectedFillMode.status, feeCorrection: injectedFeeCorrectionMode.status, reservationResolution: injectedResolutionMode.status }, rejectedMutationSideEffects: { reservations: reservationsBeforeValidRequest.rows[0].count, fills: fillsBeforeValidRequest.rows[0].count, feeCorrections: correctionsBeforeValidRequest.rows[0].count, reservationStatusBeforeResolve: reservationBeforeValidResolution.rows[0]?.status }, reservationCreated: reserveResponse.status, reservationIdempotentRetry: replay.replayed, reservedFill: fillResponse.status, fillIdempotentRetry: true, feeCorrection: feeCorrectionResponse.status, feeCorrectionReplay: true, originalFillReplayAfterCorrection: true, exactCorrectedCash: correctedSnapshot.cash.amount, wrongFeeCaller: wrongFeeCaller.status, overBudget: overBudget.status, crossCallerResolve: replayResolve.status, crossOwnerResolve: foreignResolve.status, invalidOutcome: invalidOutcome.status, unknownRetainsHold: true, cancellationReleases: true }));
 } finally {
   if (service.exitCode === null) { service.kill("SIGTERM"); await new Promise((resolveClose) => service.once("close", resolveClose)); }
-  if (accountId) {
+  if (accountId || backtestAccountId) {
+    const accountIds = [accountId, backtestAccountId].filter(Boolean);
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("DELETE FROM resource_reservations WHERE account_id=$1", [accountId]);
-      await client.query("DELETE FROM fill_fee_corrections c USING recorded_fills f WHERE c.external_fill_id=f.external_fill_id AND f.account_id=$1", [accountId]);
-      await client.query("DELETE FROM recorded_fills WHERE account_id=$1", [accountId]);
-      await client.query("DELETE FROM account_positions WHERE account_id=$1", [accountId]);
-      await client.query("DELETE FROM ledger_entries WHERE account_id=$1", [accountId]);
-      await client.query("DELETE FROM accounts WHERE account_id=$1 AND namespace=$2 AND test_run_id=$3 AND owner_id=$4", [accountId, namespace, testRunId, ownerId]);
-      const remaining = await client.query("SELECT count(*) FROM accounts WHERE account_id=$1", [accountId]);
-      if (Number(remaining.rows[0].count) !== 0) throw new Error("account cleanup failed for exact isolated HTTP smoke account");
+      await client.query("DELETE FROM resource_reservations WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      await client.query("DELETE FROM fill_fee_corrections c USING recorded_fills f WHERE c.external_fill_id=f.external_fill_id AND f.account_id = ANY($1::uuid[])", [accountIds]);
+      await client.query("DELETE FROM recorded_fills WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      await client.query("DELETE FROM account_positions WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      await client.query("DELETE FROM ledger_entries WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      await client.query("DELETE FROM accounts WHERE account_id = ANY($1::uuid[]) AND namespace=$2 AND test_run_id=$3 AND owner_id=$4", [accountIds, namespace, testRunId, ownerId]);
+      const remaining = await client.query("SELECT count(*) FROM accounts WHERE account_id = ANY($1::uuid[])", [accountIds]);
+      if (Number(remaining.rows[0].count) !== 0) throw new Error("account cleanup failed for exact isolated HTTP smoke accounts");
       await client.query("COMMIT");
     } catch (error) { await client.query("ROLLBACK"); throw error; }
     finally { client.release(); }

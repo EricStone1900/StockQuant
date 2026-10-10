@@ -7,11 +7,11 @@
   "required": ["schemaVersion", "fixtureVersion", "dailyBarsSha256", "inputSha256", "factorVersion", "dataVersion", "asOf", "qlibModels", "predictions", "strategies"],
   "properties": {
     "schemaVersion": { "const": "v1.2-qlib-strategy-artifact-v1" },
-    "fixtureVersion": { "const": "v1.2-market-data-4" },
+    "fixtureVersion": { "enum": ["v1.2-market-data-4", "v1.2-market-data-5"] },
     "dailyBarsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "inputSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "factorVersion": { "const": "v1.2-momentum-volume-1" },
-    "dataVersion": { "const": "v1.2-market-data-4" },
+    "dataVersion": { "enum": ["v1.2-market-data-4", "v1.2-market-data-5"] },
     "asOf": { "type": "string", "format": "date" },
     "qlibModels": {
       "type": "array", "minItems": 2, "maxItems": 2,

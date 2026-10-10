@@ -26,7 +26,7 @@
 
 Worker仅拥有`replay_worker_runs`中的运行状态、request hash、检查点与过程/最终结果。`test_run_id`与namespace唯一约束、PostgreSQL advisory lock和request hash防止并发副作用及同键异命令。每Bar在FakeBroker/Trade执行、Portfolio入账及因果屏障确认后推进检查点。恢复必须使用原run、原命令和原订单ID；UNKNOWN只查询原订单，不能盲目重发。
 
-DDL当前由进程启动时创建/兼容迁移。分层改造不得改变现有列、约束、锁语义、检查点字段、幂等行为或历史数据。正式迁移文件化与部署顺序需根据适用阶段规则另行核实。
+V1版本化迁移增量（2026-10-09）：启动时由`migrateHistoricalReplaySchema`在事务中建立`historical_replay_schema_migrations`服务专属账本，并在同一事务内应用run/checkpoint DDL；事务级advisory lock序列化并发启动，失败整体回滚，未知较新版本拒绝启动。共享临时PostgreSQL中，Replay与Decision Governance各自登记版本1；两服务分别双进程并发启动，HTTP身份/恢复场景继续通过，且各自账本内容未互相覆盖。完整V1.4 code suite通过；证据见[Replay迁移HTTP烟测](../../evidence/audits/2026-10-09-v1-replay-migration-http-a01.log)与[V1.4代码套件](../../evidence/audits/2026-10-09-v14-replay-migration-code-suite-a01.log)。尚无降级脚本或部署前独立迁移CLI，不代表活动数据库已升级。
 
 ## 4. 接口与身份
 
@@ -40,6 +40,6 @@ DDL当前由进程启动时创建/兼容迁移。分层改造不得改变现有�
 
 已有单测覆盖commands、checkpoint、事件屏障、生命周期、生成客户端和服务身份；V2.3文档另有集成和恢复记录。该证据不替代当前工作树上针对后续修改的适用回归，也不代表人工签署。
 
-分层回归记录：Worker build通过，9个测试文件/25项测试通过（新增UNKNOWN恢复不重发测试），层扫描PASS，V2.3 code suite退出0。另运行服务身份HTTP smoke，14项未授权路由探测、持久化run GET投影（requestHash不外泄）和原有授权/消费/续期用例通过。V2.3 normal/rejection/recovery真实stage TestRun、人工接受与现有服务切换未在本次分层变更中执行；各自状态仍按阶段验收文档记录。
+分层回归记录：Worker build通过，9个测试文件/25项测试通过（新增UNKNOWN恢复不重发测试），层扫描PASS，V2.3 code suite退出0。另运行服务身份HTTP smoke，14项未授权路由探测、持久化run GET投影（requestHash不外泄）和原有授权/消费/续期用例通过。2026-10-09回放迁移账本的共享数据库并发烟测及V1.4完整代码套件通过；其具体范围及后续未完成验收以V1.4阶段记录为准。V2.3 normal/rejection/recovery真实stage TestRun、人工接受与现有服务切换未在本次分层变更中执行；各自状态仍按阶段验收文档记录。
 
 实现审计：[W1 Historical Replay层边界与回归](../../evidence/audits/2026-10-01-w1-historical-replay-layer-boundary.md)（SHA-256见同名`.sha256`清单）。

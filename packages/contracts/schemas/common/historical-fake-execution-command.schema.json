@@ -12,12 +12,19 @@
     "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
     "security": { "type": "string", "minLength": 1, "maxLength": 64 },
     "requestedQuantity": { "type": "integer", "minimum": 1 },
+    "initialAccountCash": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
     "bar": {
       "type": "object", "additionalProperties": false, "required": ["timestamp", "open", "volume"],
       "properties": {
         "timestamp": { "type": "string", "format": "date-time" },
         "open": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
-        "volume": { "type": "integer", "minimum": 0 }
+        "volume": { "type": "integer", "minimum": 0 },
+        "high": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "low": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "close": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "tradingStatus": { "enum": ["TRADED", "SUSPENDED"] },
+        "upperLimit": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" },
+        "lowerLimit": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" }
       }
     },
     "side": { "enum": ["BUY", "SELL"] },
@@ -27,6 +34,15 @@
     "participationRate": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
     "slippageBps": { "type": "number", "minimum": 0, "maximum": 10000 },
     "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "marketFeeSchedule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scheduleId", "commissionRatePartsPerBillion", "minimumCommissionCents"],
+      "properties": {
+        "scheduleId": { "enum": ["CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27", "CN_A_CASH_EQUITY_2023_08_28"] },
+        "commissionRatePartsPerBillion": { "type": "integer", "minimum": 0, "maximum": 3000000 },
+        "minimumCommissionCents": { "type": "integer", "minimum": 0 }
+      }
+    },
     "reservation": {
       "type": "object", "additionalProperties": false,
       "required": ["reservationId", "ownerId", "testRunId", "clientOrderId"],
@@ -37,5 +53,8 @@
         "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 }
       }
     }
-  }
+  },
+  "allOf": [
+    { "if": { "properties": { "bar": { "anyOf": [{ "required": ["high"] }, { "required": ["low"] }, { "required": ["close"] }, { "required": ["tradingStatus"] }, { "required": ["upperLimit"] }, { "required": ["lowerLimit"] }] } }, "required": ["bar"] }, "then": { "properties": { "bar": { "required": ["high", "low", "close", "tradingStatus", "upperLimit", "lowerLimit"] } } } }
+  ]
 }

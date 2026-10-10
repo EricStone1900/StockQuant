@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "FAIL",
+  "faultMode": "NATS_AND_WORKER_RECOVERY",
+  "isolatedProject": "sq-v15-e2e-e93119230914c2f60343",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef"
+    }
+  ],
+  "browserExitCode": 1,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:27811) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef elapsedMs=138\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=40656\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=40675\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=40804\n[V1.5 E2E] scenario=auto-trade begin\n[V1.5 E2E] scenario=auto-trade selector visible\n[V1.5 E2E] scenario=auto-trade priorRun=3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef\n[V1.5 E2E] scenario=auto-trade selected\n[V1.5 E2E] scenario=auto-trade submit dispatched\n  ✘  1 tests/e2e/v11-acceptance.spec.ts:681:1 › V1.5 normal NO_TRADE and isolated AUTO trade are distinct durable workflows (56.0s)\n\n\n  1) tests/e2e/v11-acceptance.spec.ts:681:1 › V1.5 normal NO_TRADE and isolated AUTO trade are distinct durable workflows \n\n    Error: expect(received).not.toBe(expected) // Object.is equality\n\n    Expected: not \"3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef\"\n\n    Call Log:\n    - Timeout 15000ms exceeded while waiting on the predicate\n\n      697 |     await page.getByRole(\"button\", { name: \"准备 V1.5 场景\" }).click({ timeout: 10_000 });\n      698 |     console.info(`[V1.5 E2E] scenario=${scenario} submit dispatched`);\n    > 699 |     await expect.poll(async () => (await page.getByTestId(\"v15-test-run-id\").textContent())?.trim() ?? \"\", { timeout: 15_000 }).not.toBe(previousRunId);\n          |                                                                                                                                     ^\n      700 |     await expect(page.getByTestId(\"v15-run-status\")).toHaveText(\"WAITING\");\n      701 |     const runId = (await page.getByTestId(\"v15-test-run-id\").textContent())?.trim();\n      702 |     console.info(`[V1.5 E2E] scenario=${scenario} created testRunId=${runId} elapsedMs=${Date.now() - startedAt}`);\n        at /Users/huangbosong/Documents/ChatGPT/StockQuant/apps/web/tests/e2e/v11-acceptance.spec.ts:699:133\n\n    Error Context: test-results/v11-acceptance-V1-5-normal-a0ae3--distinct-durable-workflows/error-context.md\n\n  1 failed\n    tests/e2e/v11-acceptance.spec.ts:681:1 › V1.5 normal NO_TRADE and isolated AUTO trade are distinct durable workflows \nundefined\n/Users/huangbosong/Documents/ChatGPT/StockQuant/apps/web:\n ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test --grep V1.5\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef",
+      "at": "2026-10-08T17:04:53.471Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-08T17:04:53.689Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-08T17:04:56.879Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-08T17:05:08.446Z"
+    },
+    {
+      "event": "platform_temporal_worker_restarted_during_workflow_activity",
+      "testRunId": "3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef",
+      "activityMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef market=CN_A",
+      "workflowCompleteBeforeRestart": false,
+      "at": "2026-10-08T17:05:29.186Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_DISPATCH_REDELIVERED eventId=3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef seq=3",
+      "at": "2026-10-08T17:05:29.300Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "3481bc8e-eb4d-45bd-9a38-aa1cdd4fffef",
+      "at": "2026-10-08T17:05:33.990Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "97d4be7d1a25b0c55137bac37628c16f67f7b550fdfb9a4ac407dd194efeedcf",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "b740593cc7ffbc60c2c336a15b5e5525e7c7c08fe223a8e1dde53adcd25dc299",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "784b2ce609effda562b5fc31ac856fe3e58d58f5c03fd3bb2affd2b2e90ad6e6",
+    "services/platform-api-service/src/application/v15-auto-trade.ts": "699794384700ebb700ca8bf329b5cc9721d6dd88bca3968af9544a3bf033d6ed",
+    "services/platform-api-service/src/application/v15-orchestration.ts": "bcdac8cb037a40f84737d5a610e6f92bc65df84012b4cdd22b26ab0d3ecf85d0",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "99d7a88fce1be501208942773a95afd6711067edcb6ae59b9d03cf013f02bc11",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "184b71ee1893e4cfd9031a6031f7e96f8bf7e143a7e81af0d2cd2ea10b5de2f8",
+    "services/platform-api-service/src/main.ts": "6ff021ec6ad2a09c1ace74dc560179ad10e1c5bbebf4d9facdee60c0adb3e711",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/bootstrap/main.ts": "7e6abdeeb10ab6ee06962a1425b8f7a0448cb4beb93b2793fa2839e5104734bf",
+    "services/quant-research-service/src/bootstrap/main.ts": "651ba3ee467ead9288387fd8633474486c46010109cacd90e4fc503f742695d4",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "infra/compose/docker-compose.v15-integration.yml": "6ef2d2123b6e3a57fb544bff4e8482784058f9be84552b8b9aa42ce334fd8d34",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "e2e15cddb3d7d6025a156dbe6ab5f4d7c0456969a72dc3e9c314b4bb12297cbc",
+    "scripts/unique-evidence.mjs": "440bdcbcf64d9df68524eb8c16acb1fb2d76fd9e17cb952c6ba422f15e8b3067",
+    "scripts/test-v15-web-e2e-isolated.mjs": "f7cde173278f27f9b9bc16bcc8d0b6161316c8da0df2fe8aca8816350014b6e8"
+  },
+  "failureReason": "isolated V1.5 Web/API/CLI/evidence E2E failed\n\n1 !== 0\n",
+  "evidencePath": "evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-e93119230914c2f60343.json"
+}

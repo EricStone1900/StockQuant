@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-09",
+  "requirement": "V1.3 governance, per-leg authorization, order resource path",
+  "scope": "fixed V1.3 one-leg Paper Fixture; multi-leg proposed execution fails closed",
+  "status": "PASS_PARTIAL",
+  "checks": [
+    {
+      "command": "pnpm --filter @stockquant/decision-governance-service exec vitest run tests/unit/auto-mandate.spec.ts",
+      "status": "PASS",
+      "testsPassed": 6,
+      "assertions": [
+        "all legs are checked against mandate securityScope",
+        "gross notional and each leg fee are aggregated",
+        "per-order ceiling rejects aggregate overflow",
+        "cumulative reservation rejects aggregate overflow"
+      ]
+    },
+    {
+      "command": "pnpm --filter @stockquant/trade-execution-service exec vitest run tests/unit/v13-auto-paper-execution.spec.ts",
+      "status": "PASS",
+      "testsPassed": 8,
+      "assertions": [
+        "multi-leg AUTO proposal rejected before mandate authorization, Portfolio reservation, or FakeBroker order"
+      ]
+    },
+    {
+      "command": "pnpm --filter @stockquant/trade-execution-service exec vitest run tests/unit/v13-manual-execution.spec.ts",
+      "status": "PASS",
+      "testsPassed": 9,
+      "assertions": [
+        "multi-leg manual proposal rejected by fixed order builder"
+      ]
+    },
+    {
+      "command": "pnpm --filter @stockquant/trade-execution-service typecheck",
+      "status": "PASS"
+    },
+    {
+      "command": "pnpm --filter @stockquant/decision-governance-service typecheck",
+      "status": "PASS"
+    },
+    {
+      "command": "pnpm --filter @stockquant/trade-execution-service exec vitest run tests/unit/v13-manual-paper-execution.spec.ts",
+      "status": "PASS",
+      "testsPassed": 5,
+      "assertions": [
+        "multi-leg manual proposal rejected after Governance read but before Portfolio resource reservation, short execution authorization, or FakeBroker order"
+      ]
+    }
+  ],
+  "notProven": [
+    "multi-leg Paper execution",
+    "cross-leg cash netting/intermediate cash-flow settlement",
+    "full V1.3/P3 acceptance"
+  ],
+  "externalBrokerOrMarketCalls": 0
+}

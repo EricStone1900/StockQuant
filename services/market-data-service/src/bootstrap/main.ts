@@ -18,6 +18,7 @@ import { validateGapRequest } from "../application/coverage-request.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "../application/project-delivery.js";
 import { parseProjectTokenConfig } from "../application/project-token-config.js";
 import { ProjectAccessRepository } from "../adapters/postgres-project-access-repository.js";
+import { migrateMarketDataSchema } from "../adapters/postgres-schema-migrations.js";
 import { ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../ports/project-access.js";
 import { ArtifactDeliveryRepository } from "../adapters/postgres-artifact-delivery-repository.js";
 import { ArtifactTaskExecutor } from "../application/artifact-task-executor.js";
@@ -35,15 +36,15 @@ import { HttpBodyTooLargeError, readHttpBody } from "../http-body.js";
 import { cnAShareSession, isCalendarDate } from "../application/cn-a-share-calendar.js";
 import { isAuthorizedPlatformApi, isProtectedPlatformApiRequest, loadMarketDataServiceTokens } from "../service-auth.js";
 import { externalSourceUseAuthorized, missingSourceAuthorizationConfig, shouldEnableCollectionExecutor, shouldEnableCollectionScheduler } from "../application/external-source-authorization.js";
+import { canPublishV12DailyFixture, parseV12DailyFixture, validateV12DailyBars, type V12DailyBar, type V12QualityError } from "../application/v12-daily-fixture.js";
 
-type Bar = { securityId: string; ticker: string; date: string; open: number; high: number; low: number; close: number; volume: number; adjustment: "raw" };
 class MinuteCsvFinalizeParseError extends Error {}
 const root = resolve(process.env.STOCKQUANT_PROJECT_ROOT ?? process.cwd());
 let serviceTokens: ReturnType<typeof loadMarketDataServiceTokens> | null = null;
 try { serviceTokens = loadMarketDataServiceTokens(process.env); } catch { /* Import endpoints remain closed until the platform credential is configured. */ }
 const fixture = resolve(root, "fixtures/v1/v1.2/cn_daily.csv");
 const badFixture = resolve(root, "fixtures/v1/v1.2/cn_daily_bad_future.csv");
-const v12ResearchFixtureRoot = resolve(root, "fixtures/v1/v1.2/v1.2-market-data-4");
+const v12ResearchFixtureRoot = resolve(root, "fixtures/v1/v1.2/v1.2-market-data-5");
 const minuteFixture = resolve(root, "fixtures/v2/v2.2/minute_bars.csv");
 const minuteBadFixture = resolve(root, "fixtures/v2/v2.2/minute_bars_bad.csv");
 const minuteSourceIds = ["baostock", "sina", "eastmoney", "tdx"] as const;
@@ -121,9 +122,8 @@ const collectionExecutor = collectionRuns && shouldEnableCollectionExecutor(proc
   })
   : null;
 
-async function parse(path: string): Promise<Bar[]> {
-  const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1);
-  return lines.map((line: string) => { const [securityId,ticker,date,open,high,low,close,volume,adjustment] = line.split(","); return { securityId,ticker,date,open:Number(open),high:Number(high),low:Number(low),close:Number(close),volume:Number(volume),adjustment: adjustment as "raw" }; });
+async function parse(path: string): Promise<{ bars: V12DailyBar[]; structuralErrors: V12QualityError[] }> {
+  return parseV12DailyFixture(await readFile(path, "utf8"));
 }
 async function parseCsvObjects(path: string): Promise<Array<Record<string, string>>> {
   const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/u);
@@ -132,28 +132,32 @@ async function parseCsvObjects(path: string): Promise<Array<Record<string, strin
 }
 async function readV12ResearchFixture() {
   const manifest = JSON.parse(await readFile(resolve(v12ResearchFixtureRoot, "manifest.json"), "utf8")) as { fixtureVersion?: string; files?: Array<{ path: string; sha256: string }> };
-  if (manifest.fixtureVersion !== "v1.2-market-data-4" || !Array.isArray(manifest.files)) throw new Error("V1.2 research Fixture manifest is invalid");
+  if (manifest.fixtureVersion !== "v1.2-market-data-5" || !Array.isArray(manifest.files)) throw new Error("V1.2 research Fixture manifest is invalid");
   const dailyEntry = manifest.files.find((entry) => entry.path.endsWith("/daily_bars.csv"));
-  if (!dailyEntry) throw new Error("V1.2 research Fixture daily bars are not in its manifest");
+  const sessionsEntry = manifest.files.find((entry) => entry.path.endsWith("/market_sessions.csv"));
+  if (!dailyEntry || !sessionsEntry) throw new Error("V1.2 research Fixture daily bars or market sessions are not in its manifest");
   const dailyPath = resolve(root, dailyEntry.path);
+  const sessionsPath = resolve(root, sessionsEntry.path);
   const dailyBytes = await readFile(dailyPath);
+  const sessionsBytes = await readFile(sessionsPath);
   const dailyBarsSha256 = createHash("sha256").update(dailyBytes).digest("hex");
+  const sessionsSha256 = createHash("sha256").update(sessionsBytes).digest("hex");
   if (dailyBarsSha256 !== dailyEntry.sha256) throw new Error("V1.2 research Fixture daily bars do not match the frozen manifest");
+  if (sessionsSha256 !== sessionsEntry.sha256) throw new Error("V1.2 research Fixture market sessions do not match the frozen manifest");
   const securities = await parseCsvObjects(resolve(v12ResearchFixtureRoot, "securities.csv"));
   const bars = await parseCsvObjects(dailyPath);
+  const marketSessions = await parseCsvObjects(sessionsPath);
   return {
     fixtureVersion: manifest.fixtureVersion,
     dataMode: "FIXTURE" as const,
     dailyBarsSha256,
     securities: securities.map((item) => ({ securityId: item.security_id, ticker: item.ticker, market: item.market, currency: item.currency, timezone: item.timezone, listedAt: item.listed_at, delistedAt: item.delisted_at || null })),
+    marketSessions: marketSessions.map((item) => ({ market: item.market, sessionDate: item.session_date })),
     bars: bars.map((item) => ({ securityId: item.security_id, ticker: item.ticker, market: item.market, currency: item.currency, timezone: item.timezone, date: item.date, availableAt: item.available_at, open: item.open, high: item.high, low: item.low, close: item.close, volume: Number(item.volume), adjustment: item.adjustment })),
   };
 }
-function quality(bars: Bar[], asOf: string) {
-  const errors = bars.filter((bar) => bar.date > asOf).map((bar) => ({ code: "FUTURE_DATA", ticker: bar.ticker, date: bar.date }));
-  const invalid = bars.filter((bar) => !(bar.high >= bar.low && bar.high >= bar.open && bar.high >= bar.close && bar.low <= bar.open && bar.low <= bar.close));
-  if (invalid.length) errors.push(...invalid.map((bar) => ({ code: "OHLC_INVALID", ticker: bar.ticker, date: bar.date })));
-  return { status: errors.length ? "REJECTED" : "READY", errors };
+function quality(fixture: { bars: V12DailyBar[]; structuralErrors: V12QualityError[] }, asOf: string) {
+  return validateV12DailyBars(fixture.bars, asOf, fixture.structuralErrors);
 }
 async function json(res: ServerResponse, body: unknown, status = 200, headers: Record<string, string> = {}) { res.writeHead(status, { "content-type": "application/json", ...headers }); res.end(JSON.stringify(body)); }
 function validIso(value: unknown): value is string { return typeof value === "string" && !Number.isNaN(Date.parse(value)); }
@@ -631,13 +635,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const result = await minuteImportRepository.find(decodeURIComponent(minuteGet[1]));
       return result ? json(res, result) : json(res, { code: "NOT_FOUND" }, 404);
     }
-    if (req.url === "/v1/fixtures/normal/preview") { const bars = await parse(fixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(bars, "2024-12-31"), bars }); }
-    if (req.url === "/v1/fixtures/bad-future/preview") { const bars = await parse(badFixture); return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", quality: quality(bars, "2024-12-31"), bars }); }
+    if (req.url === "/v1/fixtures/normal/preview") { const parsed = await parse(fixture); const bars = parsed.bars; return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", barCount: bars.length, securityCount: new Set(bars.map((b)=>b.securityId)).size, quality: quality(parsed, "2024-12-31"), bars }); }
+    if (req.url === "/v1/fixtures/bad-future/preview") { const parsed = await parse(badFixture); const bars = parsed.bars; return json(res, { fixtureVersion: "v1.2-market-data-1", dataMode: "FIXTURE", quality: quality(parsed, "2024-12-31"), bars }); }
     if (req.url === "/v1/fixtures/research-preview" && req.method === "GET") {
       try { return json(res, await readV12ResearchFixture()); }
       catch (error) { return json(res, { status: "NOT_RUN", reason: error instanceof Error ? error.message : "V1.2 research Fixture unavailable" }, 503); }
     }
-    if (req.url === "/v1/artifacts/normal/publish" && req.method === "POST") { const content = await readFile(fixture); return json(res, { artifactId: "artifact-v1.2-cn-daily-1", status: "PUBLISHED", immutable: true, sha256: createHash("sha256").update(content).digest("hex"), fixtureVersion: "v1.2-market-data-1" }); }
+    if (req.url === "/v1/artifacts/normal/publish" && req.method === "POST") { const content = await readFile(fixture); const parsed = parseV12DailyFixture(content.toString("utf8")); const report = quality(parsed, "2024-12-31"); if (!canPublishV12DailyFixture(report)) return json(res, { code: "FIXTURE_QUALITY_REJECTED", quality: report }, 422); return json(res, { artifactId: "artifact-v1.2-cn-daily-1", status: "PUBLISHED", immutable: true, sha256: createHash("sha256").update(content).digest("hex"), fixtureVersion: "v1.2-market-data-1" }); }
     if (req.url === "/v1/artifacts/tasks" && req.method === "POST") {
       if (!artifactDeliveryRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const task = await artifactDeliveryRepository.createTask(randomUUID(), "v1.2-market-data-1");
@@ -682,16 +686,9 @@ type MinuteBar = { securityId: string; market: string; frequency: string; barSta
 async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1); return lines.map((line) => { const [securityId, market, frequency, barStart, barEnd, availableAt, open, high, low, close, volume, amount, adjustment] = line.split(","); return { securityId, market, frequency, barStart, barEnd, availableAt, open: Number(open), high: Number(high), low: Number(low), close: Number(close), volume: Number(volume), amount: Number(amount), adjustment }; }); }
 function minuteQuality(bars: MinuteBar[]) { const errors: Array<Record<string, unknown>> = []; const seen = new Set<string>(); for (const [index, bar] of bars.entries()) { const key = `${bar.securityId}|${bar.barStart}`; if (seen.has(key)) errors.push({ code: "DUPLICATE_CONFLICT", row: index + 2, key }); seen.add(key); if (!(bar.high >= bar.low && bar.high >= bar.open && bar.high >= bar.close && bar.low <= bar.open && bar.low <= bar.close)) errors.push({ code: "OHLC_INVALID", row: index + 2 }); const time = bar.barStart.slice(11, 16); if ((time >= "11:30" && time < "13:00") || time < "09:30" || time >= "15:00") errors.push({ code: "NON_TRADING_SESSION", row: index + 2, time }); if (bar.volume < 0 || bar.amount < 0) errors.push({ code: "UNIT_INVALID", row: index + 2 }); } return errors; }
 async function start(): Promise<void> {
-  if (collectionRuns) await collectionRuns.migrate();
-  if (collectionSchedules) await collectionSchedules.migrate();
-  if (coverageRepository) await coverageRepository.migrate();
-  if (artifactDeliveryRepository) await artifactDeliveryRepository.migrate();
-  if (minuteImportRepository) await minuteImportRepository.migrate();
-  if (minuteUploadRepository) await minuteUploadRepository.migrate();
-  if (alertOutboxRepository) await alertOutboxRepository.migrate();
+  if (databasePool) await migrateMarketDataSchema(databasePool);
   if (artifactTaskExecutor && process.env.STOCKQUANT_ARTIFACT_TASK_EXECUTOR !== "0") artifactTaskExecutor.start(Number(process.env.STOCKQUANT_ARTIFACT_TASK_INTERVAL_MS ?? 250));
   if (projectAccessRepository) {
-    await projectAccessRepository.migrate();
     for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);
   }
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");

@@ -59,6 +59,8 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 
 提供/live、/ready或等价探针，记录服务依赖、版本和队列/任务年龄；日志贯通correlationId/testRunId及适用业务ID。指标包含任务成功/拒绝/失败/耗时、重试与恢复进度，不能只靠HTTP200报业务健康。
 
+PostgreSQL idle-client socket errors must be observed through the Pool `error` event and logged without terminating the service process. `/ready` remains dependency-aware; business writes fail closed while PostgreSQL is unavailable, and the process must accept new connections after the same database returns.
+
 ## 8. Web与验证
 
 建议时间线、风险与拒绝、人工修改差异、Mandate范围/剩余额度、暂停；自动路径不逐单等待人工。
@@ -76,6 +78,10 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
 
 实现复核补充（2026-09-25）：按每服务独立Bearer身份，`historical-replay-worker`仅可申请BACKTEST/FAKE执行授权，`trade-execution-service`仅可消费并验证授权；两个scope绑定不同token，缺失/弱/重复token时进程启动失败。身份/路由策略单测通过；实际服务HTTP与专用数据库烟测、活动部署仍未执行。
+
+配置门禁增量（2026-10-10）：Governance现有V1策略快照、Proposal、Paper授权、AUTO Mandate与预算路由依赖Platform API caller身份，不能将该凭据视为可选。服务启动要求Platform API、Trade Execution、Historical Replay三份独立且至少32字符的Bearer token；缺失、过短或复用均失败关闭，Compose同步要求三项配置。单测与V1.3隔离服务回归记录于V1.3 §8.74；活动环境配置未因此变更。
+
+V1版本化迁移增量（2026-10-09）：`migrateDecisionGovernanceSchema`将执行授权、Proposal、Auto Mandate与策略快照四个现有schema初始化合并为单个事务化V1 baseline；`decision_governance_schema_migrations`独立记录本服务版本，事务级advisory lock串行化并发启动，失败回滚schema与版本记录，遇到不支持的更高版本时拒绝启动。临时随机PostgreSQL烟测并发启动两个Governance进程后就绪，随后HTTP/身份/授权场景继续通过，并确认版本1只存在一条记录；临时数据库已删除。当前没有降级脚本或独立部署前迁移CLI。证据：[隔离迁移/身份HTTP烟测](../../evidence/audits/2026-10-09-v1-governance-migration-http-a01.log)及[SHA-256](../../evidence/audits/2026-10-09-v1-governance-migration-http-a01.log.sha256)。不代表活动Governance数据库已升级。
 
 V3.2 exact candidate binding (2026-09-27): Platform API may call `POST /internal/v1/candidate-mandates/readiness` with its own Bearer identity after it verifies the owner's session and accepted exact V3.1 TestRun. Governance performs a direct read of Quant's exact Registry fingerprint with its separate `decision-governance-service` token; Quant scopes that identity to the exact Registry GET only. The command binds PAPER/FAKE, owner, account, TestRun, fingerprint, and candidate Artifact ID/namespace/SHA. Only exact approved fingerprint and Artifact equality returns `EXACT_VERSION_MATCH_READY_FOR_MANDATE_REVIEW`; unknown/mismatched candidate is rejected and unavailable Registry returns WAITING. This route is read-only: no mandate is persisted, no execution authorization is issued, and no strategy is activated. Random-PG/HTTP integration exercises real Governance→Quant HTTP with synthetic approval only; active Paper and human acceptance remain NOT_RUN. Contract/OpenAPI: `decision-governance-candidate-mandate.v1.json`.
 

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "requirementIds": [
+    "V1.4-S2-L18"
+  ],
+  "workPackage": "A08/P4",
+  "command": "node scripts/run-isolated-postgres-command.mjs --url-env TRADE_EXECUTION_TEST_DATABASE_URL:trade_execution_test:trade_execution_test -- node services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs",
+  "exitCode": 0,
+  "fixtureBoundary": {
+    "CN_A": "synthetic exact-cent CNY with versioned fee schedule",
+    "US_EQUITY": "synthetic USD, fixed fixture fee of 1.00 per order; not a real-market fee/tax claim"
+  },
+  "assertions": {
+    "compared": [
+      "CN BUY",
+      "CN SELL",
+      "CN partial BUY",
+      "CN zero-volume rejection",
+      "US BUY",
+      "US SELL"
+    ],
+    "fields": [
+      "status",
+      "quantity",
+      "price",
+      "fee",
+      "execution session",
+      "rejection reason",
+      "Fill Outbox"
+    ],
+    "counts": {
+      "orders": 6,
+      "fills": 5,
+      "fillOutbox": 5
+    }
+  },
+  "firstAttempt": {
+    "result": "FAIL",
+    "cause": "USD parity expected 0.50 but persisted FakeBroker fee was 1.00 under its fixed synthetic percentage fee; preserved and diagnosed, no random seed changes."
+  },
+  "correctedAttempt": {
+    "result": "PASS",
+    "expectedUsdFee": "1.00",
+    "isolatedPostgres": true,
+    "activeServicesConnected": false,
+    "cleanup": "temporary container/network removed"
+  },
+  "source": {
+    "path": "services/trade-execution-service/scripts/test-v14-rule-parity-postgres.mjs",
+    "sha256": "036b4d2e48477eb2c31d084343d6df3f2b54cbf3932112f3f82e5b0598aa9d01"
+  },
+  "limitations": [
+    "Does not verify real US market fees/taxes or full account settlement parity.",
+    "A08 remains open for other applicable rules and complete Web/Paper comparison."
+  ]
+}

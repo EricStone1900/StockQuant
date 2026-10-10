@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "check": "V1.5 multi-session crosswalk refresh",
+  "crosswalkPath": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "crosswalkSha256": "30d8c9b5ac3e0e67c5d4dedb0e5ad79d268c2078fae26fa415af6cf8340d68e9",
+  "updatedRequirementIds": [
+    "V1.5-S2-L17",
+    "V1.5-S2-L18",
+    "V1.5-S2-L19",
+    "V1.5-S7-L56",
+    "V1.5-S7-L57",
+    "V1.5-S7-L58",
+    "V1.5-S7-L60",
+    "V1.5-S7-L61",
+    "V1.5-S8-L67"
+  ],
+  "evidence": {
+    "e2e": "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+    "codeSuite": "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+    "fixture": "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+    "manifest": "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json"
+  },
+  "exactTestNames": [
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+      "name": "loads three hash-verified market sessions with explicit order quantities for both execution days"
+    },
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+      "name": "uses distinct proposal, mandate and FakeBroker idempotency identities for consecutive sessions"
+    },
+    {
+      "path": "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+      "name": "records next-session close reconciliation and missed-window recovery"
+    },
+    {
+      "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+      "name": "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows"
+    }
+  ],
+  "completionStatusChanged": false,
+  "remainingLimitations": [
+    "real exchange calendar and settlement semantics",
+    "real-clock continuous scheduling",
+    "cancel/in-flight Fill and trading-worker failover",
+    "target Ubuntu evidence",
+    "current-scope human acceptance"
+  ]
+}

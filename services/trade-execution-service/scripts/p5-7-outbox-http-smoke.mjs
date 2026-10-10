@@ -160,7 +160,7 @@ try {
   reservationId = JSON.parse(reserveText).reservation.reservationId;
 
   const executeCommand = {
-    namespace, accountId, clientOrderId, security: "600000.SH", requestedQuantity: 150, side: "BUY", currency: "CNY",
+    namespace, accountId, clientOrderId, security: "600000.SH", requestedQuantity: 150, side: "BUY", currency: "CNY", initialAccountCash: "10000.0000",
     reservation: { reservationId, ownerId, testRunId, clientOrderId },
     bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.0000", volume: 1000 }, authorizationId: randomUUID()
   };
@@ -269,12 +269,19 @@ try {
   assert.ok([200, 201].includes(raceReservationResponse.status), raceReservationText);
   const raceReservationId = JSON.parse(raceReservationText).reservation.reservationId;
   const raceOrder = await new PostgresFakeBrokerRepository(tradePool).execute({
-    namespace, accountId, clientOrderId: raceClientOrderId, security: "600000.SH", side: "BUY", currency: "CNY", requestedQuantity: 100,
+    namespace, accountId, clientOrderId: raceClientOrderId, security: "600000.SH", requestedQuantity: 100, side: "BUY", currency: "CNY", initialAccountCash: "10000.0000",
     reservation: { reservationId: raceReservationId, ownerId, testRunId, clientOrderId: raceClientOrderId },
     bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 500 }
   });
   assert.equal(raceOrder.result.status, "PARTIALLY_FILLED");
   const raceOrderId = raceOrder.result.orderId;
+  const byClientLookupPath = `${tradeUrl}/internal/v1/orders/by-client-id?namespace=${encodeURIComponent(namespace)}&clientOrderId=${encodeURIComponent(raceClientOrderId)}`;
+  const initialOrderLookupResponse = await fetch(byClientLookupPath, { headers: headers("platform-api-service", tokens.platform, false) });
+  assert.equal(initialOrderLookupResponse.status, 200);
+  const initialOrderLookup = await initialOrderLookupResponse.json();
+  assert.equal(initialOrderLookup.order.order_id, raceOrderId, "the public clientOrderId query resolves to the stable FakeBroker order ID");
+  assert.equal(initialOrderLookup.order.status, "PARTIALLY_FILLED");
+  assert.equal(initialOrderLookup.fills.length, 1, "the order query exposes its persisted initial broker Fill");
   let initialRaceFillDelivered = false;
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const state = await tradePool.query("SELECT status FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST'", [raceOrderId]);
@@ -344,6 +351,12 @@ try {
   assert.equal(raceSnapshot.ledgerEntryCount, 5);
   const raceReservationLedger = await portfolioPool.query("SELECT status,captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1", [raceReservationId]);
   assert.deepEqual(raceReservationLedger.rows[0], { status: "RELEASED", captured_cash_amount: "766.5210" }, "cancel result captures both accepted fills then releases only the unfilled reservation remainder");
+  const finalOrderLookupResponse = await fetch(byClientLookupPath, { headers: headers("platform-api-service", tokens.platform, false) });
+  assert.equal(finalOrderLookupResponse.status, 200);
+  const finalOrderLookup = await finalOrderLookupResponse.json();
+  assert.equal(finalOrderLookup.order.order_id, raceOrderId, "the public query returns the same broker order ID after Trade restart and final cancellation");
+  assert.equal(finalOrderLookup.order.status, "CANCELLED");
+  assert.equal(finalOrderLookup.fills.length, 2, "the public query returns both persisted broker Fill facts");
 
   const externalOrder = { namespace, externalOrderId: `external-${randomUUID()}`, clientOrderId: `external-client-${randomUUID()}`, security: "600000.SH", requestedQuantity: 100, status: "UNKNOWN", evidenceRef: `fixture:${testRunId}:independent-external-order`, observedAt: "2026-09-25T01:40:00.000Z" };
   const externalPath = `${tradeUrl}/internal/v1/fake-broker/external-orders`;
@@ -371,7 +384,7 @@ try {
   const capturedReservation = await portfolioPool.query("SELECT status, captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1 AND account_id=$2", [reservationId, accountId]);
   assert.deepEqual(capturedReservation.rows[0], { status: "UNKNOWN", captured_cash_amount: "1003.0010" });
 
-  console.log(JSON.stringify({ status: "PASS", scenario: "Portfolio commits Fill, response is lost, execution service restarts and retries durable Outbox", testRunId, namespace, orderId, accountId, reservationId, firstPortfolioResponseLost: lostResponseInjected, pendingBeforeRestart: { status: pendingBeforeRestart.rows[0].status, outbox_status: pendingBeforeRestart.rows[0].outbox_status, attempts: pendingBeforeRestart.rows[0].attempts }, concurrentOutboxClaims: 1, expiredLeaseTakeover: true, staleAckFenced: true, staleFailureFenced: true, recoveredOrder: recoveredOrder.rows[0].status, outbox: outbox.rows[0].status, attempts: outbox.rows[0].attempts, portfolioFillCount: ledger.rows[0].fills, feeCorrection: { delivered: feeCorrectionDelivered, revision: 1, idempotentRetry: true, unauthorizedReplayRejected: true, originalFeePreserved: correctionFacts.rows[0].original_fee, correctedFee: correctionFacts.rows[0].fee }, fillDuringCancel: { cancelSequenceBufferedFirst: bufferedCancel.buffered, cancelStateWhileGapOpen: bufferedCancel.status, gapSurvivedTradeRestart: true, reservationHeldWhileGapOpen: true, fillSequenceDrainedThrough: simulatedFillResult.lastAppliedSequence, cancelReplayIdempotent: cancelReplay.replayed, simulatedCumulativeQuantity: 75, incrementalQuantity: 25, idempotentReplay: true, unauthorizedReplayRejected: true, finalOrder: raceFacts.rows[0].status, portfolioFills: raceLedger.rows[0], cashAfterBothFills: raceSnapshot.cash.amount, reservation: raceReservationLedger.rows[0] }, externalOrderReconciliation: { created: externalCreated.status, idempotentReplay: externalReplay.status, changedFactConflict: externalConflict.status, replayWriterDenied: forbiddenExternalWrite.status, externalOnlyOrderCount: externalSummary.externalOnlyOrderCount, discrepancyKind: externalSummary.discrepancies[0].kind }, reservationCapture: capturedReservation.rows[0], ledgerEntryCount: correctedSnapshot.ledgerEntryCount, cash: correctedSnapshot.cash.amount, brokerMode: "FAKE" }));
+  console.log(JSON.stringify({ status: "PASS", scenario: "Portfolio commits Fill, response is lost, execution service restarts and retries durable Outbox", testRunId, namespace, orderId, accountId, reservationId, firstPortfolioResponseLost: lostResponseInjected, pendingBeforeRestart: { status: pendingBeforeRestart.rows[0].status, outbox_status: pendingBeforeRestart.rows[0].outbox_status, attempts: pendingBeforeRestart.rows[0].attempts }, concurrentOutboxClaims: 1, expiredLeaseTakeover: true, staleAckFenced: true, staleFailureFenced: true, recoveredOrder: recoveredOrder.rows[0].status, outbox: outbox.rows[0].status, attempts: outbox.rows[0].attempts, portfolioFillCount: ledger.rows[0].fills, feeCorrection: { delivered: feeCorrectionDelivered, revision: 1, idempotentRetry: true, unauthorizedReplayRejected: true, originalFeePreserved: correctionFacts.rows[0].original_fee, correctedFee: correctionFacts.rows[0].fee }, fakeBrokerContract: { stableOrderId: initialOrderLookup.order.order_id === finalOrderLookup.order.order_id, initialStatus: initialOrderLookup.order.status, finalStatus: finalOrderLookup.order.status, fillCount: finalOrderLookup.fills.length }, fillDuringCancel: { cancelSequenceBufferedFirst: bufferedCancel.buffered, cancelStateWhileGapOpen: bufferedCancel.status, gapSurvivedTradeRestart: true, reservationHeldWhileGapOpen: true, fillSequenceDrainedThrough: simulatedFillResult.lastAppliedSequence, cancelReplayIdempotent: cancelReplay.replayed, simulatedCumulativeQuantity: 75, incrementalQuantity: 25, idempotentReplay: true, unauthorizedReplayRejected: true, finalOrder: raceFacts.rows[0].status, portfolioFills: raceLedger.rows[0], cashAfterBothFills: raceSnapshot.cash.amount, reservation: raceReservationLedger.rows[0] }, externalOrderReconciliation: { created: externalCreated.status, idempotentReplay: externalReplay.status, changedFactConflict: externalConflict.status, replayWriterDenied: forbiddenExternalWrite.status, externalOnlyOrderCount: externalSummary.externalOnlyOrderCount, discrepancyKind: externalSummary.discrepancies[0].kind }, reservationCapture: capturedReservation.rows[0], ledgerEntryCount: correctedSnapshot.ledgerEntryCount, cash: correctedSnapshot.cash.amount, brokerMode: "FAKE" }));
 } finally {
   await stop(tradeServer);
   await stop(portfolioServer);

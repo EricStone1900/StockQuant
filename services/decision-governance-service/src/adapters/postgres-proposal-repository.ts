@@ -8,7 +8,7 @@ const sha = (value: unknown) => createHash("sha256").update(canonical(value)).di
 type ProposalRow = { proposal_id: string; owner_id: string; test_run_id: string; account_id: string; strategy_version: string; proposal_version: number; content_hash: string; status: string; approval_mode: "MANUAL_APPROVAL" | "AUTO_POLICY"; market: "CN_A" | "US_EQUITY"; currency: "CNY" | "USD"; operation: "HOLD" | "REBALANCE"; environment_mode: string; broker_mode: string; expires_at: Date; legs: ManualProposal["legs"]; inserted?: boolean };
 const toProposal = (row: ProposalRow) => ({ proposalId: row.proposal_id, proposalVersion: row.proposal_version, contentHash: row.content_hash, status: row.status, approvalMode: row.approval_mode, market: row.market, currency: row.currency, operation: row.operation, environmentMode: row.environment_mode, brokerMode: row.broker_mode, expiresAt: row.expires_at.toISOString(), legs: row.legs });
 
-export async function migrateProposals(pool: Pool): Promise<void> {
+export async function migrateProposals(pool: PoolClient): Promise<void> {
   await pool.query(`CREATE TABLE IF NOT EXISTS proposals (
     proposal_id UUID PRIMARY KEY, owner_id TEXT NOT NULL, test_run_id UUID NOT NULL, account_id UUID NOT NULL, strategy_version TEXT NOT NULL,
     idempotency_key TEXT NOT NULL, request_hash CHAR(64) NOT NULL, proposal_version INTEGER NOT NULL CHECK(proposal_version > 0),

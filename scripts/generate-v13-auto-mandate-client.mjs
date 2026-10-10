@@ -5,6 +5,8 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const document = JSON.parse(await readFile(resolve(root, "packages/contracts/openapi/decision-governance-v13-auto-mandates.v1.json"), "utf8"));
 const readMandate = document.paths?.["/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}"]?.get;
 if (readMandate?.operationId !== "readV13AutoPolicyMandate" || !readMandate.security?.some((item) => item.ServiceBearer) || !readMandate.parameters?.some((item) => item.name === "x-stockquant-service-id" && item.schema?.const === "platform-api-service")) throw new Error("V1.3 AUTO Mandate read OpenAPI contract is incomplete");
+const readBudget = document.paths?.["/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}/versions/{mandateVersion}/budget"]?.get;
+if (readBudget?.operationId !== "readV13AutoPolicyMandateBudget" || !readBudget.security?.some((item) => item.ServiceBearer) || !readBudget.parameters?.some((item) => item.name === "x-stockquant-service-id" && item.schema?.const === "platform-api-service")) throw new Error("V1.3 AUTO Mandate budget read OpenAPI contract is incomplete");
 const operations = [
   ["/internal/v1/auto-mandates", "createV13AutoPolicyMandate", "v13-auto-mandate-command.schema.json", "platform-api-service"],
   ["/internal/v1/auto-mandates/{mandateId}/activate", "activateV13AutoPolicyMandate", "v13-auto-mandate-transition-command.schema.json", "platform-api-service"],
@@ -35,6 +37,13 @@ export class GeneratedPlatformV13AutoMandateClient {
   }
   async read(mandateId: string, testRunId: string, ownerId: string, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
     const path = "/internal/v1/auto-mandates/" + encodeURIComponent(mandateId) + "/runs/" + encodeURIComponent(testRunId);
+    const response = await this.request(this.baseUrl + path, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", "x-stockquant-owner-id": ownerId, authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
+    const value = await response.json().catch(() => undefined) as unknown;
+    return { status: response.status, body: value as Record<string,unknown> | undefined };
+  }
+  async readBudget(mandateId: string, testRunId: string, mandateVersion: number, ownerId: string, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
+    if (!Number.isSafeInteger(mandateVersion) || mandateVersion < 1) throw new Error("Mandate version must be a positive integer");
+    const path = "/internal/v1/auto-mandates/" + encodeURIComponent(mandateId) + "/runs/" + encodeURIComponent(testRunId) + "/versions/" + mandateVersion + "/budget";
     const response = await this.request(this.baseUrl + path, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", "x-stockquant-owner-id": ownerId, authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
     const value = await response.json().catch(() => undefined) as unknown;
     return { status: response.status, body: value as Record<string,unknown> | undefined };

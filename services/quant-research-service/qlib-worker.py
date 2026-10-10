@@ -164,6 +164,20 @@ def fit_fixture_with_qlib(body):
     }
 
 
+def run_fixed_rdagent_compatibility_probe():
+    """Execute only this worker's fixed compatibility snippet; no caller code is accepted."""
+    source = "value = sum((19, 23))\n"
+    namespace = {}
+    exec(compile(source, "<stockquant-fixed-rdagent-probe>", "exec"), {"__builtins__": {"sum": sum}}, namespace)
+    value = namespace.get("value")
+    return {
+        "status": "READY" if value == 42 else "FAILED",
+        "result": "fixed-probe-ok" if value == 42 else "fixed-probe-failed",
+        "value": value if type(value) is int else None,
+        "sourceSha256": hashlib.sha256(source.encode()).hexdigest(),
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def send_json(self, status, body):
         payload = json.dumps(body, allow_nan=False).encode()
@@ -191,14 +205,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self.authorized_quant_service():
             return
+        code_probe = run_fixed_rdagent_compatibility_probe()
+        docker_socket_mounted = os.path.exists("/var/run/docker.sock")
         try:
             import qlib
             import lightgbm
             from qlib.contrib.model.gbdt import LGBModel
-            body = {"status": "READY", "version": getattr(qlib, "__version__", "unknown"), "modelBackend": f"{LGBModel.__module__}.{LGBModel.__name__}", "lightgbmVersion": lightgbm.__version__, "smoke": "qlib-model-import-ok"}
+            body = {"status": "READY", "version": getattr(qlib, "__version__", "unknown"), "modelBackend": f"{LGBModel.__module__}.{LGBModel.__name__}", "lightgbmVersion": lightgbm.__version__, "smoke": "qlib-model-import-ok", "codeProbe": code_probe, "dockerSocketMounted": docker_socket_mounted}
             self.send_json(200, body)
         except Exception as exc:
-            self.send_json(200, {"status": "NOT_RUN", "detail": str(exc)})
+            self.send_json(200, {"status": "NOT_RUN", "detail": str(exc), "codeProbe": code_probe, "dockerSocketMounted": docker_socket_mounted})
 
     def do_POST(self):
         if self.path not in ("/train", "/validate", "/qlib/fit-fixture"):

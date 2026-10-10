@@ -3,7 +3,7 @@ import type { StoredStageRun } from "../ports/stage-run-repository.js";
 import type { V15Scenario } from "./v15-orchestration.js";
 
 export type V15Market = "CN_A" | "US_EQUITY";
-export type V15Session = { market: V15Market; localDate: string; timeZone: string; calendarVersion: string; sequence: number };
+export type V15Session = { market: V15Market; localDate: string; timeZone: string; calendarVersion: string; sequence: number; orderQuantity?: number; openTimeLocal?: string; closeTimeLocal?: string };
 export type V15Account = {
   accountId: string; ownerId: string; testRunId: string; namespace: string; market: V15Market;
   environmentMode: string; brokerMode: string; cash: { amount: string; currency: string };

@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "ISOLATED_V1_DATABASE_NATS_TEMPORAL_VOLUME_BACKUP_RESTORE",
+  "isolatedProject": "sq-v15-e2e-a378990c03fcf9de8260",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "ba1c0f0d-324b-42a8-b550-bfc3463592f7"
+    },
+    {
+      "scenario": "auto-trade",
+      "testRunId": "e2d70f6b-fbd6-4302-a6be-4ed7dc7a1199"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "b8064db4-dac7-400e-bb52-128abfb3ee75"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "76af28e5-3d9b-4095-a773-c9f03aec0a5a"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 1 test using 1 worker\n\n(node:59831) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=ba1c0f0d-324b-42a8-b550-bfc3463592f7 elapsedMs=137\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=9283\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=9299\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=9429\n[V1.5 E2E] scenario=auto-trade begin\n[V1.5 E2E] scenario=auto-trade selector visible\n[V1.5 E2E] scenario=auto-trade priorRun=ba1c0f0d-324b-42a8-b550-bfc3463592f7\n[V1.5 E2E] scenario=auto-trade selected\n[V1.5 E2E] scenario=auto-trade submit dispatched\n[V1.5 E2E] scenario=auto-trade created testRunId=e2d70f6b-fbd6-4302-a6be-4ed7dc7a1199 elapsedMs=152\n[V1.5 E2E] scenario=auto-trade starting same-run CLI/export elapsedMs=20533\n[V1.5 E2E] scenario=auto-trade CLI/export complete elapsedMs=20665\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=e2d70f6b-fbd6-4302-a6be-4ed7dc7a1199\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=b8064db4-dac7-400e-bb52-128abfb3ee75 elapsedMs=141\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=560\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=723\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=b8064db4-dac7-400e-bb52-128abfb3ee75\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=76af28e5-3d9b-4095-a773-c9f03aec0a5a elapsedMs=172\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=6162\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=6295\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:786:1 › V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (37.4s)\n\n  1 passed (38.2s)\n",
+  "faultSequence": [
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "ba1c0f0d-324b-42a8-b550-bfc3463592f7",
+      "at": "2026-10-09T07:48:06.869Z"
+    },
+    {
+      "event": "isolated_v1_postgres_nats_temporal_artifact_volumes_backed_up_restored_and_same_run_verified",
+      "testRunId": "ba1c0f0d-324b-42a8-b550-bfc3463592f7",
+      "snapshots": [
+        {
+          "logicalVolume": "v14-integration-postgres",
+          "archiveSha256": "b57db41624104d7a187c5d173c33567fdec3a68ebb5442fc15ab82b037f0d092",
+          "archiveBytes": 147815936,
+          "sourceVolume": "sq-v15-e2e-a378990c03fcf9de8260_v14-integration-postgres",
+          "restoredVolume": "sq-v15-restore-cbc8cd4a7529-v14-integration-postgres"
+        },
+        {
+          "logicalVolume": "nats-jetstream",
+          "archiveSha256": "b255e5f5939e384b03c9327cff6183cfea3cd69405aae22fc10bff9419748683",
+          "archiveBytes": 64512,
+          "sourceVolume": "sq-v15-e2e-a378990c03fcf9de8260_nats-jetstream",
+          "restoredVolume": "sq-v15-restore-d14926f4a3e3-nats-jetstream"
+        },
+        {
+          "logicalVolume": "temporal-dev-state",
+          "archiveSha256": "44d00068e0c5c4cf20962a5d567980fb28035ac0c4a1b071d3e94f8e5af9641d",
+          "archiveBytes": 1259520,
+          "sourceVolume": "sq-v15-e2e-a378990c03fcf9de8260_temporal-dev-state",
+          "restoredVolume": "sq-v15-restore-bf8e9027e9c7-temporal-dev-state"
+        },
+        {
+          "logicalVolume": "research-artifacts-v1",
+          "archiveSha256": "430e165c95461697a68779b975fce00b5ad4cc837871652101f52d5f4dd2e8d2",
+          "archiveBytes": 7168,
+          "sourceVolume": "sq-v15-e2e-a378990c03fcf9de8260_research-artifacts-v1",
+          "restoredVolume": "sq-v15-restore-3b3a4a5fa9b5-research-artifacts-v1"
+        }
+      ],
+      "restoredRunCheckExitCode": 2,
+      "restoredRunStatus": "WAITING",
+      "restoredHoldAssertion": {
+        "actual": {
+          "brokerFills": 0,
+          "brokerOrders": 0,
+          "sessionsPerMarket": 60,
+          "positionsUnchanged": true,
+          "accountBalanceUnchanged": true,
+          "authoritativeObservations": 120
+        },
+        "status": "PASS",
+        "expected": "60 local virtual sessions per market; authoritative order/fill/ledger/position facts remain unchanged",
+        "assertionId": "V1.5-HOLD-002"
+      },
+      "temporalWorkflowId": "v15-no-trade-ba1c0f0d-324b-42a8-b550-bfc3463592f7",
+      "temporalDescribeExcerpt": "Execution Info:\n  WorkflowId            v15-no-trade-ba1c0f0d-324b-42a8-b550-bfc3463592f7\n  RunId                 01a11fa2-12ba-72cd-99ef-555289a84756\n  Type                  v15NoTradeWorkflow\n  Namespace             default\n  TaskQueue             stockquant-v1-5\n  AssignedBuildId        \n  StartTime             1 minute ago\n  CloseTime             1 minute ago\n  ExecutionTime         1 minute ago\n  SearchAttributes      map[BuildIds:metadata:{key:\"encoding\" value:\"json/plain\"} metadata:{key:\"type\" value:\"KeywordList\"} data:\"[\\\"unversioned\\\",\\\"unversioned:@temporalio/worker@1.15.0+56fd390131f6a6c83b2d75ded189c8f0e69740aac36325ac6becd043ddf78170\\\"]\"]\n  StateTransitionCount  19\n  HistoryLength         29\n  HistorySize           237641\n  RootWorkflowId        v15-no-trade-ba1c0f0d-324b-42a8-b550-bfc3463592f7\n  RootRunId             01a11fa2-12ba-72cd-99ef-555289a84756\nExtended Execution Info:\n  CancelRequested    false\n  OriginalStartTime  1 minute ago\n\nResults:\n  RunTime         8.54s\n  Status          COMPLETED\n  Result          {\"observations\":120,\"status\":\"WAITING\"}\n  ResultEncoding  json/plain\n",
+      "restoredJetStream": {
+        "ackFloor": 4,
+        "delivered": 4
+      },
+      "artifactRef": {
+        "namespace": "research/v15/ba1c0f0d-324b-42a8-b550-bfc3463592f7/outputs",
+        "artifactId": "paired-restore-run.log",
+        "sha256": "6e617052b5a0865dddb8162f6bf4356accf30624bd0397383ed81ef798038ffb",
+        "status": "PUBLISHED",
+        "sourceRef": "v1.5-paired-backup:ba1c0f0d-324b-42a8-b550-bfc3463592f7"
+      },
+      "restoredArtifactSha256": "6e617052b5a0865dddb8162f6bf4356accf30624bd0397383ed81ef798038ffb",
+      "artifactBytesAreSynthetic": true,
+      "restoredVolumeCleanupVerified": true,
+      "at": "2026-10-09T07:49:51.628Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "92f593a8e99da39e9a12980864377cf96a3b72a91f2ccbbf23e6c2ac9d3af90a",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "3d091a11e0db87d9213c1971f30502b8483ac3973224c1161ae2fecb536d94ca",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "4dc8dbe9acb36318a47b22d6403cad4abced23c589268f90f09b0c4a68308b11",
+    "services/platform-api-service/src/application/v15-auto-trade.ts": "3aa4cbd7f3ef5edf6232831ac2841fb90172f469cf4af24af29bfb82c7f4c685",
+    "services/platform-api-service/src/application/v15-auto-trade-calendar.ts": "3cb4d20f9742bee2f357f5cdf30de9463012d2245be5b294972c55ce08dabe73",
+    "services/platform-api-service/src/application/v15-orchestration.ts": "d32c49d266328a1a08ad48399f9cb4ad5c94043db31c3452e8763c9b39d4235c",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "e01823ba735b8d223fe65970cfccc4299b438a90a2d7528bf683faf94dbcd3d2",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "0131cd32da74ae6512e7a67487679cad88d891550c75862304379ffb39e9433d",
+    "services/platform-api-service/src/main.ts": "165bf21434e24539aeaaa64deb0be48633a43fb4ce2de06c74732206e46b7114",
+    "services/platform-api-service/src/contracts/generated-v13-auto-mandate-client.ts": "7c68a528d824bd88011531d7fbaf8d65fb7816b9358553b630823c32bee06901",
+    "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts": "5b9136397bd6aee6d3f387fc3a557e1ab69807d2ec2db52a1c205334aa6ec1e3",
+    "services/decision-governance-service/src/application/governance-api.ts": "c737409d4ee87b778f8f11e83aed7e504a889dd6fd4414271014c3a138e5b73c",
+    "services/decision-governance-service/src/application/service-auth.ts": "3e3397935e5ca7ce1b267a98bb52d80e027d10c472e0de02c0c59a087bdd250e",
+    "services/decision-governance-service/src/ports/auto-mandate-repository.ts": "c22ac3c392efdce265d4e304c829ef989d78e8d7ef23cc432b20f699baaa7f32",
+    "services/decision-governance-service/src/adapters/postgres-auto-mandate-repository.ts": "eacbc9e8d4cc83d64c39e6eb59f58f957417f883676a294b24f7d090656424c0",
+    "services/decision-governance-service/src/bootstrap/main.ts": "87fd8c3e7a1e8da862929f56c36c5825f3388411aec82a3880793b750f4987e6",
+    "services/decision-governance-service/tests/unit/governance-api.spec.ts": "b5a5dc6802b27dfd787154a724369c8512fc9a6b66397a4429c14cf7fdea191f",
+    "packages/contracts/openapi/decision-governance-v13-auto-mandates.v1.json": "36a4daf418032bdbeb03f2311c49630f7ef8e67374d4c9335c0bed7537bc9e10",
+    "scripts/generate-v13-auto-mandate-client.mjs": "4022220aede8bdfba7f5803dfaaf4b034b4fbafc6b0d58b14b1de78d71d46b1a",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "3a022ad379bca1a46c5d52ef1f34ffd0c6562b61fdc29e99348763064afb858a",
+    "services/trade-execution-service/src/application/v13-manual-execution.ts": "37e5bd0d0ec338a19a9b93329836bab6f63d7671cbfd0998468701bd95fbc1d8",
+    "services/trade-execution-service/src/bootstrap/main.ts": "70cd78922439c5509586982835b1a22522771a2a75f94f43a7cb0cfd12dbae5c",
+    "services/quant-research-service/src/bootstrap/main.ts": "4a64dae0300df5817e0eed37b4b948a1723098f91403b48780a105fba4689321",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "fixtures/v1/v1.5/auto-trade-calendar.json": "a2d16e34a79594304a52bbd690c9f276e69edf98e19984e383d0a6360345c854",
+    "fixtures/v1/v1.5/auto-trade-calendar-manifest.json": "f263e5c37f9b4f11295ae1cf0126f547d256e5ec425c8db7ef682235417b0662",
+    "fixtures/v1/v1.5/auto-trade-calendar-2.json": "793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc",
+    "fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json": "d8a7e2adf550c67404cf874551b5aa2f2587c00952b479ef2829b8866fcf6b01",
+    "infra/compose/docker-compose.v15-integration.yml": "3c48e01f5e0abe735981ec3dd70530dcc86818240fc5a6fa7c9ec99173e97dac",
+    "apps/web/src/main.tsx": "59c08611b035066081daa65359c98be128c07b23de5ed7598a2db5bc00fd117b",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "67419652caa70818dce17a0ad6957a30d5110a774ba5e1fbe9e61cf05fa99236",
+    "services/trade-execution-service/tests/unit/v13-manual-execution.spec.ts": "a9d0512d8f0508566c0e88f3c1aec72b48abf932e7e68fc1d9870c8b3c9a3fda",
+    "scripts/unique-evidence.mjs": "440bdcbcf64d9df68524eb8c16acb1fb2d76fd9e17cb952c6ba422f15e8b3067",
+    "scripts/test-v15-web-e2e-isolated.mjs": "f496f1b17a6f852ee9aac3b345252b43e444a3ffc580728a548b7a0a2df4375a"
+  },
+  "failureReason": null,
+  "webUrl": "http://127.0.0.1:65098/acceptance/v1/v1.5",
+  "apiHealthUrl": "http://127.0.0.1:65097/live",
+  "evidencePath": "evidence/audits/2026-10-09-v15-paired-backup-restore-sq-v15-e2e-a378990c03fcf9de8260.json"
+}

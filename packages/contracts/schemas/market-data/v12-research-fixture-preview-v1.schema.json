@@ -3,9 +3,9 @@
   "$id": "https://stockquant.local/contracts/market-data/v12-research-fixture-preview-v1.schema.json",
   "title": "V12ResearchFixturePreview",
   "type": "object",
-  "required": ["fixtureVersion", "dataMode", "dailyBarsSha256", "securities", "bars"],
+  "required": ["fixtureVersion", "dataMode", "dailyBarsSha256", "securities", "marketSessions", "bars"],
   "properties": {
-    "fixtureVersion": { "const": "v1.2-market-data-4" },
+    "fixtureVersion": { "enum": ["v1.2-market-data-4", "v1.2-market-data-5"] },
     "dataMode": { "const": "FIXTURE" },
     "dailyBarsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "securities": {
@@ -22,6 +22,19 @@
           "timezone": { "type": "string" },
           "listedAt": { "type": "string", "format": "date" },
           "delistedAt": { "type": ["string", "null"], "format": "date" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "marketSessions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["market", "sessionDate"],
+        "properties": {
+          "market": { "enum": ["CN_A", "US_EQUITY"] },
+          "sessionDate": { "type": "string", "format": "date" }
         },
         "additionalProperties": false
       }

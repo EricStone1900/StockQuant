@@ -13,7 +13,11 @@ const backupRoot = process.env.STOCKQUANT_BACKUP_DIR ?? "/var/lib/stockquant/bac
 const artifactVolume = process.env.STOCKQUANT_BACKUP_ARTIFACT_VOLUME;
 const composeFile = resolve(process.env.STOCKQUANT_BACKUP_COMPOSE_FILE ?? join(root, "infra/compose/docker-compose.yml"));
 if (!artifactVolume || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(artifactVolume)) throw new Error("set an exact STOCKQUANT_BACKUP_ARTIFACT_VOLUME");
-if (process.argv.length !== 3 || process.argv[2] !== `--confirm-writes-quiesced=cluster/${artifactVolume}`) throw new Error(`refusing cluster backup: stop all database writers and artifact publishers, then pass --confirm-writes-quiesced=cluster/${artifactVolume}`);
+const verificationArgs = process.argv.slice(3);
+const expectedBusinessRunId = verificationArgs.find((argument) => argument.startsWith("--verify-business-run="))?.slice("--verify-business-run=".length);
+const expectedV14BacktestRunId = verificationArgs.find((argument) => argument.startsWith("--verify-v14-backtest-run="))?.slice("--verify-v14-backtest-run=".length);
+const validRunId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+if (process.argv.length < 3 || process.argv.length > 5 || process.argv[2] !== `--confirm-writes-quiesced=cluster/${artifactVolume}` || verificationArgs.length !== process.argv.length - 3 || verificationArgs.some((argument) => !argument.startsWith("--verify-business-run=") && !argument.startsWith("--verify-v14-backtest-run=")) || (expectedBusinessRunId && !validRunId.test(expectedBusinessRunId)) || (expectedV14BacktestRunId && !validRunId.test(expectedV14BacktestRunId)) || new Set(verificationArgs.map((argument) => argument.split("=")[0])).size !== verificationArgs.length) throw new Error(`refusing cluster backup: stop all database writers and artifact publishers, then pass --confirm-writes-quiesced=cluster/${artifactVolume} [--verify-business-run=<UUID>] [--verify-v14-backtest-run=<UUID>]`);
 const rootInfo = await lstat(backupRoot).catch(() => null);
 if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink() || (rootInfo.mode & 0o077) !== 0) throw new Error("STOCKQUANT_BACKUP_DIR must already exist as a real owner-only directory");
 const createdAt = new Date().toISOString();
@@ -27,6 +31,11 @@ if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 86_400_
 const compose = ["compose", "-f", composeFile];
 const childEnv = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: process.env.HOME ?? "/tmp", ...(process.env.DOCKER_CONFIG ? { DOCKER_CONFIG: process.env.DOCKER_CONFIG } : {}) };
 const timeoutMessage = "backup command timed out";
+function canonicalJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
+}
 
 function runDocker(args, { capture = false, inputPath, outputPath, extraEnv = {} } = {}) {
   return new Promise((resolveRun, rejectRun) => {
@@ -142,7 +151,35 @@ async function isolatedRestore(inputs) {
       const candidates = [`${namespace}/${ref.sha256}/${ref.artifactId}`, `${namespace}/${ref.artifactId}`];
       if (!candidates.some((path) => declared.get(path)?.sha256 === ref.sha256)) throw new Error(`published ArtifactRef does not match paired volume: ${ref.namespace}/${ref.artifactId}`);
     }
-    return { status: "PASS", checkedAt: new Date().toISOString(), publishedArtifactRefs: refs.length, restoredDatabases, restoredRoles, method: "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256" };
+    let businessFactValidation;
+    if (expectedBusinessRunId) {
+      if (!["platform_api", "trade_execution", "portfolio_risk"].every((database) => restoredDatabases.includes(database))) throw new Error("paired business fact verification requires Platform, Trade Execution, and Portfolio Risk databases");
+      const runRows = JSON.parse(await runDisposable(["exec", name, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", admin, "-d", "platform_api", "-c", `SELECT COALESCE(json_agg(json_build_object('testRunId',test_run_id,'stageId',stage_id,'scenarioId',scenario_id,'ownerId',owner_id,'namespace',namespace,'status',status,'seed',seed) ORDER BY test_run_id),'[]'::json)::text FROM acceptance_stage_runs WHERE test_run_id='${expectedBusinessRunId}'`], { capture: true }));
+      if (runRows.length !== 1 || runRows[0].stageId !== "V1.3" || runRows[0].status !== "WAITING") throw new Error("paired TestRun did not restore exactly once with its expected stage/status");
+      const namespace = runRows[0].namespace;
+      const tradeRows = JSON.parse(await runDisposable(["exec", name, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", admin, "-d", "trade_execution", "-c", `SELECT COALESCE(json_agg(json_build_object('orderId',o.order_id,'clientOrderId',o.client_order_id,'orderStatus',o.status,'fillId',f.external_fill_id,'quantity',f.quantity,'price',f.price::text,'fee',f.fee::text,'outboxStatus',b.status) ORDER BY o.order_id),'[]'::json)::text FROM fake_broker_orders o JOIN fake_broker_fills f ON f.order_id=o.order_id JOIN fake_broker_outbox b ON b.order_id=o.order_id AND b.event_type='FILL_POST' WHERE o.namespace='${namespace}'`], { capture: true }));
+      if (tradeRows.length !== 1 || tradeRows[0].orderStatus !== "FILLED" || tradeRows[0].outboxStatus !== "DELIVERED") throw new Error("paired FakeBroker order/fill/delivered-outbox facts did not restore exactly once");
+      const portfolioRows = JSON.parse(await runDisposable(["exec", name, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", admin, "-d", "portfolio_risk", "-c", `SELECT COALESCE(json_agg(json_build_object('accountId',a.account_id,'ownerId',a.owner_id,'testRunId',a.test_run_id,'cashAmount',a.cash_amount::text,'currency',a.currency,'ledgerVersion',a.ledger_version,'ledgerEntryCount',(SELECT count(*) FROM ledger_entries l WHERE l.account_id=a.account_id),'fillId',(SELECT external_fill_id FROM recorded_fills f WHERE f.account_id=a.account_id LIMIT 1),'positionQuantity',(SELECT quantity FROM account_positions p WHERE p.account_id=a.account_id AND p.security='600000.SH')) ORDER BY a.account_id),'[]'::json)::text FROM accounts a WHERE a.test_run_id='${expectedBusinessRunId}' AND a.namespace='${namespace}'`], { capture: true }));
+      if (portfolioRows.length !== 1 || portfolioRows[0].ledgerEntryCount !== 2 || portfolioRows[0].positionQuantity !== 10 || portfolioRows[0].fillId !== tradeRows[0].fillId) throw new Error("paired Portfolio account/fill/ledger/position facts did not restore consistently");
+      businessFactValidation = { testRunId: expectedBusinessRunId, run: runRows[0], trade: tradeRows[0], portfolio: portfolioRows[0], relationChecks: { namespaceMatches: true, orderFillOutboxLinked: true, portfolioAndBrokerFillIdsMatch: true, ledgerAndPositionRestored: true } };
+    }
+    let v14BacktestValidation;
+    if (expectedV14BacktestRunId) {
+      if (!["platform_api", "quant_research"].every((database) => restoredDatabases.includes(database))) throw new Error("V1.4 BacktestRun verification requires Platform and Quant Research databases");
+      const quantRows = JSON.parse(await runDisposable(["exec", name, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", admin, "-d", "quant_research", "-c", `SELECT COALESCE(json_agg(json_build_object('backtestRunId',r.backtest_run_id,'run',r.result_payload,'resultSha256',rtrim(r.result_sha256),'manifest',m.manifest_payload,'manifestSha256',rtrim(m.manifest_sha256))),'[]'::json)::text FROM research_backtest_runs r JOIN research_backtest_manifests m USING(backtest_run_id) WHERE r.backtest_run_id='${expectedV14BacktestRunId}'`], { capture: true }));
+      if (quantRows.length !== 1) throw new Error("V1.4 Quant BacktestRun and Manifest were not restored as one linked pair");
+      const quant = quantRows[0];
+      const hash = (value) => createHash("sha256").update(canonicalJson(value)).digest("hex");
+      if (quant.backtestRunId !== expectedV14BacktestRunId || quant.run.testRunId !== expectedV14BacktestRunId || quant.run.stageId !== "V1.4" || quant.run.status !== "COMPLETED" || hash(quant.run) !== quant.resultSha256 || hash(quant.manifest) !== quant.manifestSha256 || quant.manifest.backtestRunId !== expectedV14BacktestRunId || quant.manifest.resultSha256 !== quant.resultSha256) throw new Error("V1.4 Quant BacktestRun/Manifest identity or content Hash validation failed after restore");
+      const platformRows = JSON.parse(await runDisposable(["exec", name, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", admin, "-d", "platform_api", "-c", `SELECT COALESCE(json_agg(json_build_object('testRunId',test_run_id,'stageId',stage_id,'ownerId',owner_id,'namespace',namespace,'status',status,'reportPayload',evidence->'reportPayload','reportArtifactRef',evidence->'reportArtifactRef')),'[]'::json)::text FROM acceptance_stage_runs WHERE test_run_id='${expectedV14BacktestRunId}' AND stage_id='V1.4'`], { capture: true }));
+      if (platformRows.length !== 1) throw new Error("V1.4 Platform TestRun projection was not restored");
+      const projection = platformRows[0];
+      const { durableReport, ...reportContent } = projection.reportPayload ?? {};
+      const ref = projection.reportArtifactRef;
+      if (projection.status !== "COMPLETED" || projection.reportPayload?.testRunId !== expectedV14BacktestRunId || durableReport?.resultSha256 !== quant.resultSha256 || durableReport?.manifestSha256 !== quant.manifestSha256 || hash(reportContent) !== quant.resultSha256 || !ref || ref.testRunId !== expectedV14BacktestRunId || ref.ownerId !== projection.ownerId || ref.kind !== "BACKTEST_REPORT" || ref.status !== "PUBLISHED" || ref.artifactId !== quant.resultSha256 || ref.sha256 !== quant.resultSha256) throw new Error("V1.4 Platform report projection does not match the restored Quant BacktestRun/Manifest");
+      v14BacktestValidation = { backtestRunId: expectedV14BacktestRunId, testRunId: projection.testRunId, ownerId: projection.ownerId, resultSha256: quant.resultSha256, manifestSha256: quant.manifestSha256, status: projection.status, artifactRef: ref, relationChecks: { quantRunManifestLinked: true, quantPayloadHashMatches: true, manifestHashMatches: true, platformTestRunMatches: true, platformReportHashMatches: true, reportArtifactRefMatchesQuant: true } };
+    }
+    return { status: "PASS", checkedAt: new Date().toISOString(), publishedArtifactRefs: refs.length, restoredDatabases, restoredRoles, method: "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256", ...(businessFactValidation ? { businessFactValidation } : {}), ...(v14BacktestValidation ? { v14BacktestValidation } : {}) };
   } finally {
     if (started) await runDisposable(["rm", "--force", name]);
     await rm(extracted, { recursive: true, force: true });

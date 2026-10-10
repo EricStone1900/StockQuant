@@ -21,7 +21,7 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
       media_type TEXT NOT NULL CHECK (media_type='application/vnd.stockquant.qlib-fixture-model+json'),
       sha256 CHAR(64) NOT NULL CHECK (sha256 ~ '^[a-f0-9]{64}$'),
       payload JSONB,
-      status TEXT NOT NULL DEFAULT 'PUBLISHED' CHECK (status IN ('PUBLISHED','RETAINED','EXPIRED')),
+      status TEXT NOT NULL DEFAULT 'PUBLISHED' CHECK (status IN ('PENDING','PUBLISHED','RETAINED','EXPIRED')),
       expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       PRIMARY KEY(test_run_id, artifact_id)
@@ -43,7 +43,7 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
       ALTER TABLE qlib_fixture_artifacts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'PUBLISHED';
       ALTER TABLE qlib_fixture_artifacts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
       ALTER TABLE qlib_fixture_artifacts DROP CONSTRAINT IF EXISTS qlib_fixture_artifacts_status_check;
-      ALTER TABLE qlib_fixture_artifacts ADD CONSTRAINT qlib_fixture_artifacts_status_check CHECK (status IN ('PUBLISHED','RETAINED','EXPIRED'));
+      ALTER TABLE qlib_fixture_artifacts ADD CONSTRAINT qlib_fixture_artifacts_status_check CHECK (status IN ('PENDING','PUBLISHED','RETAINED','EXPIRED'));
       ALTER TABLE qlib_fixture_artifacts DROP CONSTRAINT IF EXISTS qlib_fixture_artifacts_expiry_check;
       ALTER TABLE qlib_fixture_artifacts ADD CONSTRAINT qlib_fixture_artifacts_expiry_check CHECK (status <> 'EXPIRED' OR expires_at IS NOT NULL);`);
   }
@@ -82,13 +82,21 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
   }
 
   async save(input: Omit<QlibFixtureArtifact, "artifactId" | "sha256" | "status">): Promise<QlibFixtureArtifact> {
+    return this.saveWithStatus(input, "PUBLISHED");
+  }
+
+  async savePending(input: Omit<QlibFixtureArtifact, "artifactId" | "sha256" | "status">): Promise<QlibFixtureArtifact> {
+    return this.saveWithStatus(input, "PENDING");
+  }
+
+  private async saveWithStatus(input: Omit<QlibFixtureArtifact, "artifactId" | "sha256" | "status">, status: "PENDING" | "PUBLISHED"): Promise<QlibFixtureArtifact> {
     const bytes = Buffer.from(canonical(input.payload));
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const artifactId = sha256;
     await this.contentStore.publish(input.testRunId, artifactId, sha256, bytes);
-    const result = await this.pool.query(`INSERT INTO qlib_fixture_artifacts(artifact_id,test_run_id,owner_id,media_type,sha256,payload)
-      VALUES($1,$2,$3,$4,$5,NULL) ON CONFLICT(test_run_id,artifact_id) DO NOTHING RETURNING artifact_id`,
-    [artifactId, input.testRunId, input.ownerId, input.mediaType, sha256]);
+    const result = await this.pool.query(`INSERT INTO qlib_fixture_artifacts(artifact_id,test_run_id,owner_id,media_type,sha256,payload,status)
+      VALUES($1,$2,$3,$4,$5,NULL,$6) ON CONFLICT(test_run_id,artifact_id) DO NOTHING RETURNING artifact_id`,
+    [artifactId, input.testRunId, input.ownerId, input.mediaType, sha256, status]);
     if (result.rowCount !== 1) {
       const existing = await this.pool.query(`SELECT owner_id,media_type,sha256,payload,status,expires_at FROM qlib_fixture_artifacts WHERE test_run_id=$1 AND artifact_id=$2`, [input.testRunId, artifactId]);
       if (existing.rowCount !== 1 || existing.rows[0].owner_id !== input.ownerId || existing.rows[0].sha256.trim() !== sha256) throw new Error("immutable Qlib artifact conflicts with existing content");
@@ -97,9 +105,20 @@ export class PostgresQlibFixtureArtifactRepository implements QlibFixtureArtifac
         : existing.rows[0].payload;
       if (canonical(existingPayload) !== canonical(input.payload)) throw new Error("immutable Qlib artifact conflicts with existing content");
       const row = existing.rows[0];
+      if (status === "PENDING" && row.status === "EXPIRED") throw new Error("expired immutable Qlib artifact cannot be reused or republished");
       return { ...input, artifactId, sha256, status: row.status, ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}) };
     }
-    return { ...input, artifactId, sha256, status: "PUBLISHED" };
+    return { ...input, artifactId, sha256, status };
+  }
+
+  async publishPending(testRunId: string, artifactId: string, ownerId: string): Promise<QlibFixtureArtifact> {
+    const updated = await this.pool.query(`UPDATE qlib_fixture_artifacts SET status='PUBLISHED'
+      WHERE test_run_id=$1 AND artifact_id=$2 AND owner_id=$3 AND status='PENDING' RETURNING artifact_id`, [testRunId, artifactId, ownerId]);
+    if (updated.rowCount !== 1) {
+      const existing = await this.pool.query(`SELECT status FROM qlib_fixture_artifacts WHERE test_run_id=$1 AND artifact_id=$2 AND owner_id=$3`, [testRunId, artifactId, ownerId]);
+      if (existing.rowCount !== 1 || existing.rows[0].status !== "PUBLISHED") throw new Error("Qlib artifact cannot be published from its current state");
+    }
+    return this.find(testRunId, artifactId, ownerId);
   }
 
   async find(testRunId: string, artifactId: string, ownerId: string): Promise<QlibFixtureArtifact> {

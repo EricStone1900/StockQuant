@@ -10,7 +10,9 @@ export type V13FixedPaperOrder = {
 
 const fixtures = {
   "600000.SH": { quantity: 100, currency: "CNY" as const, price: "10.00", fee: "5.00" },
+  "000001.SZ": { quantity: 100, currency: "CNY" as const, price: "12.00", fee: "5.00" },
   AAPL: { quantity: 10, currency: "USD" as const, price: "25.00", fee: "0.05" },
+  MSFT: { quantity: 5, currency: "USD" as const, price: "40.00", fee: "0.05" },
 };
 const addMoney = (left: string, right: string) => {
   const [lw, lf = ""] = left.split("."); const [rw, rf = ""] = right.split(".");
@@ -28,10 +30,12 @@ function buildFixedPaperOrder(input: { proposal: V13ProposalResult; namespace: s
   if (!/^[a-f0-9]{64}$/u.test(proposal.contentHash) || proposal.proposalVersion < 1 || proposal.legs.length !== 1) throw new Error("V13_PROPOSAL_SHAPE_INVALID");
   const leg = proposal.legs[0];
   const baseFixture = fixtures[leg.securityId as keyof typeof fixtures];
-  const fixture = baseFixture && input.executionMode === "SEQUENCED" && leg.securityId === "600000.SH" && [100, 200].includes(leg.quantity)
-    ? { ...baseFixture, quantity: leg.quantity }
-    : baseFixture;
-  if (!fixture || (leg.side !== "BUY" && leg.side !== "SELL") || (leg.side === "SELL" && (auto || fixture.currency !== "CNY" || leg.securityId !== "600000.SH")) || leg.quantity !== fixture.quantity || (input.executionMode === "SEQUENCED" && (auto || leg.side !== "BUY" || leg.securityId !== "600000.SH"))) throw new Error("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+  const fixture = baseFixture && (
+    (input.executionMode === "SEQUENCED" && !auto && leg.securityId === "600000.SH" && [100, 200].includes(leg.quantity))
+    || (input.executionMode === "SEQUENCED" && auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
+    || (auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
+  ) ? { ...baseFixture, quantity: leg.quantity } : baseFixture;
+  if (!fixture || (leg.side !== "BUY" && leg.side !== "SELL") || (leg.side === "SELL" && (auto || fixture.currency !== "CNY" || leg.securityId !== "600000.SH")) || leg.quantity !== fixture.quantity || (input.executionMode === "SEQUENCED" && (leg.side !== "BUY" || (!auto && leg.securityId !== "600000.SH")))) throw new Error("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
   const notionalMinor = BigInt(fixture.price.replace(".", "")) * BigInt(fixture.quantity);
   const notional = `${notionalMinor / 100n}.${(notionalMinor % 100n).toString().padStart(2, "0")}`;
   const reservedCash = addMoney(notional, fixture.fee);
@@ -41,7 +45,7 @@ function buildFixedPaperOrder(input: { proposal: V13ProposalResult; namespace: s
 
 export function buildV13FixedPaperOrder(input: { proposal: V13ProposalResult; namespace: string; clientOrderId: string; now: string }): V13FixedPaperOrder { return buildFixedPaperOrder({ ...input, executionMode: "IMMEDIATE" }); }
 export function buildV13FixedSequencedPaperOrder(input: { proposal: V13ProposalResult; namespace: string; clientOrderId: string; now: string }): V13FixedPaperOrder { return buildFixedPaperOrder({ ...input, executionMode: "SEQUENCED" }); }
-export function buildV13FixedAutoPaperOrder(input: { proposal: V13ProposalResult; namespace: string; clientOrderId: string; now: string; mandateId: string; mandateVersion: number }): V13FixedPaperOrder {
+export function buildV13FixedAutoPaperOrder(input: { proposal: V13ProposalResult; namespace: string; clientOrderId: string; now: string; mandateId: string; mandateVersion: number; executionMode?: "IMMEDIATE" | "SEQUENCED" }): V13FixedPaperOrder {
   if (!/^[0-9a-f-]{36}$/iu.test(input.mandateId) || !Number.isSafeInteger(input.mandateVersion) || input.mandateVersion < 1) throw new Error("V13_AUTO_MANDATE_SCOPE_INVALID");
-  return buildFixedPaperOrder({ ...input, mandate: { mandateId: input.mandateId, mandateVersion: input.mandateVersion } });
+  return buildFixedPaperOrder({ ...input, mandate: { mandateId: input.mandateId, mandateVersion: input.mandateVersion }, executionMode: input.executionMode ?? "IMMEDIATE" });
 }

@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-09",
+  "status": "PASS",
+  "auditId": "V15-MISSED-WINDOW-CROSSWALK-A01",
+  "sourceCrosswalk": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "sourceCrosswalkSha256": "5ac62de0d483106dfce78a0cddd58923fb4893a54712fedad349eb9af1cae8e3",
+  "requirementsChecked": [
+    {
+      "requirementId": "V1.5-S2-L17",
+      "classification": "HISTORICAL",
+      "testLinkState": "PARTIAL_MISSED_WINDOW_NEXT_SESSION_REEVALUATION_AND_SESSION_CLOSE_LEDGER_RECONCILIATION_VERIFIED_REAL_MULTIDAY_SCHEDULING_OPEN",
+      "exactTestNames": [
+        "records next-session close reconciliation and missed-window recovery",
+        "does not save AUTO completion when a fresh terminal ledger read disagrees",
+        "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows"
+      ],
+      "evidencePathsChecked": 10
+    },
+    {
+      "requirementId": "V1.5-S2-L18",
+      "classification": "HISTORICAL",
+      "testLinkState": "PARTIAL_UNKNOWN_ORDER_RECOVERY_AND_DUPLICATE_DISPATCH_VERIFIED_MISSED_WINDOW_NEXT_SESSION_REEVALUATION_VERIFIED_CANCEL_AND_BUSINESS_WORKER_RECOVERY_OPEN",
+      "exactTestNames": [
+        "accepts the durable UNKNOWN original-order recovery scenario"
+      ],
+      "evidencePathsChecked": 8
+    }
+  ],
+  "errors": [],
+  "scope": "Literal source/test/evidence-link verification for V1.5 missed-window and AUTO schedule crosswalk. Does not assert implementation correctness beyond the separately recorded E2E/code suite, nor mark parent requirements PASS."
+}

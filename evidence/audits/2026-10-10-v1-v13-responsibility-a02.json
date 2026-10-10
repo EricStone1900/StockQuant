@@ -1,0 +1,312 @@
+{
+  "schemaVersion": "1.0.0",
+  "date": "2026-10-10",
+  "auditId": "V1.3-RESPONSIBILITY-A02",
+  "status": "COMPLETE_SCOPE_ONLY",
+  "sourceMatrix": "./2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 20,
+  "rows": [
+    {
+      "requirementId": "V1.3-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 13,
+        "summary": "实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "decision-governance-service + portfolio-risk-service",
+      "collaborators": "trade-execution-service; platform-api-service",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 14,
+        "summary": "实现隔离 FakeBroker 交易证据和 place/query/cancel/fills/account 契约；brokerOrderId 稳定且不复制内部账本。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "trade-execution-service (FakeBroker component contract)",
+      "collaborators": "platform-api-service; portfolio-risk-service",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "实现订单状态、全成、拒单、UNKNOWN、重复 Fill 幂等和固定故障事件序列。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "trade-execution-service",
+      "collaborators": "decision-governance-service; portfolio-risk-service; platform-api-service",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 17,
+        "summary": "固定场景覆盖全成、拒单、接受响应丢失、重复/乱序回报；seed/testRunId 均记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "platform-api-service (scenario orchestration)",
+      "collaborators": "trade-execution-service; shared scenario/Fixture owners",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 18,
+        "summary": "所有服务端接受路径仅允许 PAPER + FAKE，页面不能直接改状态或余额。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "each service owning a server-side accept/write path",
+      "collaborators": "decision-governance-service; trade-execution-service; portfolio-risk-service; platform-api-service",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L62",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 91,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "packages/contracts + Platform scenario owner",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L63",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 92,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "domain service owners",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L64",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 93,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "apps/web + platform-api-service",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 95,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "Platform/runbook owner",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L66",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 96,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "shared test harness and domain owners",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 97,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "domain service owners + operations owner",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L68",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 98,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，PASS）。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "project owner / human acceptor",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S7-L69",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 99,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "Platform/stage documentation owner",
+      "collaborators": "Platform, domain service owners, and project operator as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L73",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 103,
+        "summary": "8.0 已验证命令",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "Platform/code-suite and evidence scripts",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L89",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 128,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "Platform/runbook and evidence owner",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L109",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 136,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "stack scripts/operator",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L127",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 162,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "apps/web + platform-api-service",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L142",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 177,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "verify-stage/evidence-export scripts and domain owners",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L177",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 209,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "domain owners plus operations recovery operator",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.3-S8-L185",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 217,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "leadResponsibility": "Platform acceptance records",
+      "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+      "reconciliation": "责任归属依据阶段要求及对应服务架构人工归类；不代表交付状态。",
+      "remainingBoundary": "具体通过状态仍须由当前阶段勾选、测试及签署证据判定；责任映射本身不构成通过。",
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    }
+  ],
+  "scopeBoundary": "Manual responsibility reconciliation for all current V1.3 section 2, 7 and 8 rows in A31. Does not establish implementation, test sufficiency, stage acceptance, user sign-off, or V1 completion."
+}

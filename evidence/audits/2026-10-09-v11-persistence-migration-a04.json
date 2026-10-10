@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "stage": "V1.1",
+  "task": "A04 contract, identity, migration and release coverage",
+  "source": "docs/plans/2026-10-08-v1-completion-plan.md#A04",
+  "environment": {
+    "host": "Apple Silicon macOS",
+    "database": "disposable PostgreSQL 16.9 Alpine container",
+    "hostBinding": "127.0.0.1",
+    "activeServicesConnected": false
+  },
+  "command": "node scripts/run-isolated-postgres-command.mjs --url-env PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test -- pnpm --filter @stockquant/platform-api-service test:integration:persistence",
+  "exitCode": 0,
+  "assertions": {
+    "migrationHistoryPreserved": true,
+    "openStatusesPreserved": [
+      "RUNNING",
+      "WAITING"
+    ],
+    "rerunIdempotent": true,
+    "conflictingIdRollback": true,
+    "dualStoreCreateAndWrites": true,
+    "ownerScopedRead": true,
+    "partialWriteRollback": true,
+    "httpOwnerRead": 200,
+    "foreignOwnerRead": 403,
+    "cleanup": "isolated container and network removed and verified"
+  },
+  "relatedChecks": {
+    "contractsCheck": "PASS: 292 JSON files; 205 schemas; 48 fixtures; 111 consumer rules; 29 generators registered",
+    "codeSuitePlanTest": "PASS: 13/13 including new V1.1 isolated persistence command registration"
+  },
+  "limitations": [
+    "Does not authorize or execute the active TestRun storage cutover.",
+    "Does not constitute Web human acceptance or V1.1 stage closure.",
+    "Does not resolve historical missing TestRun exports."
+  ]
+}

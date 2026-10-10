@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10T10:12:13.104Z",
+  "auditId": "V1.5-RETAINED-NORMAL-RUN-CHECKONLY-A01",
+  "status": "INCOMPLETE_EXPECTED",
+  "testRunId": "1f9b8fd0-9a51-45eb-803d-b613bbd8d126",
+  "scenario": "normal",
+  "command": "pnpm verify:stage -- --stage V1.5 --run 1f9b8fd0-9a51-45eb-803d-b613bbd8d126 --check-only",
+  "apiBaseUrl": "http://127.0.0.1:60897",
+  "mode": "--check-only",
+  "method": "GET",
+  "exitCode": 2,
+  "observedRun": {
+    "status": "WAITING",
+    "workflow": "TEMPORAL_COMPLETED",
+    "temporal": "COMPLETED",
+    "businessExecution": "NO_TRADE_SESSIONS_EXECUTED",
+    "assertions": [
+      {
+        "assertionId": "V1.5-SYS-SCHEDULE-001",
+        "status": "WAITING",
+        "actual": "NOT_RUN"
+      },
+      {
+        "assertionId": "V1.5-HOLD-002",
+        "status": "PASS",
+        "actual": {
+          "brokerFills": 0,
+          "brokerOrders": 0,
+          "sessionsPerMarket": 60,
+          "positionsUnchanged": true,
+          "accountBalanceUnchanged": true,
+          "authoritativeObservations": 120
+        }
+      }
+    ]
+  },
+  "assertion": "The V1.5 CLI check-only path makes a GET request for the existing TestRun. It does not create, dispatch, trade, replay, or invoke models.",
+  "limitations": "Exit 2 is expected because V1.5-SYS-SCHEDULE-001 remains WAITING with actual NOT_RUN; V1.5-HOLD-002 is PASS after 120 NO_TRADE observations. This does not satisfy full V1.5 acceptance or version gate."
+}

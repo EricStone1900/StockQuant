@@ -77,14 +77,15 @@
         }
       }
     },
-    "/internal/v1/orders/{orderId}": {
+    "/internal/v1/historical-orders/{orderId}": {
       "get": {
         "operationId": "readHistoricalFakeOrderById",
         "summary": "Read the original FakeBroker order state for UNKNOWN recovery without resending it",
         "security": [{ "ServiceBearer": [] }],
         "parameters": [
           { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
-          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "enum": ["historical-replay-worker", "platform-api-service"] } }
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "historical-replay-worker" } }
         ],
         "responses": {
           "200": { "description": "Persisted original FakeBroker order state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/historical-fake-order-state.schema.json" } } } },

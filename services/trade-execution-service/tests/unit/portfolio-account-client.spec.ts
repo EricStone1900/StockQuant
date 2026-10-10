@@ -52,4 +52,28 @@ describe("generated Portfolio Account client for Trade Execution", () => {
       evidenceRef: "fakebroker-outbox:event-1",
     })).rejects.toMatchObject<Partial<PortfolioAccountClientError>>({ status: 409, body: { error: "reservation_conflict" } });
   });
+
+  it("posts fee corrections to the encoded Fill route with the Trade Execution identity", async () => {
+    const body = {
+      revision: 2,
+      previousFee: "5.0000",
+      correctedFee: "5.1000",
+      effectiveAt: "2026-09-30T02:05:00Z",
+      evidenceRef: "fakebroker-outbox:event-2",
+    };
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ snapshot: {}, replayed: false }), { status: 200 }));
+    const client = new GeneratedPortfolioAccountClient("http://portfolio:3001/", "trade-execution-service", token, request);
+
+    await client.correctAccountFillFee("account/1", "fill/2", body);
+
+    expect(request).toHaveBeenCalledWith("http://portfolio:3001/internal/v1/accounts/account%2F1/fills/fill%2F2/fee-corrections", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: expect.objectContaining({
+        "content-type": "application/json",
+        "x-stockquant-service-id": "trade-execution-service",
+        authorization: `Bearer ${token}`,
+      }),
+    }));
+  });
 });

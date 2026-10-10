@@ -93,18 +93,98 @@ try {
   await pool.query("SELECT 1");
   await waitReady();
   migrated = true;
-  const v13ModeInjection = await request("/internal/v1/v13/paper-orders/execute-manual-proposal", "POST", "platform-api-service", tokens.platform, {
-    accountId: randomUUID(), clientOrderId: `mode-injection-${randomUUID()}`, namespace, now: "2026-10-08T00:00:00Z", ownerId: "auth-smoke-owner",
-    proposalId: randomUUID(), testRunId: randomUUID(), environmentMode: "LIVE", brokerMode: "REAL"
+  const assetAccountId = randomUUID();
+  const assetOwnerId = `asset-owner-${randomUUID()}`;
+  const assetTestRunId = randomUUID();
+  await pool.query(`INSERT INTO fake_broker_account_assets
+    (namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+    VALUES($1,$2,$3,$4,'CNY',100000,98765.4321)`, [namespace, assetAccountId, assetOwnerId, assetTestRunId]);
+  await pool.query(`INSERT INTO fake_broker_positions(namespace,account_id,security,quantity)
+    VALUES($1,$2,'600000.SH',200)`, [namespace, assetAccountId]);
+  const assetSnapshotResponse = await request(`/internal/v1/v13/accounts/assets?namespace=${encodeURIComponent(namespace)}&accountId=${encodeURIComponent(assetAccountId)}`, "GET", "platform-api-service", tokens.platform);
+  const assetSnapshot = await assetSnapshotResponse.json();
+  const assetSnapshotWrongIdentity = await request(`/internal/v1/v13/accounts/assets?namespace=${encodeURIComponent(namespace)}&accountId=${encodeURIComponent(assetAccountId)}`, "GET", "historical-replay-worker", tokens.replay);
+  const assetSnapshotWrongAccount = await request(`/internal/v1/v13/accounts/assets?namespace=${encodeURIComponent(namespace)}&accountId=${randomUUID()}`, "GET", "platform-api-service", tokens.platform);
+  const assetSnapshotWrongNamespace = await request(`/internal/v1/v13/accounts/assets?namespace=${encodeURIComponent(`${namespace}/other`)}&accountId=${encodeURIComponent(assetAccountId)}`, "GET", "platform-api-service", tokens.platform);
+  const assetSnapshotMissingScope = await request("/internal/v1/v13/accounts/assets?namespace=&accountId=", "GET", "platform-api-service", tokens.platform);
+  assert.equal(assetSnapshotResponse.status, 200);
+  assert.deepEqual({
+    brokerMode: assetSnapshot.brokerMode,
+    source: assetSnapshot.source,
+    namespace: assetSnapshot.namespace,
+    ownerId: assetSnapshot.owner_id,
+    testRunId: assetSnapshot.test_run_id,
+    currency: assetSnapshot.currency,
+    initialCash: assetSnapshot.initial_cash,
+    currentCash: assetSnapshot.current_cash,
+    positions: assetSnapshot.positions
+  }, {
+    brokerMode: "FAKE",
+    source: "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+    namespace,
+    ownerId: assetOwnerId,
+    testRunId: assetTestRunId,
+    currency: "CNY",
+    initialCash: "100000.0000",
+    currentCash: "98765.4321",
+    positions: [{ security: "600000.SH", quantity: 200 }]
   });
-  const v13ModeInjectionOrders = await pool.query("SELECT count(*)::int AS count FROM fake_broker_orders WHERE namespace=$1", [namespace]);
-  assert.equal(v13ModeInjection.status, 422, "V1.3 Trade HTTP contract must reject caller-supplied environment/broker modes");
-  assert.equal(v13ModeInjectionOrders.rows[0].count, 0, "mode injection must not create a FakeBroker order");
+  assert.equal(assetSnapshotWrongIdentity.status, 403);
+  assert.equal(assetSnapshotWrongAccount.status, 404);
+  assert.equal(assetSnapshotWrongNamespace.status, 404);
+  assert.equal(assetSnapshotMissingScope.status, 422);
+  const v13ModeInjectionRoutes = [
+    ["manual", "/internal/v1/v13/paper-orders/execute-manual-proposal", { accountId: randomUUID(), clientOrderId: `mode-injection-${randomUUID()}`, namespace, now: "2026-10-08T00:00:00Z", ownerId: "auth-smoke-owner", proposalId: randomUUID(), testRunId: randomUUID() }],
+    ["sequenced", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", { accountId: randomUUID(), clientOrderId: `mode-injection-${randomUUID()}`, namespace, now: "2026-10-08T00:00:00Z", ownerId: "auth-smoke-owner", proposalId: randomUUID(), testRunId: randomUUID() }],
+    ["auto", "/internal/v1/v13/paper-orders/execute-auto-proposal", { accountId: randomUUID(), clientOrderId: `mode-injection-${randomUUID()}`, mandateId: randomUUID(), mandateVersion: 1, namespace, now: "2026-10-08T00:00:00Z", ownerId: "auth-smoke-owner", proposalId: randomUUID(), testRunId: randomUUID() }]
+  ];
+  const v13ModeInjectionResults = [];
+  for (const [name, path, body] of v13ModeInjectionRoutes) {
+    const response = await request(path, "POST", "platform-api-service", tokens.platform, { ...body, environmentMode: "LIVE", brokerMode: "REAL" });
+    assert.equal(response.status, 422, `V1.3 ${name} HTTP contract must reject caller-supplied environment/broker modes`);
+    v13ModeInjectionResults.push({ route: name, status: response.status });
+  }
+  const v13ModeInjectionSideEffects = await pool.query(`
+    SELECT
+      (SELECT count(*)::int FROM fake_broker_orders WHERE namespace=$1) AS orders,
+      (SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o ON o.order_id=f.order_id WHERE o.namespace=$1) AS fills,
+      (SELECT count(*)::int FROM fake_broker_order_events e JOIN fake_broker_orders o ON o.order_id=e.order_id WHERE o.namespace=$1) AS events,
+      (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1) AS outbox`, [namespace]);
+  assert.deepEqual(v13ModeInjectionSideEffects.rows[0], { orders: 0, fills: 0, events: 0, outbox: 0 }, "mode injection must have no FakeBroker order, fill, event, or outbox side effects");
+  const writeRouteScopeCases = [
+    ["historical execute", "/internal/v1/historical-orders/execute", "historical-replay-worker", "platform-api-service", tokens.platform],
+    ["snapshot execute", "/internal/v1/v24/paper-orders/execute-snapshot", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["manual proposal execute", "/internal/v1/v13/paper-orders/execute-manual-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["sequenced proposal execute", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["AUTO proposal execute", "/internal/v1/v13/paper-orders/execute-auto-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["external simulated order", "/internal/v1/fake-broker/external-orders", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["order cancellation", `/internal/v1/orders/${orderId}/cancel`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["cancellation result", `/internal/v1/orders/${orderId}/cancel-result`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["order expiry", `/internal/v1/orders/${orderId}/expire`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["order UNKNOWN transition", `/internal/v1/orders/${orderId}/unknown`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["simulated fill report", `/internal/v1/orders/${orderId}/simulated-fill-reports`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["fee correction", `/internal/v1/orders/${orderId}/fills/${randomUUID()}/fee-corrections`, "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["outbox compensation", `/internal/v1/outbox/${randomUUID()}/compensate`, "platform-api-service", "historical-replay-worker", tokens.replay]
+  ];
+  const writeRouteScopeResults = [];
+  for (const [name, path, allowedCaller, deniedCaller, deniedToken] of writeRouteScopeCases) {
+    const denied = await request(path, "POST", deniedCaller, deniedToken, {});
+    assert.equal(denied.status, 403, `${name} must reject ${deniedCaller} before parsing its command or touching domain facts`);
+    writeRouteScopeResults.push({ route: name, deniedCaller, status: denied.status });
+  }
+  const writeRouteScopeSideEffects = await pool.query(`
+    SELECT
+      (SELECT count(*)::int FROM fake_broker_orders WHERE namespace=$1) AS orders,
+      (SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o ON o.order_id=f.order_id WHERE o.namespace=$1) AS fills,
+      (SELECT count(*)::int FROM fake_broker_order_events e JOIN fake_broker_orders o ON o.order_id=e.order_id WHERE o.namespace=$1) AS events,
+      (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1) AS outbox`, [namespace]);
+  assert.deepEqual(writeRouteScopeSideEffects.rows[0], { orders: 0, fills: 0, events: 0, outbox: 0 }, "wrong service identities must cause no FakeBroker writes");
   const noIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", null);
   const forgedToken = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", tokens.replay);
   const unknownIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "forged-service", tokens.platform);
   const platformSummary = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", tokens.platform);
-  const replayQuery = await request(`/internal/v1/orders/${orderId}`, "GET", "historical-replay-worker", tokens.replay);
+  const replayQuery = await request(`/internal/v1/historical-orders/${orderId}?namespace=${encodeURIComponent(namespace)}`, "GET", "historical-replay-worker", tokens.replay);
+  const replayGenericOrderQuery = await request(`/internal/v1/orders/${orderId}`, "GET", "historical-replay-worker", tokens.replay);
   const platformCannotExecute = await request("/internal/v1/historical-orders/execute", "POST", "platform-api-service", tokens.platform, {});
   const replayCannotCancel = await request(`/internal/v1/orders/${orderId}/cancel`, "POST", "historical-replay-worker", tokens.replay, {});
   const replayCannotRecordCancelResult = await request(`/internal/v1/orders/${orderId}/cancel-result`, "POST", "historical-replay-worker", tokens.replay, { outcome: "ACCEPTED", reason: "smoke", sequence: 1 });
@@ -115,6 +195,7 @@ try {
   assert.equal(unknownIdentity.status, 403);
   assert.equal(platformSummary.status, 200);
   assert.equal(replayQuery.status, 404);
+  assert.equal(replayGenericOrderQuery.status, 403);
   assert.equal(platformCannotExecute.status, 403);
   assert.equal(replayCannotCancel.status, 403);
   assert.equal(replayCannotRecordCancelResult.status, 403);
@@ -144,7 +225,7 @@ try {
   assert.equal(deniedOutbox.rows[0].count, 0);
   governanceAuthorizationAllowed = true;
 
-  const execution = await request("/internal/v1/historical-orders/execute", "POST", "historical-replay-worker", tokens.replay, {
+  const validHistoricalCommand = {
     namespace,
     accountId: randomUUID(),
     clientOrderId,
@@ -152,24 +233,59 @@ try {
     requestedQuantity: 100,
     bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 0 },
     authorizationId: randomUUID()
-  });
+  };
+  const validationsBeforeInjectedMode = governanceValidationCalls;
+  const historicalModeInjectionResults = [];
+  for (const [environmentMode, brokerMode] of [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+    const response = await request("/internal/v1/historical-orders/execute", "POST", "historical-replay-worker", tokens.replay, { ...validHistoricalCommand, environmentMode, brokerMode });
+    assert.equal(response.status, 422, `BACKTEST FakeBroker execution must reject ${environmentMode}/${brokerMode} injection before authorization or mutation`);
+    historicalModeInjectionResults.push({ environmentMode, brokerMode, status: response.status });
+  }
+  const historicalModeInjectionNoGovernanceCall = governanceValidationCalls === validationsBeforeInjectedMode;
+  assert.equal(historicalModeInjectionNoGovernanceCall, true, "malformed historical commands must be rejected before Governance lookup");
+  const injectedHistoricalOrder = await pool.query("SELECT count(*)::int AS count FROM fake_broker_orders WHERE namespace=$1 AND client_order_id=$2", [namespace, clientOrderId]);
+  assert.equal(injectedHistoricalOrder.rows[0].count, 0, "mode-injected historical commands must not persist an order");
+  const execution = await request("/internal/v1/historical-orders/execute", "POST", "historical-replay-worker", tokens.replay, validHistoricalCommand);
   const executionText = await execution.text();
   assert.equal(execution.status, 200, executionText);
   const executionBody = JSON.parse(executionText);
   assert.equal(executionBody.result.status, "REJECTED");
   assert.equal(executionBody.result.rejectionReason, "ZERO_VOLUME");
   assert.equal(governanceIdentityVerified, true);
-  const order = await request(`/internal/v1/orders/${executionBody.result.orderId}`, "GET", "historical-replay-worker", tokens.replay);
+  const order = await request(`/internal/v1/historical-orders/${executionBody.result.orderId}?namespace=${encodeURIComponent(namespace)}`, "GET", "historical-replay-worker", tokens.replay);
   assert.equal(order.status, 200);
+  const crossNamespaceOrder = await request(`/internal/v1/historical-orders/${executionBody.result.orderId}?namespace=${encodeURIComponent(`${namespace}-other`)}`, "GET", "historical-replay-worker", tokens.replay);
+  assert.equal(crossNamespaceOrder.status, 404, "historical order lookup must not cross replay namespaces");
   const cancelCommand = {
-    namespace, accountId: randomUUID(), clientOrderId: `cancel-${randomUUID()}`, security: "600000.SH", side: "SELL", currency: "CNY",
+    namespace, accountId: randomUUID(), clientOrderId: `cancel-${randomUUID()}`, security: "600000.SH", side: "SELL", currency: "CNY", initialAccountCash: "10000.0000",
     requestedQuantity: 100, bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 500 },
     reservation: { reservationId: randomUUID(), ownerId: "auth-smoke-owner", testRunId: randomUUID(), clientOrderId: "pending" }
   };
   cancelCommand.reservation.clientOrderId = cancelCommand.clientOrderId;
+  await pool.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+    VALUES($1,$2,$3,$4,'CNY',$5::numeric,$5::numeric)`, [cancelCommand.namespace, cancelCommand.accountId, cancelCommand.reservation.ownerId, cancelCommand.reservation.testRunId, cancelCommand.initialAccountCash]);
+  await pool.query("INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,'600000.SH',500)", [cancelCommand.namespace, cancelCommand.accountId]);
   const simulated = await new PostgresFakeBrokerRepository(pool).execute(cancelCommand);
   assert.equal(simulated.result.status, "PARTIALLY_FILLED");
-  const cancelRequest = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel`, "POST", "platform-api-service", tokens.platform, {});
+  const orderStateForModeBoundary = async () => pool.query(`SELECT o.status,
+    (SELECT count(*)::int FROM fake_broker_order_events e WHERE e.order_id=o.order_id) AS events,
+    (SELECT count(*)::int FROM fake_broker_fills f WHERE f.order_id=o.order_id) AS fills,
+    (SELECT count(*)::int FROM fake_broker_outbox x WHERE x.order_id=o.order_id) AS outbox
+    FROM fake_broker_orders o WHERE o.order_id=$1`, [simulated.result.orderId]);
+  const stateBeforeOrderModeInjection = await orderStateForModeBoundary();
+  const transitionModeAttempts = [];
+  for (const action of ["expire", "unknown", "cancel"]) {
+    const response = await request(`/internal/v1/orders/${simulated.result.orderId}/${action}`, "POST", "platform-api-service", tokens.platform, { environmentMode: "LIVE", brokerMode: "REAL" });
+    assert.equal(response.status, 422, `${action} must reject injected LIVE/REAL fields before changing order state`);
+    transitionModeAttempts.push({ action, status: response.status });
+  }
+  assert.deepEqual((await orderStateForModeBoundary()).rows, stateBeforeOrderModeInjection.rows, "mode-injected cancel/expire/unknown calls must create no event, Fill or outbox facts");
+  const cancelRequest = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel`, "POST", "platform-api-service", tokens.platform);
+  assert.equal(cancelRequest.status, 202);
+  const cancelRequestedState = await orderStateForModeBoundary();
+  const injectedCancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1, environmentMode: "LIVE", brokerMode: "REAL" });
+  assert.equal(injectedCancelResult.status, 422, "cancel-result must reject mode injection before applying the accepted result");
+  assert.deepEqual((await orderStateForModeBoundary()).rows, cancelRequestedState.rows, "mode-injected cancel-result must leave order facts unchanged");
   const cancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1 });
   const cancelResultBody = await cancelResult.json();
   const pendingRelease = await pool.query("SELECT count(*)::int AS count FROM fake_broker_outbox WHERE order_id=$1 AND event_type='RESERVATION_RESOLVE'", [simulated.result.orderId]);
@@ -177,7 +293,27 @@ try {
   assert.equal(cancelResult.status, 200);
   assert.equal(cancelResultBody.status, "CANCELLED");
   assert.equal(pendingRelease.rows[0].count, 0, "reservation release waits until the partial Fill has been posted");
-  runStatus = { v13ModeInjection: v13ModeInjection.status, v13ModeInjectionOrders: v13ModeInjectionOrders.rows[0].count, noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, rejectedZeroVolume: executionBody.result.rejectionReason, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
+  const compensationCommand = {
+    namespace: `${namespace}/compensation`, accountId: randomUUID(), clientOrderId: `compensation-${randomUUID()}`,
+    security: "600000.SH", requestedQuantity: 10,
+    bar: { timestamp: "2026-09-25T01:31:00.000Z", open: "10.2000", volume: 1000 }
+  };
+  const compensationOrder = await new PostgresFakeBrokerRepository(pool).execute(compensationCommand);
+  assert.equal(compensationOrder.result.status, "FILLED");
+  const compensationEvent = await pool.query("SELECT event_id FROM fake_broker_outbox WHERE order_id=$1", [compensationOrder.result.orderId]);
+  assert.equal(compensationEvent.rowCount, 1);
+  await pool.query("UPDATE fake_broker_outbox SET status='COMPENSATION_REQUIRED',attempts=3,last_error='fixed HTTP smoke setup' WHERE event_id=$1", [compensationEvent.rows[0].event_id]);
+  const compensationState = async () => pool.query("SELECT status,attempts,last_error FROM fake_broker_outbox WHERE event_id=$1", [compensationEvent.rows[0].event_id]);
+  const compensationBeforeInjection = await compensationState();
+  const injectedCompensation = await request(`/internal/v1/outbox/${compensationEvent.rows[0].event_id}/compensate`, "POST", "platform-api-service", tokens.platform, { environmentMode: "LIVE", brokerMode: "REAL" });
+  assert.equal(injectedCompensation.status, 422, "Outbox compensation must reject mode injection before requeueing the event");
+  const compensationAfterInjection = await compensationState();
+  assert.deepEqual(compensationAfterInjection.rows, compensationBeforeInjection.rows, "mode-injected compensation must leave event status, attempts and error unchanged");
+  const validCompensation = await request(`/internal/v1/outbox/${compensationEvent.rows[0].event_id}/compensate`, "POST", "platform-api-service", tokens.platform);
+  assert.equal(validCompensation.status, 202, await validCompensation.text());
+  const compensationAfterValid = await compensationState();
+  assert.equal(compensationAfterValid.rows[0].status, "COMPENSATION_REQUIRED", "failed isolated Portfolio delivery remains visibly in compensation state");
+  runStatus = { v13IndependentAssetRead: { status: assetSnapshotResponse.status, wrongIdentity: assetSnapshotWrongIdentity.status, wrongAccount: assetSnapshotWrongAccount.status, wrongNamespace: assetSnapshotWrongNamespace.status, missingScope: assetSnapshotMissingScope.status, accountId: assetAccountId, ownerId: assetOwnerId, testRunId: assetTestRunId, currency: assetSnapshot.currency, currentCash: assetSnapshot.current_cash, positions: assetSnapshot.positions }, v13ModeInjection: v13ModeInjectionResults, v13ModeInjectionSideEffects: v13ModeInjectionSideEffects.rows[0], writeRouteScope: writeRouteScopeResults, writeRouteScopeSideEffects: writeRouteScopeSideEffects.rows[0], noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, historicalModeInjection: { attempts: historicalModeInjectionResults, governanceCallsUnchanged: historicalModeInjectionNoGovernanceCall, noOrderPersisted: injectedHistoricalOrder.rows[0].count === 0 }, outboxCompensationModeInjection: { injectedStatus: injectedCompensation.status, unchangedBeforeValidCompensation: JSON.stringify(compensationBeforeInjection.rows) === JSON.stringify(compensationAfterInjection.rows), validStatus: validCompensation.status, remainsCompensationRequired: compensationAfterValid.rows[0].status === "COMPENSATION_REQUIRED" }, rejectedZeroVolume: executionBody.result.rejectionReason, tradeOrderTransitionModeInjection: { attempts: transitionModeAttempts, cancelledResultStatus: injectedCancelResult.status, unchangedOrderFactsBeforeAndAfter: true }, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
   console.log(JSON.stringify({ status: "PASS", namespace, evidence: runStatus }));
 } finally {
   if (service.exitCode === null) {

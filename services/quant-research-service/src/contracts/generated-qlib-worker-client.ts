@@ -12,11 +12,11 @@ export class GeneratedQlibWorkerClient {
     if (!/^[A-Za-z0-9_-]{32,}$/u.test(bearerToken)) throw new Error("Quant Research Qlib Worker bearer token is not configured");
     this.baseUrl = baseUrl.replace(/\/+$/u, "");
   }
-  async probe(timeoutMs = 3000): Promise<{ status: string; version?: string; detail?: string }> {
+  async probe(timeoutMs = 3000): Promise<{ status: string; version?: string; detail?: string; dockerSocketMounted?: boolean; codeProbe?: { status: string; result?: string; value?: number; sourceSha256?: string } }> {
     const response = await this.request(this.baseUrl + "/probe", { headers: this.headers(), signal: AbortSignal.timeout(timeoutMs) });
     const value = await response.json().catch(() => ({}));
     if (!response.ok) throw new QlibWorkerHttpError(response.status, value);
-    return value as { status: string; version?: string; detail?: string };
+    return value as { status: string; version?: string; detail?: string; dockerSocketMounted?: boolean; codeProbe?: { status: string; result?: string; value?: number; sourceSha256?: string } };
   }
   async fitFixture(body: Contracts.QlibFitFixtureRequest, timeoutMs = 120000): Promise<Contracts.QlibFitFixtureResult> {
     const response = await this.request(this.baseUrl + "/qlib/fit-fixture", { method: "POST", headers: { ...this.headers(), "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });

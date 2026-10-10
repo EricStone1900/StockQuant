@@ -1,0 +1,312 @@
+{
+  "date": "2026-10-09",
+  "scope": "V1.3 Platform user-facing API identity boundary in isolated full Web/API/CLI E2E",
+  "result": "PARTIAL_SUPERSEDED",
+  "routeCount": 24,
+  "anonymousRequests": 24,
+  "anonymousRejected401": 24,
+  "forgedOwnerRequests": 24,
+  "forgedOwnerRejected403": 24,
+  "forgedIdentityHeader": "x-stockquant-user: unauthorized-owner",
+  "requestOrdering": "Identity probes ran after valid local session issuance and before browser scenarios; wrong identities were rejected before business access.",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/scenarios"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/clock"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/clock/advance-session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/external-orders/observe"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/reconciliation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/auto-mandates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/auto-mandates/{mandateId}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/auto-mandates/{mandateId}/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/auto-mandates/{mandateId}/pause"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/revisions/append"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/{action}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/execution/submit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/sequenced-execution/submit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}/sequenced-reports/{sequence}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-request"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-results/{sequence}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-partial-fill"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/auto-execution/submit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/accounts/{accountId}"
+    }
+  ],
+  "e2e": {
+    "command": "pnpm test:e2e -- --stage V1.3",
+    "status": "PASS",
+    "playwright": "21 passed",
+    "isolatedProject": "sq-v13-web-466e4b7b1a7871d67751",
+    "exactProjectResourcesRemoved": true,
+    "externalSourceCalls": 0,
+    "realBrokerCalls": 0
+  },
+  "stageRuns": [
+    {
+      "testRunId": "7437fcb8-6ac8-4074-96c1-f4bdd2a48cfc",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/7437fcb8-6ac8-4074-96c1-f4bdd2a48cfc/evidence.json",
+      "manifestSha256": "7840e3cb750883254255be80e71d735499c1a6a6ea3394c7b62be0203e6a7faa"
+    },
+    {
+      "testRunId": "9f10ca12-257e-4143-a154-6d941574ea09",
+      "scenarioId": "rejection",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/9f10ca12-257e-4143-a154-6d941574ea09/evidence.json",
+      "manifestSha256": "1dd0c4c2240b22ac874b1d73d24a26de8664efd161e497e137bcb5dae32c0a7b"
+    },
+    {
+      "testRunId": "5a73512b-109d-49a9-a815-698b2475fb81",
+      "scenarioId": "recovery",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/5a73512b-109d-49a9-a815-698b2475fb81/evidence.json",
+      "manifestSha256": "7b33b56042ae71a749be2ff2f057d26dc983936e95bc5a30bcb219b794e68819"
+    },
+    {
+      "testRunId": "b7f36842-8bee-4c01-bc3f-8d947a6d3143",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/b7f36842-8bee-4c01-bc3f-8d947a6d3143/evidence.json",
+      "manifestSha256": "6744605aac806b2d2aa5dff4dabf02c90b6a4a7cb5be025127afab5cb573ec54"
+    },
+    {
+      "testRunId": "95ee0d3d-2bc9-40fe-9844-220fa068a96f",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/95ee0d3d-2bc9-40fe-9844-220fa068a96f/evidence.json",
+      "manifestSha256": "2915a4505b1874150b2b01a8b23dc571b6f3cfae7a88fb48b8143359c685ab56"
+    },
+    {
+      "testRunId": "6d223632-318a-4656-8f6c-47c15850d20f",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/6d223632-318a-4656-8f6c-47c15850d20f/evidence.json",
+      "manifestSha256": "b1198b26dfdd01ad65f9e7e8c138b92be6647960eed7c2f661c20e556ca91f84"
+    },
+    {
+      "testRunId": "7fca16ff-0d05-4fff-b9ce-e27c9d4e9db4",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/7fca16ff-0d05-4fff-b9ce-e27c9d4e9db4/evidence.json",
+      "manifestSha256": "7e2abade762431264c7a2517bc562cecc0feadddbadff4d7c3e6442334c55bc3"
+    },
+    {
+      "testRunId": "dc5f61a0-fdda-45ab-bfc2-68a1272e6e15",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/dc5f61a0-fdda-45ab-bfc2-68a1272e6e15/evidence.json",
+      "manifestSha256": "bf73818ff9a9ac2b4a4ccd64cc441eada829d2abb3ce9ec882e8ea94241d121b"
+    },
+    {
+      "testRunId": "79c88632-e111-4dc6-9c37-962ea8f7ef27",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/79c88632-e111-4dc6-9c37-962ea8f7ef27/evidence.json",
+      "manifestSha256": "d4f191a175428838f9edbe579af7f284bcb439c821356c701b18c3721300fa24"
+    },
+    {
+      "testRunId": "cda65100-9d7d-465f-9545-ff239eaf5181",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/cda65100-9d7d-465f-9545-ff239eaf5181/evidence.json",
+      "manifestSha256": "6fee5f07e6a3e826531b917f1725b8fc8ab983eaf913153fdd35ce7f1a07f4fa"
+    },
+    {
+      "testRunId": "723aa951-0128-477b-a42e-9b821700c24a",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/723aa951-0128-477b-a42e-9b821700c24a/evidence.json",
+      "manifestSha256": "6ea211784e1cec7758df1720ade9aa717ef60147cf0169aff789fe76bb345337"
+    },
+    {
+      "testRunId": "506abb6f-1a32-472c-a1e4-85770e022b0e",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/506abb6f-1a32-472c-a1e4-85770e022b0e/evidence.json",
+      "manifestSha256": "16becdee38c18d1e620d1b3d1ef9b740d8ba9c502d4f7dc8428ecec66d13650e"
+    },
+    {
+      "testRunId": "c6bfa345-9748-4124-9fab-4d3a76138c3e",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/c6bfa345-9748-4124-9fab-4d3a76138c3e/evidence.json",
+      "manifestSha256": "8256a4a03c7dd68014db11d438dbc8e5be7c7557d17a6da3df5e2e3b7b343ceb"
+    },
+    {
+      "testRunId": "f09fb9e4-d19f-47bc-8dc7-81c6b244bccf",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/f09fb9e4-d19f-47bc-8dc7-81c6b244bccf/evidence.json",
+      "manifestSha256": "9ed641100261aec5926fb3b6d74159ee9ca99c2c7de98111843a49b227803ab6"
+    },
+    {
+      "testRunId": "41314a22-658a-4906-a10e-75097cff2450",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/41314a22-658a-4906-a10e-75097cff2450/evidence.json",
+      "manifestSha256": "c2935653baf8af321fbda727dbc2ebb5e7dcd23c351da3091c39b26a70ff62ca"
+    },
+    {
+      "testRunId": "38ada6bd-7bfc-4b3c-8aff-6b4537fc0a5c",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/38ada6bd-7bfc-4b3c-8aff-6b4537fc0a5c/evidence.json",
+      "manifestSha256": "e5d4e632400e3bcda9ab2e06147b53515c5a5a4a48ed27586a01096aa94a33ba"
+    },
+    {
+      "testRunId": "dd1db10a-bdd4-4ba2-b2b9-a0278df56e90",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/dd1db10a-bdd4-4ba2-b2b9-a0278df56e90/evidence.json",
+      "manifestSha256": "64e716885ff1d8a7b647f74e8f2c72e9ca8f73c088d5db765c26212d70db782c"
+    },
+    {
+      "testRunId": "1765808d-4547-4ad6-b8ba-f65467751b4d",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/1765808d-4547-4ad6-b8ba-f65467751b4d/evidence.json",
+      "manifestSha256": "ada715a3f722dd8a80309496220999036f734ee3d79f2fc143099fef9480f3a1"
+    },
+    {
+      "testRunId": "0f808214-6858-4b53-83b8-b72dcaef0b48",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/0f808214-6858-4b53-83b8-b72dcaef0b48/evidence.json",
+      "manifestSha256": "33f2e2e581765d67bfab4d5d954413938df45ccd4c7b0e397fc7ba0e70d3e099"
+    },
+    {
+      "testRunId": "32e6e9a2-4eb9-47a7-b74a-28002532772e",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/32e6e9a2-4eb9-47a7-b74a-28002532772e/evidence.json",
+      "manifestSha256": "80749ab069160d0ae636ddf22db70164745c42ebaefff5851d73e9b1b2335392"
+    },
+    {
+      "testRunId": "a88fc17f-e5fb-4264-9cd2-eeda144256d4",
+      "scenarioId": "normal",
+      "status": "WAITING",
+      "assertionCount": 2,
+      "evidencePath": "evidence/local/V1.3/a88fc17f-e5fb-4264-9cd2-eeda144256d4/evidence.json",
+      "manifestSha256": "2d0c09b4db8dd40b76e95032de05cea42b26957d5f5643920014bc9417c2a1c3"
+    }
+  ],
+  "stageRunSemantics": "All 21 exported TestRuns remain WAITING and business assertions NOT_RUN; this report is identity-boundary evidence only.",
+  "sourceSha256": {
+    "scripts/test-v13-web-e2e-isolated.mjs": "77eb7963c3f33b0131cdd6bdf284fa4f4b55a63973ae00e0d76b60b31ae0d827",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "8b9c1e1a7bdfc7142755e14094146b85061953e6191be08f79b6ba17940cdbd0",
+    "infra/compose/docker-compose.v13-integration.yml": "c868a4f47389136d2f92f4077ebf924e44040cceceb88d938b51bc2b79b4fed1"
+  },
+  "coverageCorrection": {
+    "previouslyReportedControllerOperations": 23,
+    "actualControllerOperations": 25,
+    "coveredControllerOperationsInThisRun": 23,
+    "missingAtDiscovery": [
+      {
+        "method": "GET",
+        "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/acceptance/v1/v1.3/runs/{runId}/proposals/{proposalId}/orders/{clientOrderId}/fills/{externalFillId}/fee-corrections"
+      }
+    ],
+    "note": "A subsequent source-to-probe parity assertion discovered these two omitted routes. This report remains evidence for its 24 executed probes but does not prove complete V1.3 route coverage; see the superseding route-inventory E2E report."
+  },
+  "declaredControllerRouteCount": 25
+}

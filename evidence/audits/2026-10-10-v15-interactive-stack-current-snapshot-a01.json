@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "auditId": "V1.5-INTERACTIVE-STACK-CURRENT-SNAPSHOT-A01",
+  "observedAtUtc": "2026-10-10T05:12:37.132675+00:00",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "composeFile": "infra/compose/docker-compose.v15-integration.yml",
+  "services": [
+    {
+      "service": "decision-governance-service",
+      "state": "running",
+      "health": "healthy",
+      "publishers": []
+    },
+    {
+      "service": "nats",
+      "state": "running",
+      "health": "unhealthy",
+      "publishers": [
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 4222
+        },
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 6222
+        },
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 8222
+        }
+      ]
+    },
+    {
+      "service": "platform-api-service",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "hostIp": "127.0.0.1",
+          "hostPort": 60897,
+          "containerPort": 3000
+        }
+      ]
+    },
+    {
+      "service": "portfolio-risk-service",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 3001
+        }
+      ]
+    },
+    {
+      "service": "postgres",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 5432
+        }
+      ]
+    },
+    {
+      "service": "quant-research-service",
+      "state": "running",
+      "health": "healthy",
+      "publishers": []
+    },
+    {
+      "service": "temporal",
+      "state": "running",
+      "health": null,
+      "publishers": []
+    },
+    {
+      "service": "trade-execution-service",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "hostIp": "",
+          "hostPort": 0,
+          "containerPort": 3005
+        }
+      ]
+    },
+    {
+      "service": "web",
+      "state": "running",
+      "health": "healthy",
+      "publishers": [
+        {
+          "hostIp": "127.0.0.1",
+          "hostPort": 60898,
+          "containerPort": 8080
+        }
+      ]
+    }
+  ],
+  "webUrl": "http://127.0.0.1:60898/acceptance/v1/v1.5",
+  "web": {
+    "httpStatus": 200
+  },
+  "apiBaseUrl": "http://127.0.0.1:60897",
+  "apiLive": {
+    "httpStatus": 200
+  },
+  "natsConfiguredHealthcheck": "[\"CMD\",\"nats-server\",\"--signal\",\"check\"] \"unhealthy\"",
+  "mutationPerformed": false,
+  "testRunCreated": false,
+  "restartPerformed": false,
+  "scope": "Read-only current runtime snapshot. The project was left running. Web/API reachability does not constitute business or user acceptance."
+}

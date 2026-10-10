@@ -10,8 +10,8 @@ type IncidentRow = QueryResultRow & { incident_id: string; alert_key: string; co
 export class AlertOutboxRepository implements AlertOutboxPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_alert_outbox (
         alert_id UUID PRIMARY KEY,
         alert_key TEXT NOT NULL UNIQUE,

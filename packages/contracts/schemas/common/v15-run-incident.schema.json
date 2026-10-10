@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v15-run-incident.schema.json",
+  "title": "V1.5 Run Incident",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["incidentId", "testRunId", "alertKey", "code", "severity", "title", "detail", "state", "firstSeenAt", "lastSeenAt", "acknowledgedBy", "acknowledgedAt", "resolvedAt"],
+  "properties": {
+    "incidentId": { "type": "string", "format": "uuid" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "alertKey": { "type": "string", "minLength": 1 },
+    "code": { "type": "string", "minLength": 1 },
+    "severity": { "enum": ["BLOCKER", "ERROR"] },
+    "title": { "type": "string", "minLength": 1 },
+    "detail": { "type": "object" },
+    "state": { "enum": ["OPEN", "ACKNOWLEDGED", "RESOLVED"] },
+    "firstSeenAt": { "type": "string", "format": "date-time" },
+    "lastSeenAt": { "type": "string", "format": "date-time" },
+    "acknowledgedBy": { "type": ["string", "null"] },
+    "acknowledgedAt": { "type": ["string", "null"], "format": "date-time" },
+    "resolvedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

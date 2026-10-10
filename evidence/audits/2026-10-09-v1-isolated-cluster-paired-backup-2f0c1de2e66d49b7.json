@@ -1,0 +1,210 @@
+{
+  "schemaVersion": "stockquant.v1.isolated-cluster-paired-backup.v1",
+  "status": "PASS",
+  "scope": "isolated-test-only",
+  "composeProject": "stockquant-paired-cluster-2f0c1de2e66d49b7-iehXIe",
+  "sourceDatabaseInventory": [
+    "decision_governance",
+    "historical_replay",
+    "market_data",
+    "platform_api",
+    "portfolio_risk",
+    "postgres",
+    "quant_research",
+    "research_automation",
+    "trade_execution",
+    "trade_execution_test"
+  ],
+  "artifactVolume": "stockquant-paired-cluster-2f0c1de2e66d49b7-iehXIe_research-artifacts-v1",
+  "seededPublishedArtifactRef": {
+    "namespace": "research/v1-paired-backup/cf575169-7202-491b-8bb2-7a11cc0664ea/model",
+    "artifactId": "weights.bin",
+    "sha256": "8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767",
+    "restoredContentPath": "research/v1-paired-backup/cf575169-7202-491b-8bb2-7a11cc0664ea/model/8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767/weights.bin"
+  },
+  "pairedBusinessFacts": {
+    "testRunId": "cf575169-7202-491b-8bb2-7a11cc0664ea",
+    "run": {
+      "testRunId": "cf575169-7202-491b-8bb2-7a11cc0664ea",
+      "stageId": "V1.3",
+      "scenarioId": "normal",
+      "ownerId": "paired-backup-owner",
+      "namespace": "v1-3-paired-backup-cf575169-7202-491b-8bb2-7a11cc0664ea",
+      "status": "WAITING",
+      "seed": 20261009
+    },
+    "trade": {
+      "orderId": "0dfb9932-ed55-4c7f-8508-3b8c67c905c2",
+      "clientOrderId": "backup-cf575169-7202-491b-8bb2-7a11cc0664ea",
+      "orderStatus": "FILLED",
+      "fillId": "4153dafa-b071-4498-8cd1-d494e5de226e",
+      "quantity": 10,
+      "price": "10.0000",
+      "fee": "0.1000",
+      "outboxStatus": "DELIVERED"
+    },
+    "portfolio": {
+      "accountId": "a91b3754-b26a-4326-abf9-ff356552388d",
+      "ownerId": "paired-backup-owner",
+      "testRunId": "cf575169-7202-491b-8bb2-7a11cc0664ea",
+      "cashAmount": "899.9000",
+      "currency": "CNY",
+      "ledgerVersion": 3,
+      "ledgerEntryCount": 2,
+      "fillId": "4153dafa-b071-4498-8cd1-d494e5de226e",
+      "positionQuantity": 10
+    },
+    "relationChecks": {
+      "namespaceMatches": true,
+      "orderFillOutboxLinked": true,
+      "portfolioAndBrokerFillIdsMatch": true,
+      "ledgerAndPositionRestored": true
+    }
+  },
+  "restoreValidation": {
+    "status": "PASS",
+    "checkedAt": "2026-10-09T07:42:26.440Z",
+    "publishedArtifactRefs": 1,
+    "restoredDatabases": [
+      "decision_governance",
+      "historical_replay",
+      "market_data",
+      "platform_api",
+      "portfolio_risk",
+      "postgres",
+      "quant_research",
+      "research_automation",
+      "trade_execution",
+      "trade_execution_test"
+    ],
+    "restoredRoles": [
+      {
+        "name": "decision_governance",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "historical_replay",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "market_data",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "platform_api",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "portfolio_risk",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "postgres",
+        "superuser": true,
+        "inherit": true,
+        "createRole": true,
+        "createDb": true,
+        "login": true,
+        "replication": true,
+        "bypassRls": true,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "quant_research",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "research_automation",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "trade_execution",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "trade_execution_test",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      }
+    ],
+    "method": "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256"
+  },
+  "backupManifestSha256": "d468ec28aef4657ec189d1279261488cda224f8a88b2ac018d2d40aa32c4f683",
+  "activeProjectOrVolumeTouched": false,
+  "exactProjectResourcesRemoved": true,
+  "realBrokerCalls": 0,
+  "externalSourceCalls": 0,
+  "at": "2026-10-09T07:42:27.070Z"
+}

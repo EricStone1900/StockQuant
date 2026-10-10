@@ -20,7 +20,7 @@ run("persistent account resource reservations", () => {
   const resolve = (reservationId: string, outcome: "FILLED" | "CANCELLED" | "REJECTED" | "EXPIRED" | "UNKNOWN", evidenceRef: string) => repository.resolveReservation({ accountId, reservationId, namespace, testRunId, ownerId, outcome, evidenceRef });
 
   beforeAll(async () => {
-    await repository.migrate();
+    await Promise.all([repository.migrate(), new PostgresAccountRepository(pool).migrate()]);
     const initialized = await repository.initialize({
       fixtureAccountRef: `fixture-${testRunId}`, ownerId, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE",
       initialCash: { amount: "10000.0000", currency: "CNY" }, namespace, testRunId, idempotencyKey: `init-${testRunId}`
@@ -46,6 +46,20 @@ run("persistent account resource reservations", () => {
       if (Object.values(remaining.rows[0]).some((count) => count !== "0")) throw new Error("isolated reservation test account cleanup left rows");
     }
     await pool.end();
+  });
+
+  it("records the V1 schema baseline once across concurrent startup migrations", async () => {
+    const result = await pool.query<{ version: number; description: string; count: string }>(`
+      SELECT version, description, (SELECT count(*)::text FROM portfolio_risk_schema_migrations) AS count
+        FROM portfolio_risk_schema_migrations
+       WHERE version = 1
+    `);
+    expect(result.rows).toEqual([{
+      version: 1,
+      description: "V1 account, ledger, fills, and resource reservations",
+      count: "1"
+    }]);
+    console.info(`[Portfolio schema migration] ${JSON.stringify({ version: 1, count: result.rows[0].count, concurrentStartup: "serialized", existingSchema: "baseline adopted transactionally" })}`);
   });
 
   it("persists separate CN and US cash ledgers with original currencies and conflict-safe initialization replay", async () => {

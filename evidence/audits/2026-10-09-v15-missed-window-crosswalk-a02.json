@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-09",
+  "status": "PASS",
+  "auditId": "V15-MISSED-WINDOW-CROSSWALK-A02",
+  "sourceCrosswalk": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "sourceCrosswalkSha256": "c1097dc96df5056b92021fd721ae14639568dee5ae6d1d8da2783be5687e502e",
+  "requirementsChecked": [
+    {
+      "requirementId": "V1.5-S2-L17",
+      "currentSourceAnchor": 23,
+      "exactTestNames": [
+        "records next-session close reconciliation and missed-window recovery",
+        "does not save AUTO completion when a fresh terminal ledger read disagrees",
+        "V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows"
+      ],
+      "evidencePathsChecked": 10,
+      "remainingGap": "The two-session synthetic Fixture verifies that the first window is marked MISSED_WINDOW with no stale order, and the next session creates a new scoped Proposal/Mandate, executes once per market, and reconciles at close. It does not establish real-clock delayed scheduling, repeated multi-day AUTO cycles, complete exchange calendars, settled-cash/settlement rules, or trading-worker failure recovery."
+    },
+    {
+      "requirementId": "V1.5-S2-L18",
+      "currentSourceAnchor": 24,
+      "exactTestNames": [
+        "accepts the durable UNKNOWN original-order recovery scenario"
+      ],
+      "evidencePathsChecked": 8,
+      "remainingGap": "UNKNOWN original-order recovery, active/completed AUTO duplicate dispatch, and two-session missed-window next-session re-evaluation are verified. Resume/cancel, in-flight Fill cancellation, real-clock delayed scheduling, and business-worker restart/failover remain open."
+    }
+  ],
+  "errors": [],
+  "scope": "Literal source anchor, exact test-name and evidence-path checks for V1.5 AUTO schedule and recovery. Does not upgrade parent task status."
+}

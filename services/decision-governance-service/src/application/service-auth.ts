@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 export type GovernanceCaller = "historical-replay-worker" | "trade-execution-service" | "platform-api-service";
-export type GovernanceTokens = Record<"historical-replay-worker" | "trade-execution-service", string> & Partial<Record<"platform-api-service", string>>;
+export type GovernanceTokens = Record<GovernanceCaller, string>;
 
 function bearerMatches(authorization: string | undefined, expected: string): boolean {
   const match = /^Bearer ([A-Za-z0-9_-]{32,})$/.exec(authorization ?? "");
@@ -13,13 +13,13 @@ function bearerMatches(authorization: string | undefined, expected: string): boo
 
 export function loadGovernanceTokens(env: NodeJS.ProcessEnv): GovernanceTokens {
   const tokens = {
-    "historical-replay-worker": env.STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY ?? "",
-    "trade-execution-service": env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION ?? "",
-    "platform-api-service": env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API?.trim() || undefined
+    "historical-replay-worker": env.STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY?.trim() ?? "",
+    "trade-execution-service": env.STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION?.trim() ?? "",
+    "platform-api-service": env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API?.trim() ?? ""
   };
-  if (!tokens["historical-replay-worker"] || !tokens["trade-execution-service"] || tokens["historical-replay-worker"].length < 32 || tokens["trade-execution-service"].length < 32 || (tokens["platform-api-service"] !== undefined && tokens["platform-api-service"].length < 32)) throw new Error("governance caller Bearer tokens must each be at least 32 characters");
-  if (tokens["historical-replay-worker"] === tokens["trade-execution-service"]) throw new Error("governance caller Bearer tokens must be distinct");
-  if (tokens["platform-api-service"] && [tokens["historical-replay-worker"], tokens["trade-execution-service"]].includes(tokens["platform-api-service"])) throw new Error("governance caller Bearer tokens must be distinct");
+  if (!tokens["platform-api-service"] || tokens["platform-api-service"].length < 32) throw new Error("governance Platform API Bearer token is required and must be at least 32 characters");
+  if (Object.values(tokens).some((token) => token.length < 32)) throw new Error("governance caller Bearer tokens must each be at least 32 characters");
+  if (new Set(Object.values(tokens)).size !== Object.keys(tokens).length) throw new Error("governance caller Bearer tokens must be distinct");
   return tokens;
 }
 
@@ -30,6 +30,7 @@ export function authorizeGovernanceRequest(input: { method: string; pathname: st
   if (!expected || !bearerMatches(input.authorization, expected)) return false;
   if (input.method === "GET" && /^\/internal\/v1\/proposals\/[0-9a-f-]{36}$/iu.test(input.pathname)) return caller === "platform-api-service" || caller === "trade-execution-service";
   if (input.method === "GET" && /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/runs\/[0-9a-f-]{36}$/iu.test(input.pathname)) return caller === "platform-api-service";
+  if (input.method === "GET" && /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/runs\/[0-9a-f-]{36}\/versions\/[1-9][0-9]*\/budget$/iu.test(input.pathname)) return caller === "platform-api-service";
   if (input.method !== "POST") return false;
   if (input.pathname === "/internal/v1/v12/strategy-snapshots") return caller === "platform-api-service";
   if (input.pathname === "/internal/v1/authorizations") return caller === "historical-replay-worker";

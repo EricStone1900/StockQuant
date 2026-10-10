@@ -70,12 +70,68 @@ try {
   }
   assert.equal(ready, true, "isolated Platform API did not become live");
 
-  const invalidPolicy = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers: { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" }, body: JSON.stringify({ scenarioId: "normal", policy: { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500, unknown: true } }) });
-  assert.equal(invalidPolicy.status, 422, "unknown execution-policy fields must be rejected before creating a TestRun");
+  const identityRoutes = [
+    { label: "scenario discovery", method: "GET", path: "/api/v1/acceptance/v1/v1.4/scenarios" },
+    { label: "run creation", method: "POST", path: "/api/v1/acceptance/v1/v1.4/runs", body: { scenarioId: "normal", seed: 20260907 } },
+    { label: "TestRun read", method: "GET", path: "/api/v1/acceptance/v1/v1.4/runs/00000000-0000-4000-8000-000000000001" },
+    { label: "report artifact read", method: "GET", path: "/api/v1/acceptance/v1/v1.4/runs/00000000-0000-4000-8000-000000000001/artifacts/00000000-0000-4000-8000-000000000002" },
+    { label: "run cancellation", method: "POST", path: "/api/v1/acceptance/v1/v1.4/runs/00000000-0000-4000-8000-000000000001/cancel", body: {} },
+  ];
+  const platformSource = readFileSync(resolve("services/platform-api-service/src/bootstrap/app.module.ts"), "utf8");
+  const controllerMarker = '@Controller("api/v1/acceptance/v1/v1.4")';
+  const controllerStart = platformSource.indexOf(controllerMarker);
+  const controllerEnd = platformSource.indexOf("\n@Controller(", controllerStart + controllerMarker.length);
+  assert.notEqual(controllerStart, -1, "V1.4 Platform controller must exist");
+  const controllerSource = platformSource.slice(controllerStart, controllerEnd < 0 ? undefined : controllerEnd);
+  const declaredRoutes = [...controllerSource.matchAll(/@(Get|Post|Patch|Put|Delete)\("([^"]+)"\)/gu)]
+    .map(([, method, route]) => `${method.toUpperCase()} /api/v1/acceptance/v1/v1.4/${route}`);
+  const requiredRoutes = [
+    "GET /api/v1/acceptance/v1/v1.4/scenarios",
+    "POST /api/v1/acceptance/v1/v1.4/runs",
+    "GET /api/v1/acceptance/v1/v1.4/runs/:testRunId",
+    "GET /api/v1/acceptance/v1/v1.4/runs/:testRunId/artifacts/:artifactId",
+    "POST /api/v1/acceptance/v1/v1.4/runs/:testRunId/cancel",
+  ];
+  assert.equal(declaredRoutes.length, requiredRoutes.length, "update V1.4 identity probes with every controller route");
+  for (const route of requiredRoutes) assert.equal(declaredRoutes.filter((item) => item === route).length, 1, `V1.4 route must be inventoried exactly once: ${route}`);
+  for (const route of identityRoutes) {
+    for (const [identityName, headers, expectedStatus] of [
+      ["anonymous", {}, 401],
+      ["forged owner", { "x-stockquant-user": "unauthorized-owner" }, 403],
+    ]) {
+      const response = await fetch(`${apiUrl}${route.path}`, {
+        method: route.method,
+        headers: { ...(route.body ? { "content-type": "application/json" } : {}), ...headers },
+        ...(route.body ? { body: JSON.stringify(route.body) } : {}),
+      });
+      assert.equal(response.status, expectedStatus, `${route.label} must reject ${identityName}`);
+    }
+  }
+  console.info(`[V1.4 Platform identity boundary] ${JSON.stringify({ routes: identityRoutes.map(({ label, method, path }) => ({ label, method, path })), anonymousRejected: identityRoutes.length, forgedOwnerRejected: identityRoutes.length, expectedStatuses: { anonymous: 401, forgedOwner: 403 } })}`);
 
   const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
+  const quantCountBeforeModeProbe = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
+  for (const modes of [
+    { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "REAL" },
+  ]) {
+    const response = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "normal", seed: 20260907, ...modes }) });
+    assert.equal(response.status, 422, `V1.4 run creation must reject client mode injection ${JSON.stringify(modes)}`);
+  }
+  const quantCountAfterModeProbe = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
+  assert.equal(quantCountAfterModeProbe, quantCountBeforeModeProbe, "rejected V1.4 mode injection must not create a Quant run");
+
+  const invalidPolicy = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "normal", policy: { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500, unknown: true } }) });
+  assert.equal(invalidPolicy.status, 422, "unknown execution-policy fields must be rejected before creating a TestRun");
+
   const quantCountBeforeCancellation = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
   const cancelAccepted = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "recovery", seed: 20260907 }) }).then((response) => response.json());
+  const injectedV14Cancel = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}/cancel`, { method: "POST", headers, body: JSON.stringify({ status: "CANCELLED", cash: { amount: "999999.00", currency: "CNY" } }) });
+  assert.equal(injectedV14Cancel.status, 422, "V1.4 cancellation must reject client-supplied business facts");
+  const unchangedV14Run = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}`, { headers }).then((response) => response.json());
+  assert.equal(unchangedV14Run.evidence.v14Task.cancelRequested, false, "rejected cancellation must not set the cancel flag");
   assert.equal((await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}/cancel`, { method: "POST", headers, body: "{}" })).status, 202);
   const cancelledRun = await waitForTestRun(cancelAccepted.testRunId, headers);
   assert.equal(cancelledRun.status, "CANCELLED");
@@ -180,14 +236,16 @@ try {
     await delay(250);
   }
   assert.equal(webReady, true, "isolated V1.4 Web did not become ready");
-  const browser = spawnSync("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "--grep", "V1\\.4 (?:daily backtest page|web accepts a bounded policy|synthetic suspension|historical fee fixture|RAW corporate actions)"], {
+  const browser = spawnSync("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "--grep", "V1\\.4 (?:daily backtest page|rejection page|restores the same running TestRun|web accepts a bounded policy|synthetic suspension|historical fee fixture|RAW corporate actions)"], {
     env: { ...env, PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}`, STOCKQUANT_PLATFORM_API_URL: apiUrl }, encoding: "utf8"
   });
   process.stdout.write(browser.stdout ?? "");
   process.stderr.write(browser.stderr ?? "");
   assert.equal(browser.status, 0, "V1.4 browser test failed");
+  const browserRefreshRecoveryVerified = (browser.stdout ?? "").includes("same-run-restored-and-completed");
+  assert.equal(browserRefreshRecoveryVerified, true, "V1.4 browser refresh must restore the same active TestRun and verify it through CLI");
   browserCreatedTestRunIds = [...(browser.stdout ?? "").matchAll(/\[V1\.4 Web\/CLI same-run\] testRunId=([0-9a-f-]{36})/giu)].map((match) => match[1]);
-  assert.equal(browserCreatedTestRunIds.length, 8, "all V1.4 browser scenarios must report each Web-created TestRun checked by CLI");
+  assert.equal(browserCreatedTestRunIds.length, 10, "all V1.4 browser scenarios must report each Web-created TestRun checked by CLI");
   const browserRuns = [];
   for (const testRunId of browserCreatedTestRunIds) {
     const testRun = await waitForTestRun(testRunId, headers);
@@ -195,6 +253,7 @@ try {
     assert.equal(testRun.evidence.codeVersion, codeVersion, "browser-created run must preserve its workspace digest");
     if (testRun.scenarioId === "market-restrictions") { assert.equal(testRun.scenarioVersion, "1.2.0"); assert.equal(testRun.evidence.ruleScope, "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY"); }
     if (testRun.scenarioId === "corporate-actions") { assert.equal(testRun.scenarioVersion, "1.4.0"); assert.equal(testRun.evidence.priceBasis, "RAW"); assert.equal(testRun.assertions.length, 3); }
+    if (testRun.scenarioId === "rejection") { assert.deepEqual(testRun.evidence.rejections, ["FUTURE_SIGNAL_SAME_DAY", "T_PLUS_1_UNAVAILABLE"]); assert.equal(testRun.evidence.reportPublished, false); }
     browserRuns.push(testRun);
   }
   assert.ok(browserRuns.some((run) => run.evidence.executionPolicy?.initialCashCents === 102_000 && run.evidence.executionPolicy?.slippageBasisPoints === 100), "the configured browser run did not persist its policy in Quant evidence");
@@ -236,11 +295,11 @@ try {
   }
   const persisted = compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) || ':' || count(m.backtest_run_id) || ':' || count(*) FILTER (WHERE r.result_sha256 = m.manifest_payload->>'resultSha256') FROM research_backtest_runs r LEFT JOIN research_backtest_manifests m USING (backtest_run_id)"], "pipe");
   assert.equal(persisted.status, 0, persisted.stderr);
-  assert.equal(persisted.stdout.trim(), "16:16:16", "Quant must persist all sixteen result/Manifest pairs with matching hashes; pre-execution cancellation creates none");
+  assert.equal(persisted.stdout.trim(), "18:18:18", "Quant must persist all eighteen result/Manifest pairs with matching hashes; pre-execution cancellation creates none");
   quantRunCount = Number(persisted.stdout.trim().split(":")[0]);
   const stageRunCount = compose(["exec", "-T", "postgres", "psql", "-U", "platform_api", "-d", "platform_api", "-Atc", "SELECT count(*) FROM acceptance_stage_runs WHERE stage_id='V1.4'"], "pipe");
   assert.equal(stageRunCount.status, 0, stageRunCount.stderr);
-  assert.equal(stageRunCount.stdout.trim(), "17", "rejected policy must not create a Platform TestRun");
+  assert.equal(stageRunCount.stdout.trim(), "19", "rejected policy must not create a Platform TestRun");
   exitCode = 0;
 } finally {
   if (web && web.exitCode === null) {
@@ -273,7 +332,7 @@ try {
   assert.deepEqual(remainingImages.stdout.split(/\r?\n/u).filter((image) => image.startsWith(`${project}-`)), [], `isolated images remain for ${project}`);
 }
 assert.equal(exitCode, 0, "V1.4 isolated acceptance failed");
-const report = { schemaVersion: "stockquant.w1-v14-quant-boundary-isolated-run.v1", createdAt: new Date().toISOString(), stageId: "V1.4", status: "PASS", suite: "isolated-Compose-PostgreSQL-Quant-Platform-Web-CLI", isolatedProject: project, codeVersion, fixtureSha256, quantServiceOwnsComputation: true, invalidPolicyRejectedWithoutRun: true, quantRetryIdempotent, quantRetryConflictRejected, cancellationBeforeQuantVerified: true, platformCrashBeforeQuantRecoveryVerified: true, platformCrashAfterQuantPersistenceRecoveryVerified: true, artifactExportSummary, restrictionFixtureSha256: "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a", corporateActionFixtureSha256: "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc", quantPersistence: { status: "PASS", backtestRunCount: quantRunCount, manifestCount: quantRunCount, resultHashMatchesManifest: quantRunCount }, testRuns, containersVolumesNetworksRemoved: true, externalMarketCalls: 0, providerCalls: 0, paperOrBrokerCalls: 0, activeServicesTouched: false, humanAcceptance: "NOT_CHANGED", limitations: ["Fixture-only small sample", "Exchange-specific limit formulas, intraday queue/fills, full market fees, Qlib/Paper parity, complete independent failure coverage, current complete manual acceptance and Ubuntu remain incomplete"] };
+const report = { schemaVersion: "stockquant.w1-v14-quant-boundary-isolated-run.v1", createdAt: new Date().toISOString(), stageId: "V1.4", status: "PASS", suite: "isolated-Compose-PostgreSQL-Quant-Platform-Web-CLI", isolatedProject: project, codeVersion, fixtureSha256, quantServiceOwnsComputation: true, invalidPolicyRejectedWithoutRun: true, quantRetryIdempotent, quantRetryConflictRejected, cancellationBeforeQuantVerified: true, platformCrashBeforeQuantRecoveryVerified: true, platformCrashAfterQuantPersistenceRecoveryVerified: true, browserRefreshRecoveryVerified: true, artifactExportSummary, restrictionFixtureSha256: "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a", corporateActionFixtureSha256: "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc", quantPersistence: { status: "PASS", backtestRunCount: quantRunCount, manifestCount: quantRunCount, resultHashMatchesManifest: quantRunCount }, testRuns, containersVolumesNetworksRemoved: true, externalMarketCalls: 0, providerCalls: 0, paperOrBrokerCalls: 0, activeServicesTouched: false, humanAcceptance: "NOT_CHANGED", limitations: ["Fixture-only small sample", "Exchange-specific limit formulas, intraday queue/fills, full market fees, Qlib/Paper parity, complete independent failure coverage, current complete manual acceptance and Ubuntu remain incomplete"] };
 const evidenceSuffix = project.slice(project.lastIndexOf("-") + 1);
 const reportPath = `evidence/audits/2026-10-07-v14-durable-tasks-${evidenceSuffix}.json`;
 await mkdir(dirname(reportPath), { recursive: true });

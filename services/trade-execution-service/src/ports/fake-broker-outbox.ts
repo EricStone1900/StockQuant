@@ -8,6 +8,7 @@ export interface FakeBrokerOutboxPort {
   markFeeCorrectionDelivered(eventId: string, claimToken: string): Promise<void>;
   markFeeCorrectionFailed(eventId: string, claimToken: string, error: string): Promise<void>;
   pendingReservationResolutionOutbox(limit?: number): Promise<Array<{ event_id: string }>>;
+  reservationResolutionForOrder(orderId: string): Promise<{ event_id: string; status: string } | null>;
   claimReservationResolutionOutbox(eventId: string): Promise<{ claim_token: string; payload: unknown } | null>;
   markReservationResolutionDelivered(eventId: string, claimToken: string): Promise<void>;
   markReservationResolutionFailed(eventId: string, claimToken: string, error: string): Promise<void>;

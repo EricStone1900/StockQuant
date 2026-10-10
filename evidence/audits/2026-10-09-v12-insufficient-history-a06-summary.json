@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "stockquant.v1.v12-insufficient-history-closure.v1",
+  "date": "2026-10-09",
+  "stageId": "V1.2",
+  "workPackage": "A06/P2",
+  "status": "PASS_FOR_THIS_ENGINEERING_SLICE",
+  "change": "Preflight the frozen history and temporal split for both CN_A and US_EQUITY before invoking either Qlib worker. If any market lacks sufficient history, the Run fails without a model fit, Artifact publication, or Governance snapshot.",
+  "test": {
+    "command": "pnpm --filter @stockquant/platform-api-service exec vitest run tests/unit/v12-acceptance.spec.ts",
+    "exitCode": 0,
+    "testFiles": 1,
+    "testsPassed": 8,
+    "evidence": "evidence/audits/2026-10-09-v12-insufficient-history-a06.log",
+    "sha256": "000d258bfa4bc8273e5482eb927b9e181beaefb2ecb1476404d6cda3506cba7d"
+  },
+  "typecheck": {
+    "command": "pnpm --filter @stockquant/platform-api-service typecheck",
+    "exitCode": 0
+  },
+  "stageCodeSuite": {
+    "command": "pnpm verify:stage -- --stage V1.2 --suite code",
+    "exitCode": 0,
+    "completionBasis": "The runner completed baseline, contracts/fixtures, build, lint, typecheck, unit, isolated service/PostgreSQL integration, Qlib 0.9.6 fit smoke, and the final Web/API/CLI E2E command; the suite stops immediately on any nonzero subcommand. The final isolated E2E report is PASS.",
+    "platformApiUnitTests": "61 files / 286 tests passed",
+    "e2eReport": "evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-a18684ac24a671e63a05.json"
+  },
+  "e2e": {
+    "status": "PASS",
+    "testRunIds": [
+      "8cad7f11-77a8-4ee5-a961-495515676f15",
+      "7b933c93-a83d-41b0-8aa6-e365347d3179",
+      "c72ba253-5e3c-4fbe-acbc-059a9962a17e",
+      "b539e63a-be61-445f-a0d5-afd46ce1e4a0"
+    ],
+    "cleanupVerified": true,
+    "marketSourceCalls": 0,
+    "externalModelCalls": 0,
+    "brokerCalls": 0,
+    "liveTradingEnabled": false,
+    "humanAcceptance": "NOT_CHANGED"
+  },
+  "scopeLimitations": [
+    "The insufficient-history rejection scenario is a service unit test with model/artifact/governance boundaries replaced by spies; full valid-history Qlib and Web/CLI recovery use the real isolated containers.",
+    "Insufficient delisted-security semantics, complete P3 consumption matrix, current human acceptance, and Ubuntu-host validation remain open; this does not close P2 or V1."
+  ],
+  "inputSha256": {
+    "services/platform-api-service/src/application/v12-acceptance.ts": "70ae7c5fa927b7424fd52a72856bff79737eee69316eb43695b06ddabc9cf7e9",
+    "services/platform-api-service/tests/unit/v12-acceptance.spec.ts": "e8efe6be344be92e61db565c23fb68bf73eec89aca390035ee3df63ac8e4c85e",
+    "scripts/code-suite-plan.mjs": "4b936b1cb1a80f6f285136b1303502e33ae524e0f5158c4b14967d62c6c16bc8",
+    "fixtures/v1/v1.2/v1.2-market-data-4/manifest.json": "c6f24b3630f77745e0a8d29325cf431f085b058503776449b5783f244aeecc4a"
+  }
+}

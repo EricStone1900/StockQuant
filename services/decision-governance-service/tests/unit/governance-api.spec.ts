@@ -53,6 +53,8 @@ describe("Decision Governance application boundary", () => {
 
   it("limits AUTO Mandate create/activate to Platform and budget authorization to Trade", async () => {
     const mandates: AutoMandateRepository = {
+      find: vi.fn(async () => null),
+      readBudget: vi.fn(async () => ({ reservedAmount: "500.00", consumedAmount: "0.00", releasedAmount: "0.00", reservationCount: 1, consumedCount: 0, releasedCount: 0 })),
       create: vi.fn(async (input, actorId) => ({ status: "PENDING", mandateId: input.mandateId, mandateVersion: input.mandateVersion, contentHash: "a".repeat(64) })),
       activate: vi.fn(async (input) => ({ status: "ACTIVE", mandateId: input.mandateId, mandateVersion: input.mandateVersion, contentHash: input.contentHash })),
       pause: vi.fn(async () => true),
@@ -63,21 +65,49 @@ describe("Decision Governance application boundary", () => {
     const proposals = { find: vi.fn(async () => persistedProposal) } as unknown as ProposalRepository;
     const api = new GovernanceApi(repository(), tokens, registry, proposals, mandates);
     const platform = { serviceId: "platform-api-service", authorization: `Bearer ${tokens["platform-api-service"]}`, ownerId: "owner-1", actorId: "owner-1" };
-    const created = await api.handle({ method: "POST", pathname: "/internal/v1/auto-mandates", ...platform, rawBody: JSON.stringify({ mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1, testRunId: "d8c1d600-22f6-44ab-9c2f-5581462d90a1", accountId: "d8c1d600-22f6-44ab-9c2f-5581462d90a2", strategyVersion: "fixture-auto-policy-test-v1", market: "CN_A", currency: "CNY", securityScope: ["600000.SH"], maxOrderAmount: "1000.00", maxTotalAmount: "2000.00", maxOrderCount: 2, validFrom: "2026-10-07T09:00:00Z", expiresAt: "2026-10-07T15:00:00Z", reason: "test mandate", now: "2026-10-07T09:00:00Z" }) });
+    const createCommand = { mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1, testRunId: "d8c1d600-22f6-44ab-9c2f-5581462d90a1", accountId: "d8c1d600-22f6-44ab-9c2f-5581462d90a2", strategyVersion: "fixture-auto-policy-test-v1", market: "CN_A", currency: "CNY", securityScope: ["600000.SH"], maxOrderAmount: "1000.00", maxTotalAmount: "2000.00", maxOrderCount: 2, validFrom: "2026-10-07T09:00:00Z", expiresAt: "2026-10-07T15:00:00Z", reason: "test mandate", now: "2026-10-07T09:00:00Z" };
+    for (const injectedMode of [{ environmentMode: "LIVE", brokerMode: "FAKE" }, { environmentMode: "PAPER", brokerMode: "REAL" }, { environmentMode: "LIVE", brokerMode: "REAL" }]) {
+      const rejected = await api.handle({ method: "POST", pathname: "/internal/v1/auto-mandates", ...platform, rawBody: JSON.stringify({ ...createCommand, ...injectedMode }) });
+      expect(rejected.status).toBe(422);
+    }
+    expect(mandates.create).not.toHaveBeenCalled();
+    const created = await api.handle({ method: "POST", pathname: "/internal/v1/auto-mandates", ...platform, rawBody: JSON.stringify(createCommand) });
     expect(created).toMatchObject({ status: 201, body: { status: "PENDING", mandateVersion: 1 } });
     const mandateId = String((created.body as any).mandateId);
+    expect(await api.handle({ method: "GET", pathname: `/internal/v1/auto-mandates/${mandateId}/runs/d8c1d600-22f6-44ab-9c2f-5581462d90a1/versions/1/budget`, ...platform })).toMatchObject({ status: 200, body: { mandateId, ownerId: "owner-1", testRunId: "d8c1d600-22f6-44ab-9c2f-5581462d90a1", reservedAmount: "500.00", consumedAmount: "0.00", reservationCount: 1 } });
+    expect(await api.handle({ method: "GET", pathname: `/internal/v1/auto-mandates/${mandateId}/runs/d8c1d600-22f6-44ab-9c2f-5581462d90a1/versions/1/budget`, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, ownerId: "owner-1" })).toMatchObject({ status: 403 });
+    for (const injectedMode of [{ environmentMode: "LIVE", brokerMode: "FAKE" }, { environmentMode: "PAPER", brokerMode: "REAL" }, { environmentMode: "LIVE", brokerMode: "REAL" }]) {
+      const rejected = await api.handle({ method: "POST", pathname: `/internal/v1/auto-mandates/${mandateId}/activate`, ...platform, rawBody: JSON.stringify({ mandateVersion: 1, testRunId: "d8c1d600-22f6-44ab-9c2f-5581462d90a1", contentHash: "a".repeat(64), reason: "approve exact version", now: "2026-10-07T09:00:00Z", ...injectedMode }) });
+      expect(rejected.status).toBe(422);
+    }
+    expect(mandates.activate).not.toHaveBeenCalled();
     const activated = await api.handle({ method: "POST", pathname: `/internal/v1/auto-mandates/${mandateId}/activate`, ...platform, rawBody: JSON.stringify({ mandateVersion: 1, testRunId: "d8c1d600-22f6-44ab-9c2f-5581462d90a1", contentHash: "a".repeat(64), reason: "approve exact version", now: "2026-10-07T09:00:00Z" }) });
     expect(activated).toMatchObject({ status: 200, body: { status: "ACTIVE" } });
     const proposal = { proposalId: persistedProposal.proposalId, proposalVersion: persistedProposal.proposalVersion, contentHash: persistedProposal.contentHash, ownerId: persistedProposal.ownerId, testRunId: persistedProposal.testRunId, accountId: persistedProposal.accountId, strategyVersion: persistedProposal.strategyVersion, operation: persistedProposal.operation, market: persistedProposal.market, currency: persistedProposal.currency, legs: [{ securityId: "600000.SH", side: "BUY", quantity: 100, limitPrice: "10.00" }] };
     const authzPath = `/internal/v1/auto-mandates/${mandateId}/orders/authorize`;
     const command = { mandateVersion: 1, ownerId: "owner-1", clientOrderId: "auto-order-1", commandHash: "c".repeat(64), proposal, now: "2026-10-07T10:00:00Z" };
+    for (const injectedMode of [{ environmentMode: "LIVE", brokerMode: "FAKE" }, { environmentMode: "PAPER", brokerMode: "REAL" }, { environmentMode: "LIVE", brokerMode: "REAL" }]) {
+      const rejected = await api.handle({ method: "POST", pathname: authzPath, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, rawBody: JSON.stringify({ ...command, ...injectedMode }) });
+      expect(rejected.status).toBe(422);
+    }
+    expect(mandates.authorizeOrder).not.toHaveBeenCalled();
     const forged = await api.handle({ method: "POST", pathname: authzPath, ...platform, rawBody: JSON.stringify(command) });
     expect(forged.status).toBe(403);
     const stale = await api.handle({ method: "POST", pathname: authzPath, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, rawBody: JSON.stringify({ ...command, proposal: { ...proposal, proposalVersion: 2 } }) });
     expect(stale.status).toBe(409);
     const authorized = await api.handle({ method: "POST", pathname: authzPath, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, rawBody: JSON.stringify(command) });
     expect(authorized).toMatchObject({ status: 200, body: { decision: { status: "AUTHORIZED" }, reservationId: "d8c1d600-22f6-44ab-9c2f-5581462d90a5" } });
-    expect(mandates.authorizeOrder).toHaveBeenCalledOnce();
+    persistedProposal.legs[0].quantity = 50;
+    const reducedAutoProposal = { ...proposal, legs: [{ ...proposal.legs[0], quantity: 50 }] };
+    const reducedAuto = await api.handle({ method: "POST", pathname: authzPath, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, rawBody: JSON.stringify({ ...command, clientOrderId: "auto-order-2", proposal: reducedAutoProposal }) });
+    expect(reducedAuto).toMatchObject({ status: 200, body: { decision: { status: "AUTHORIZED" } } });
+    expect(mandates.authorizeOrder).toHaveBeenCalledTimes(2);
+    const settlementPath = "/internal/v1/auto-mandates/reservations/d8c1d600-22f6-44ab-9c2f-5581462d90a5/settle";
+    for (const injectedMode of [{ environmentMode: "LIVE", brokerMode: "FAKE" }, { environmentMode: "PAPER", brokerMode: "REAL" }, { environmentMode: "LIVE", brokerMode: "REAL" }]) {
+      const rejected = await api.handle({ method: "POST", pathname: settlementPath, serviceId: "trade-execution-service", authorization: `Bearer ${tokens["trade-execution-service"]}`, rawBody: JSON.stringify({ outcome: "CONSUMED", now: "2026-10-07T10:00:00Z", ...injectedMode }) });
+      expect(rejected.status).toBe(422);
+    }
+    expect(mandates.settleReservation).not.toHaveBeenCalled();
   });
   it("rejects a forged service identity before reaching the repository", async () => {
     const repo = repository();
@@ -91,8 +121,10 @@ describe("Decision Governance application boundary", () => {
     const repo = repository();
     const api = new GovernanceApi(repo, tokens, registry);
     const headers = { serviceId: "historical-replay-worker", authorization: `Bearer ${tokens["historical-replay-worker"]}` };
-    const denied = await api.handle({ method: "POST", pathname: "/internal/v1/authorizations", ...headers, rawBody: JSON.stringify({ environmentMode: "PAPER", brokerMode: "FAKE" }) });
-    expect(denied.status).toBe(422);
+    for (const [environmentMode, brokerMode] of [["PAPER", "FAKE"], ["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+      const denied = await api.handle({ method: "POST", pathname: "/internal/v1/authorizations", ...headers, rawBody: JSON.stringify({ namespace: "fixture-run", accountId: "account", environmentMode, brokerMode, command: { event: 1 } }) });
+      expect(denied.status, `${environmentMode}/${brokerMode}`).toBe(422);
+    }
     expect(repo.grantReplay).not.toHaveBeenCalled();
     const allowed = await api.handle({ method: "POST", pathname: "/internal/v1/authorizations", ...headers, rawBody: JSON.stringify({ namespace: "fixture-run", accountId: "account", environmentMode: "BACKTEST", brokerMode: "FAKE", command: { event: 1 } }) });
     expect(allowed).toEqual({ status: 200, body: { authorizationId: expect.any(String) } });

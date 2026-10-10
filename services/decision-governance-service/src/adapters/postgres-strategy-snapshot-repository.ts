@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { ReceivedStrategySnapshot, StrategySnapshotInput, StrategySnapshotRepository } from "../ports/strategy-snapshot-repository.js";
 
 const canonical = (input: StrategySnapshotInput) => JSON.stringify({ ...input, targets: input.targets.map((target) => ({ ...target })).sort((a, b) => a.market.localeCompare(b.market) || a.ticker.localeCompare(b.ticker)) });
 
-export async function migrateStrategySnapshots(pool: Pool): Promise<void> {
+export async function migrateStrategySnapshots(pool: PoolClient): Promise<void> {
   await pool.query(`CREATE TABLE IF NOT EXISTS governed_strategy_snapshots (
     snapshot_id uuid PRIMARY KEY, owner_id text NOT NULL, test_run_id uuid NOT NULL, strategy_id text NOT NULL,
     content_hash char(64) NOT NULL, payload jsonb NOT NULL, received_at timestamptz NOT NULL DEFAULT now(),

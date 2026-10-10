@@ -19,7 +19,7 @@ describe("Qlib Artifact shared content store", () => {
     let row: Record<string, unknown> | null = null;
     const pool = { query: vi.fn(async (sql: string, values?: unknown[]) => {
       if (sql.includes("INSERT INTO qlib_fixture_artifacts")) {
-        expect(sql).toMatch(/VALUES\(\$1,\$2,\$3,\$4,\$5,NULL\)/u);
+        expect(sql).toMatch(/VALUES\(\$1,\$2,\$3,\$4,\$5,NULL,\$6\)/u);
         row = { artifact_id: values?.[0], test_run_id: values?.[1], owner_id: values?.[2], media_type: values?.[3], sha256: values?.[4], payload: null, status: "PUBLISHED", expires_at: null };
         return { rowCount: 1, rows: [{ artifact_id: values?.[0] }] };
       }

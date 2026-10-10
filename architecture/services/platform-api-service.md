@@ -14,6 +14,8 @@ V1.1建立身份/健康/TestRun，全部14阶段增量扩展；不新增独立�
 
 边界：不拥有交易资金/订单事实，不直接跨库读写领域，不授予Web任意SQL/shell或Docker能力。
 
+Platform Acceptance写入口在认证后按版本合同进行运行时字段白名单验证；环境和券商模式由服务端的当前阶段/Fixture配置决定，客户端不能通过额外请求字段覆盖。非法或未知字段在写入TestRun、调用领域服务或派发后台工作流之前拒绝。V1.2/V1.5隔离HTTP+PostgreSQL E2E已分别验证四种交易模式注入返回422且无TestRun新增；此为已覆盖的两个入口，不代表其他Platform或Worker写路由均已核验。
+
 ## 2. 内部分层
 
 domain：测试场景/运行/人工签署、访问范围；application：BFF聚合、测试编排、证据导出、暂停命令转发；ports：领域Clients/JobCoordinator/Artifact；adapters：DB、会话认证、只读投影；bootstrap：API/受控后台任务。
@@ -24,11 +26,15 @@ domain：测试场景/运行/人工签署、访问范围；application：BFF聚�
 
 2026-10-08 V1.3订单事件边界增量：L07/L08 sequenced Fill报告、撤单请求与撤单结果协调现由`V13SequencedFill`应用层流程执行，按ports查询owner/TestRun/Proposal/FakeBroker权威订单及Portfolio预留、用TestRun Clock生成确定性事件、调用Trade Execution并回读同Run投影；HTTP Controller只适配会话身份、下游clients和HTTP错误。应用流程7项定向用例；Platform全套60文件/268项单测、typecheck、V1.3完整代码套件及隔离Web/API/CLI矩阵21/21复验通过。领域订单/Fill/账本所有权与事件合同未改变。证据：[订单协调应用服务审计](../../evidence/audits/2026-10-08-p3-v13-sequenced-fill-application-service.md)。
 
+2026-10-10 V1.3 AUTO_POLICY Mandate预算读回：成功的Platform AUTO执行协调按请求中的owner、TestRun、Mandate ID/版本读取Governance独立预算账本，并在结果中返回`VERIFIED`/`NOT_VERIFIED`及快照；预算读回暂时失败不反转已提交交易响应，避免调用方将已成交订单当作失败重试。Web通过owner/TestRun范围的Mandate版本预算GET路由在刷新后恢复该证据；路由先重读Mandate身份和版本。完整隔离V1.3 E2E 22/22及27条平台身份探针（匿名401、伪造owner403）通过，L04核对CNY consumed 1005.00、reserved 0.00及单次消费。证据：[执行日志](../../evidence/audits/2026-10-10-v13-mandate-budget-readback-web-e2e-a01.log)。这是验收投影，预算事实仍由Governance拥有，不改变领域账本所有权。
+
 2026-10-07 V1.5受限持久派发实现：仅normal NO_TRADE由Platform事务写入owner/TestRun范围的`v15_workflow_dispatch_outbox`，Relay通过真实JetStream发布，durable Consumer校验持久TestRun再调用稳定Temporal Workflow ID；业务账户、订单、Fill与账本仍归Portfolio/Trade。此为V1受限能力切片，尚非独立Workflow Orchestration Service。真实隔离E2E验证NATS短停、派发前Platform API重启、坏JSON/错误owner终止、同Run重复消息首次ACK丢弃后的真实redelivery，以及原Outbox恢复；Temporal调用边界一次性UNAVAILABLE经NAK/redelivery恢复以及NO_TRADE Activity执行中重启承载Worker的Platform API后恢复已有隔离E2E；数据库瞬态重试、真实Temporal服务进程重启、多Consumer竞争、交易/日终流程仍未验证。完整E2E和代码Hash见[派发审计](../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.md)。
 
 ## 3. 数据与一致性
 
 逻辑持久化：identities/sessions、preferences、platform_audits、notification_projections、test_scenarios、test_runs、test_assertions、acceptance_records、job_dispatch_records。
+
+V1.5 Run Incident由Platform按owner/TestRun持久证据派生并持久化到`v15_run_incidents`投影；当前会话负责确认身份，恢复的阻塞会解决Incident，复发创建新记录。该投影服务于Run告警与验收状态，不拥有交易订单/成交/账本事实，也不表示已配置外发通知渠道。具体触发状态与HTTP路径见[V1.5阶段手册§8.24](../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md#824-v15-run-incident生命周期与确认2026-10-09)。
 
 事务/幂等：TestRun创建与持久派发记录同事务，后台恢复不会重复创建业务运行；stage/scenario/version唯一；人工结论追加、绑定代码/run，不能覆盖原失败。
 

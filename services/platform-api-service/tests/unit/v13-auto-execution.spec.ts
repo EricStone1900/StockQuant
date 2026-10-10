@@ -8,6 +8,7 @@ function ports(overrides: Partial<V13AutoExecutionPorts> = {}): V13AutoExecution
     readProposal: vi.fn(async () => ({ status: 200, body: { ownerId: command.ownerId, testRunId: command.testRunId, approvalMode: "AUTO_POLICY", status: "AUTO_POLICY_PENDING", accountId: "account-1" } })),
     readAccount: vi.fn(async () => ({ testRunId: command.testRunId, namespace: "v13-normal-run", environmentMode: "PAPER", brokerMode: "FAKE" })),
     executeTrade: vi.fn(async () => ({ status: 202, body: { accepted: true, clientOrderId: command.clientOrderId } })),
+    readMandateBudget: vi.fn(async () => ({ status: 200, body: { ownerId: command.ownerId, testRunId: command.testRunId, mandateId: command.mandateId, mandateVersion: command.mandateVersion, reservedAmount: "0.00", consumedAmount: "1005.00", releasedAmount: "0.00", reservationCount: 1, consumedCount: 1, releasedCount: 0 } })),
     ...overrides,
   };
 }
@@ -15,10 +16,16 @@ function ports(overrides: Partial<V13AutoExecutionPorts> = {}): V13AutoExecution
 describe("V1.3 AUTO_POLICY execution application service", () => {
   it("revalidates owner, TestRun, PAPER/FAKE account scope and injected Clock before execution", async () => {
     const p = ports();
-    await expect(executeV13AutoProposal(command, p)).resolves.toEqual({ accepted: true, clientOrderId: "order-1" });
+    await expect(executeV13AutoProposal(command, p)).resolves.toMatchObject({ accepted: true, clientOrderId: "order-1", mandateBudgetVerification: { status: "VERIFIED", snapshot: { consumedAmount: "1005.00", consumedCount: 1 } } });
     expect(p.readProposal).toHaveBeenCalledWith(command.proposalId, command.ownerId);
     expect(p.readAccount).toHaveBeenCalledWith("account-1", command.ownerId);
     expect(p.executeTrade).toHaveBeenCalledWith({ ...command, accountId: "account-1", namespace: "v13-normal-run", now: "2026-09-28T09:31:00+08:00" });
+    expect(p.readMandateBudget).toHaveBeenCalledWith(command.mandateId, command.testRunId, command.mandateVersion, command.ownerId);
+  });
+
+  it("keeps a committed trade response when budget readback is unavailable and marks evidence incomplete", async () => {
+    const p = ports({ readMandateBudget: vi.fn(async () => { throw new Error("Governance unavailable"); }) });
+    await expect(executeV13AutoProposal(command, p)).resolves.toMatchObject({ accepted: true, mandateBudgetVerification: { status: "NOT_VERIFIED", readStatus: "UNAVAILABLE", snapshot: null } });
   });
 
   it("rejects a proposal from another owner or Run without calling Trade", async () => {

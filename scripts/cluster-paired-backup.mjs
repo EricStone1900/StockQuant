@@ -64,7 +64,9 @@ export async function produceClusterPairedBackup(options) {
       format: "stockquant.paired-backup.cluster.v2", backupId: options.backupId,
       createdAt: new Date(options.createdAt).toISOString(), retentionClass: options.retentionClass,
       databaseInventory: { databases: before, roles: rolesBefore }, artifactVolume: options.artifactVolume,
-      restoreValidation: { status: "PASS", checkedAt: new Date(restoreValidation.checkedAt).toISOString(), publishedArtifactRefs: restoreValidation.publishedArtifactRefs, restoredDatabases: before, restoredRoles: rolesBefore, method: restoreValidation.method }, files,
+      restoreValidation: { status: "PASS", checkedAt: new Date(restoreValidation.checkedAt).toISOString(), publishedArtifactRefs: restoreValidation.publishedArtifactRefs, restoredDatabases: before, restoredRoles: rolesBefore, method: restoreValidation.method },
+      ...(restoreValidation.businessFactValidation ? { businessFactValidation: restoreValidation.businessFactValidation } : {}),
+      ...(restoreValidation.v14BacktestValidation ? { v14BacktestValidation: restoreValidation.v14BacktestValidation } : {}), files,
     };
     const manifestTmp = join(target, "manifest.json.tmp");
     const handle = await open(manifestTmp, "wx", 0o600);

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "stockquant.v1-crosswalk-update-audit.v1",
+  "date": "2026-10-09",
+  "purpose": "Refresh V1.4 §7 developer delivery evidence links after current-tree rerun",
+  "crosswalkPath": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "crosswalkSha256": "aea8e237dc59e4f5bd1c9a4643533f9ba16947d4d9d8d76a20710a80e45fd11a",
+  "requirements": [
+    {
+      "requirementId": "V1.4-S7-L64",
+      "classification": "OPEN",
+      "sourceLine": 73,
+      "exactTestNames": [],
+      "evidencePaths": [
+        "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "./2026-10-09-v14-interactive-stack-up-a02.log",
+        "./2026-10-09-v14-interactive-stack-down-a01.log",
+        "./2026-10-09-v14-current-tree-e2e-a03.log"
+      ],
+      "checks": "PASS"
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "classification": "PARTIAL_EXECUTION_EVIDENCE",
+      "sourceLine": 74,
+      "exactTestNames": [
+        "V1.4 daily backtest page shows report evidence",
+        "V1.4 synthetic suspension and locked-limit scenario is readable and same-run CLI verifiable",
+        "V1.4 historical fee fixture uses the pre-cut date schedule",
+        "V1.4 RAW corporate actions preserve hand-checked NAV and ignore duplicate event delivery",
+        "V1.4 web accepts a bounded policy and compares persisted runs"
+      ],
+      "evidencePaths": [
+        "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "./2026-10-09-v14-current-tree-code-suite-a03.log",
+        "./2026-10-09-v14-current-tree-e2e-a03.log",
+        "./2026-10-09-v14-browser-captures-a01.json",
+        "./2026-10-09-v14-interactive-stack-up-a02.log",
+        "./2026-10-09-v14-interactive-stack-down-a01.log"
+      ],
+      "checks": "PASS"
+    },
+    {
+      "requirementId": "V1.4-S7-L68",
+      "classification": "OPEN",
+      "sourceLine": 77,
+      "exactTestNames": [],
+      "evidencePaths": [
+        "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "../../docs/plans/2026-10-08-v1-completion-plan.md",
+        "../../docs/progress.md"
+      ],
+      "checks": "PASS"
+    }
+  ],
+  "captureManifestSha256": "462af417a8d4bb41b8437cd134b8b9e53651c6003968344a4bf7000dd682509b",
+  "captureManifestHashValid": true,
+  "status": "PASS"
+}

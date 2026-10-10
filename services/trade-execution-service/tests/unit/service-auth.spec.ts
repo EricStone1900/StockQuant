@@ -18,6 +18,12 @@ describe("trade execution service identity and route scopes", () => {
     expect(request("POST", "/internal/v1/historical-orders/execute", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(true);
     expect(request("POST", "/internal/v1/historical-orders/execute", "platform-api-service", tokens["platform-api-service"])).toBe(false);
   });
+  it("scopes UNKNOWN recovery reads to the replay-only historical route", () => {
+    expect(request("GET", "/internal/v1/historical-orders/o1", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(true);
+    expect(request("GET", "/internal/v1/historical-orders/o1", "platform-api-service", tokens["platform-api-service"])).toBe(false);
+    expect(request("GET", "/internal/v1/orders/o1", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+    expect(request("GET", "/internal/v1/orders/o1", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+  });
   it("scopes operational routes to platform and read routes to authenticated callers", () => {
     expect(request("GET", "/internal/v1/reconciliation/summary", "platform-api-service", tokens["platform-api-service"])).toBe(true);
     expect(request("POST", "/internal/v1/orders/o1/cancel", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);

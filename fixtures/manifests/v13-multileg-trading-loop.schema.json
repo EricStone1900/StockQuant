@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v13-multileg-trading-loop.schema.json",
+  "title": "V13MultiLegTradingLoopFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixtureId",
+    "fixtureVersion",
+    "stageId",
+    "seed",
+    "modes",
+    "scenarios"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "fixtureId": {
+      "const": "v1.3-multileg-paper"
+    },
+    "fixtureVersion": {
+      "enum": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.3"
+      ]
+    },
+    "stageId": {
+      "const": "V1.3"
+    },
+    "seed": {
+      "const": 20260907
+    },
+    "modes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "broker"
+      ],
+      "properties": {
+        "environment": {
+          "const": "PAPER"
+        },
+        "broker": {
+          "const": "FAKE"
+        }
+      }
+    },
+    "scenarios": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normal",
+        "rejection",
+        "recovery"
+      ],
+      "properties": {
+        "normal": {
+          "$ref": "#/$defs/marketSet"
+        },
+        "rejection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "market",
+            "availableCash",
+            "maxOrderAmount",
+            "expectedStatus",
+            "expectedOrderCount",
+            "expectedFillCount"
+          ],
+          "properties": {
+            "market": {
+              "enum": [
+                "CN_A",
+                "US_EQUITY"
+              ]
+            },
+            "availableCash": {
+              "$ref": "#/$defs/money4"
+            },
+            "maxOrderAmount": {
+              "$ref": "#/$defs/money4"
+            },
+            "expectedStatus": {
+              "const": "REJECTED"
+            },
+            "expectedOrderCount": {
+              "const": 0
+            },
+            "expectedFillCount": {
+              "const": 0
+            }
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "market",
+            "faultSequence",
+            "expectedOrderCount",
+            "expectedFillCount",
+            "expectedReconciliation"
+          ],
+          "properties": {
+            "market": {
+              "enum": [
+                "CN_A",
+                "US_EQUITY"
+              ]
+            },
+            "faultSequence": {
+              "type": "array",
+              "minItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "expectedOrderCount": {
+              "const": 2
+            },
+            "expectedFillCount": {
+              "const": 2
+            },
+            "expectedReconciliation": {
+              "const": "MATCH"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "money4": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.[0-9]{4}$"
+    },
+    "leg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "legId",
+        "security",
+        "side",
+        "quantity",
+        "price",
+        "fee",
+        "reservedCash"
+      ],
+      "properties": {
+        "legId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "security": {
+          "type": "string",
+          "minLength": 1
+        },
+        "side": {
+          "const": "BUY"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "price": {
+          "$ref": "#/$defs/money4"
+        },
+        "fee": {
+          "$ref": "#/$defs/money4"
+        },
+        "reservedCash": {
+          "$ref": "#/$defs/money4"
+        }
+      }
+    },
+    "marketCases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency",
+        "initialCash",
+        "legs",
+        "totalReservedCash",
+        "expectedCash",
+        "expectedPositions"
+      ],
+      "properties": {
+        "currency": {
+          "enum": [
+            "CNY",
+            "USD"
+          ]
+        },
+        "initialCash": {
+          "$ref": "#/$defs/money4"
+        },
+        "legs": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/leg"
+          }
+        },
+        "totalReservedCash": {
+          "$ref": "#/$defs/money4"
+        },
+        "expectedCash": {
+          "$ref": "#/$defs/money4"
+        },
+        "expectedPositions": {
+          "type": "object",
+          "minProperties": 2,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "marketSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "CN_A",
+        "US_EQUITY"
+      ],
+      "properties": {
+        "CN_A": {
+          "$ref": "#/$defs/marketCases"
+        },
+        "US_EQUITY": {
+          "$ref": "#/$defs/marketCases"
+        }
+      }
+    }
+  }
+}

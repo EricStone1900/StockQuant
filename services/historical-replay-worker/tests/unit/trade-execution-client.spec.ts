@@ -23,8 +23,8 @@ describe("generated Historical Trade Execution client", () => {
   it("reads the persisted original order for UNKNOWN recovery without resending", async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ order_id: "5f8d3f56-ff40-4cde-9d83-041abc584d84", status: "UNKNOWN", rejection_reason: null }), { status: 200 }));
     const client = new GeneratedTradeExecutionClient("http://trade.local", "r".repeat(40), request);
-    await expect(client.readHistoricalFakeOrderById("5f8d3f56-ff40-4cde-9d83-041abc584d84")).resolves.toMatchObject({ status: "UNKNOWN" });
-    expect(request.mock.calls[0]?.[0]).toBe("http://trade.local/internal/v1/orders/5f8d3f56-ff40-4cde-9d83-041abc584d84");
+    await expect(client.readHistoricalFakeOrderById("5f8d3f56-ff40-4cde-9d83-041abc584d84", "replay/run 1")).resolves.toMatchObject({ status: "UNKNOWN" });
+    expect(request.mock.calls[0]?.[0]).toBe("http://trade.local/internal/v1/historical-orders/5f8d3f56-ff40-4cde-9d83-041abc584d84?namespace=replay%2Frun%201");
     expect(request.mock.calls[0]?.[1]?.method).toBeUndefined();
   });
 });

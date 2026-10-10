@@ -1,0 +1,589 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-V11-RESPONSIBILITY-A01",
+  "status": "PASS_WITH_OPEN_DELIVERY_GAPS",
+  "sourceMatrix": "2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 23,
+  "rows": [
+    {
+      "requirementId": "V1.1-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 13,
+        "summary": "六类核心公共Schema已冻结并生成TS/Python类型；字段与required性回归覆盖包级类型及8个服务类型副本。服务业务消费选择和完整跨服务发布/兼容语义仍需单独核查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "packages/contracts",
+      "collaborators": "all contract-consuming V1 services",
+      "currentGapClassification": "PARTIAL",
+      "reconciliation": "Contract package owns canonical schemas and code generation; each service owns business-level consumption. Platform TestRun uses a narrower TestRun domain type and ClockContext has no direct V1 consumer; do not infer runtime parity from generated copies.",
+      "existingGap": "Tests now verify all six core schemas in package TypeScript/Python output and all eight service-generated TypeScript copies, including required fields; contracts:check and full V1.1 code suite pass. This does not prove business modules select/use the correct contracts, consumer behavior, or complete route/caller/release parity; keep this requirement partial until those are separately mapped and checked.",
+      "closureEvidence": [
+        "../../packages/contracts",
+        "../../scripts/generate-contract-types.mjs",
+        "../../scripts/check-contract-compat.mjs",
+        "../../scripts/generate-contract-types.test.mjs",
+        "../../packages/contracts/generated/types.ts",
+        "../../packages/contracts/generated/types.py",
+        "../../evidence/audits/2026-10-09-v11-core-schema-parity-code-suite-a01.log",
+        "../../evidence/audits/2026-10-10-v11-core-service-schema-code-suite-a02.log",
+        "../../evidence/audits/2026-10-10-v11-core-service-schema-code-suite-a02.exit.txt",
+        "../../evidence/audits/2026-10-10-v11-core-service-schema-code-suite-a01.log",
+        "../../evidence/audits/2026-10-10-v1-crosswalk-check-a18.log",
+        "../../services/portfolio-risk-service/src/contracts/generated-types.ts",
+        "../../services/platform-api-service/src/contracts/generated-types.ts",
+        "../../services/quant-research-service/src/contracts/generated-types.ts",
+        "../../services/historical-replay-worker/src/contracts/generated-types.ts",
+        "../../services/market-data-service/src/contracts/generated-types.ts",
+        "../../services/trade-execution-service/src/contracts/generated-types.ts",
+        "../../services/decision-governance-service/src/contracts/generated-types.ts",
+        "../../services/research-automation-service/src/contracts/generated-types.ts",
+        "../../services/portfolio-risk-service/src/domain/account.ts",
+        "../../services/platform-api-service/src/application/scenario-runner.ts",
+        "../../services/platform-api-service/src/domain/test-run.ts",
+        "../../services/historical-replay-worker/src/ports/replay-downstream-clients.ts",
+        "../../packages/contracts/schemas/common/account-initialization.schema.json",
+        "../../packages/contracts/schemas/common/clock-context.schema.json",
+        "../../packages/contracts/schemas/common/test-run.schema.json",
+        "../../fixtures/v1/v1.1/accounts.json",
+        "../../evidence/audits/2026-10-10-v1-core-schema-contracts-check-a01.log",
+        "../../evidence/audits/2026-10-10-v1-core-schema-fixtures-check-a01.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 14,
+        "summary": "补齐所有跨服务OpenAPI/生成客户端及发布流程；建立并验证服务迁移和分层依赖命令。进展：A股Calendar、Portfolio Account、Platform V1.1 ScenarioRunner、Trade Execution至Portfolio的Fill/预留/结算、Historical Replay至Portfolio账户初始化/快照及至Trade Execution历史下单、Governance至Q…",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "cross-service delivery; each consumer service owns its client adapter",
+      "collaborators": "Platform API, Trade Execution, Portfolio Risk, Historical Replay, Market Data, Decision Governance, Quant Research",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "OpenAPI/schema generation is shared tooling; each caller owns generated client and identity/scope use, each API owner its contract, each service its migration/layers. The all-operation production-call and deployment/release matrix remains incomplete.",
+      "existingGap": "A05逐operation核对其余生成客户端的生产调用和对应身份/副作用负测仍未完成；活动库恢复副本、旧版回退/发布顺序和活动存储切换仍开放。统一部署前迁移CLI已实现，并已纳入V1.1～V1.5完整代码套件及各阶段隔离PostgreSQL检查；不把隔离迁移视为活动部署通过。",
+      "closureEvidence": [
+        "../../scripts/check-contract-generators.mjs",
+        "../../scripts/check-service-layers.mjs",
+        "../../scripts/contract-generator-registration.test.mjs",
+        "../../scripts/check-service-layers.test.mjs",
+        "../../scripts/code-suite-plan.test.mjs",
+        "../../services/platform-api-service/tests/unit/account-details.spec.ts",
+        "../../services/trade-execution-service/tests/unit/portfolio-account-client.spec.ts",
+        "../../services/platform-api-service/tests/unit/v11-legacy-migration-preflight.spec.ts",
+        "./2026-10-09-v11-contract-layer-baseline-a01.log",
+        "./2026-10-09-v11-code-suite-a04.log",
+        "./2026-10-09-v11-persistence-migration-a04.json",
+        "../../evidence/audits/2026-10-09-v1-cross-service-route-matrix-a05.md",
+        "../../evidence/audits/2026-10-09-v13-portfolio-migration-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v1-governance-migration-http-a01.log",
+        "../../evidence/audits/2026-10-09-v13-governance-migration-code-suite-a02.log",
+        "../../evidence/audits/2026-10-09-v13-migration-ledgers-code-suite-a03.log",
+        "./2026-10-09-v12-service-auth-code-suite-a02.log",
+        "./2026-10-09-v13-service-auth-code-suite-a01.log",
+        "./2026-10-09-v14-service-auth-code-suite-a01.log",
+        "./2026-10-09-v12-service-auth-code-suite-a02.log.sha256",
+        "./2026-10-09-v13-service-auth-code-suite-a01.log.sha256",
+        "./2026-10-09-v14-service-auth-code-suite-a01.log.sha256",
+        "../../scripts/service-auth-http-smokes.mjs",
+        "../../scripts/service-auth-admin-endpoint.mjs",
+        "../../scripts/test-v1-migration-cli-suite.mjs",
+        "../../scripts/migrate-v1-service-database.mjs",
+        "./2026-10-09-v11-migration-cli-code-suite-a05.log",
+        "./2026-10-09-v12-migration-cli-code-suite-a01.log",
+        "./2026-10-09-v13-migration-cli-code-suite-a03.log",
+        "./2026-10-09-v14-migration-cli-code-suite-a01.log",
+        "./2026-10-09-v15-migration-cli-code-suite-a02.log",
+        "./2026-10-09-v11-migration-cli-code-suite-a05.log.sha256",
+        "./2026-10-09-v12-migration-cli-code-suite-a01.log.sha256",
+        "./2026-10-09-v13-migration-cli-code-suite-a03.log.sha256",
+        "./2026-10-09-v14-migration-cli-code-suite-a01.log.sha256",
+        "./2026-10-09-v15-migration-cli-code-suite-a02.log.sha256",
+        "./2026-10-09-v15-migration-cli-suite-a01.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "Compose core 与真实 PostgreSQL 已用于账户持久化；组合服务 CN/US 模拟账户、现金/持仓及幂等初始化已有工程和运行证据。账户详情证据：P3.4、P3.5双市场账户。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "portfolio-risk-service",
+      "collaborators": "platform-api-service",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Portfolio Risk owns Account/cash/position ledgers and persistence; Platform owns user-facing account initialization/details and calls Portfolio via generated client. Activity cutover is an Operations/owner task.",
+      "existingGap": "Account initialization and owner/run scoping are covered; full current V1.1 Web handoff and activity storage switch/rollback remain open.",
+      "closureEvidence": [
+        "../../services/portfolio-risk-service/tests/integration/resource-reservations.spec.ts",
+        "../../services/platform-api-service/tests/unit/account-details.spec.ts",
+        "../../evidence/audits/2026-10-07-p1-v11-account-web-e2e.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 20,
+        "summary": "完成通用Artifact存储与全链路引用/交付；进展：新增`common/artifact-ref.schema.json`并将TestRun `artifactRefs`改为强类型数组，TS/Python生成类型、兼容规则及精确结构测试均接入全局契约检查；V3.1 owner-scoped TestRun API将研究引用投影为公共`ArtifactRef`，Exporter核对绑定与内容Hash后导出。V3.1支…",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "artifact-content-store package; platform-api-service owns V1 Qlib metadata/TestRun projection",
+      "collaborators": "quant-research-service owns backtest reports; platform-api-service/evidence exporter read and package references",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Shared content bytes are cross-cutting infrastructure; domain metadata remains with producers. OD-013 blocks automatic expiry/physical deletion. Full producer/reference matrix, active deployment and restore remain open.",
+      "existingGap": "Shared immutable bytes and task publication have tests; unified all-producer lifecycle/retention policy is not accepted and OD-013 blocks default expiry/physical cleanup.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/qlib-artifact-content-store.spec.ts",
+        "../../services/market-data-service/tests/unit/artifact-task-executor.spec.ts",
+        "../../packages/artifact-content-store"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L26",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 26,
+        "summary": "平台 API owner 身份、健康/能力查询、验收运行与证据读取已有实现；V1.1 stage模式 normal/rejection/recovery 在隔离 PostgreSQL 和真实 Chromium Web 中完成同run CLI只读核对。证据：V1.1统一存储代码与Web套件。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "platform-api-service",
+      "collaborators": "apps/web, CLI verifier/evidence exporter, domain APIs",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Platform owns local session, readiness, TestRun/assertion/evidence APIs; Web and CLI are clients. Business ledgers remain with their domain services.",
+      "existingGap": "This evidence covers isolated stage storage flows; activity service deployment, full current scope, and owner acceptance remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-06-p1-v11-stage-rerun.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L27",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 27,
+        "summary": "将V1.1统一TestRun模式按维护窗口部署到活动API并验证回退；活动Compose仍为`legacy`，隔离套件不证明生产切换。当前活动库 49 legacy/44 unified；已在只读恢复副本补齐5条、验证幂等与双写。切换步骤、停止条件、回退和当前差额见存储切换Runbook与复演审计。活动迁移仍未执行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "platform-api-service (storage implementation)",
+      "collaborators": "Operations owner and project owner for live change authorization",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Platform owns legacy/stage reads, migration and dual-write behavior; operations owner must identify/backup/reconcile the actual host and run states; project owner authorizes maintenance. Active cutover is not authorized or deployed.",
+      "existingGap": "Preflight/rollback preparation is tested; active API cutover is not run or authorized in this task.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/v11-legacy-migration-preflight.spec.ts",
+        "../../docs/operations/v11-test-run-storage-cutover.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S2-L28",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 28,
+        "summary": "Qlib/RD-Agent镜像基线、Mac/Docker架构及资源边界有历史记录；amd64仿真与当前Qlib锁版运行探针有单独工程证据。原生Ubuntu兼容、资源压力及真实RD-Agent运行仍未验收。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "quant-research-service owns Qlib adapter/worker",
+      "collaborators": "platform-api-service owns orchestration/Web; research-automation-service owns RD-Agent runner; project owner/environment operator owns host resource and Ubuntu evidence",
+      "currentGapClassification": "PARTIAL_EXECUTION_EVIDENCE",
+      "reconciliation": "V1 fixed Qlib/RD-Agent probes and Mac architecture evidence do not prove real RD-Agent execution, complete stack resource capacity or Ubuntu host acceptance.",
+      "existingGap": "Both Platform API architecture probes pass. linux/amd64 is emulated on macOS/AArch64. This does not validate the complete V1 service stack, Qlib/RD-Agent dependency images, resource pressure, or a real Ubuntu host; those remain unverified.",
+      "closureEvidence": [
+        "./2026-10-09-v1-compatibility-probes.json",
+        "./2026-10-09-v1-compat-arm64.log",
+        "./2026-10-09-v1-compat-amd64.log",
+        "../../scripts/verify-compat.mjs",
+        "../../evidence/audits/2026-10-10-v11-linux-arm64-compat-a01.json",
+        "../../evidence/audits/2026-10-10-v11-linux-arm64-compat-a01.json.sha256",
+        "../../evidence/audits/2026-10-10-v11-linux-arm64-compat-a01.log",
+        "../../evidence/audits/2026-10-10-v11-linux-arm64-compat-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v11-linux-arm64-compat-a01.exit.txt",
+        "../../evidence/audits/2026-10-10-v11-linux-amd64-compat-a01.json",
+        "../../evidence/audits/2026-10-10-v11-linux-amd64-compat-a01.json.sha256",
+        "../../evidence/audits/2026-10-10-v11-linux-amd64-compat-a01.log",
+        "../../evidence/audits/2026-10-10-v11-linux-amd64-compat-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v11-linux-amd64-compat-a01.exit.txt"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 68,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "packages/contracts and Platform/API scenario contracts",
+      "collaborators": "Fixture authors and all participating domain services",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Shared contract/scenario deliverable; current frozen schemas and fixed scenarios have evidence, but this checklist is not equivalent to completing every backend task.",
+      "existingGap": "No remaining gap for this specific freeze checkbox. Other V1.1 §7 delivery checks, current-scope human acceptance and the stage/version gates remain separate and open.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/generate-contract-types.test.mjs",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-09-v11-core-schema-parity-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v11-core-contracts-current-e2e-a01.log",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L66",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 69,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "each participating domain service for its business behavior",
+      "collaborators": "platform-api-service for orchestration; test/evidence owners",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Cross-service release item; stage remains open for artifact lifecycle and active storage rollout.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 70,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "apps/web and platform-api-service",
+      "collaborators": "V1.1 backend service owners",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Web/acceptance shell and fixed normal/rejection/recovery slices are implemented; current-scope delivery and user acceptance remain separate.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L68",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 71,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "Platform/scripts and stage documentation",
+      "collaborators": "service owners for their configuration; project operator for host-specific values",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Runbooks must be exact and executable; the recent V1.5 rehearsal surfaced and fixed missing API/session/stage parameters. V1.1 active cutover steps remain gated.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L69",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 72,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "cross-service test/evidence owner",
+      "collaborators": "Platform/Web and participating service owners",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Developer execution is evidenced by isolated suites and runbooks; human review and live deployment are not implied.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L70",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 73,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "each domain service for restart/idempotency semantics",
+      "collaborators": "Platform/Workflow orchestration and operations for observation",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Fixed isolated restart paths are covered; Mac sleep/wake and complete host/business restore remain NOT_RUN.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L71",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 74,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "project owner / human acceptor",
+      "collaborators": "none",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Only the user can provide current-scope human sign-off. Historical sign-off remains limited to its recorded scope.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S7-L72",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 75,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "Platform documentation owner",
+      "collaborators": "V1.1 stage/test/acceptance documentation owners",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Documentation is cross-cutting; checklist completion must reference current actual outputs and retain limitations.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L76",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 81,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "platform-api-service and stack tooling",
+      "collaborators": "operator",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Readiness/identity configuration belongs to Platform; random stack start/stop belongs to scripts and the operator.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L96",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 101,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "stack tooling and platform-api-service",
+      "collaborators": "all services in the selected Compose slice",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Startup/configuration is cross-service; only exact random isolated project operations are authorized by this runbook.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L114",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 122,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "apps/web",
+      "collaborators": "platform-api-service and the business service owning each action",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Web presents state; service owners provide authoritative domain behavior. Current browser proofs are fixed-scope only.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L129",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 137,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "scripts/verify-stage.mjs and scripts/evidence-export.mjs",
+      "collaborators": "platform-api-service for owner-scoped read APIs",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "CLI check-only/export operate on same TestRun. Correct stage, API URL and session are required; no human sign-off is generated.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L164",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 172,
+        "summary": "8.7 统一存储模式隔离复验（2026-09-26）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "platform-api-service storage adapter/migrations",
+      "collaborators": "Operations owner and project owner",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Isolation migration evidence exists; actual legacy→stage activity switch/rollback requires instance reconciliation, nonterminal Run disposition, paired restore and explicit maintenance authorization.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L203",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 211,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "each domain service for its persisted business facts",
+      "collaborators": "Platform for TestRun coordination; operations for host recovery",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Recovery evidence must compare authoritative per-service facts. Isolated service restart is not full cross-service or host restore.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L211",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 219,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "Platform/acceptance documentation",
+      "collaborators": "project owner for current human conclusion",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Acceptance table records evidence; only project owner records current-scope manual conclusion.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.1-S8-L224",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 233,
+        "summary": "范围与签署状态澄清（2026-09-27）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "leadResponsibility": "project owner / human acceptor",
+      "collaborators": "Platform documentation owner",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Scope clarification preserves historical signatures and identifies current additions; it cannot be signed by the developer agent.",
+      "existingGap": "This is a delivery/runbook or human acceptance requirement, not a domain assertion; the executable evidence and any remaining user/environment step must be recorded separately.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "../../scripts/test-v11-stage-storage-isolated.mjs",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    }
+  ],
+  "scopeBoundary": "Manual ownership/task-type reconciliation for all 23 V1.1 section 2, 7 and 8 rows present in A31. It does not assert implementation sufficiency, delivery, live cutover, human acceptance or V1 completion."
+}

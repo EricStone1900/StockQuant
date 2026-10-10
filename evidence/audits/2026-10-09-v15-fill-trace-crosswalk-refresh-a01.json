@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "check": "V1.5 per-Fill trace UI evidence refresh",
+  "crosswalkPath": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "crosswalkSha256": "f70fd8cf5b26ad8a04cf2ce1e976cecb2dd83f76c611149500c86f8b33f2f5a9",
+  "updatedRequirementIds": [
+    "V1.5-S2-L19",
+    "V1.5-S7-L58",
+    "V1.5-S7-L60"
+  ],
+  "change": "Document selector-backed tracing for every Fill in the current V1.5 TestRun; preserve incomplete classifications for alerts, cross-run/stage trace, user acceptance, settlement and environment gates.",
+  "evidence": {
+    "e2e": {
+      "path": "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-45fbf478d4dcba196115.json",
+      "sha256": "64f5c9d9146e1d22d5cfad78c78b65a3c48dcc0dc5f8432bc7dffe31d85fa752",
+      "scenarioRuns": [
+        [
+          "normal",
+          "10427460-86d7-4644-a100-e49da443bac7"
+        ],
+        [
+          "auto-trade",
+          "d676e973-8f47-4262-96b7-474763036c21"
+        ],
+        [
+          "rejection",
+          "4eb96741-e264-49d2-a027-8db1e9634f59"
+        ],
+        [
+          "recovery",
+          "eca5ebf1-80a3-4e40-b0b7-ae17e948da9c"
+        ]
+      ],
+      "assertions": "selector option count equals four persisted Fill rows; each option is selected and its Fill, Proposal, Mandate, Order and Portfolio/FakeBroker cash are verified"
+    },
+    "codeSuite": {
+      "path": "../../evidence/audits/2026-10-09-v15-fill-trace-selector-code-suite-a03.log",
+      "sha256": "7517bf3fa02d52ab78f01b450d48bf9b7837481bdbd1358714e6c3436caf0496",
+      "exitCode": 0
+    }
+  },
+  "completionClassificationChanged": false
+}

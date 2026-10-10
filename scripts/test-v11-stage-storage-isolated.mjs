@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -53,6 +54,48 @@ try {
   const config = spawnSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", apiContainer.stdout.trim()], { encoding: "utf8" });
   assert.equal(config.status, 0, config.stderr);
   assert.ok(config.stdout.split("\n").includes("STOCKQUANT_V11_RUN_STORAGE=stage"), "isolated API must start in unified-store mode");
+
+  const identityRoutes = [
+    { label: "account snapshot", method: "GET", path: "/api/v1/accounts/00000000-0000-4000-8000-000000000001" },
+    { label: "US account initialization", method: "POST", path: "/api/v1/acceptance/runs/00000000-0000-4000-8000-000000000001/accounts/us", body: {} },
+    { label: "scenario discovery", method: "GET", path: "/api/v1/acceptance/v1/v1.1/scenarios" },
+    { label: "run creation", method: "POST", path: "/api/v1/acceptance/v1/v1.1/runs", body: { scenarioId: "normal", seed: 20260907 } },
+    { label: "TestRun read", method: "GET", path: "/api/v1/acceptance/runs/00000000-0000-4000-8000-000000000001" },
+    { label: "recovery continuation", method: "POST", path: "/api/v1/acceptance/runs/00000000-0000-4000-8000-000000000001/continue-recovery", body: {} },
+    { label: "evidence read", method: "GET", path: "/api/v1/acceptance/runs/00000000-0000-4000-8000-000000000001/evidence" },
+  ];
+  const platformSource = readFileSync("services/platform-api-service/src/bootstrap/app.module.ts", "utf8");
+  const platformControllerStart = platformSource.indexOf('@Controller("api/v1")');
+  const v12ControllerStart = platformSource.indexOf('@Controller("api/v1/acceptance/v1/v1.2")', platformControllerStart);
+  assert.notEqual(platformControllerStart, -1, "shared V1.1 Platform controller must exist");
+  assert.notEqual(v12ControllerStart, -1, "V1.2 controller boundary must delimit the shared V1.1 controller");
+  const sharedController = platformSource.slice(platformControllerStart, v12ControllerStart);
+  const declaredRoutes = [...sharedController.matchAll(/@(Get|Post|Patch|Put|Delete)\("([^"]+)"\)/gu)]
+    .map(([, method, route]) => `${method.toUpperCase()} /api/v1/${route}`);
+  const requiredRoutes = [
+    "GET /api/v1/accounts/:accountId",
+    "POST /api/v1/acceptance/runs/:testRunId/accounts/us",
+    "GET /api/v1/acceptance/v1/v1.1/scenarios",
+    "POST /api/v1/acceptance/v1/v1.1/runs",
+    "GET /api/v1/acceptance/runs/:testRunId",
+    "POST /api/v1/acceptance/runs/:testRunId/continue-recovery",
+    "GET /api/v1/acceptance/runs/:testRunId/evidence",
+  ];
+  for (const route of requiredRoutes) assert.equal(declaredRoutes.filter((item) => item === route).length, 1, `identity probe inventory must match exactly one controller route: ${route}`);
+  for (const route of identityRoutes) {
+    for (const [identityName, headers, expectedStatus] of [
+      ["anonymous", {}, 401],
+      ["forged user", { "x-stockquant-user": "unauthorized-owner" }, 403],
+    ]) {
+      const response = await fetch(`${apiUrl}${route.path}`, {
+        method: route.method,
+        headers: { ...(route.body ? { "content-type": "application/json" } : {}), ...headers },
+        ...(route.body ? { body: JSON.stringify(route.body) } : {}),
+      });
+      assert.equal(response.status, expectedStatus, `${route.label} must reject ${identityName}`);
+    }
+  }
+  console.info(`[V1.1 Platform identity boundary] ${JSON.stringify({ routes: identityRoutes.map(({ label, method, path }) => ({ label, method, path })), anonymousRejected: identityRoutes.length, forgedOwnerRejected: identityRoutes.length, expectedStatuses: { anonymous: 401, forgedOwner: 403 } })}`);
 
   const suite = spawnSync("pnpm", ["verify:stage", "--", "--stage", "V1.1", "--suite", "code"], {
     env: { ...process.env, COMPOSE_PROJECT_NAME: project, STOCKQUANT_PLATFORM_API_URL: apiUrl },

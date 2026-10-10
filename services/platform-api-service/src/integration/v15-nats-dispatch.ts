@@ -1,7 +1,7 @@
 import { connect, consumerOpts, headers } from "nats";
 import type { StageRunRepository } from "../ports/stage-run-repository.js";
 import type { V15NoTradeInput } from "../application/v15-no-trade.js";
-import { startV15NoTradeWorkflow } from "./temporal-runtime.js";
+import { startV15Workflow } from "./temporal-runtime.js";
 
 const subject = process.env.STOCKQUANT_NATS_SUBJECT ?? "stockquant.v1.5.events";
 const stream = "SQV15APP";
@@ -18,7 +18,7 @@ export function validateV15DispatchEnvelope(value: unknown): { eventId: string; 
   if (!value || typeof value !== "object") throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
   const envelope = value as { eventId?: string; payload?: V15NoTradeInput };
   const input = envelope.payload;
-  if (!envelope.eventId || !input?.testRunId || !input.ownerId || input.scenarioId !== "normal") throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
+  if (!envelope.eventId || !input?.testRunId || !input.ownerId || !["normal", "auto-trade", "rejection", "recovery"].includes(input.scenarioId)) throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
   if (envelope.eventId !== input.testRunId) throw new PermanentDispatchError("V1.5 dispatch event identity does not match TestRun");
   return { eventId: envelope.eventId, payload: input };
 }
@@ -66,7 +66,7 @@ export async function startV15NatsDispatch(repository: StageRunRepository): Prom
             await new Promise((resolve) => setTimeout(resolve, configuredPreLookupDelay));
           }
           const run = await repository.find(input.testRunId, input.ownerId);
-          if (!run || run.stageId !== "V1.5" || run.scenarioId !== "normal" || run.status !== "WAITING" || run.namespace !== input.namespace) throw new PermanentDispatchError("V1.5 dispatch does not match an owner-scoped WAITING TestRun");
+          if (!run || run.stageId !== "V1.5" || run.scenarioId !== input.scenarioId || run.status !== "WAITING" || run.namespace !== input.namespace) throw new PermanentDispatchError("V1.5 dispatch does not match an owner-scoped WAITING TestRun");
           if (failTemporalOnce && !testFailedTemporalEventIds.has(eventId)) {
             testFailedTemporalEventIds.add(eventId);
             const transient = new Error("injected transient Temporal UNAVAILABLE response");
@@ -80,7 +80,7 @@ export async function startV15NatsDispatch(repository: StageRunRepository): Prom
             console.info(`STOCKQUANT_V15_TEST_DATABASE_NAK eventId=${eventId} seq=${message.seq}`);
             throw transient;
           }
-          const workflow = await startV15NoTradeWorkflow(input);
+          const workflow = await startV15Workflow(input);
           if (!workflow.started) console.info(`STOCKQUANT_V15_TEMPORAL_WORKFLOW_ALREADY_STARTED workerId=${dispatchWorkerId} eventId=${eventId} seq=${message.seq}`);
           if (dropAckOnce && !testDroppedAckEventIds.has(eventId)) {
             testDroppedAckEventIds.add(eventId);

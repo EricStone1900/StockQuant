@@ -2,13 +2,15 @@
 
 ## Project Structure & Module Organization
 
-StockQuant is a personal A-share/US-stock quantitative trading platform. The initial repository baseline is documentation-first; inspect the actual files, scripts, lockfiles and Git status before assuming implementation exists or is missing. Update repository guidance when scaffolding changes this baseline. Preserve unrelated user changes and untracked files.
+StockQuant is a personal A-share/US-stock quantitative trading platform. The repository now contains implemented Web/service slices, scripts, dependency locks and acceptance evidence across V1–V3; no version is formally complete as of the 2026-10-08 audit. Inspect actual files and Git status before assuming a capability is complete or missing. Preserve unrelated user changes and untracked files.
 
 Start with [the PRD entry](docs/prd/README.md) and [the three-version delivery rules](docs/prd/05-three-version-delivery.md), then read the product requirements, architecture and market contracts. Before cross-service or environment changes, also read [the ADR index](docs/decisions/README.md), [the open-decision register](docs/decisions/open-decisions.md) and [the security/configuration design](architecture/05-security-and-configuration.md). Read the current version's `00-version-plan.md`, assigned stage file, `90-test-plan.md` and `99-acceptance.md` before implementation. Keep requirements, contracts, ADRs, `01-feature-traceability.md`, tests and acceptance records aligned when requirements change.
 
 The monorepo baseline places the console in `apps/web/`, domain services in `services/`, canonical schemas and generated contracts in `packages/contracts/`, infrastructure in `infra/`, shared tests in `tests/`, and deterministic inputs in `fixtures/`. Organize services into `domain/application/ports/adapters/bootstrap`; keep framework and broker SDK dependencies outside domain code. Do not scaffold all services at once: create only the current vertical slice and record missing capabilities honestly.
 
 ## Current Delivery Scope
+
+Read [current progress](docs/progress.md) and [the document map](docs/README.md) before choosing work. The current engineering queue is [the 2026-10-08 V1 completion plan](docs/plans/2026-10-08-v1-completion-plan.md); earlier plans are historical or deferred as indexed in [plans/README.md](docs/plans/README.md). The owner explicitly requires finishing V1 and avoiding unnecessary feature or V2/V3 expansion. Keep work on V1 and necessary shared prerequisites; preserve V2/V3 work without expanding it from old IN_PROGRESS statements. Do not repeat completed refactors or unchanged full suites merely because an older audit names them as next steps. Update the current progress summary and original work package/stage records when evidence changes; store detailed execution logs in evidence rather than adding competing master plans. This routing does not authorize active storage cutovers, physical cleanup, real source/model activation, or changes to other chats/automations.
 
 - [V1](docs/prd/v1-local-simulation/README.md): five stages for small-data Qlib, a dual-market Fixture trading loop, Web acceptance, daily backtesting and recovery.
 - [V2](docs/prd/v2-data-and-replay/README.md): five stages for free data/news, historical minute imports/replay, continuous Paper and data scaling.

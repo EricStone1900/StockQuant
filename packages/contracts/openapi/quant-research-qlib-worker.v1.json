@@ -23,7 +23,7 @@
         "summary": "Read the Qlib worker runtime probe without running a model",
         "security": [{ "ServiceBearer": [] }],
         "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "quant-research-service" } }],
-        "responses": { "200": { "description": "Qlib runtime readiness", "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string" }, "version": { "type": "string" }, "detail": { "type": "string" } }, "additionalProperties": true } } } }, "403": { "description": "Caller identity rejected" }, "503": { "description": "Qlib worker is unavailable" } }
+        "responses": { "200": { "description": "Qlib runtime and fixed isolated Python compatibility probe; no model is called", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "codeProbe", "dockerSocketMounted"], "properties": { "status": { "type": "string" }, "version": { "type": "string" }, "detail": { "type": "string" }, "codeProbe": { "type": "object", "required": ["status", "result", "value", "sourceSha256"], "properties": { "status": { "enum": ["READY", "FAILED"] }, "result": { "type": "string" }, "value": { "type": "integer" }, "sourceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }, "additionalProperties": false }, "dockerSocketMounted": { "type": "boolean" } }, "additionalProperties": true } } } }, "403": { "description": "Caller identity rejected" }, "503": { "description": "Qlib worker is unavailable" } }
       }
     },
     "/train": {

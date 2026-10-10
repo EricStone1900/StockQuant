@@ -1,0 +1,69 @@
+{
+  "fixtureVersion": "v1.5-auto-trade-calendar-2",
+  "scenario": "missed AUTO window followed by two independently scoped daily evaluations, FakeBroker executions, and session-close reconciliations",
+  "markets": [
+    "CN_A",
+    "US_EQUITY"
+  ],
+  "semantics": "Three explicitly listed synthetic 2026-01-05 through 2026-01-07 sessions per market. The AUTO scenario marks the first session MISSED_WINDOW with no order, then re-evaluates independently and executes a fresh 50-share CN_A or 5-share US_EQUITY proposal in each of sessions 2 and 3. Session clocks are accelerated Fixture values, not a live exchange calendar, price source, or settlement rule.",
+  "sessions": [
+    {
+      "market": "CN_A",
+      "localDate": "2026-01-05",
+      "timeZone": "Asia/Shanghai",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sequence": 1,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "15:00"
+    },
+    {
+      "market": "CN_A",
+      "localDate": "2026-01-06",
+      "timeZone": "Asia/Shanghai",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sequence": 2,
+      "orderQuantity": 50,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "15:00"
+    },
+    {
+      "market": "CN_A",
+      "localDate": "2026-01-07",
+      "timeZone": "Asia/Shanghai",
+      "calendarVersion": "sse-cn-a-share-2026-1",
+      "sequence": 3,
+      "orderQuantity": 50,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "15:00"
+    },
+    {
+      "market": "US_EQUITY",
+      "localDate": "2026-01-05",
+      "timeZone": "America/New_York",
+      "calendarVersion": "nyse-2026-1",
+      "sequence": 1,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "16:00"
+    },
+    {
+      "market": "US_EQUITY",
+      "localDate": "2026-01-06",
+      "timeZone": "America/New_York",
+      "calendarVersion": "nyse-2026-1",
+      "sequence": 2,
+      "orderQuantity": 5,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "16:00"
+    },
+    {
+      "market": "US_EQUITY",
+      "localDate": "2026-01-07",
+      "timeZone": "America/New_York",
+      "calendarVersion": "nyse-2026-1",
+      "sequence": 3,
+      "orderQuantity": 5,
+      "openTimeLocal": "09:31",
+      "closeTimeLocal": "16:00"
+    }
+  ]
+}

@@ -14,8 +14,8 @@ const tokenHash = (token: string): string => createHash("sha256").update(token).
 export class ProjectAccessRepository implements ProjectAccessPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_projects (
         project_id TEXT PRIMARY KEY,
         max_concurrent_runs INTEGER NOT NULL CHECK (max_concurrent_runs > 0),

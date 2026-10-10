@@ -1,0 +1,75 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.3-multileg-paper",
+  "fixtureVersion": "1.0.2",
+  "stageId": "V1.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Versioned synthetic multi-leg inputs for V1.3 Web-managed 10000.0000 initial cash, including MANUAL/AUTO_POLICY BUY batches; not market data or settlement-calendar evidence.",
+    "license": "Internal synthetic fixture; no external market data or broker access",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-10T00:00:00Z",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "Asia/Shanghai",
+    "prices": "Synthetic fixed limit prices; decimal strings, no external market provenance.",
+    "sessions": {
+      "count": 1,
+      "start": "2026-09-28",
+      "end": "2026-09-28",
+      "calendar": "Synthetic fixed V1.3 session; does not imply settlement calendar."
+    },
+    "securities": {
+      "CN_A": 2,
+      "US_EQUITY": 2
+    },
+    "qualityCases": [
+      "two BUY legs and exact per-leg fees",
+      "aggregate per-batch cash reservation",
+      "insufficient settled-cash rejection with zero orders and fills",
+      "first-leg response-loss recovery with stable child clientOrderIds",
+      "AUTO_POLICY fixed two-leg BUY: one aggregate Mandate budget reservation and per-leg Portfolio reservations, with exact cash and positions"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.3-multileg-v1.0.2/trading-loop-scenarios.json",
+      "sha256": "73e76d5168358fbc4e9b8f6d5c555387c30a0e91eeebff0dffa39d197739fb84",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v13-multileg-trading-loop.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.3-MULTILEG-CN-001",
+      "description": "CN_A starts with CNY 10000.0000, buys 100 shares each of 600000.SH and 000001.SZ, reserves CNY 2210.0000 and ends at CNY 7790.0000 with 100 shares each."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-US-001",
+      "description": "US_EQUITY starts with USD 10000.0000, buys AAPL and MSFT, reserves USD 450.1000 and ends at USD 9549.9000 with the exact expected positions."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-REJECTION-001",
+      "description": "A CNY 0.0001 settled-cash shortfall rejects the whole batch before any FakeBroker order or Fill."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-RECOVERY-001",
+      "description": "After a first-leg response loss and Trade restart, query the original child clientOrderId and complete only the missing leg; end with two orders, two fills and reconciliation MATCH."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-AUTO-001",
+      "description": "One active AUTO_POLICY Mandate authorizes the fixed CN_A two-leg BUY batch; one CNY 2210.0000 aggregate Mandate reservation and two per-leg Portfolio reservations precede two stable child orders, yielding CNY 7790.0000 and 100 shares each after fills."
+    }
+  ]
+}

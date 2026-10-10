@@ -19,6 +19,20 @@ describe("versioned V1.3 AUTO_POLICY Mandate evaluation", () => {
     expect(evaluate({ proposal: feeProposal })).toMatchObject({ status: "AUTHORIZED", reservedAmount: "505.00" });
     expect(evaluate({ mandate: { ...mandate, maxOrderAmount: "504.99" }, proposal: feeProposal })).toMatchObject({ status: "REJECTED", reasonCode: "BUDGET_EXCEEDED" });
   });
+  it("checks every proposal leg against security scope and aggregates gross notional plus each fee", () => {
+    const multiLeg = {
+      ...proposal,
+      legs: [
+        { securityId: "600000.SH", side: "BUY" as const, quantity: 40, limitPrice: "10.00", estimatedFee: "2.00" },
+        { securityId: "000001.SZ", side: "SELL" as const, quantity: 30, limitPrice: "10.00", estimatedFee: "3.00" },
+      ],
+    };
+    const scopedMandate = { ...mandate, securityScope: ["600000.SH", "000001.SZ"] };
+    expect(evaluate({ mandate: scopedMandate, proposal: multiLeg })).toMatchObject({ status: "AUTHORIZED", reservedAmount: "705.00" });
+    expect(evaluate({ mandate: scopedMandate, proposal: { ...multiLeg, legs: [...multiLeg.legs, { securityId: "AAPL", side: "BUY", quantity: 1, limitPrice: "1.00" }] } })).toMatchObject({ status: "REJECTED", reasonCode: "SECURITY_OUT_OF_SCOPE" });
+    expect(evaluate({ mandate: { ...scopedMandate, maxOrderAmount: "704.99" }, proposal: multiLeg })).toMatchObject({ status: "REJECTED", reasonCode: "BUDGET_EXCEEDED" });
+    expect(evaluate({ mandate: scopedMandate, proposal: multiLeg, acceptedOrReservedAmount: "1300.00" })).toMatchObject({ status: "REJECTED", reasonCode: "BUDGET_EXCEEDED" });
+  });
   it("does not create or consume orders for HOLD", () => {
     expect(evaluate({ proposal: { ...proposal, operation: "HOLD", legs: [] } })).toMatchObject({ status: "HOLD", reservedAmount: "0.00", orderCount: 0 });
     expect(evaluate({ proposal: { ...proposal, operation: "HOLD", legs: [proposal.legs[0]] } })).toMatchObject({ status: "REJECTED", reasonCode: "INVALID_ORDER" });

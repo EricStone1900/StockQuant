@@ -1,0 +1,25 @@
+{
+  "auditId": "2026-10-09-v1-crosswalk-platform-mode-a01",
+  "status": "PASS_FOR_ATOMIC_MAPPING_PARENT_OPEN",
+  "requirementId": "V1.3-S2-L17",
+  "crosswalkSha256": "3aac9fa7d9b5a32999b6ff9a392ee6d3a90a8763fa6a5ddfe24809955f0eba9c",
+  "exactTestNameFound": true,
+  "exactTestPath": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+  "testName": "V1.3 Platform proposal route rejects LIVE and REAL mode injection without trading side effects",
+  "evidenceFiles": {
+    "evidence/audits/2026-10-09-v13-platform-mode-e2e-a04.log": "1094b187154313baf54f9cd778848d0c9727df08f9a6524ccaec7dd297388fde",
+    "evidence/audits/2026-10-09-v13-platform-mode-full-e2e-a03.log": "f917c5a4ae97a12b05baf4d7236b68a038999954c07e90de98556e4a85b20fba",
+    "evidence/audits/2026-10-09-v13-platform-mode-code-suite-a03.log": "1087ceae6e4530dfa43dec65cbea7011a15ce4e704575e3d9edff4b756048b68"
+  },
+  "checks": {
+    "crosswalkEvidencePathsExist": true,
+    "parentClassificationRetained": "OPEN",
+    "parentTestLinkState": "PARTIAL_ATOMIC_COVERAGE_MAPPED_PARENT_GAPS_REMAIN",
+    "assertionScope": "Platform Proposal route only: three invalid injected mode combinations rejected, valid PAPER/FAKE idempotent retry accepted, no ledger/broker side effects, same TestRun CLI check-only. Corrected full E2E log reports actual initialized/final ledgerEntryCount (1/1); prior hard-coded summary was superseded."
+  },
+  "limitations": [
+    "Does not prove all Platform API write routes.",
+    "Does not close V1.3-S2-L17 or the full V1 mode-boundary audit.",
+    "Does not replace human acceptance."
+  ]
+}

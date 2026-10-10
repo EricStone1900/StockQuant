@@ -32,6 +32,36 @@ describe("GeneratedPlatformPaperExecutionClient", () => {
     expect(request.mock.calls[0][1]).toMatchObject({ headers: { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${"p".repeat(40)}` } });
   });
 
+  it("records an external FakeBroker order with the exact owner-scoped service contract", async () => {
+    const response = new Response(JSON.stringify({ observation: { externalOrderId: "external-1" } }), { status: 201 });
+    const request = vi.fn().mockResolvedValue(response);
+    const client = new GeneratedPlatformPaperExecutionClient("http://execution.test/", "p".repeat(40), request);
+    const order = {
+      namespace: "run/1",
+      externalOrderId: "external-1",
+      clientOrderId: "client-1",
+      security: "600000.SH",
+      requestedQuantity: 100,
+      status: "UNKNOWN" as const,
+      evidenceRef: "fixture:run-1:external-order",
+      observedAt: "2026-10-10T09:30:00.000Z",
+    };
+
+    await expect(client.recordSimulatedFakeBrokerExternalOrder(order)).resolves.toBe(response);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][0]).toBe("http://execution.test/internal/v1/fake-broker/external-orders");
+    expect(request.mock.calls[0][1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify(order),
+      headers: {
+        "content-type": "application/json",
+        "x-stockquant-service-id": "platform-api-service",
+        authorization: `Bearer ${"p".repeat(40)}`,
+      },
+    });
+    expect(request.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("rejects invalid URL, credential, and empty recovery identities", async () => {
     expect(() => new GeneratedPlatformPaperExecutionClient("file:///tmp", "p".repeat(40))).toThrow("HTTP(S)");
     expect(() => new GeneratedPlatformPaperExecutionClient("http://execution.test", "short")).toThrow("bearer token");

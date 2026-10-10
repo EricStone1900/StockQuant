@@ -19,6 +19,13 @@ export class GeneratedPlatformV13AutoMandateClient {
     const value = await response.json().catch(() => undefined) as unknown;
     return { status: response.status, body: value as Record<string,unknown> | undefined };
   }
+  async readBudget(mandateId: string, testRunId: string, mandateVersion: number, ownerId: string, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
+    if (!Number.isSafeInteger(mandateVersion) || mandateVersion < 1) throw new Error("Mandate version must be a positive integer");
+    const path = "/internal/v1/auto-mandates/" + encodeURIComponent(mandateId) + "/runs/" + encodeURIComponent(testRunId) + "/versions/" + mandateVersion + "/budget";
+    const response = await this.request(this.baseUrl + path, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", "x-stockquant-owner-id": ownerId, authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(timeoutMs) });
+    const value = await response.json().catch(() => undefined) as unknown;
+    return { status: response.status, body: value as Record<string,unknown> | undefined };
+  }
   async activate(mandateId: string, body: Contracts.V13AutoMandateTransitionCommand, ownerId: string, actorId: string, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
     return this.send("/internal/v1/auto-mandates/" + encodeURIComponent(mandateId) + "/activate", body, { "x-stockquant-owner-id": ownerId, "x-stockquant-actor-id": actorId }, timeoutMs);
   }

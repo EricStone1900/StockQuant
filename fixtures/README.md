@@ -28,6 +28,8 @@ fixtures/<version>/<stage>/      后续阶段固定输入
 
 用于模型的数据必须覆盖因子预热、训练/验证/测试及标签窗口。历史股票池保留当时成分和退市样本，不能用今日在线监控池替代。
 
+V1.2双市场研究样本的当前版本为[`v1.2-market-data-5`](./v1/v1.2/v1.2-market-data-5/manifest.json)。它在`market_sessions.csv`中明确列出CN_A与US_EQUITY的合成预期交易日，用于发现整市场某日完全缺少Bars的情况；该日历为合成工作日，不代表交易所休市/开市规则。旧版`v1.2-market-data-4`保留为历史冻结输入，不覆盖。
+
 ## 场景可复现性
 
 每个场景固定输入、规则版本、Clock、seed、故障计划和预期断言。并发故障还要保存实际注入顺序；seed 不能替代事件序列。重新运行创建新 testRunId/namespace，但引用相同 Fixture 版本和 Hash。
@@ -52,6 +54,10 @@ Manifest 必须记录来源种类、说明、许可/授权和采集时间。`REC
 
 `v1/v1.5/no-trade-calendar-manifest.json` 冻结 `v1.5-no-trade-calendar-1`：CN_A 与 US_EQUITY 各60个按市场本地时区排序的日期型虚拟交易日；日程排除冻结的2026交易所假日规则，不含开收市时刻、Security、OHLCV、成交或真实行情。V1.5 Temporal E2E 对每个日期分别读取持久 Portfolio 账户与独立 FakeBroker 对账事实；NO_TRADE 执行完成后继续断言零订单/Fill、资金/持仓不变。该小样本仅满足本轮虚拟HOLD场景，不代表交易所完整日历、真实观察窗口、行情覆盖或生产调度。更新日历必须创建新 Fixture 版本。
 
+`v1/v1.5/auto-trade-calendar-manifest.json` 冻结 `v1.5-auto-trade-calendar-1`：CN_A 与 US_EQUITY 各一个含本地开/收市时刻的合成交易日，用于在 AUTO Fixture Fill 后推进至单日收盘并重新读取 Portfolio/FakeBroker 账本。其语义和局限见 Manifest；仅验证单日模拟收盘，不涵盖多日调度、真实日历、结算或行情。
+
+`v1/v1.5/auto-trade-calendar-2-manifest.json` 冻结 `v1.5-auto-trade-calendar-2`，保留旧版并为当前多会话验收提供新输入：CN_A 与 US_EQUITY 各三日（2026-01-05 至 2026-01-07），首日错过窗口，后两日分别创建独立Proposal/Mandate、FakeBroker订单/Fill，并在各自收盘重新核对Portfolio与FakeBroker。数据文件SHA-256为`793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc`。这是合成日期推进，不代表真实市场日历、真实时间等待或T+1/结算规则；没有产生行情输入。
+
 ## V3.2 研究侧验证 sidecar
 
 `packages/contracts/fixtures/v3.2-data-manifest-fixture-v1.json` 与 `packages/contracts/fixtures/v3.2-validation-plan-fixture-v1.json` 是契约形状样例，不是行情数据或已完成的验证证据。验证计划用数据 Manifest 原始 UTF-8 字节的 SHA-256 建立绑定；任何内容变更都必须生成新版本及新 Hash。Runner输入包中的 `dataContentSha256` 定义为：排除两个sidecar后，对其余`data/`文件按ASCII相对路径字节序排列，生成`[{path,sha256}]` JSON UTF-8字节，再取SHA-256。每个文件Hash直接从原始字节计算。验证计划还声明`candidateOutputPath`、`generatedCodeOutputPath`和`metricsOutputPath`；PromotionRequest构造器以Runner Job ID、fencing sourceRef及路径派生artifactId核实角色对应的实际OUTPUT产物。这个输入包校验不能替代对数据来源、授权、市场覆盖或时间可用性的独立验证；来源、许可、时间范围和数据版本须与候选及TestRun同时固定。
@@ -70,6 +76,8 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 
 ## V1.4 合成停牌与限制价用例
 
+`v1/v1.4/market-restrictions-sell-chain-manifest.json` 冻结独立的后续输入版本，先在2024-01-31合成开市日建立持仓，再于2024-02-01按锁跌停SELL路径验证真实Portfolio可卖Reservation；它不覆盖或改写原限制Fixture。其隔离HTTP/PostgreSQL证据仅说明该固定合成链路的预留/拒绝/释放行为，不代表真实交易所限制价规则或完整结算。
+
 `v1/v1.4/market-restrictions-manifest.json` 冻结了一组独立的 `SIMULATION_ONLY` 合成输入，包含显式 `trading_status` 与 Fixture 定义的上下限价四个确定性用例。当前只用于验证 Quant 域规则辅助函数：停牌拒绝、整根 OHLC 锁在上限时拒绝 BUY、整根 OHLC 锁在下限时拒绝 SELL。原有日线收盘价/成交量 Fixture 保持不变。该输入不是交易所行情，不按证券类别/生效日期推导涨跌幅，也不能证明盘中排队位置或真实成交；并已连接Quant Fixture API、正式Web选择器及同一TestRun的CLI `--check-only`路径；隔离HTTP/PG/Web端到端验收尚待通过，这也不构成真实交易所规则验收。
 
 ## V1.4 合成公司行动用例
@@ -79,3 +87,7 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 ## V2.3 锁版 Qlib 拟合输入
 
 `v2/v2.3/qlib-fit/manifest.json` 冻结了 `qlib-fit-input.json`（120行、5个合成特征、合成标签与逐行时间可用性，训练/验证/测试切分为 `[0,72)`/`[72,96)`/`[96,120)`）。Platform TestRun 直接读取该文件并在使用前重算 Manifest SHA-256。该 Fixture 只用于验证锁版 Qlib 训练、预测及时间切分拒绝路径；不是行情/收益数据、真实市场 PIT 证据或独立模型验证。
+
+## V1.3 合成多腿 Paper 输入（执行验证待进行）
+
+[`v1/v1.3-multileg/manifest.json`](./v1/v1.3-multileg/manifest.json) 冻结1.0.0原始开发输入；保留其初始资金3000的场景而不覆盖。由于V1.3 Web固定账户初始资金为10000，另冻结[`v1/v1.3-multileg-v1.0.1/manifest.json`](./v1/v1.3-multileg-v1.0.1/manifest.json) 1.0.1，正常场景按Web实际资金核算：CN_A两个BUY预留2210、期末现金7790；US_EQUITY预留450.10、期末现金9549.90。1.0.2增加CN_A AUTO_POLICY批次语义，1.0.3在保留旧版本字节的基础上明确CN_A与US_EQUITY双市场AUTO两腿BUY验收断言。所有版本均为内部合成输入，不含外部行情或券商来源；SELL proceeds-to-BUY结算路径仍待OD-014，阶段父项和人工验收仍开放。

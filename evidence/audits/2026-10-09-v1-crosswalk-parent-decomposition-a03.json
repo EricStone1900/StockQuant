@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "auditId": "A01-PARENT-DECOMPOSITION-V1.2-DAILY-FIXTURE-AND-ARTIFACT-TASK",
+  "sourceCrosswalk": {
+    "path": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+    "sha256": "500e5a464a1687957e40e9e58054bde0faff41550d14eb25570c6d561a2dcc2f"
+  },
+  "requirements": [
+    {
+      "requirementId": "V1.2-S2-L15",
+      "atomicElements": [
+        {
+          "element": "Fixed V1.2 CSV columns map to raw daily bars with security identity and Fixture/DataVersion identity.",
+          "status": "PASS_FOR_FIXED_FIXTURE",
+          "tests": [
+            {
+              "path": "services/market-data-service/tests/unit/quality.spec.ts",
+              "name": "keeps valid raw rows mapped to a security and eligible for immutable publication"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI"
+            }
+          ]
+        },
+        {
+          "element": "Future/malformed dates, missing or invalid numerics, bad OHLC, negative volume, duplicate security/date and unsupported adjustment semantics reject quality and prevent publication.",
+          "status": "PASS_FOR_VALIDATED_FIXED_FIXTURE_PATH",
+          "tests": [
+            {
+              "path": "services/market-data-service/tests/unit/quality.spec.ts",
+              "name": "rejects malformed dates and rows with incomplete columns"
+            },
+            {
+              "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+              "name": "V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI"
+            }
+          ],
+          "scope": "The parameterized unit cases run within the named quality test; the route uses the same canPublishV12DailyFixture guard."
+        },
+        {
+          "element": "Arbitrary user-file import and a durable formal Artifact store.",
+          "status": "OUT_OF_SCOPE_FOR_FIXED_V1.2_FIXTURE_SLICE",
+          "remainingGap": "Current V1.2 slice uses frozen CSV Fixtures and compatibility artifact behavior; it does not prove generic CSV ingestion or production artifact lifecycle."
+        }
+      ]
+    },
+    {
+      "requirementId": "V1.2-S2-L17",
+      "atomicElements": [
+        {
+          "element": "Artifact bytes and COMPLETED state commit atomically; cancel/publication race exposes only one legal terminal result.",
+          "status": "PASS_FOR_POSTGRESQL_FIXED_SLICE",
+          "tests": [
+            {
+              "path": "services/market-data-service/tests/integration/collection-run-postgres.spec.ts",
+              "name": "publishes immutable Artifact bytes and completion state in one transaction"
+            },
+            {
+              "path": "services/market-data-service/tests/integration/collection-run-postgres.spec.ts",
+              "name": "linearizes cancellation against publication and never exposes partial bytes"
+            },
+            {
+              "path": "services/platform-api-service/tests/integration/v12-run-lifecycle.spec.ts",
+              "name": "fences cancellation against publication and records cancellation before Artifact publication"
+            }
+          ]
+        },
+        {
+          "element": "Cancellation persists across repository restart; abandoned leases recover while old fencing tokens cannot publish.",
+          "status": "PASS_FOR_POSTGRESQL_FIXED_SLICE",
+          "tests": [
+            {
+              "path": "services/market-data-service/tests/integration/collection-run-postgres.spec.ts",
+              "name": "persists artifact task cancellation across repository restart and makes cancellation idempotent"
+            },
+            {
+              "path": "services/market-data-service/tests/integration/collection-run-postgres.spec.ts",
+              "name": "recovers an abandoned task lease and fences the stale worker before publication"
+            },
+            {
+              "path": "services/platform-api-service/tests/integration/v12-run-lifecycle.spec.ts",
+              "name": "persists worker progress, serializes duplicate workers, and recovers a stranded run"
+            }
+          ]
+        },
+        {
+          "element": "Qlib TestRun cancellation/restart recovery and cross-TestRun immutable Artifact idempotency.",
+          "status": "PASS_FOR_FIXED_SLICE",
+          "tests": [
+            {
+              "path": "services/platform-api-service/tests/unit/v12-acceptance.spec.ts",
+              "name": "acknowledges cancellation at the active-fit checkpoint and does not publish a partial Artifact"
+            },
+            {
+              "path": "services/platform-api-service/tests/unit/v12-acceptance.spec.ts",
+              "name": "resumes a persisted RUNNING Qlib TestRun from its last phase after Platform startup"
+            },
+            {
+              "path": "services/platform-api-service/tests/integration/v12-run-lifecycle.spec.ts",
+              "name": "scopes identical immutable Artifact hashes to separate TestRuns and keeps per-run retries idempotent"
+            }
+          ]
+        },
+        {
+          "element": "Current stage/user acceptance and production capacity beyond the fixed single-worker/FIxture boundary.",
+          "status": "OPEN",
+          "remainingGap": "The current code suite proves fixed isolated integration behavior only; human acceptance, production capacity and broader producer inventory remain separate."
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "testReferences": 13,
+    "fullV1_2CodeSuite": "PASS, exit 0",
+    "marketDataUnitTests": "84 passed across 19 files",
+    "webTypecheck": "PASS",
+    "serviceBuild": "PASS",
+    "browserE2E": "1 passed; four same-run TestRun IDs, isolated cleanup verified",
+    "uniqueExactTests": 12,
+    "initialSuiteAttempt": "exit 2 because the pinned Python base image was absent locally; the exact repository-pinned digest was pulled, then the unchanged full V1.2 suite was rerun and exited 0.",
+    "pythonBaseImage": "python@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e"
+  },
+  "evidence": [
+    "evidence/audits/2026-10-09-v12-daily-quality-code-suite-a02.log",
+    "evidence/audits/2026-10-06-w1-v12-qlib-loop-sq-v12-e2e-5d45bb5434e8b6405386.json"
+  ],
+  "scopeNote": "Parent rows remain partial where generic import, stage acceptance, production capacity, or user/environment gates are not proven."
+}

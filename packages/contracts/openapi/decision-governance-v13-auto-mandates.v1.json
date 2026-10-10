@@ -18,6 +18,21 @@
         "responses": { "200": { "description": "Mandate version and current state" }, "403": { "description": "Caller or owner rejected" }, "404": { "description": "Mandate not found in exact scope" } }
       }
     },
+    "/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}/versions/{mandateVersion}/budget": {
+      "get": {
+        "operationId": "readV13AutoPolicyMandateBudget",
+        "summary": "Read independent reservation, consumption, and release totals in exact owner/TestRun/Mandate-version scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "mandateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "mandateVersion", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": { "200": { "description": "Independent reservation and consumption totals" }, "403": { "description": "Caller or owner rejected" }, "404": { "description": "Mandate not found in exact scope" } }
+      }
+    },
     "/internal/v1/auto-mandates": {
       "post": {
         "operationId": "createV13AutoPolicyMandate",

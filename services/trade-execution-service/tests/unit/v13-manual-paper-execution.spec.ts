@@ -7,12 +7,24 @@ const proposal: V13ProposalResult = { proposalId: "d8c1d600-22f6-44ab-9c2f-55814
 
 function harness(status: V13ProposalResult["status"] = "APPROVED_MANUAL", value: V13ProposalResult = proposal) {
   const steps: string[] = [];
+  const orders = new Map<string, any>();
+  const reservations = new Map<string, string>();
+  let reservationCount = 0;
   const broker = {
-    executeV13ManualPaper: vi.fn(async () => { steps.push("FakeBroker.place"); return { replayed: false, result: { orderId: "order-1", status: "FILLED", brokerMode: "FAKE" as const, fill: { externalFillId: "fill-1", quantity: 100, price: "10.0000", fee: "5.0000", effectiveAt: "2026-10-07T09:31:00+08:00" } } }; }),
-    find: vi.fn(async () => ({ order_id: "order-1", status: "FILLED" })), findByNamespaceClientOrderId: vi.fn(async () => null), pendingFill: vi.fn(async () => ({ event_id: "event-1" })), outboxStatus: vi.fn(async () => ({ status: "DELIVERED" })), independentAssetSnapshot: vi.fn(async () => ({ current_cash: "8995.0000" })), reconciliationSummary: vi.fn(async () => ({ namespace: "run-1" })),
+    executeV13ManualPaper: vi.fn(async (input: any) => {
+      steps.push("FakeBroker.place");
+      const orderId = `broker:${input.clientOrderId}`;
+      const price = input.price.includes(".") ? `${input.price}00`.slice(0, input.price.indexOf(".") + 5) : `${input.price}.0000`;
+      const fee = input.fee.includes(".") ? `${input.fee}00`.slice(0, input.fee.indexOf(".") + 5) : `${input.fee}.0000`;
+      const row = { order_id: orderId, status: "FILLED", client_order_id: input.clientOrderId, external_fill_id: `fill:${input.clientOrderId}`, fill_quantity: input.quantity, fill_price: price, fill_fee: fee, effective_at: new Date(input.effectiveAt) };
+      orders.set(orderId, row);
+      return { replayed: false, result: { orderId, status: "FILLED", brokerMode: "FAKE" as const, fill: { externalFillId: row.external_fill_id, quantity: input.quantity, price, fee, effectiveAt: input.effectiveAt } } };
+    }),
+    find: vi.fn(async (id: string) => orders.get(id) ?? null), findByNamespaceClientOrderId: vi.fn(async (_namespace: string, id: string) => [...orders.values()].find((row) => row.client_order_id === id) ?? null), pendingFill: vi.fn(async (id: string) => ({ event_id: `event:${id}` })), outboxStatus: vi.fn(async () => ({ status: "DELIVERED" })), independentAssetSnapshot: vi.fn(async () => ({ current_cash: "8995.0000" })), reconciliationSummary: vi.fn(async () => ({ namespace: "run-1" })),
   };
   const portfolio = {
-    reserveAccountResources: vi.fn(async () => { steps.push("Portfolio.reserve"); return { replayed: false, reservation: { reservationId: "reservation-1" } }; }),
+    reserveAccountResources: vi.fn(async (_accountId: string, input: any) => { steps.push("Portfolio.reserve"); let reservationId = reservations.get(input.clientOrderId); const replayed = Boolean(reservationId); if (!reservationId) { reservationCount += 1; reservationId = `reservation-${reservationCount}`; reservations.set(input.clientOrderId, reservationId); } return { replayed, reservation: { reservationId } }; }),
+    resolveAccountReservation: vi.fn(async (_accountId: string, _reservationId: string, _body: unknown) => { steps.push("Portfolio.release"); return { reservationId: _reservationId, status: "RELEASED" }; }),
   };
   const governance = {
     readProposal: vi.fn(async () => { steps.push("Governance.read"); return { status: 200, body: { ...value, status } }; }),
@@ -38,6 +50,48 @@ describe("V1.3 manual execution application coordinator", () => {
     expect(h.portfolio.reserveAccountResources).not.toHaveBeenCalled();
     expect(h.governance.authorizeExecution).not.toHaveBeenCalled();
     expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();
+  });
+  it("reserves every fixed BUY leg before one batch authorization and submits one child order per leg", async () => {
+    const multiLeg = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "000001.SZ", side: "BUY" as const, quantity: 100 }] };
+    const h = harness("APPROVED_MANUAL", multiLeg);
+    const result = await h.service.execute(command);
+    expect(h.steps).toEqual(["Governance.read", "Portfolio.reserve", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill", "FakeBroker.place", "Portfolio.postFill"]);
+    expect(result.orders).toHaveLength(2);
+    expect(result.fills).toHaveLength(2);
+    expect(h.portfolio.reserveAccountResources).toHaveBeenNthCalledWith(2, command.accountId, expect.objectContaining({ clientOrderId: `${command.clientOrderId}:leg:02`, cashAmount: "1205.00" }));
+    expect(h.broker.executeV13ManualPaper).toHaveBeenNthCalledWith(1, expect.objectContaining({ security: "600000.SH", reservation: expect.objectContaining({ reservationId: "reservation-1" }) }));
+    expect(h.broker.executeV13ManualPaper).toHaveBeenNthCalledWith(2, expect.objectContaining({ security: "000001.SZ", reservation: expect.objectContaining({ reservationId: "reservation-2" }) }));
+  });
+  it("releases prior resource reservations and creates no authorization or orders when aggregate cash is insufficient", async () => {
+    const multiLeg = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "000001.SZ", side: "BUY" as const, quantity: 100 }] };
+    const h = harness("APPROVED_MANUAL", multiLeg);
+    h.portfolio.reserveAccountResources.mockReset();
+    let reserves = 0;
+    h.portfolio.reserveAccountResources.mockImplementation(async () => {
+      reserves += 1;
+      if (reserves === 2) throw new PortfolioAccountClientError(409, { error: "INSUFFICIENT_AVAILABLE_CASH" });
+      return { replayed: false, reservation: { reservationId: "reservation-1" } } as never;
+    });
+    await expect(h.service.execute(command)).rejects.toMatchObject({ statusCode: 409 });
+    expect(h.portfolio.resolveAccountReservation).toHaveBeenCalledWith(command.accountId, "reservation-1", expect.objectContaining({ outcome: "REJECTED" }));
+    expect(h.governance.authorizeExecution).not.toHaveBeenCalled();
+    expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();
+  });
+  it("recovers a committed first leg by its original child ID and submits only the missing leg after response loss", async () => {
+    const multiLeg = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "000001.SZ", side: "BUY" as const, quantity: 100 }] };
+    const h = harness("APPROVED_MANUAL", multiLeg);
+    h.governance.validateExecution.mockResolvedValueOnce({ status: 200, body: { valid: true, replayed: false } } as never).mockResolvedValueOnce({ status: 200, body: { valid: true, replayed: true } } as never);
+    const place = h.broker.executeV13ManualPaper.getMockImplementation()!;
+    h.broker.executeV13ManualPaper.mockImplementationOnce(async (input: any) => {
+      await place(input);
+      throw new Error("response lost after FakeBroker committed first child order");
+    });
+    await expect(h.service.execute(command)).rejects.toThrow("response lost");
+    const recovered = await h.service.execute(command);
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.orders).toHaveLength(2);
+    expect(h.broker.executeV13ManualPaper).toHaveBeenCalledTimes(2);
+    expect(h.broker.executeV13ManualPaper.mock.calls[1][0].clientOrderId).toBe(`${command.clientOrderId}:leg:02`);
   });
   it("executes a T+1-eligible fixed CN sell only after Portfolio reserves shares and consumes exact-version Governance authorization", async () => {
     const sellProposal: V13ProposalResult = { ...proposal, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "SELL", quantity: 100 }] };

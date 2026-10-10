@@ -1,0 +1,38 @@
+# V1.2 责任与交付类型人工核对 A01
+
+日期：2026-10-10。当前A31中的25条V1.2来源行均已人工核对。结构化明细见[JSON](./2026-10-10-v1-v12-responsibility-a01.json)，SHA-256 `5a5363abd2cb80c44795b390273ed40c90e33ca3c4e3c0a400156dc44e3fe812`。本审计只映射服务主责、协作方和外部责任，不据此推断实现或阶段验收通过。
+
+| 来源行 | 主责 | 协作方/外部动作 | 仍开放的边界 |
+|---|---|---|---|
+| `V1.2-S2-L15` | market-data-service | platform-api-service; quant-research-service consumes fixed versioned output | Market Data owns historical bars, securities, DataVersion and quality reports. Platform exposes the V1.2 Web/import and TestRun path; formal reusable Artifact delivery and adjustment semantics remain open. |
+| `V1.2-S2-L16` | quant-research-service | platform-api-service orchestrates TestRun/UI; locked Qlib worker is an adapter boundary | Quant owns Qlib import/preview/train/predict execution. The currently verified V1 slice is the locked pyqlib 0.9.6 CPU/probe path and fixed output semantics, not profitability or full-scale capacity. |
+| `V1.2-S2-L17` | market-data-service for asynchronous import/task lifecycle | platform-api-service for Qlib Artifact/TestRun projection; shared artifact-content-store package for bytes | The row combines producer metadata and immutable bytes across owners. Cancellation/publish fencing is tested for named paths; all V1 producers, cross-service restore, default expiry/physical cleanup are not closed (OD-013 remains open). |
+| `V1.2-S2-L18` | market-data-service owns securities, sessions, raw bars and data versions | quant-research-service owns PIT window/purge semantics; platform-api-service owns stage orchestration | Frozen synthetic fixtures verify missing sessions, listing intervals and label boundaries for the fixed sample. They do not prove a complete exchange calendar or every corporate-action case. |
+| `V1.2-S2-L19` | quant-research-service | platform-api-service/container tooling | The fixed RD-Agent compatibility probe is a code/environment probe; `modelCalls=NOT_RUN` is honest. It does not establish real experiments or a production model credential. |
+| `V1.2-S2-L20` | platform-api-service | apps/web and stage API/test harness | Platform owns V1.2 TestRun creation, owner-scoped run API and server-fixed PAPER/FAKE mode before dispatch. Qlib execution itself remains owned by Quant. |
+| `V1.2-S7-L54` | packages/contracts; Platform stage scenarios | Market Data, Quant and test Fixture owners | Shared scenario and contract deliverable; frozen inputs exist, but this does not close every required data/strategy/acceptance assertion. |
+| `V1.2-S7-L55` | market-data-service and quant-research-service by their domain task | platform-api-service coordinates task/TestRun and Artifact projection | Named artifact task/worker/database paths have isolated evidence. Formal general-purpose Artifact publication and active deployment remain separate. |
+| `V1.2-S7-L56` | apps/web and platform-api-service | Market Data and Quant for authoritative data/research state | Formal V1.2 Web path exists with normal/rejection/recovery; current-scope user acceptance and full general import/Artifact workflow remain open. |
+| `V1.2-S7-L57` | Platform stage docs/scripts | Market Data/Quant for configuration and result semantics; project operator for host values | Runbook/Fixture/URL/timeout/cleanup are documented and isolated path was executed. Ubuntu target and current manual acceptance are separate. |
+| `V1.2-S7-L58` | market-data-service tests; quant-research-service locked worker tests | Platform Web/E2E and test evidence | Deterministic data quality, fixed Qlib worker and code checks are evidenced; real RD-Agent/provider calls remain NOT_RUN. |
+| `V1.2-S7-L59` | market-data-service task repository/worker | platform-api-service Qlib task/repository; operations for process restart/lease recovery | Fixed cancel/publish/restart/fencing combinations pass isolated PostgreSQL/HTTP checks. This is not full artifact lifecycle, cross-domain disaster recovery or real worker-host failure. |
+| `V1.2-S7-L60` | project owner / human acceptor | none | Historical 2026-09-09 signature only applies to its original range; current expanded V1.2 scope remains unsigned. |
+| `V1.2-S7-L61` | Platform/V1.2 documentation owner | Market Data and Quant for technical instructions; project owner for acceptance result | Docs and executable isolated instructions are updated; Ubuntu and current user sign-off remain incomplete. |
+| `V1.2-S8-L65` | Platform runbook and evidence owner | Market Data, Quant, project operator | Readiness includes real dependency/version/fixture/code context. A green prior run is not evidence of current host or current human acceptance. |
+| `V1.2-S8-L85` | stack scripts and platform-api-service | Market Data, Quant, PostgreSQL in the selected isolated Compose project | Random isolated environment startup and teardown belong to tooling/operator; no activity service is modified by the test. |
+| `V1.2-S8-L100` | apps/web | platform-api-service orchestration; Market Data/Quant authoritative results | Web UI is a client; backend task/run and domain facts remain authoritative in their services. Chromium evidence covers fixed scenarios only. |
+| `V1.2-S8-L115` | scripts/verify-stage.mjs and evidence-export tooling | platform-api-service owner-scoped Run API; Quant/Market Data facts via Platform evidence | Same-run check-only/export must use exact TestRun and authenticated owner; command output does not change human acceptance. |
+| `V1.2-S8-L153` | historical execution evidence owner | Platform documentation owner | This source row explicitly records an older suite; it must remain historical and must not be represented as current-tree verification. |
+| `V1.2-S8-L159` | market-data-service for data artifacts; quant-research-service for Qlib model outputs | Platform for run linkage; operator for process/environment recovery | Recovery requires preserving source DataVersion, model/output hashes and original Run IDs; isolated restart tests do not prove external/host restore. |
+| `V1.2-S8-L167` | Platform acceptance documentation | project owner / human acceptor | Historical sign-off is preserved separately; current-range human acceptance cannot be inferred from automation. |
+| `V1.2-S8-L194` | platform-api-service | apps/web and verify-stage CLI | This section documents Web TestRun creation and same-Run CLI connection; business data and Qlib execution remain domain-owned. |
+| `V1.2-S8-L201` | platform-api-service for orchestration | market-data-service and quant-research-service for service behavior | Normal/rejection/recovery current-code regression only covers the declared fixed scenarios; no expansion to generic import or real research. |
+| `V1.2-S8-L205` | market-data-service task execution and persistence | platform-api-service for Qlib Artifact task integration | Historical slice evidence should remain dated and be superseded only by newer current-tree proof, not edited in place. |
+| `V1.2-S8-L213` | market-data-service for task status/bytes fencing; platform-api-service for Qlib artifact/reference projection | shared artifact-content-store | Named transactional publication/cancellation/recovery paths are tested. Unified retention decision, all-producer reference audit and physical cleanup remain open. |
+
+## 汇总
+
+- Market Data拥有证券/日历/历史行情/DataVersion/质量；Quant Research拥有Qlib适配器、固定研究执行及PIT/训练验证；Platform拥有TestRun、Web/验收编排和Run级Artifact引用。字节存储是共享内核，不能替代生产者服务的权威元数据。
+- RD-Agent是独立研究自动化能力；V1固定兼容探针不代表真实模型运行。若无凭证，`modelCalls=NOT_RUN`应继续保留。
+- Artifact retention/expiry/physical cleanup受OD-013约束，当前无自动到期或删除授权。真实Ubuntu和用户验收由项目所有者提供证据。
+- 本审计只减少V1.2责任归属歧义；P0全版差异矩阵、P2/P1工程、历史Run证据、恢复及版本门禁继续开放。

@@ -35,7 +35,7 @@ export class FillOutboxDelivery {
     const claim = await this.outbox.claimReservationResolutionOutbox(eventId);
     if (!claim) return false;
     try {
-      const resolution = claim.payload as { accountId: string; reservationId: string; namespace: string; testRunId: string; ownerId: string; outcome: "CANCELLED"; evidenceRef: string };
+      const resolution = claim.payload as { accountId: string; reservationId: string; namespace: string; testRunId: string; ownerId: string; outcome: "CANCELLED" | "EXPIRED" | "REJECTED"; evidenceRef: string };
       await this.portfolio.resolveAccountReservation(resolution.accountId, resolution.reservationId, {
         namespace: resolution.namespace, testRunId: resolution.testRunId, ownerId: resolution.ownerId,
         outcome: resolution.outcome, evidenceRef: resolution.evidenceRef,

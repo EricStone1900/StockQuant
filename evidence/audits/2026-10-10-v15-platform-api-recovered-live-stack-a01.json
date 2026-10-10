@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10T10:11:07.350Z",
+  "auditId": "V1.5-RETAINED-STACK-PLATFORM-API-RECOVERY-A01",
+  "status": "PASS",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "previousSnapshot": "2026-10-10-v15-interactive-stack-current-snapshot-a03.json",
+  "actions": [
+    {
+      "command": "docker update --restart unless-stopped sq-v15-stack-bd6742505479a4cd8f94-platform-api-service-1",
+      "exitCode": 0
+    },
+    {
+      "command": "docker start sq-v15-stack-bd6742505479a4cd8f94-platform-api-service-1",
+      "exitCode": 0
+    }
+  ],
+  "actionsIssued": "Only the exact exited Platform API container restart policy was changed and that container was started. No SQL mutation, other container restart, volume operation, migration, real market source call, or broker call was issued.",
+  "observations": {
+    "platformInspect": {
+      "exitCode": 0,
+      "fields": "running|healthy|0|false|unless-stopped|0|2026-10-10T10:09:25.464816763Z"
+    },
+    "apiLive": {
+      "exitCode": 0,
+      "stdout": "{\"status\":\"live\",\"service\":\"platform-api-service\"}",
+      "stderr": ""
+    },
+    "webHttp": {
+      "exitCode": 0,
+      "stdout": "200",
+      "stderr": ""
+    },
+    "waitingRunAggregate": {
+      "exitCode": 0,
+      "stdout": "normal|WAITING|workflow=TEMPORAL_COMPLETED|temporal=COMPLETED|business=NO_TRADE_SESSIONS_EXECUTED",
+      "stderr": ""
+    },
+    "projectContainers": {
+      "exitCode": 0,
+      "stdout": "sq-v15-stack-bd6742505479a4cd8f94-nats-1|Up 4 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-web-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-platform-api-service-1|Up About a minute (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-trade-execution-service-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-decision-governance-service-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-quant-research-service-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-portfolio-risk-service-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-postgres-1|Up 6 hours (healthy)\nsq-v15-stack-bd6742505479a4cd8f94-temporal-1|Up 6 hours",
+      "stderr": ""
+    }
+  },
+  "assertions": {
+    "apiLive": true,
+    "webServed": true,
+    "platformHealthy": true,
+    "singleExpectedNormalRun": true
+  },
+  "limitations": "The existing normal TestRun remains WAITING even though persisted workflow and Temporal evidence say COMPLETED and businessExecution=NO_TRADE_SESSIONS_EXECUTED. This snapshot does not assert human acceptance, a structured export, a completed stage, or a V1 gate pass."
+}

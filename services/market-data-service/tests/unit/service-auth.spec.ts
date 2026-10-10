@@ -18,7 +18,7 @@ describe("Market Data internal minute-upload identity", () => {
     for (const path of ["/v2/minute/import", "/v2/minute/csv/preview", "/v2/minute/csv/import", "/v2/minute/csv/uploads", "/v2/minute/csv/uploads/abc/chunks/0", "/v2/minute/parquet/uploads/abc/finalize", "/v2/minute/imports/v1", "/v2/minute/imports/v1/bars"]) {
       expect(isProtectedPlatformApiRequest("GET", path)).toBe(true);
     }
-    for (const [method, path] of [["GET", "/v2/calendar/CN_A?date=2026-09-27"], ["GET", "/v2/quotes/snapshot"], ["POST", "/v2/collection-scheduler/enable"], ["POST", "/v2/collection-runs"], ["POST", "/v2/minute/backfills"], ["POST", "/__test/minute-import-gate"], ["GET", "/v2/minute/imports"], ["GET", "/v2/minute/imports/v1/other"]]) {
+    for (const [method, path] of [["GET", "/v2/calendar/cn-a-share/2026-09-27"], ["GET", "/v2/quotes/snapshot"], ["POST", "/v2/collection-scheduler/enable"], ["POST", "/v2/collection-runs"], ["POST", "/v2/minute/backfills"], ["POST", "/__test/minute-import-gate"], ["GET", "/v2/minute/imports"], ["GET", "/v2/minute/imports/v1/other"]]) {
       expect(isProtectedPlatformApiRequest(method, path)).toBe(false);
     }
     for (const path of ["/v2/collection-scheduler/status", "/v2/collection-scheduler/plan?from=x", "/v2/collection/health?subscriptionId=sub", "/v2/collection-schedules", "/v2/collection-schedules/sub", "/v2/collection-runs", "/v2/collection-runs/run-id", "/v2/minute/gaps/sub", "/v2/minute/backfills", "/v2/minute/backfills/task-id", "/v2/minute/sources"]) expect(isProtectedPlatformApiRequest("GET", path.split("?", 1)[0])).toBe(true);

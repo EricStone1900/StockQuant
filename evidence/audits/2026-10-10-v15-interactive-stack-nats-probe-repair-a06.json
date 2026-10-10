@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-RETAINED-STACK-NATS-PROBE-REPAIR-A06",
+  "status": "PASS",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "operation": "compose up -d --no-deps --force-recreate nats",
+  "nats": {
+    "container": "sq-v15-stack-bd6742505479a4cd8f94-nats-1",
+    "image": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+    "health": "healthy",
+    "failingStreak": 0,
+    "readinessProbeExit": 0,
+    "jetStream": {
+      "accounts": 1,
+      "streams": 1,
+      "messages": 1,
+      "storageBytes": 16986,
+      "streamName": "SQV15APP",
+      "streamMessageCount": 1,
+      "consumerName": "stockquant-v15-temporal-dispatch",
+      "ackPending": 0,
+      "pending": 0,
+      "redelivered": 0
+    },
+    "mounts": [
+      {
+        "type": "volume",
+        "name": "sq-v15-stack-bd6742505479a4cd8f94_nats-jetstream",
+        "destination": "/data/jetstream"
+      }
+    ]
+  },
+  "testRun": {
+    "status": "WAITING",
+    "scenario": "normal",
+    "assertions": [
+      {
+        "id": "V1.5-SYS-SCHEDULE-001",
+        "status": "WAITING"
+      },
+      {
+        "id": "V1.5-HOLD-002",
+        "status": "PASS"
+      }
+    ],
+    "workflow": "TEMPORAL_COMPLETED",
+    "natsEvidence": "NOT_USED_FOR_NO_TRADE_SESSION_DISPATCH"
+  },
+  "temporalRunningWorkflowCount": 0,
+  "webHttp": 200,
+  "platformLiveHttp": 200,
+  "restartedServicesOnlyNats": true,
+  "volumeRetained": true,
+  "cleanup": "not applicable; retained acceptance stack remains available"
+}

@@ -1,0 +1,2673 @@
+{
+  "schemaVersion": "1.0.0",
+  "date": "2026-10-10",
+  "auditId": "V1-RESPONSIBILITY-COVERAGE-A01",
+  "status": "ALL_REQUIREMENTS_CLASSIFIED_SCOPE_ONLY",
+  "sourceMatrix": "./2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 147,
+  "counts": {
+    "manualStageRows": 108,
+    "crossCuttingRows": 38,
+    "manualGlobalRows": 1,
+    "unmappedRows": 0
+  },
+  "inputAudits": [
+    "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json",
+    "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json",
+    "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json",
+    "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json",
+    "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json",
+    "./2026-10-10-v1-current-gap-matrix-a29.json",
+    "./2026-10-10-v1-current-gap-matrix-a30.json"
+  ],
+  "rows": [
+    {
+      "requirementId": "V1.1-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 13,
+        "summary": "六类核心公共Schema已冻结并生成TS/Python类型；字段与required性回归覆盖包级类型及8个服务类型副本。服务业务消费选择和完整跨服务发布/兼容语义仍需单独核查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "packages/contracts",
+        "collaborators": "all contract-consuming V1 services",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 14,
+        "summary": "补齐所有跨服务OpenAPI/生成客户端及发布流程；建立并验证服务迁移和分层依赖命令。进展：A股Calendar、Portfolio Account、Platform V1.1 ScenarioRunner、Trade Execution至Portfolio的Fill/预留/结算、Historical Replay至Portfolio账户初始化/快照及至Trade Execution历史下单、Governance至Q…",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-service delivery; each consumer service owns its client adapter",
+        "collaborators": "Platform API, Trade Execution, Portfolio Risk, Historical Replay, Market Data, Decision Governance, Quant Research",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "Compose core 与真实 PostgreSQL 已用于账户持久化；组合服务 CN/US 模拟账户、现金/持仓及幂等初始化已有工程和运行证据。账户详情证据：P3.4、P3.5双市场账户。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "portfolio-risk-service",
+        "collaborators": "platform-api-service",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 20,
+        "summary": "完成通用Artifact存储与全链路引用/交付；进展：新增`common/artifact-ref.schema.json`并将TestRun `artifactRefs`改为强类型数组，TS/Python生成类型、兼容规则及精确结构测试均接入全局契约检查；V3.1 owner-scoped TestRun API将研究引用投影为公共`ArtifactRef`，Exporter核对绑定与内容Hash后导出。V3.1支…",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "artifact-content-store package; platform-api-service owns V1 Qlib metadata/TestRun projection",
+        "collaborators": "quant-research-service owns backtest reports; platform-api-service/evidence exporter read and package references",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L26",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 26,
+        "summary": "平台 API owner 身份、健康/能力查询、验收运行与证据读取已有实现；V1.1 stage模式 normal/rejection/recovery 在隔离 PostgreSQL 和真实 Chromium Web 中完成同run CLI只读核对。证据：V1.1统一存储代码与Web套件。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "platform-api-service",
+        "collaborators": "apps/web, CLI verifier/evidence exporter, domain APIs",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L27",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 27,
+        "summary": "将V1.1统一TestRun模式按维护窗口部署到活动API并验证回退；活动Compose仍为`legacy`，隔离套件不证明生产切换。当前活动库 49 legacy/44 unified；已在只读恢复副本补齐5条、验证幂等与双写。切换步骤、停止条件、回退和当前差额见存储切换Runbook与复演审计。活动迁移仍未执行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "platform-api-service (storage implementation)",
+        "collaborators": "Operations owner and project owner for live change authorization",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S2-L28",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 2,
+        "currentLine": 28,
+        "summary": "Qlib/RD-Agent镜像基线、Mac/Docker架构及资源边界有历史记录；amd64仿真与当前Qlib锁版运行探针有单独工程证据。原生Ubuntu兼容、资源压力及真实RD-Agent运行仍未验收。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "quant-research-service owns Qlib adapter/worker",
+        "collaborators": "platform-api-service owns orchestration/Web; research-automation-service owns RD-Agent runner; project owner/environment operator owns host resource and Ubuntu evidence",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 68,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "packages/contracts and Platform/API scenario contracts",
+        "collaborators": "Fixture authors and all participating domain services",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L66",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 69,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "each participating domain service for its business behavior",
+        "collaborators": "platform-api-service for orchestration; test/evidence owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 70,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "apps/web and platform-api-service",
+        "collaborators": "V1.1 backend service owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L68",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 71,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "Platform/scripts and stage documentation",
+        "collaborators": "service owners for their configuration; project operator for host-specific values",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L69",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 72,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-service test/evidence owner",
+        "collaborators": "Platform/Web and participating service owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L70",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 73,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "each domain service for restart/idempotency semantics",
+        "collaborators": "Platform/Workflow orchestration and operations for observation",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L71",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 74,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "none",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S7-L72",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 7,
+        "currentLine": 75,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "Platform documentation owner",
+        "collaborators": "V1.1 stage/test/acceptance documentation owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L76",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 81,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "platform-api-service and stack tooling",
+        "collaborators": "operator",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L96",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 101,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "stack tooling and platform-api-service",
+        "collaborators": "all services in the selected Compose slice",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L114",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 122,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "apps/web",
+        "collaborators": "platform-api-service and the business service owning each action",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L129",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 137,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "scripts/verify-stage.mjs and scripts/evidence-export.mjs",
+        "collaborators": "platform-api-service for owner-scoped read APIs",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L164",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 172,
+        "summary": "8.7 统一存储模式隔离复验（2026-09-26）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "platform-api-service storage adapter/migrations",
+        "collaborators": "Operations owner and project owner",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L203",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 211,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "each domain service for its persisted business facts",
+        "collaborators": "Platform for TestRun coordination; operations for host recovery",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L211",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 219,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "Platform/acceptance documentation",
+        "collaborators": "project owner for current human conclusion",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.1-S8-L224",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/01-environment-and-web-center.md",
+        "section": 8,
+        "currentLine": 233,
+        "summary": "范围与签署状态澄清（2026-09-27）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "Platform documentation owner",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v11-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "实现日线导入预览、原始行情、证券映射、数据版本及质量报告；坏数据不能标可用。复权分离与正式 Artifact 存储列为后续缺口。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service",
+        "collaborators": "platform-api-service; quant-research-service consumes fixed versioned output",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 16,
+        "summary": "将固定版本 `pyqlib==0.9.6` 封装到独立 Qlib worker/quant adapter；完成 CPU 导入烟测和基础因子预览；模型训练与 NO_TRADE/TopK 完整策略留后续。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "quant-research-service",
+        "collaborators": "platform-api-service orchestrates TestRun/UI; locked Qlib worker is an adapter boundary",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 17,
+        "summary": "Artifact 异步任务将持久化状态、执行、取消与不可变产物发布关联；PostgreSQL事务原子提交Artifact字节与`COMPLETED`状态，取消/发布行锁竞态最多产生一个合法终态，租约接管通过fencing拒绝旧worker写入。边界为固定Fixture版本、单实例轮询工作器和数据库内BYTEA存储；大型产物/外部对象存储、Web任务界面及生产容量不在此切片内，阶段人工验收仍待执行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service for asynchronous import/task lifecycle",
+        "collaborators": "platform-api-service for Qlib Artifact/TestRun projection; shared artifact-content-store package for bytes",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 18,
+        "summary": "提供双市场CN/US、缺失、退市、拆股及未来PIT Fixture；独立验证当前策略训练窗口的标签可用时间与边界purge。缺失会话不得按证券压缩后桥接特征或标签，行情日期必须落在证券上市区间内。合成日历不代表真实交易日历。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service owns securities, sessions, raw bars and data versions",
+        "collaborators": "quant-research-service owns PIT window/purge semantics; platform-api-service owns stage orchestration",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "提供隔离容器内固定代码 RD-Agent 兼容探针；无模型凭证时明确 `modelCalls=NOT_RUN`，不伪称真实实验完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "quant-research-service",
+        "collaborators": "platform-api-service/container tooling",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L54",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 58,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "packages/contracts; Platform stage scenarios",
+        "collaborators": "Market Data, Quant and test Fixture owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L55",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 59,
+        "summary": "第2节后端任务完成；Artifact task执行器、持久任务状态、原子Artifact字节发布、幂等取消、租约恢复/fencing均有隔离PostgreSQL/HTTP验证。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service and quant-research-service by their domain task",
+        "collaborators": "platform-api-service coordinates task/TestRun and Artifact projection",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L56",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 60,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "apps/web and platform-api-service",
+        "collaborators": "Market Data and Quant for authoritative data/research state",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L57",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 61,
+        "summary": "当前隔离Fixture路径、动态实际Web URL、启动/停止命令、按钮、配置边界、超时、预期输出与失败恢复步骤已补齐，并按第8节实际启动页面、运行三场景浏览器/CLI同Run检查及精确清理。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "Platform stage docs/scripts",
+        "collaborators": "Market Data/Quant for configuration and result semantics; project operator for host values",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L58",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 62,
+        "summary": "开发者已执行数据 normal/rejection、容器健康、Qlib 0.9.6 CPU 烟测及基础代码检查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service tests; quant-research-service locked worker tests",
+        "collaborators": "Platform Web/E2E and test evidence",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L59",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 65,
+        "summary": "Artifact任务重复取消、取消/发布并发、进程重启后排队执行、运行worker租约接管和旧worker拒绝已由隔离测试验证。Qlib recovery-probe仍仅验证READY，不扩展为真实模型故障恢复；本阶段当前范围人工验收仍未签署。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service task repository/worker",
+        "collaborators": "platform-api-service Qlib task/repository; operations for process restart/lease recovery",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L60",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 66,
+        "summary": "当前新增范围用户验收未完成；2026-09-09历史签署保留在下方验收记录，不扩展为本轮签收。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "none",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S7-L61",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 7,
+        "currentLine": 67,
+        "summary": "可执行操作说明与限制已更新并实测；第8.6分开记录历史签署与当前自动证据，本版当前人工验收和Ubuntu门禁仍未签署/运行。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "Platform/V1.2 documentation owner",
+        "collaborators": "Market Data and Quant for technical instructions; project owner for acceptance result",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 71,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "Platform runbook and evidence owner",
+        "collaborators": "Market Data, Quant, project operator",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L85",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 91,
+        "summary": "8.2 隔离初始化与启动",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "stack scripts and platform-api-service",
+        "collaborators": "Market Data, Quant, PostgreSQL in the selected isolated Compose project",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L100",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 106,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "apps/web",
+        "collaborators": "platform-api-service orchestration; Market Data/Quant authoritative results",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L115",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 121,
+        "summary": "8.4 命令行复验与相同运行核对",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "scripts/verify-stage.mjs and evidence-export tooling",
+        "collaborators": "platform-api-service owner-scoped Run API; Quant/Market Data facts via Platform evidence",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L153",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 159,
+        "summary": "8.7 早期代码套件复验（2026-10-06，历史边界）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "historical execution evidence owner",
+        "collaborators": "Platform documentation owner",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L159",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 165,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service for data artifacts; quant-research-service for Qlib model outputs",
+        "collaborators": "Platform for run linkage; operator for process/environment recovery",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L167",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 173,
+        "summary": "8.6 历史验收记录与当前自动证据",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "Platform acceptance documentation",
+        "collaborators": "project owner / human acceptor",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L194",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 200,
+        "summary": "8.8 Web TestRun 与同Run CLI复核接线（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "platform-api-service",
+        "collaborators": "apps/web and verify-stage CLI",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L201",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 207,
+        "summary": "8.9 三场景当前代码回归（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "platform-api-service for orchestration",
+        "collaborators": "market-data-service and quant-research-service for service behavior",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L205",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 211,
+        "summary": "8.10 Artifact task 持久状态切片（2026-10-06，历史结果）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service task execution and persistence",
+        "collaborators": "platform-api-service for Qlib Artifact task integration",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S8-L213",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 8,
+        "currentLine": 219,
+        "summary": "8.11 Artifact task 原子发布与恢复验证（2026-10-06）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "market-data-service for task status/bytes fencing; platform-api-service for Qlib artifact/reference projection",
+        "collaborators": "shared artifact-content-store",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 13,
+        "summary": "实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "decision-governance-service + portfolio-risk-service",
+        "collaborators": "trade-execution-service; platform-api-service",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 14,
+        "summary": "实现隔离 FakeBroker 交易证据和 place/query/cancel/fills/account 契约；brokerOrderId 稳定且不复制内部账本。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "trade-execution-service (FakeBroker component contract)",
+        "collaborators": "platform-api-service; portfolio-risk-service",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "实现订单状态、全成、拒单、UNKNOWN、重复 Fill 幂等和固定故障事件序列。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "trade-execution-service",
+        "collaborators": "decision-governance-service; portfolio-risk-service; platform-api-service",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 17,
+        "summary": "固定场景覆盖全成、拒单、接受响应丢失、重复/乱序回报；seed/testRunId 均记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "platform-api-service (scenario orchestration)",
+        "collaborators": "trade-execution-service; shared scenario/Fixture owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 2,
+        "currentLine": 18,
+        "summary": "所有服务端接受路径仅允许 PAPER + FAKE，页面不能直接改状态或余额。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "each service owning a server-side accept/write path",
+        "collaborators": "decision-governance-service; trade-execution-service; portfolio-risk-service; platform-api-service",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L62",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 91,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "packages/contracts + Platform scenario owner",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L63",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 92,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "domain service owners",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L64",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 93,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "apps/web + platform-api-service",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 95,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "Platform/runbook owner",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L66",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 96,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "shared test harness and domain owners",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 97,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "domain service owners + operations owner",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L68",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 98,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，PASS）。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S7-L69",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 7,
+        "currentLine": 99,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "Platform/stage documentation owner",
+        "collaborators": "Platform, domain service owners, and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L73",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 103,
+        "summary": "8.0 已验证命令",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "Platform/code-suite and evidence scripts",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L89",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 128,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "Platform/runbook and evidence owner",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L109",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 136,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "stack scripts/operator",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L127",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 162,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "apps/web + platform-api-service",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L142",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 177,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "verify-stage/evidence-export scripts and domain owners",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L177",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 209,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "domain owners plus operations recovery operator",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.3-S8-L185",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/03-fake-broker-trading-loop.md",
+        "section": 8,
+        "currentLine": 217,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "Platform acceptance records",
+        "collaborators": "service owners for authoritative facts; operator/project owner for host and human actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v13-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "建立BacktestRun及固定Manifest：数据、股票池、策略/因子、规则、成本、依赖/镜像、种子、初始账户、区间与基准。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service",
+        "collaborators": "market-data-service supplies versioned data; platform-api-service owns the user TestRun projection",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 16,
+        "summary": "实现按运行隔离的历史时钟与日线撮合；日终确认信号最早下一可交易时点执行，原价用于成交，复权研究与公司行动入账分离。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service",
+        "collaborators": "platform-api-service coordinates requests; Market Data supplies frozen input",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 23,
+        "summary": "完成费用、滑点、成交量约束、停牌/限制价、可卖量及结算处理；当前已实现固定费用/不利滑点、可配置A股佣金参数/最低佣金、沪深经手费与过户费、卖方印花税、成交量约束、T+1与单卖单次一Fixture Session结算，并有合成停牌/锁板场景；另有独立合成历史日期费率Fixture覆盖2023-08-28前后规则切换。完整券商费率、交易所结算日历、公司行动及交易规则一致性仍缺；日线无法确定的盘中顺序采用明确保守规则。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service for backtest-rule computation",
+        "collaborators": "trade-execution-service and portfolio-risk-service own independent Paper execution/ledger facts; platform-api-service orchestrates comparison",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "单证券日线Fixture按交易Session记录持仓、T+1未可卖量和可卖量；成交日持仓纳入估值，下一条Fixture交易日才释放卖出可用量；同日卖出被拒绝，后续显式SELL按可卖持仓/成交参与率成交，扣费后计未结算款并在下一Fixture Session转为现金。后端断言、Web结果和同Run CLI核对均通过；Fixture结束时未结款仍作为应收项。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service for simulated position availability and fixture settlement",
+        "collaborators": "trade-execution-service owns FakeBroker orders/fills; portfolio-risk-service owns account ledgers/settlement",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 20,
+        "summary": "提供收益/基准、回撤、换手、费用归因、成交率、拒绝/未成交数量和数据覆盖；关联实际模拟流水。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service computes backtest metrics and associates fills",
+        "collaborators": "platform-api-service owns Web/TestRun result projection and acceptance assertions",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 21,
+        "summary": "Qlib快速研究报告和交易链路回放分开标注执行模型；同一基准案例比对规则与费用，无差异才作为一致性证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "quant-research-service separates Qlib research and execution replay models",
+        "collaborators": "platform-api-service links model/run identity; trade-execution-service and portfolio-risk-service provide Paper comparison facts",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L61",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 70,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "packages/contracts + Platform scenario/TestRun owner",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L62",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 71,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "domain service owners (Quant, Market Data, Trade, Portfolio)",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L63",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 72,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "apps/web + platform-api-service",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L64",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 73,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "Platform/runbook and evidence owner",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L65",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 74,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "shared test harness and domain owners",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L66",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 75,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "domain service owners + operations owner",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 76,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S7-L68",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 7,
+        "currentLine": 77,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "Platform/stage documentation owner",
+        "collaborators": "Quant Research, Market Data, Trade Execution, Portfolio, Platform and project operator as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L72",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 82,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "Platform/runbook and evidence owner",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L92",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 102,
+        "summary": "8.2 初始化与启动（隔离自动化命令已实测；人工页面启动仍待补）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "stack scripts/operator",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L107",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 129,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "apps/web + platform-api-service",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L123",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 146,
+        "summary": "8.4 命令行复验与相同运行核对（已验证）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "verify-stage/evidence-export scripts and domain owners",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L160",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 185,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "domain owners plus operations recovery operator",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.4-S8-L168",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 8,
+        "currentLine": 193,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "Platform acceptance records",
+        "collaborators": "Quant owns BacktestRun/results; Platform owns TestRun/Web; Trade and Portfolio own Paper execution and ledger facts; project operator owns host actions as applicable",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v14-responsibility-a02.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 23,
+        "summary": "实现市场日历调度与自动日终对账；工作流保存步骤/等待，领域数据库拥有业务事实；网页不承担调度。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "platform-api-service owns current V1.5 orchestration/progress projection",
+        "collaborators": "NATS and Temporal provide durable dispatch/workflow state; Market Data owns calendars; Governance, Trade and Portfolio own each business decision/fact",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 25,
+        "summary": "完整暂停/恢复、UNKNOWN原单查询、执行中的重启恢复与错过窗口策略；固定Trade/PostgreSQL组合故障后按原clientOrderId恢复已验证，真实时钟、其他故障组合、完整跨域恢复与结算仍开放。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "trade-execution-service owns FakeBroker order state, UNKNOWN query and idempotent original-clientOrderId recovery",
+        "collaborators": "platform-api-service orchestrates; decision-governance-service owns mandates/authorization; portfolio-risk-service owns reservations/ledger; Temporal retries durable activities",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 29,
+        "summary": "把已创建页面的告警、能力阻塞、验收中心证据和比较功能贯通；支持从任一成交追溯完整链路。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "platform-api-service owns TestRun, Incident projection, capability status, history/comparison APIs",
+        "collaborators": "Trade, Governance and Portfolio expose authoritative domain facts; apps/web renders them",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 35,
+        "summary": "提供外部故障演练脚本和操作Runbook，覆盖Worker/总线重启、断网、睡眠恢复、双Worker竞争；Web仅记录操作提示和回收证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "shared test/operations responsibility; scripts and runbook own exact isolated fault actions",
+        "collaborators": "project operator executes host sleep/wake; service owners supply fault semantics and recovery checks",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L21",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 37,
+        "summary": "隔离备份恢复；执行Mac M1完整模拟E2E及目标Ubuntu架构烟测，记录未覆盖环境，V1证据打包。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "operations/scripts own isolated backup/restore and environment evidence",
+        "collaborators": "each service owns its volume facts; project owner supplies actual Ubuntu host/architecture and acceptance",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L56",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 68,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "packages/contracts and Platform scenario/TestRun contracts",
+        "collaborators": "Trade/Portfolio/Governance and shared Fixture owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L57",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 69,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "each service owns its backend behavior",
+        "collaborators": "platform-api-service owns orchestration; NATS/Temporal infrastructure operators own durable engine operation",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L58",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 70,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "apps/web and platform-api-service",
+        "collaborators": "domain APIs own source facts",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L59",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 71,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "scripts and Platform stage docs",
+        "collaborators": "service owners for configs; operator for actual host",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L60",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 72,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "cross-service test/evidence harness",
+        "collaborators": "Platform Web/API/CLI, Trade/Portfolio/Governance; operator for host recovery",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L61",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 73,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "domain service owners for idempotency/recovery; operations owner for runtime disruptions",
+        "collaborators": "Platform and durable infrastructure for coordination",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L62",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 74,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，PASS）。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "project owner / human acceptor",
+        "collaborators": "none",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S7-L63",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 83,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "Platform/stage documentation owner",
+        "collaborators": "service owners for operational limits; project owner for final acceptance record",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 79,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "Platform runbook/evidence owner",
+        "collaborators": "stack operator and service owners",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L87",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 99,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "stack-up/down scripts",
+        "collaborators": "operator",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L105",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 122,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "apps/web",
+        "collaborators": "platform-api-service and domain APIs",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L120",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 138,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "verify-stage/evidence-export scripts",
+        "collaborators": "platform-api-service authenticated owner-scoped API",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L155",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 174,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "domain owners per authoritative fact",
+        "collaborators": "Platform coordinates TestRun; operations restores host/dependencies",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S8-L163",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 182,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "Platform acceptance records",
+        "collaborators": "project owner / human acceptor",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.1",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 9,
+        "summary": "Real DB initialization/restart/idempotence, generated contract checks, browser account initialization and durable evidence.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.2",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 10,
+        "summary": "Locked Qlib CPU, PIT/hand-calculated factors, atomic Artifact publish/cancel integration, data/strategy Web E2E.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P2",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.3",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 11,
+        "summary": "Domain money/state machine, real DB concurrent reservation/transactions, event idempotence, FakeBroker API and two-market MANUAL/AUTO Web E2E.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.4",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 12,
+        "summary": "PIT, fees/settlement/corporate-action calculations, same-input replay, recovery, cancellation/idempotence, daily/Paper parity and Web E2E.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-STAGE-V1.5",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 13,
+        "summary": "Real DB/NATS/Temporal recovery, browser close/reconnect, two Workers, backup restore and whole-V1 regression.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-01",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 21,
+        "summary": "Freeze scenarioVersion, Fixture/DataVersion, market, simulated account, seed and environment; create a unique testRunId.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-02",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 22,
+        "summary": "Run normal path; verify backend facts/numbers before the formal page and record real/Fake dependencies.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-03",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 23,
+        "summary": "Run required rejection/failure cases; compare reasons and side effects; verify orders, resources and ledger for recovery.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-04",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 24,
+        "summary": "Repeat and refresh/close; verify idempotence, background continuation, evidence persistence and cross-run isolation.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-05",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 25,
+        "summary": "Run browser E2E and applicable domain/DB/contract/event tests; do not validate domain math only by screenshots.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P1",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-FLOW-06",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 26,
+        "summary": "Human checks UI/evidence and signs; pending/cancelled/missing dependencies/not-run never become PASS automatically.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-EVIDENCE-PRECISION",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 30,
+        "summary": "Verify Money/quantity/fee rounding/budget/uniqueness exactly; freeze floating tolerances and stable tie ordering; keep raw Artifact hash separate from canonical result hash.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-90-EVIDENCE-CAPTURE",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/90-test-plan.md",
+        "section": 90,
+        "currentLine": 32,
+        "summary": "Each case records TestRun/business IDs, trace, dependencies, exit code, output and browser captures; missing commands are failures rather than empty success.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.1",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 16,
+        "summary": "V1.1 stage backend/automatic status, current Web acceptance status, linked Run evidence, limitations and exact sign-off scope are maintained in the acceptance register.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.2",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 31,
+        "summary": "V1.2 stage backend/automatic status, current Web acceptance status, linked Run evidence, limitations and exact sign-off scope are maintained in the acceptance register.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.3",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 50,
+        "summary": "V1.3 stage backend/automatic status, current Web acceptance status, linked Run evidence, limitations and exact sign-off scope are maintained in the acceptance register.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.4",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 19,
+        "summary": "V1.4 stage backend/automatic status, current Web acceptance status, linked Run evidence, limitations and exact sign-off scope are maintained in the acceptance register.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-STAGE-V1.5",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 34,
+        "summary": "V1.5 stage backend/automatic status, current Web acceptance status, linked Run evidence, limitations and exact sign-off scope are maintained in the acceptance register.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-01",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 38,
+        "summary": "Verify every stage §7 delivery item; support human rows with actual user-confirmation evidence.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-02",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 39,
+        "summary": "Make every §8 manual executable with verified directory, URL, exact Fixture/parameters, commands and expected output.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-03",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 40,
+        "summary": "Record actual commands/exit codes for normal, rejection, recovery, code suite, browser E2E, same-run CLI check and export.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-04",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 42,
+        "summary": "All required and applicable success/rejection/recovery scenarios pass; failed attempts are preserved.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-05",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 43,
+        "summary": "Formal pages and acceptance center call business services; long jobs survive browser closure.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-06",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 44,
+        "summary": "Independent FakeBroker state, order/Fill idempotence, funds/sellable quantity, PIT and run isolation pass.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-07",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 45,
+        "summary": "Clearly identify data/model/broker/environment/execution models and keep Fixture/external component evidence distinct.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-08",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 46,
+        "summary": "Record required target architecture, performance and observation evidence; unrun gaps stay NOT_RUN.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-09",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 47,
+        "summary": "Stage scripts, logs, screenshots, numeric assertions, migration/backup and operating instructions are complete.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-GATE-10",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 48,
+        "summary": "LIVE writes are unavailable, real broker APIs including read-only are not connected, and this release remains simulation-only.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F01",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 54,
+        "summary": "Record the acceptance evidence field: version/stage/scenarioVersion/testRunId.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F02",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 55,
+        "summary": "Record the acceptance evidence field: market/account/namespace.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F03",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 56,
+        "summary": "Record the acceptance evidence field: environment/data/model/broker/execution modes.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F04",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 57,
+        "summary": "Record the acceptance evidence field: commit or workspace hash, image digest, lock hash, migrations and contracts.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F05",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 58,
+        "summary": "Record the acceptance evidence field: data/universe/calendar/rules/cost/strategy/Mandate/clock inputs.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F06",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 59,
+        "summary": "Record the acceptance evidence field: seed and actual injected fault sequence.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F07",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 60,
+        "summary": "Record the acceptance evidence field: Mac/Ubuntu architecture, emulation flag and resource limits.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F08",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 61,
+        "summary": "Record the acceptance evidence field: command/exit code/assertions/trace/screenshots/report.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F09",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 62,
+        "summary": "Record the acceptance evidence field: actual vs expected/tolerance/limitations.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-99-EVIDENCE-F10",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "section": 99,
+        "currentLine": 63,
+        "summary": "Record the acceptance evidence field: human acceptance identity, UTC date and conclusion.",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P6",
+      "ownership": {
+        "leadResponsibility": "cross-cutting test/delivery/version/runbook responsibility classified by source section; no single domain service is inferred",
+        "collaborators": "all participating domain services; Platform and project operator as applicable",
+        "classification": "CROSS_CUTTING_DOCUMENT_REQUIREMENT",
+        "audit": "A29/A30"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1-GLOBAL-XMK-03",
+      "source": {
+        "path": "../../docs/prd/00-product-requirements.md",
+        "section": "6.15",
+        "currentLine": 337,
+        "summary": "区分已结算现金、未结算应收应付、券商可用购买力与内部占用；默认只使用已结算资金。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "ownership": {
+        "leadResponsibility": "portfolio-risk-service owns account cash receivable/payable, available buying power and internal reservations",
+        "collaborators": "market-data-service owns versioned settlement calendar inputs; trade-execution-service owns authoritative fills and settlement triggers; quant-research-service independently models the same settled/unsettled rule",
+        "classification": "MANUAL_GLOBAL_REQUIREMENT_SCOPE_ONLY",
+        "audit": "this-audit"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.2-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/02-small-data-and-qlib.md",
+        "section": 2,
+        "currentLine": 26,
+        "summary": "V1.2 TestRun创建只接受scenarioId/seed；客户端交易模式由服务端固定，非法环境/券商模式注入须在创建TestRun和派发Qlib之前返回422。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "platform-api-service",
+        "collaborators": "apps/web and stage API/test harness",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v12-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    },
+    {
+      "requirementId": "V1.5-S2-L22",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 70,
+        "summary": "V1.5 Platform TestRun创建只接受scenarioId/seed，服务端固定交易环境和券商模式；客户端交易模式字段须在创建Run/派发后台工作前拒绝。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "ownership": {
+        "leadResponsibility": "platform-api-service",
+        "collaborators": "apps/web and stage CLI; downstream dispatch is owned by Platform orchestration",
+        "classification": "MANUAL_STAGE_REQUIREMENT",
+        "audit": "evidence/audits/2026-10-10-v1-v15-responsibility-a01.json"
+      },
+      "boundary": "Ownership classification only. Does not establish implementation, test sufficiency, operational execution, or acceptance."
+    }
+  ],
+  "scopeBoundary": "Deduplicated ownership classification across all 147 A31 requirements. Section 2/7/8 rows use stage-by-stage manual review; section 90/99 use A29 cross-cutting classifications; section-6.15 XMK-03 ownership is manually assigned to Portfolio with calendar/Trade/Quant collaboration. Business semantics and required evidence remain open where noted by source matrix."
+}

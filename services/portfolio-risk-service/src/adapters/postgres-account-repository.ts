@@ -20,7 +20,29 @@ export class PostgresAccountRepository {
   constructor(private readonly pool: Pool) {}
 
   async migrate(): Promise<void> {
-    await this.pool.query(`
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", ["stockquant:portfolio-risk-service:schema-migrations"]);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS portfolio_risk_schema_migrations (
+          version INTEGER PRIMARY KEY,
+          description TEXT NOT NULL,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `);
+      const applied = await client.query<{ version: number }>("SELECT version FROM portfolio_risk_schema_migrations ORDER BY version DESC LIMIT 1");
+      const latestVersion = applied.rows[0]?.version ?? 0;
+      if (latestVersion > 1) throw new Error(`Unsupported Portfolio Risk schema version ${latestVersion}`);
+      if (latestVersion === 1) {
+        await client.query("COMMIT");
+        return;
+      }
+
+      // Version 1 is the existing idempotent V1 account schema baseline. Running
+      // it in one transaction upgrades databases created by the former startup
+      // initializer while making future schema changes explicit and ordered.
+      await client.query(`
       CREATE TABLE IF NOT EXISTS accounts (
         account_id UUID PRIMARY KEY,
         namespace TEXT NOT NULL,
@@ -52,10 +74,10 @@ export class PostgresAccountRepository {
       );
       CREATE INDEX IF NOT EXISTS accounts_test_run_idx ON accounts(test_run_id);
       CREATE INDEX IF NOT EXISTS ledger_entries_account_idx ON ledger_entries(account_id);
-    `);
+      `);
     // Existing V1.1 databases used narrower checks.  Widening them is additive and
     // preserves all historical rows while allowing isolated BACKTEST accounts.
-    await this.pool.query(`
+      await client.query(`
       ALTER TABLE accounts DROP CONSTRAINT IF EXISTS accounts_environment_mode_check;
       ALTER TABLE accounts ADD CONSTRAINT accounts_environment_mode_check CHECK (environment_mode IN ('PAPER', 'BACKTEST'));
       ALTER TABLE ledger_entries DROP CONSTRAINT IF EXISTS ledger_entries_account_id_entry_type_key;
@@ -119,7 +141,15 @@ export class PostgresAccountRepository {
       CREATE INDEX IF NOT EXISTS resource_reservations_cash_held_idx ON resource_reservations(account_id,currency) WHERE status IN ('HELD','UNKNOWN') AND side='BUY';
       CREATE INDEX IF NOT EXISTS resource_reservations_security_held_idx ON resource_reservations(account_id,security) WHERE status IN ('HELD','UNKNOWN') AND side='SELL';
       CREATE UNIQUE INDEX IF NOT EXISTS resource_reservations_order_identity_idx ON resource_reservations(account_id,client_order_id);
-    `);
+      `);
+      await client.query("INSERT INTO portfolio_risk_schema_migrations(version, description) VALUES (1, 'V1 account, ledger, fills, and resource reservations')");
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async initialize(command: InitializeAccountCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }> {

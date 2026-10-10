@@ -69,4 +69,31 @@ describe("V1.3 AUTO_POLICY execution coordinator", () => {
     expect(h.mandates.authorizeOrder).not.toHaveBeenCalled();
     expect(h.portfolio.reserveAccountResources).not.toHaveBeenCalled();
   });
+  it("authorizes one aggregate AUTO budget, reserves each fixed BUY leg, and submits each child order", async () => {
+    const h = harness();
+    h.governance.readProposal.mockResolvedValueOnce({ status: 200, body: { ...proposal, legs: [proposal.legs[0], { legId: "leg-2", securityId: "000001.SZ", side: "BUY", quantity: 100 }] } } as never);
+    const result = await h.service.execute(command);
+    expect(h.governance.readProposal).toHaveBeenCalledTimes(1);
+    expect(h.steps).toEqual(["Mandate.reserve", "Portfolio.reserve", "Portfolio.reserve", "FakeBroker.place", "Portfolio.postFill", "FakeBroker.place", "Portfolio.postFill", "Mandate.CONSUMED"]);
+    expect(h.mandates.authorizeOrder).toHaveBeenCalledTimes(1);
+    expect(h.mandates.authorizeOrder).toHaveBeenCalledWith(command.mandateId, expect.objectContaining({ proposal: expect.objectContaining({ legs: [expect.objectContaining({ securityId: "600000.SH", side: "BUY" }), expect.objectContaining({ securityId: "000001.SZ", side: "BUY" })] }) }));
+    expect(h.portfolio.reserveAccountResources).toHaveBeenCalledTimes(2);
+    expect(h.broker.executeV13ManualPaper).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ mandate: { status: "CONSUMED" }, orders: [{ clientOrderId: `${command.clientOrderId}:leg:01` }, { clientOrderId: `${command.clientOrderId}:leg:02` }], fills: [{ externalFillId: "fill-auto-1" }, { externalFillId: "fill-auto-1" }] });
+  });
+  it("rejects AUTO SELL legs before Mandate or Portfolio side effects while settlement semantics are unresolved", async () => {
+    const h = harness();
+    h.governance.readProposal.mockResolvedValueOnce({ status: 200, body: { ...proposal, legs: [proposal.legs[0], { legId: "leg-2", securityId: "000001.SZ", side: "SELL", quantity: 100 }] } } as never);
+    await expect(h.service.execute(command)).rejects.toMatchObject({ statusCode: 422, message: "multi-leg AUTO_POLICY SELL cash-path semantics remain unresolved" });
+    expect(h.mandates.authorizeOrder).not.toHaveBeenCalled();
+    expect(h.portfolio.reserveAccountResources).not.toHaveBeenCalled();
+    expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();
+  });
+  it("preserves a safe Governance rejection code in the execution error detail", async () => {
+    const h = harness();
+    h.mandates.authorizeOrder.mockResolvedValueOnce({ status: 403, body: { decision: { status: "REJECTED", reasonCode: "MANDATE_INACTIVE" } } } as never);
+    await expect(h.service.execute(command)).rejects.toMatchObject({ statusCode: 403, message: "AUTO_POLICY Mandate rejected this Proposal", detail: { reasonCode: "MANDATE_INACTIVE" } });
+    expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();
+    expect(h.portfolio.reserveAccountResources).not.toHaveBeenCalled();
+  });
 });

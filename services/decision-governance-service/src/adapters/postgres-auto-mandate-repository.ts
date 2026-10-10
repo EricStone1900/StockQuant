@@ -8,7 +8,7 @@ const hash = (value: unknown) => createHash("sha256").update(canonical(value)).d
 type MandateRow = { mandate_id: string; mandate_version: number; content_hash: string; owner_id: string; test_run_id: string; account_id: string; strategy_version: string; market: "CN_A" | "US_EQUITY"; currency: "CNY" | "USD"; security_scope: string[]; max_order_amount: string; max_total_amount: string; max_order_count: number; valid_from: Date; expires_at: Date; status: AutoMandate["status"] | "PENDING" };
 const toMandate = (row: MandateRow): AutoMandate => ({ mandateId: row.mandate_id, mandateVersion: row.mandate_version, contentHash: row.content_hash.trim(), ownerId: row.owner_id, testRunId: row.test_run_id, accountId: row.account_id, strategyVersion: row.strategy_version, market: row.market, currency: row.currency, securityScope: row.security_scope, maxOrderAmount: row.max_order_amount, maxTotalAmount: row.max_total_amount, maxOrderCount: row.max_order_count, validFrom: row.valid_from.toISOString(), expiresAt: row.expires_at.toISOString(), status: row.status === "PENDING" ? "PAUSED" : row.status });
 
-export async function migrateAutoMandates(pool: Pool): Promise<void> {
+export async function migrateAutoMandates(pool: PoolClient): Promise<void> {
   await pool.query(`CREATE TABLE IF NOT EXISTS auto_policy_mandates (
     mandate_id UUID NOT NULL, mandate_version INTEGER NOT NULL CHECK(mandate_version > 0), content_hash CHAR(64) NOT NULL,
     owner_id TEXT NOT NULL, test_run_id UUID NOT NULL, account_id UUID NOT NULL, strategy_version TEXT NOT NULL,
@@ -36,6 +36,21 @@ export class PostgresAutoMandateRepository implements AutoMandateRepository {
     const result = await this.pool.query<MandateRow>("SELECT * FROM auto_policy_mandates WHERE mandate_id=$1 AND owner_id=$2 AND test_run_id=$3", [mandateId, ownerId, testRunId]);
     const row = result.rows[0];
     return row ? { ...toMandate(row), status: row.status } : null;
+  }
+  async readBudget(mandateId: string, mandateVersion: number, ownerId: string, testRunId: string) {
+    const result = await this.pool.query<{ reservation_count: string; reserved_amount: string; consumed_count: string; consumed_amount: string; released_count: string; released_amount: string }>(
+      `SELECT COUNT(r.reservation_id)::text AS reservation_count,
+        COALESCE(SUM(r.amount) FILTER (WHERE r.status='RESERVED'),0)::numeric(20,2)::text AS reserved_amount,
+        COUNT(r.reservation_id) FILTER (WHERE r.status='CONSUMED')::text AS consumed_count,
+        COALESCE(SUM(r.amount) FILTER (WHERE r.status='CONSUMED'),0)::numeric(20,2)::text AS consumed_amount,
+        COUNT(r.reservation_id) FILTER (WHERE r.status='RELEASED')::text AS released_count,
+        COALESCE(SUM(r.amount) FILTER (WHERE r.status='RELEASED'),0)::numeric(20,2)::text AS released_amount
+      FROM auto_policy_mandates m LEFT JOIN auto_policy_budget_reservations r
+        ON r.mandate_id=m.mandate_id AND r.mandate_version=m.mandate_version
+      WHERE m.mandate_id=$1 AND m.mandate_version=$2 AND m.owner_id=$3 AND m.test_run_id=$4
+      GROUP BY m.mandate_id`, [mandateId, mandateVersion, ownerId, testRunId]);
+    const row = result.rows[0];
+    return row ? { reservedAmount: row.reserved_amount, consumedAmount: row.consumed_amount, releasedAmount: row.released_amount, reservationCount: Number(row.reservation_count), consumedCount: Number(row.consumed_count), releasedCount: Number(row.released_count) } : null;
   }
   async create(input: AutoMandateCreate, actorId: string, reason: string, now: string) {
     const { mandateId, mandateVersion, ownerId, testRunId, accountId, strategyVersion, market, currency, securityScope, maxOrderAmount, maxTotalAmount, maxOrderCount, validFrom, expiresAt } = input;
@@ -66,7 +81,11 @@ export class PostgresAutoMandateRepository implements AutoMandateRepository {
       await client.query("BEGIN");
       const selected = await client.query<MandateRow>("SELECT * FROM auto_policy_mandates WHERE mandate_id=$1 AND mandate_version=$2 AND owner_id=$3 AND test_run_id=$4 FOR UPDATE", [input.mandateId, input.mandateVersion, input.ownerId, input.testRunId]);
       const row = selected.rows[0];
-      if (!row || row.content_hash.trim() !== input.contentHash || row.status !== "PENDING" || !input.actorId.trim() || !input.reason.trim() || !Number.isFinite(Date.parse(input.now)) || Date.parse(input.now) < row.valid_from.getTime() || Date.parse(input.now) >= row.expires_at.getTime()) { await client.query("ROLLBACK"); return { status: "REJECTED" as const }; }
+      if (!row || row.content_hash.trim() !== input.contentHash || row.status !== "PENDING" || !input.actorId.trim() || !input.reason.trim() || !Number.isFinite(Date.parse(input.now)) || Date.parse(input.now) < row.valid_from.getTime() || Date.parse(input.now) >= row.expires_at.getTime()) {
+        const rejection = !row ? "MANDATE_NOT_FOUND" : row.content_hash.trim() !== input.contentHash ? "CONTENT_HASH_MISMATCH" : row.status !== "PENDING" ? "MANDATE_NOT_PENDING" : !input.actorId.trim() ? "ACTOR_REQUIRED" : !input.reason.trim() ? "REASON_REQUIRED" : !Number.isFinite(Date.parse(input.now)) ? "INVALID_CLOCK" : Date.parse(input.now) < row.valid_from.getTime() ? "BEFORE_VALID_FROM" : "MANDATE_EXPIRED";
+        await client.query("ROLLBACK");
+        return { status: "REJECTED" as const, reasonCode: rejection };
+      }
       const conflict = await client.query("SELECT 1 FROM auto_policy_mandates WHERE owner_id=$1 AND test_run_id=$2 AND account_id=$3 AND status='ACTIVE' FOR UPDATE", [row.owner_id, row.test_run_id, row.account_id]);
       if (conflict.rowCount) { await client.query("ROLLBACK"); return { status: "CONFLICT" as const }; }
       await client.query("UPDATE auto_policy_mandates SET status='ACTIVE' WHERE mandate_id=$1 AND mandate_version=$2", [input.mandateId, input.mandateVersion]);

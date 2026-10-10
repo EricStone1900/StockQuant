@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 import type { ReplayRunRepository, ReplayRunRecord } from "../ports/replay-run-repository.js";
 import { assertTransition, type ReplayStatus } from "../domain/lifecycle.js";
 
@@ -9,14 +9,14 @@ export class ReplayRunConflict extends Error {
 export class PostgresReplayRunRepository implements ReplayRunRepository {
   constructor(private readonly pool: Pool) {}
 
-  async initialize(): Promise<void> {
-    await this.pool.query(`CREATE TABLE IF NOT EXISTS replay_worker_runs (
+  async initialize(queryable: Pool | PoolClient = this.pool): Promise<void> {
+    await queryable.query(`CREATE TABLE IF NOT EXISTS replay_worker_runs (
       test_run_id UUID PRIMARY KEY, namespace TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL, scenario_id TEXT NOT NULL, request_hash CHAR(64),
       status TEXT NOT NULL CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED')), checkpoint JSONB NOT NULL, result JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ
     )`);
-    await this.pool.query("ALTER TABLE replay_worker_runs DROP CONSTRAINT IF EXISTS replay_worker_runs_status_check");
-    await this.pool.query("ALTER TABLE replay_worker_runs ADD CONSTRAINT replay_worker_runs_status_check CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED'))");
-    await this.pool.query("ALTER TABLE replay_worker_runs ADD COLUMN IF NOT EXISTS request_hash CHAR(64)");
+    await queryable.query("ALTER TABLE replay_worker_runs DROP CONSTRAINT IF EXISTS replay_worker_runs_status_check");
+    await queryable.query("ALTER TABLE replay_worker_runs ADD CONSTRAINT replay_worker_runs_status_check CHECK (status IN ('RUNNING','PAUSED','COMPLETED','FAILED','CANCELLED'))");
+    await queryable.query("ALTER TABLE replay_worker_runs ADD COLUMN IF NOT EXISTS request_hash CHAR(64)");
   }
 
   async ready(): Promise<void> { await this.pool.query("SELECT 1"); }

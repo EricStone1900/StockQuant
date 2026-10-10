@@ -70,6 +70,8 @@ TypeScript / NestJS + PostgreSQL组件按已启用能力部署；API和长计算
 
 ## 实现证据补充（2026-09-25）
 
+V1版本化迁移增量（2026-10-09）：Portfolio账户/账本/Fill/Reservation的启动schema现被包装为版本1 baseline；`portfolio_risk_schema_migrations`作为服务专属账本记录已应用版本，事务级advisory lock串行化并发启动，迁移DDL与版本记录同事务提交，失败回滚，检测到高于服务支持版本时拒绝启动。旧V1.1库没有版本账本时可通过该baseline的幂等DDL在保留数据的前提下纳管。隔离`portfolio_risk_test`对现存schema完成首次升级和并发启动验证，迁移记录唯一；V1.3完整code suite含该PostgreSQL测试通过。当前仅建立基线及version ledger，不提供降级脚本或独立部署前迁移CLI；其他服务迁移体系仍需逐项处理。证据：[V1.3完整代码套件](../../evidence/audits/2026-10-09-v13-portfolio-migration-code-suite-a01.log)及[SHA-256](../../evidence/audits/2026-10-09-v13-portfolio-migration-code-suite-a01.log.sha256)。该测试完全使用短生命周期隔离数据库，不代表活动数据库已升级。
+
 早期准备记录（2026-09-25）：`PostgresAccountRepository`先增加了资源预留持久表及BUY现金/SELL可卖数量primitive；当时尚未暴露API或实现Fill与预留原子结算。后续的HTTP身份和结算实现见下面的补充记录；Portfolio的S0门禁仍未完成。
 
 服务身份补充（2026-09-25）：平台API、FakeBroker执行服务和历史回放Worker现使用各自独立Bearer Token；portfolio服务以恒定时间比较凭据并按调用方/HTTP方法/路径做最小授权，`service-id`只作身份选择器。缺失/无效token分别拒绝为503/401，未授权route为403；读账户仍强制owner scope。临时portfolio服务在`portfolio_risk_test`上通过HTTP smoke，覆盖有效平台初始化/查询、缺失/错token、跨route和跨owner拒绝；临时账户精确清理。Compose把对应引用注入收件服务/发件服务，静态配置检查通过；活动portfolio及其调用容器未重建。资源预留API和BUY/SELL原子Fill能力现已实现；Mandate readiness、risk evaluation和Paper执行调用仍未接线/启用，故P5.5继续未完成。
@@ -80,6 +82,8 @@ CN T+1卖出预留补充（2026-10-07）：SELL资源预留新增可选`asOf`运
 
 费用更正补充（2026-10-02）：新增版本化`FillFeeCorrectionCommand`、执行服务Bearer专属Portfolio路由和`fill_fee_corrections`历史表。原Fill费用保存在`original_fee`且重放仍按原始语义幂等；更正按Fill行锁检查revision、previousFee和精确证据引用，原子更新当前费用、账号现金、BUY Reservation captured现金，并追加`FEE_CORRECTION`差额账本行。相同版本/载荷幂等，改写同版本或跳版拒绝。`portfolio_risk_test`验证费用从1→2→1、现金差额、预留捕获额和原Fill重放，HTTP smoke验证错误服务403及正确执行服务调用。Trade→Portfolio持久费用更正Outbox尚未接线，本记录只证明Portfolio接收端，V2.4端到端场景仍未完成。
 
+身份配置fail-closed增量（2026-10-10）：Portfolio Risk现要求Platform API、Trade Execution、Historical Replay三个调用token均至少32字符且两两不同；请求授权和`/ready`使用相同配置校验，缺失、弱或复用凭据均返回未配置/不就绪，避免服务身份头与Bearer可互换。Compose对该服务三个token均设置必填插值。回归与阶段证据见V1.1 §8.30、V1.3 §8.75；活动服务未变更。
+
 ## 9. S0冻结与变更检查
 
 - [ ] 本服务实体/端口/所有权与上下游一致，API/事件Schema和错误码已生成。
@@ -87,3 +91,6 @@ CN T+1卖出预留补充（2026-10-07）：SELL资源预留新增可选`asOf`运
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+
+2026-10-09 XMK-03/P4复核：Portfolio `recordFill` 当前把SELL净额直接并入`accounts.cash_amount`，BUY资源预留也用此字段计算可用资金；尚无`cash_settlements`表、SELL应收、SettlementDate计算或到期释放。上层合同要求SettlementDate由版本化结算日历计算，且美股不能套用统一次日/可卖规则；仓库尚无双市场Paper结算日历输入。故现有Paper实现不能证明“默认只用已结算资金”，禁止将本实现作为SELL→BUY路径通过证据。OD-014开放前，不猜测交易日/释放日；[需求交叉索引](../../evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json)和[OD-014](../../docs/decisions/open-decisions.md)记录处理路径。

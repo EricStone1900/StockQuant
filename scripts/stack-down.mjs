@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { removeIsolatedProjectImages } from "./remove-isolated-project-images.mjs";
 
 const args = process.argv.slice(2);
 const projectIndex = args.indexOf("--project");
@@ -48,9 +49,9 @@ for (const [kind, inspectArgs] of [
     process.exit(1);
   }
 }
+const imageCleanup = removeIsolatedProjectImages(project);
+if (imageCleanup.status !== 0) { console.error(`Project-owned image cleanup incomplete for ${project}: ${imageCleanup.error}`); process.exit(1); }
 rmSync(state.envFile, { force: true });
 rmSync(stateFile, { force: true });
 rmSync(path.join(stateDirectory, `${project}.stop`), { force: true });
-const imageCheck = spawnSync("docker", ["images", "-q", "--filter", `reference=${project}-*`], { encoding: "utf8" });
-if (imageCheck.status !== 0 || imageCheck.stdout.trim()) { console.error(`Project-owned image cleanup incomplete for ${project}.`); process.exit(1); }
 console.log(JSON.stringify({ status: "STOPPED_AND_PURGED", isolatedProject: project, resourcesRemoved: ["containers", "project-scoped PostgreSQL volume", "project network", "project images", "credentials file"], activeComposeTargeted: false }));

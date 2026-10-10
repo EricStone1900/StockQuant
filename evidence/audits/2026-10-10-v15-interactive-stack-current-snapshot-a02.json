@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-RETAINED-STACK-SNAPSHOT-A02",
+  "status": "READ_ONLY_SNAPSHOT",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "containerCount": 9,
+  "nats": [
+    {
+      "container": "sq-v15-stack-bd6742505479a4cd8f94-nats-1",
+      "image": "nats:2.10.29-alpine3.22@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927",
+      "state": "running",
+      "healthStatus": "unhealthy",
+      "failingStreak": 2394,
+      "configuredHealthcheck": [
+        "CMD",
+        "nats-server",
+        "--signal",
+        "check"
+      ]
+    }
+  ],
+  "webAndApi": {
+    "web": {
+      "url": "http://127.0.0.1:60898/acceptance/v1/v1.5",
+      "status": 200
+    },
+    "platformApi": {
+      "url": "http://127.0.0.1:60897/live",
+      "status": 200
+    }
+  },
+  "actionTaken": "none",
+  "note": "Retained stack is not recreated or modified; fresh isolated project validated new NATS healthcheck separately."
+}

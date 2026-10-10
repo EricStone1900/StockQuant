@@ -1,7 +1,7 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { ExecutionAuthorizationRepository } from "../ports/execution-authorization-repository.js";
 
-export async function migrateExecutionAuthorizations(pool: Pool): Promise<void> {
+export async function migrateExecutionAuthorizations(pool: PoolClient): Promise<void> {
   await pool.query(`CREATE TABLE IF NOT EXISTS execution_authorizations (authorization_id UUID PRIMARY KEY, namespace TEXT UNIQUE NOT NULL, account_id UUID NOT NULL, command_hash CHAR(64) NOT NULL, environment_mode TEXT NOT NULL DEFAULT 'BACKTEST', broker_mode TEXT NOT NULL DEFAULT 'FAKE', status TEXT NOT NULL CHECK(status IN('ACTIVE','CONSUMED','REVOKED')), expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ, revocation_reason TEXT); ALTER TABLE execution_authorizations ADD COLUMN IF NOT EXISTS environment_mode TEXT NOT NULL DEFAULT 'BACKTEST'; ALTER TABLE execution_authorizations ADD COLUMN IF NOT EXISTS broker_mode TEXT NOT NULL DEFAULT 'FAKE'; ALTER TABLE execution_authorizations ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ; ALTER TABLE execution_authorizations ADD COLUMN IF NOT EXISTS revocation_reason TEXT; ALTER TABLE execution_authorizations DROP CONSTRAINT IF EXISTS execution_authorizations_status_check; ALTER TABLE execution_authorizations ADD CONSTRAINT execution_authorizations_status_check CHECK(status IN('ACTIVE','CONSUMED','REVOKED'));`);
 }
 

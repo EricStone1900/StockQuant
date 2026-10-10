@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-09",
+  "stageId": "V1.3",
+  "status": "PASS_WITH_MANUAL_ACCEPTANCE_PENDING",
+  "codeSuite": {
+    "command": "pnpm verify:stage -- --stage V1.3 --suite code",
+    "exitCode": 0,
+    "log": "evidence/audits/2026-10-09-v13-current-tree-code-suite-a01.log",
+    "sha256": "07bdef193aedd37fca8af11a211089f4d6836fb9ae5426663bde7151c8d4044f"
+  },
+  "webE2E": {
+    "command": "pnpm test:e2e -- --stage V1.3",
+    "exitCode": 0,
+    "passed": 21,
+    "realBrokerCalls": 0,
+    "externalSourceCalls": 0,
+    "isolatedProject": "sq-v13-web-a0c4aaa4c763bdfc819a",
+    "exactProjectResourcesRemoved": true,
+    "log": "evidence/audits/2026-10-09-v13-current-tree-e2e-a02.log",
+    "sha256": "06c4a4423af83083e4d400d6ef0d2edd0592d7f2a818240e6eb40082d915187c",
+    "canonicalScenarioRuns": {
+      "normal": "9c61f86c-f899-463e-9358-e24b2a5ae776",
+      "rejection": "c5ac13a1-aa6f-4f3d-bf5f-52ab4beabdef",
+      "recovery": "87b6c96e-e45a-4423-a9f9-9279aa008d6e"
+    },
+    "screenshotsAndTraces": {
+      "count": 42,
+      "directory": "evidence/audits/2026-10-08-v13-browser-captures-sq-v13-web-a0c4aaa4c763bdfc819a",
+      "sha256Manifest": "evidence/audits/2026-10-09-v13-current-browser-captures-a01.sha256"
+    }
+  },
+  "interactiveStack": {
+    "command": "pnpm stack:up -- --stage V1.3",
+    "isolatedProject": "sq-v13-web-f80938d5f5af5e665db3",
+    "webUrl": "http://127.0.0.1:51322/acceptance/v1/v1.3",
+    "platformApiUrl": "http://127.0.0.1:47587",
+    "tradeExecutionUrl": "http://127.0.0.1:26150",
+    "webHttpStatus": 200,
+    "sessionHttpStatus": 200,
+    "sessionCookieValueRecorded": false,
+    "shutdownCommand": "pnpm stack:down -- --project sq-v13-web-f80938d5f5af5e665db3",
+    "shutdownStatus": "STOPPED_AND_PURGED",
+    "realBrokerCalls": 0,
+    "stackUpLog": "evidence/audits/2026-10-09-v13-interactive-stack-lifecycle-a01.log",
+    "stackDownLog": "evidence/audits/2026-10-09-v13-interactive-stack-down-a01.log"
+  },
+  "firstE2eAttempt": {
+    "command": "pnpm test:e2e -- --stage V1.3",
+    "exitCode": 1,
+    "reason": "Sandbox denied access to Docker socket before business assertions; exact attempted project had no registered isolated stack state and cleanup refused Compose operations",
+    "log": "evidence/audits/2026-10-09-v13-current-tree-e2e-a01.log"
+  },
+  "knownUnverified": [
+    "Current-range human acceptance remains NOT_RUN",
+    "Ubuntu target execution remains NOT_RUN",
+    "This fixed-fixture E2E does not establish complete exchange rules, long-term observation, or full V1 completion"
+  ],
+  "sourceSha256": {
+    "scripts/test-v13-web-e2e-isolated.mjs": "57f76107d0df026f719e12ce0ac1a2a1161eab4bd2d2a761997e83a7327680e8",
+    "scripts/e2e-stage-command.mjs": "5b5adfd35ae309d0ee4045e646c4a429a75a3b0830aebefbcad945ec5815daf2",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "830e77d1b8fa0c8edc996bafddf6e2f85101fc98ae545718a10783e0d219a09a",
+    "infra/compose/docker-compose.v13-integration.yml": "c868a4f47389136d2f92f4077ebf924e44040cceceb88d938b51bc2b79b4fed1",
+    "package.json": "bc235d6206aad06bbf57af504809cffc390b8d89a53dba200e5cba39ac2db080"
+  }
+}

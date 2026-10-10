@@ -76,7 +76,7 @@
     "/internal/v1/v13/paper-orders/execute-auto-proposal": {
       "post": {
         "operationId": "executeV13AutoPolicyProposal",
-        "summary": "Execute an exact AUTO_POLICY proposal through an active Mandate, Portfolio reservation and FakeBroker",
+        "summary": "Execute an exact AUTO_POLICY proposal through an active Mandate, Portfolio reservation and FakeBroker; SEQUENCED creates a working order whose cumulative Fill/cancel events must be separately reported",
         "security": [{ "ServiceBearer": [] }],
         "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v13-auto-paper-execution-command.schema.json" } } } },

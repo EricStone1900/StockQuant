@@ -2,14 +2,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { Pool } from "pg";
 import { GovernanceApi } from "../application/governance-api.js";
 import { loadGovernanceTokens } from "../application/service-auth.js";
-import { PostgresExecutionAuthorizationRepository, migrateExecutionAuthorizations } from "../adapters/postgres-execution-authorization-repository.js";
+import { PostgresExecutionAuthorizationRepository } from "../adapters/postgres-execution-authorization-repository.js";
 import { QuantApprovedRegistryAdapter } from "../adapters/quant-approved-registry-client.js";
 import type { ApprovedRegistryClient } from "../ports/approved-registry-client.js";
 import type { ExecutionAuthorizationRepository } from "../ports/execution-authorization-repository.js";
 import type { GovernanceTokens } from "../application/service-auth.js";
-import { PostgresProposalRepository, migrateProposals } from "../adapters/postgres-proposal-repository.js";
-import { migrateAutoMandates, PostgresAutoMandateRepository } from "../adapters/postgres-auto-mandate-repository.js";
-import { migrateStrategySnapshots, PostgresStrategySnapshotRepository } from "../adapters/postgres-strategy-snapshot-repository.js";
+import { PostgresProposalRepository } from "../adapters/postgres-proposal-repository.js";
+import { PostgresAutoMandateRepository } from "../adapters/postgres-auto-mandate-repository.js";
+import { PostgresStrategySnapshotRepository } from "../adapters/postgres-strategy-snapshot-repository.js";
+import { migrateDecisionGovernanceSchema } from "../adapters/postgres-schema-migrations.js";
 
 type JsonServerResponse = ServerResponse<IncomingMessage>;
 const json = (response: JsonServerResponse, status: number, body: unknown) => { response.writeHead(status, { "content-type": "application/json" }); response.end(JSON.stringify(body)); };
@@ -46,11 +47,11 @@ export function createGovernanceServer(input: { repository: ExecutionAuthorizati
 
 export async function startGovernanceService(env: NodeJS.ProcessEnv = process.env) {
   const pool = new Pool({ connectionString: env.STOCKQUANT_DATABASE_URL });
+  pool.on("error", (error: Error & { code?: string }) => {
+    console.warn(`STOCKQUANT_GOVERNANCE_DATABASE_IDLE_CLIENT_ERROR name=${error.name} code=${error.code ?? "none"}`);
+  });
   try {
-    await migrateExecutionAuthorizations(pool);
-    await migrateProposals(pool);
-    await migrateAutoMandates(pool);
-    await migrateStrategySnapshots(pool);
+    await migrateDecisionGovernanceSchema(pool);
     const registryUrl = env.STOCKQUANT_QUANT_RESEARCH_URL?.trim();
     const registryToken = env.STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE?.trim();
     const registry = registryUrl && registryToken && registryToken.length >= 32

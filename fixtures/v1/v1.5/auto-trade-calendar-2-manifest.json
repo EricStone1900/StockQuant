@@ -1,0 +1,56 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.5-auto-trade-calendar",
+  "fixtureVersion": "v1.5-auto-trade-calendar-2",
+  "stageId": "V1.5",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Three synthetic CN_A and US_EQUITY sessions per market to prove missed-window re-evaluation followed by two independently scoped FakeBroker execution days.",
+    "license": "Internal synthetic simulation schedule; not a complete exchange calendar.",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-09T00:00:00Z",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "Per-session IANA timezone; open and close values are local wall-clock Fixture instants.",
+    "prices": "No prices or market data; the existing AUTO order input remains a separate fixed Fixture.",
+    "sessions": {
+      "count": 6,
+      "start": "2026-01-05",
+      "end": "2026-01-07",
+      "calendar": "Three explicitly listed synthetic sessions per market; the first AUTO window is missed and sessions two and three each create a new scoped proposal and mandate before simulated close reconciliation."
+    },
+    "securities": {},
+    "qualityCases": [
+      "exactly three ordered sessions per market with distinct local timezones",
+      "each session close resolves strictly after its open",
+      "no order is created for a missed first session",
+      "AUTO execution occurs in sessions two and three after fresh session-scoped Proposals and Mandates",
+      "each session close reconciliation reads actual Portfolio and independent FakeBroker facts"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.5/auto-trade-calendar-2.json",
+      "sha256": "793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc",
+      "mediaType": "application/json",
+      "schemaRef": "v15-auto-trade-calendar-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.5-AUTO-MISSED-WINDOW-001",
+      "description": "The first session is marked MISSED_WINDOW with no stale order; each of the next two sessions receives a distinct Proposal, Mandate, order and Fill, followed by independent Portfolio/FakeBroker reconciliation before close."
+    }
+  ]
+}

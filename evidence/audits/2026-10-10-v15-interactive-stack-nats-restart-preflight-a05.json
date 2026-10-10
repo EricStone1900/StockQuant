@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1.5-RETAINED-STACK-NATS-RESTART-PREFLIGHT-A05",
+  "status": "PASS",
+  "project": "sq-v15-stack-bd6742505479a4cd8f94",
+  "service": "nats",
+  "oldContainer": "sq-v15-stack-bd6742505479a4cd8f94-nats-1",
+  "oldHealth": "unhealthy",
+  "configuredNewHealthcheck": [
+    "CMD",
+    "wget",
+    "-q",
+    "-O",
+    "/dev/null",
+    "http://127.0.0.1:8222/healthz?js-enabled-only=true"
+  ],
+  "jetStream": {
+    "accountCount": 1,
+    "streamCount": 1,
+    "messageCount": 1,
+    "storageBytes": 16986,
+    "streamName": "SQV15APP",
+    "streamMessages": 1,
+    "consumerName": "stockquant-v15-temporal-dispatch",
+    "consumerAckPending": 0,
+    "consumerPending": 0,
+    "consumerRedelivered": 0
+  },
+  "testRun": {
+    "status": "WAITING",
+    "scenario": "normal",
+    "assertions": [
+      {
+        "id": "V1.5-SYS-SCHEDULE-001",
+        "status": "WAITING"
+      },
+      {
+        "id": "V1.5-HOLD-002",
+        "status": "PASS"
+      }
+    ],
+    "workflow": "TEMPORAL_COMPLETED",
+    "natsEvidence": "NOT_USED_FOR_NO_TRADE_SESSION_DISPATCH"
+  },
+  "temporalRunningWorkflowCount": 0,
+  "volumePreservedByPlannedComposeOperation": true,
+  "plannedCommand": [
+    "docker",
+    "compose",
+    "-p",
+    "sq-v15-stack-bd6742505479a4cd8f94",
+    "--env-file",
+    "/Users/huangbosong/Documents/ChatGPT/StockQuant/.codex/isolated-stacks/sq-v15-stack-bd6742505479a4cd8f94.env",
+    "-f",
+    "infra/compose/docker-compose.v15-integration.yml",
+    "up",
+    "-d",
+    "--no-deps",
+    "--force-recreate",
+    "nats"
+  ],
+  "scope": "recreate only NATS container, retain existing JetStream volume; do not touch Platform/PostgreSQL/Temporal/Web",
+  "natsVolume": {
+    "type": "volume",
+    "name": "sq-v15-stack-bd6742505479a4cd8f94_nats-jetstream",
+    "destination": "/data/jetstream"
+  }
+}

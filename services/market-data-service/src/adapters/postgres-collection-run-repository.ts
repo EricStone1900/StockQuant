@@ -27,8 +27,8 @@ type Row = QueryResultRow & {
 export class CollectionRunRepository implements CollectionRunPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_collection_runs (
         run_id UUID PRIMARY KEY,
         subscription_id TEXT NOT NULL,

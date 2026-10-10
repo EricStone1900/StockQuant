@@ -13,7 +13,7 @@
         "orderId": { "type": "string", "format": "uuid" },
         "status": { "enum": ["FILLED", "PARTIALLY_FILLED", "REJECTED", "CANCEL_REQUESTED", "CANCELLED", "EXPIRED", "UNKNOWN"] },
         "brokerMode": { "const": "FAKE" },
-        "rejectionReason": { "enum": ["ZERO_VOLUME", "INVALID_BAR", "LIMIT_NOT_MARKETABLE", "INVALID_RULE"] },
+        "rejectionReason": { "enum": ["ZERO_VOLUME", "INVALID_BAR", "LIMIT_NOT_MARKETABLE", "INVALID_RULE", "SUSPENDED", "LOCKED_AT_UPPER_LIMIT", "LOCKED_AT_LOWER_LIMIT"] },
         "fill": {
           "type": "object", "additionalProperties": false,
           "required": ["externalFillId", "quantity", "price", "fee", "effectiveAt"],

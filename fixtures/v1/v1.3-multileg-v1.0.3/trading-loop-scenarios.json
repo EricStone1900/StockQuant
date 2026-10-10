@@ -1,0 +1,96 @@
+{
+  "$schema": "../../manifests/v13-multileg-trading-loop.schema.json",
+  "fixtureId": "v1.3-multileg-paper",
+  "fixtureVersion": "1.0.3",
+  "stageId": "V1.3",
+  "seed": 20260907,
+  "modes": {
+    "environment": "PAPER",
+    "broker": "FAKE"
+  },
+  "scenarios": {
+    "normal": {
+      "CN_A": {
+        "currency": "CNY",
+        "initialCash": "10000.0000",
+        "legs": [
+          {
+            "legId": "buy-sh",
+            "security": "600000.SH",
+            "side": "BUY",
+            "quantity": 100,
+            "price": "10.0000",
+            "fee": "5.0000",
+            "reservedCash": "1005.0000"
+          },
+          {
+            "legId": "buy-sz",
+            "security": "000001.SZ",
+            "side": "BUY",
+            "quantity": 100,
+            "price": "12.0000",
+            "fee": "5.0000",
+            "reservedCash": "1205.0000"
+          }
+        ],
+        "totalReservedCash": "2210.0000",
+        "expectedCash": "7790.0000",
+        "expectedPositions": {
+          "600000.SH": 100,
+          "000001.SZ": 100
+        }
+      },
+      "US_EQUITY": {
+        "currency": "USD",
+        "initialCash": "10000.0000",
+        "legs": [
+          {
+            "legId": "buy-aapl",
+            "security": "AAPL",
+            "side": "BUY",
+            "quantity": 10,
+            "price": "25.0000",
+            "fee": "0.0500",
+            "reservedCash": "250.0500"
+          },
+          {
+            "legId": "buy-msft",
+            "security": "MSFT",
+            "side": "BUY",
+            "quantity": 5,
+            "price": "40.0000",
+            "fee": "0.0500",
+            "reservedCash": "200.0500"
+          }
+        ],
+        "totalReservedCash": "450.1000",
+        "expectedCash": "9549.9000",
+        "expectedPositions": {
+          "AAPL": 10,
+          "MSFT": 5
+        }
+      }
+    },
+    "rejection": {
+      "market": "CN_A",
+      "availableCash": "2209.9999",
+      "maxOrderAmount": "2210.0000",
+      "expectedStatus": "REJECTED",
+      "expectedOrderCount": 0,
+      "expectedFillCount": 0
+    },
+    "recovery": {
+      "market": "CN_A",
+      "faultSequence": [
+        "first leg FakeBroker commit succeeds",
+        "response is lost before batch acknowledgement",
+        "Trade Execution restarts",
+        "retry queries stable child clientOrderId for leg buy-sh",
+        "recover first leg and submit only the not-yet-accepted leg buy-sz"
+      ],
+      "expectedOrderCount": 2,
+      "expectedFillCount": 2,
+      "expectedReconciliation": "MATCH"
+    }
+  }
+}

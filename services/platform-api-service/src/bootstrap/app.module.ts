@@ -18,12 +18,14 @@ import { isV13PaperStageRunRequest, V13_SCENARIOS, V13TradingEngine, type V13Sce
 import { validateV14ExecutionPolicy, V14_CORPORATE_ACTION_POLICY, V14_DEFAULT_EXECUTION_POLICY, V14_SCENARIOS, type V14Scenario } from "../application/v14-backtest.js";
 import { V15_SCENARIOS, V15OrchestrationEngine, type V15Scenario } from "../application/v15-orchestration.js";
 import { loadV15NoTradeCalendar } from "../application/v15-no-trade-calendar.js";
+import { loadV15AutoTradeCalendar } from "../application/v15-auto-trade-calendar.js";
 import { runRealNatsProbe } from "../integration/real-nats-probe.js";
 import { runTemporalProbe } from "../integration/temporal-runtime.js";
 import { V23_SCENARIOS, V23ReplayEngine, parseReplayBars, type V23Scenario } from "../application/v23-replay.js";
 import { V24_SCENARIOS, V24ContinuousPaperEngine, type V24Scenario } from "../application/v24-continuous-paper.js";
 import { ContinuousPaperScheduler } from "../application/v24-scheduler.js";
 import { SystemClock } from "../application/v24-scheduler.js";
+import { V15AutoTradeCancellationService } from "../application/v15-auto-trade-cancellation.js";
 import { parseV24SamplingInterval } from "../application/v24-scheduler.js";
 import { isV24QuoteSourceUseConfigured, V24LiveObservationHandler } from "../application/v24-live-observation.js";
 import { PostgresV24ObservationRepository } from "../adapters/postgres-v24-observation-repository.js";
@@ -88,6 +90,37 @@ function identity(cookie: string | undefined, testHeader: string | undefined): s
   if (!user) throw new UnauthorizedException("local session is required");
   if (user !== localUser) throw new ForbiddenException("user is not authorized for the local acceptance scope");
   return user;
+}
+
+function rejectClientTradingMode(body: unknown): void {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return;
+  const record = body as Record<string, unknown>;
+  if (Object.hasOwn(record, "environmentMode") || Object.hasOwn(record, "brokerMode")) {
+    throw new UnprocessableEntityException("trading mode is fixed by the server and cannot be supplied by a client");
+  }
+}
+
+function rejectClientOwnedV13Facts(body: unknown): void {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return;
+  const record = body as Record<string, unknown>;
+  const forbidden = ["status", "cash", "balance", "positions", "ledger", "ledgerVersion", "orders", "fills"];
+  const injected = forbidden.find((key) => Object.hasOwn(record, key));
+  if (injected) {
+    throw new UnprocessableEntityException(`${injected} is a server-owned V1.3 business fact and cannot be supplied by a client`);
+  }
+}
+
+function rejectUnexpectedFields(body: unknown, allowed: readonly string[], operation: string): void {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return;
+  const allowedFields = new Set(allowed);
+  const unexpected = Object.keys(body as Record<string, unknown>).find((key) => !allowedFields.has(key));
+  if (unexpected) throw new UnprocessableEntityException(`${operation} contains unsupported client field: ${unexpected}`);
+}
+
+function rejectUnexpectedBody(body: unknown, operation: string): void {
+  if (body === undefined || body === null) return;
+  if (typeof body === "object" && !Array.isArray(body) && Object.keys(body as Record<string, unknown>).length === 0) return;
+  throw new UnprocessableEntityException(`${operation} does not accept client-supplied fields`);
 }
 
 @Injectable()
@@ -254,8 +287,11 @@ export class PlatformController {
   async initializeUsAccount(
     @Headers("cookie") cookie: string | undefined,
     @Headers("x-stockquant-user") testHeader: string | undefined,
-    @Param("testRunId") testRunId: string
+    @Param("testRunId") testRunId: string,
+    @Body() body: unknown
   ) {
+    rejectClientTradingMode(body);
+    rejectUnexpectedBody(body, "V1.1 US account initialization");
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.repository.find(testRunId, ownerId);
     if (!run) throw new NotFoundException("V1.1 run was not found in user scope");
@@ -290,8 +326,12 @@ export class PlatformController {
   async createRun(
     @Headers("cookie") cookie: string | undefined,
     @Headers("x-stockquant-user") testHeader: string | undefined,
-    @Body() body: { scenarioId?: ScenarioId; seed?: number }
+    @Body() body: { scenarioId?: ScenarioId; seed?: number; environmentMode?: string; brokerMode?: string }
   ) {
+    rejectClientTradingMode(body);
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["scenarioId", "seed"].includes(key))) {
+      throw new UnprocessableEntityException("V1.1 run request contains unsupported fields");
+    }
     const ownerId = identity(cookie, testHeader);
     const scenarioId = body.scenarioId;
     if (!isV11Scenario(scenarioId)) {
@@ -319,8 +359,10 @@ export class PlatformController {
   async continueRecovery(
     @Headers("cookie") cookie: string | undefined,
     @Headers("x-stockquant-user") testHeader: string | undefined,
-    @Param("testRunId") testRunId: string
+    @Param("testRunId") testRunId: string,
+    @Body() body?: unknown
   ) {
+    rejectUnexpectedBody(body, "V1.1 recovery continuation");
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.repository.find(testRunId, ownerId);
     if (!run) throw new NotFoundException("test run was not found in user scope");
@@ -370,11 +412,12 @@ export class V12AcceptanceController {
   @Get("data/normal") normal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.marketDataClient.getV12NormalFixturePreview(); }
   @Get("data/bad-future") bad(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.marketDataClient.getV12FutureFixturePreview(); }
   @Get("data/research") researchFixture(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.marketDataClient.getV12ResearchFixturePreview(); }
-  @Get("quant/probe") probe() { return this.quantPreviewClient.getV12QlibProbe(); }
-  @Get("quant/factors") factors() { return this.quantPreviewClient.getV12FactorPreview(); }
-  @Get("quant/rdagent-probe") rdagent() { return this.quantPreviewClient.getV12RDagentProbe(); }
-  @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V12Scenario; seed?: number }) { const ownerId = identity(cookie, testHeader); const scenarioId = body.scenarioId; if (!V12_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V1.2"); return this.service.create(ownerId, scenarioId as V12Scenario, body.seed ?? 20260907); }
-  @Post("runs/:testRunId/cancel") @HttpCode(202) async cancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string) {
+  @Get("quant/probe") probe(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.quantPreviewClient.getV12QlibProbe(); }
+  @Get("quant/factors") factors(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.quantPreviewClient.getV12FactorPreview(); }
+  @Get("quant/rdagent-probe") rdagent(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.quantPreviewClient.getV12RDagentProbe(); }
+  @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V12Scenario; seed?: number }) { const ownerId = identity(cookie, testHeader); if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["scenarioId", "seed"].includes(key))) throw new UnprocessableEntityException("V1.2 run request contains unsupported fields"); const scenarioId = body.scenarioId; if (!V12_SCENARIOS.some((item) => item.scenarioId === scenarioId)) throw new ForbiddenException("scenario is not available for V1.2"); return this.service.create(ownerId, scenarioId as V12Scenario, body.seed ?? 20260907); }
+  @Post("runs/:testRunId/cancel") @HttpCode(202) async cancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "V1.2 cancellation");
     const run = await this.service.cancel(testRunId, identity(cookie, testHeader));
     return { accepted: true, testRunId, status: run.status, cancelRequested: (run.evidence.qlibTask as Record<string, unknown> | undefined)?.cancelRequested === true };
   }
@@ -428,6 +471,8 @@ export class V13AcceptanceController {
   }
   @Post("runs/:testRunId/accounts") @HttpCode(201)
   async initializeAccount(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body: { market?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3") throw new NotFoundException("V1.3 TestRun was not found in user scope");
@@ -452,6 +497,8 @@ export class V13AcceptanceController {
   }
   @Post("runs/:testRunId/clock/advance-session") @HttpCode(200)
   async advanceV13Session(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body: { expectedClock?: string; accountId?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
     const ownerId = identity(cookie, testHeader);
     try {
       return await this.sessionAdvance.advance({ testRunId, ownerId, accountId: body.accountId ?? "", expectedClock: body.expectedClock ?? "" });
@@ -465,7 +512,8 @@ export class V13AcceptanceController {
     }
   }
   @Post("runs/:testRunId/external-orders/observe") @HttpCode(201)
-  async observeV13ExternalOrder(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string) {
+  async observeV13ExternalOrder(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "external-order observation");
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3" || typeof run.evidence.runClockNow !== "string") throw new NotFoundException("V1.3 TestRun was not found in user scope");
@@ -495,6 +543,9 @@ export class V13AcceptanceController {
   @Post("runs/:testRunId/proposals") @HttpCode(201)
   async createProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body: Omit<V13ProposalCommand, "ownerId" | "testRunId">) {
     const ownerId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["idempotencyKey", "accountId", "strategyVersion", "approvalMode", "market", "currency", "operation", "expiresAt", "legs"], "V1.3 proposal creation");
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3") throw new NotFoundException("V1.3 TestRun was not found in user scope");
     const approvalMode = body.approvalMode ?? "MANUAL_APPROVAL";
@@ -510,7 +561,7 @@ export class V13AcceptanceController {
       if (error instanceof PortfolioAccountClientError && error.status === 404) throw new NotFoundException("isolated Portfolio account was not found");
       throw new ServiceUnavailableException("could not verify isolated Portfolio account ownership and TestRun scope");
     }
-    const response = await this.v13ProposalClient().createProposal({ ...body, market: verifiedAccount.market as "CN_A" | "US_EQUITY", currency: verifiedAccount.cash.currency as "CNY" | "USD", ownerId, testRunId });
+    const response = await this.v13ProposalClient().createProposal({ ...body, market: verifiedAccount.market as "CN_A" | "US_EQUITY", currency: verifiedAccount.cash.currency as "CNY" | "USD", environmentMode: "PAPER", brokerMode: "FAKE", ownerId, testRunId });
     if (response.status === 201 && response.body && "proposalId" in response.body) return response.body;
     if (response.status === 409) throw new ConflictException(response.body);
     if (response.status === 422) throw new UnprocessableEntityException(response.body);
@@ -519,6 +570,9 @@ export class V13AcceptanceController {
   @Post("runs/:testRunId/auto-mandates") @HttpCode(201)
   async createAutoMandate(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body: { mandateId: string; accountId: string; strategyVersion: string; market: "CN_A" | "US_EQUITY"; currency: "CNY" | "USD"; securityScope: string[]; maxOrderAmount: string; maxTotalAmount: string; maxOrderCount: number; validFrom: string; expiresAt: string; reason: string }) {
     const ownerId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["mandateId", "accountId", "strategyVersion", "market", "currency", "securityScope", "maxOrderAmount", "maxTotalAmount", "maxOrderCount", "validFrom", "expiresAt", "reason"], "V1.3 AUTO_POLICY Mandate creation");
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3" || typeof run.evidence.runClockNow !== "string") throw new NotFoundException("V1.3 TestRun or its injected clock was not found");
     if (body.strategyVersion !== "fixture-auto-policy-test-v1") throw new ForbiddenException("only the isolated AUTO_POLICY Fixture strategy can receive a V1.3 test Mandate");
@@ -533,7 +587,17 @@ export class V13AcceptanceController {
       throw new ServiceUnavailableException("could not verify AUTO_POLICY Mandate account ownership and TestRun scope");
     }
     const response = await this.autoMandateClient().create({ mandateId: body.mandateId, mandateVersion: 1, testRunId, accountId: body.accountId, strategyVersion: body.strategyVersion, market: body.market, currency: body.currency, securityScope: body.securityScope, maxOrderAmount: body.maxOrderAmount, maxTotalAmount: body.maxTotalAmount, maxOrderCount: body.maxOrderCount, validFrom: body.validFrom, expiresAt: body.expiresAt, reason: body.reason.trim(), now: run.evidence.runClockNow }, ownerId, ownerId);
-    if (response.status === 201 || response.status === 200) return response.body;
+    if (response.status === 201 || response.status === 200) {
+      const created = response.body as { status?: string; contentHash?: string; replayed?: boolean } | undefined;
+      if (!created?.status || !created.contentHash) throw new ServiceUnavailableException("Decision Governance AUTO_POLICY Mandate create response omitted its persisted identity");
+      return {
+        mandateId: body.mandateId, mandateVersion: 1, testRunId, accountId: body.accountId, ownerId,
+        strategyVersion: body.strategyVersion, market: body.market, currency: body.currency,
+        securityScope: body.securityScope, maxOrderAmount: body.maxOrderAmount, maxTotalAmount: body.maxTotalAmount,
+        maxOrderCount: body.maxOrderCount, validFrom: body.validFrom, expiresAt: body.expiresAt,
+        status: created.status, contentHash: created.contentHash, replayed: created.replayed === true,
+      };
+    }
     if (response.status === 409) throw new ConflictException(response.body);
     if (response.status === 422) throw new UnprocessableEntityException(response.body);
     throw new ServiceUnavailableException(`Decision Governance AUTO_POLICY Mandate create failed (${response.status})`);
@@ -549,9 +613,32 @@ export class V13AcceptanceController {
     if (response.status === 404) throw new NotFoundException("Mandate was not found in this owner/TestRun scope");
     throw new ServiceUnavailableException(`Decision Governance AUTO_POLICY Mandate read failed (${response.status})`);
   }
+  @Get("runs/:testRunId/auto-mandates/:mandateId/versions/:mandateVersion/budget")
+  async readAutoMandateBudget(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("mandateId") mandateId: string, @Param("mandateVersion") versionText: string) {
+    const ownerId = identity(cookie, testHeader);
+    const run = await this.container.stageRuns.find(testRunId, ownerId);
+    const mandateVersion = Number(versionText);
+    if (!run || run.stageId !== "V1.3") throw new NotFoundException("V1.3 TestRun was not found in user scope");
+    if (!/^[0-9a-f-]{36}$/iu.test(mandateId) || !Number.isSafeInteger(mandateVersion) || mandateVersion < 1) throw new UnprocessableEntityException("valid Mandate UUID and version are required");
+    const mandateResponse = await this.autoMandateClient().read(mandateId, testRunId, ownerId);
+    if (mandateResponse.status === 404) throw new NotFoundException("Mandate was not found in this owner/TestRun scope");
+    const mandate = mandateResponse.body as Record<string, unknown> | undefined;
+    if (mandateResponse.status !== 200 || !mandate || mandate.mandateId !== mandateId || mandate.ownerId !== ownerId || mandate.testRunId !== testRunId || mandate.mandateVersion !== mandateVersion) throw new ServiceUnavailableException(`Decision Governance Mandate scope read failed (${mandateResponse.status})`);
+    const response = await this.autoMandateClient().readBudget(mandateId, testRunId, mandateVersion, ownerId);
+    if (response.status === 404) throw new NotFoundException("Mandate budget was not found in this owner/TestRun scope");
+    if (response.status !== 200 || !response.body || typeof response.body !== "object") throw new ServiceUnavailableException(`Decision Governance Mandate budget read failed (${response.status})`);
+    const budget = response.body as Record<string, unknown>;
+    const verified = budget.ownerId === ownerId && budget.testRunId === testRunId && budget.mandateId === mandateId && budget.mandateVersion === mandateVersion
+      && budget.reservedAmount === "0.00" && budget.consumedAmount !== undefined && budget.releasedAmount === "0.00"
+      && budget.reservationCount === 1 && budget.consumedCount === 1 && budget.releasedCount === 0;
+    return { status: verified ? "VERIFIED" : "NOT_VERIFIED", readStatus: response.status, snapshot: budget };
+  }
   @Post("runs/:testRunId/auto-mandates/:mandateId/activate")
   async activateAutoMandate(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("mandateId") mandateId: string, @Body() body: { mandateVersion?: number; contentHash?: string; reason?: string }) {
     const ownerId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["mandateVersion", "contentHash", "reason"], "V1.3 AUTO_POLICY Mandate activation");
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3" || typeof run.evidence.runClockNow !== "string") throw new NotFoundException("V1.3 TestRun or its injected clock was not found");
     if (!Number.isSafeInteger(body.mandateVersion) || !/^[a-f0-9]{64}$/u.test(body.contentHash ?? "") || !body.reason?.trim()) throw new UnprocessableEntityException("exact Mandate version/hash and activation reason are required");
@@ -564,6 +651,9 @@ export class V13AcceptanceController {
   @Post("runs/:testRunId/auto-mandates/:mandateId/pause")
   async pauseAutoMandate(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("mandateId") mandateId: string, @Body() body: { mandateVersion?: number; reason?: string }) {
     const ownerId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["mandateVersion", "reason"], "V1.3 AUTO_POLICY Mandate pause");
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3" || typeof run.evidence.runClockNow !== "string") throw new NotFoundException("V1.3 TestRun or its injected clock was not found");
     if (!Number.isSafeInteger(body.mandateVersion) || !body.reason?.trim()) throw new UnprocessableEntityException("exact Mandate version and pause reason are required");
@@ -588,6 +678,9 @@ export class V13AcceptanceController {
   @Post("runs/:testRunId/proposals/:proposalId/revisions/append")
   async reviseProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Body() body: { expectedVersion?: number; expectedContentHash?: string; operation?: "HOLD" | "REBALANCE"; expiresAt?: string; legs?: V13ProposalCommand["legs"]; reason?: string }) {
     const actorId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["expectedVersion", "expectedContentHash", "operation", "expiresAt", "legs", "reason"], "V1.3 proposal revision");
     try {
       return await reviseV13Proposal({ ownerId: actorId, testRunId, proposalId, expectedVersion: body.expectedVersion ?? 0, expectedContentHash: body.expectedContentHash ?? "", operation: body.operation ?? "", expiresAt: body.expiresAt ?? "", legs: body.legs ?? [], reason: body.reason ?? "" }, {
         findRun: (runId, ownerId) => this.container.stageRuns.find(runId, ownerId),
@@ -611,6 +704,9 @@ export class V13AcceptanceController {
   @Post("runs/:testRunId/proposals/:proposalId/:action")
   async decideProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("action") action: string, @Body() body: { expectedVersion?: number; expectedContentHash?: string; reason?: string }) {
     const actorId = identity(cookie, testHeader);
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["expectedVersion", "expectedContentHash", "reason"], "V1.3 proposal decision");
     try {
       return await decideV13Proposal({ ownerId: actorId, testRunId, proposalId, action, expectedVersion: body.expectedVersion ?? 0, expectedContentHash: body.expectedContentHash ?? "", reason: body.reason ?? "" }, {
         findRun: (runId, ownerId) => this.container.stageRuns.find(runId, ownerId),
@@ -633,6 +729,8 @@ export class V13AcceptanceController {
   }
   @Post("runs/:testRunId/proposals/:proposalId/execution/submit") @HttpCode(202)
   async executeProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Body() body: { clientOrderId?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
     const ownerId = identity(cookie, testHeader);
     try {
       return await executeV13ManualProposal({ ownerId, testRunId, proposalId, clientOrderId: body.clientOrderId ?? "" }, {
@@ -655,12 +753,14 @@ export class V13AcceptanceController {
       if (error.status === 404) throw new NotFoundException(error.message);
       if (error.status === 403) throw new ForbiddenException(error.body ?? error.message);
       if (error.status === 409) throw new ConflictException(error.body ?? error.message);
-      if (error.status === 422) throw new UnprocessableEntityException(error.message);
+      if (error.status === 422) throw new UnprocessableEntityException(error.body ?? error.message);
       throw new ServiceUnavailableException(error.message);
     }
   }
   @Post("runs/:testRunId/proposals/:proposalId/sequenced-execution/submit") @HttpCode(202)
   async executeSequencedProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Body() body: { clientOrderId?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3" || typeof run.evidence.runClockNow !== "string") throw new NotFoundException("V1.3 TestRun or its injected clock was not found");
@@ -686,7 +786,8 @@ export class V13AcceptanceController {
     throw new ServiceUnavailableException(`V1.3 sequenced Trade Execution failed (${result.status})`);
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/sequenced-reports/:sequence") @HttpCode(200)
-  async recordSequencedProposalFill(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Param("sequence") sequenceText: string) {
+  async recordSequencedProposalFill(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Param("sequence") sequenceText: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "sequenced fill report");
     const ownerId = identity(cookie, testHeader);
     const container = this.container;
     try {
@@ -735,13 +836,15 @@ export class V13AcceptanceController {
     throw new ServiceUnavailableException(error.message);
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/cancel-request") @HttpCode(202)
-  async requestL07SequencedCancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string) {
+  async requestL07SequencedCancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "sequenced cancel request");
     const ownerId = identity(cookie, testHeader);
     try { return await requestV13L07SequencedCancel({ ownerId, testRunId, proposalId, clientOrderId }, this.v13CancelPorts(cookie, testHeader)); }
     catch (error) { this.mapV13OrderCancelError(error); }
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/cancel-results/:sequence") @HttpCode(200)
-  async resolveL07SequencedCancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Param("sequence") sequenceText: string) {
+  async resolveL07SequencedCancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Param("sequence") sequenceText: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "sequenced cancel result");
     const ownerId = identity(cookie, testHeader);
     try { return await resolveV13L07SequencedCancel({ ownerId, testRunId, proposalId, clientOrderId, sequence: Number(sequenceText) }, this.v13CancelPorts(cookie, testHeader)); }
     catch (error) { this.mapV13OrderCancelError(error); }
@@ -755,6 +858,8 @@ export class V13AcceptanceController {
   }
   @Post("runs/:testRunId/proposals/:proposalId/auto-execution/submit") @HttpCode(202)
   async executeAutoProposal(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Body() body: { mandateId?: string; mandateVersion?: number; clientOrderId?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
     const ownerId = identity(cookie, testHeader);
     const container = this.container;
     try {
@@ -772,6 +877,10 @@ export class V13AcceptanceController {
           }
         },
         executeTrade: (command) => new GeneratedPlatformV13ManualTradeClient(container.tradeExecutionUrl, container.portfolioToken).executeAutoPolicyProposal(command),
+        readMandateBudget: async (mandateId, runId, version, actor) => {
+          const response = await new GeneratedPlatformV13AutoMandateClient(container.governanceUrl, container.portfolioToken).readBudget(mandateId, runId, version, actor);
+          return { status: response.status, ...(response.body && typeof response.body === "object" ? { body: response.body as Record<string, unknown> } : {}) };
+        },
       });
     } catch (error) {
       if (!(error instanceof V13AutoExecutionError)) throw error;
@@ -791,11 +900,20 @@ export class V13AcceptanceController {
     if (proposalResponse.status !== 200 || !proposalResponse.body || !("proposalId" in proposalResponse.body)) throw new NotFoundException("proposal was not found in user scope");
     const proposal = proposalResponse.body as V13ProposalResult;
     if (proposal.ownerId !== ownerId || proposal.testRunId !== testRunId) throw new NotFoundException("proposal was not found in this TestRun scope");
-    const result = await new GeneratedPlatformV13ManualTradeClient(this.container.tradeExecutionUrl, this.container.portfolioToken).readOrderByClientId(run.namespace, clientOrderId);
-    if (result.status === 404) throw new NotFoundException("FakeBroker order was not found in this TestRun namespace");
-    if (result.status !== 200) throw new ServiceUnavailableException(`V1.3 FakeBroker original-order read failed (${result.status})`);
-    const facts = result.body as { authorization?: Record<string, unknown> };
-    if (facts.authorization?.proposalId !== proposalId || facts.authorization.ownerId !== ownerId || facts.authorization.testRunId !== testRunId) throw new NotFoundException("FakeBroker order was not created from this exact owner/TestRun Proposal");
+    const trade = new GeneratedPlatformV13ManualTradeClient(this.container.tradeExecutionUrl, this.container.portfolioToken);
+    const childClientOrderIds = proposal.legs.length > 1
+      ? proposal.legs.map((_leg, index) => `${clientOrderId}:leg:${String(index + 1).padStart(2, "0")}`)
+      : [clientOrderId];
+    const childResults: Array<Record<string, any>> = [];
+    for (const childClientOrderId of childClientOrderIds) {
+      const child = await trade.readOrderByClientId(run.namespace, childClientOrderId);
+      if (child.status === 404) throw new NotFoundException("FakeBroker order was not found in this TestRun namespace");
+      if (child.status !== 200 || !child.body || typeof child.body !== "object") throw new ServiceUnavailableException(`V1.3 FakeBroker original-order read failed (${child.status})`);
+      const childFacts = child.body as Record<string, any>;
+      if (childFacts.authorization?.proposalId !== proposalId || childFacts.authorization.ownerId !== ownerId || childFacts.authorization.testRunId !== testRunId) throw new NotFoundException("FakeBroker order was not created from this exact owner/TestRun Proposal");
+      childResults.push(childFacts);
+    }
+    const facts = childResults[0];
     const assetsResponse = await new GeneratedPlatformV13ManualTradeClient(this.container.tradeExecutionUrl, this.container.portfolioToken).readIndependentAssets(run.namespace, proposal.accountId);
     if (assetsResponse.status === 404) throw new NotFoundException("independent FakeBroker asset ledger was not found");
     if (assetsResponse.status !== 200 || !assetsResponse.body || typeof assetsResponse.body !== "object") throw new ServiceUnavailableException(`V1.3 independent FakeBroker asset read failed (${assetsResponse.status})`);
@@ -809,8 +927,37 @@ export class V13AcceptanceController {
     const brokerPositions = [...(assets.positions ?? [])].sort((left, right) => left.security.localeCompare(right.security));
     const positionsMatch = JSON.stringify(portfolioPositions) === JSON.stringify(brokerPositions);
     const cashMatch = assets.currency === portfolio.cash.currency && typeof assets.current_cash === "string" && normalizeMoney(assets.current_cash) === normalizeMoney(portfolio.cash.amount);
-    const runReservation = (portfolio.reservations ?? []).filter((item) => item.clientOrderId === clientOrderId);
-    return { ...(result.body as Record<string, unknown>), independentAssets: assets, reconciliation: { status: cashMatch && positionsMatch ? "MATCH" : "DISCREPANCY", portfolio: { cash: portfolio.cash, positions: portfolioPositions, reservations: runReservation }, fakeBroker: { currency: assets.currency, currentCash: assets.current_cash, positions: brokerPositions }, discrepancies: [...(!cashMatch ? ["CASH_MISMATCH"] : []), ...(!positionsMatch ? ["POSITION_MISMATCH"] : [])] } };
+    const runReservation = (portfolio.reservations ?? []).filter((item) => childClientOrderIds.includes(item.clientOrderId));
+    let mandateBudgetVerification: Record<string, unknown> | undefined;
+    const mandateId = facts.authorization?.mandateId;
+    const mandateVersion = facts.authorization?.mandateVersion;
+    if (typeof mandateId === "string" && Number.isSafeInteger(mandateVersion)) {
+      try {
+        const budgetResponse = await this.autoMandateClient().readBudget(mandateId, testRunId, Number(mandateVersion), ownerId);
+        const budget = budgetResponse.body as Record<string, unknown> | undefined;
+        const verified = budgetResponse.status === 200 && budget !== undefined
+          && budget.ownerId === ownerId && budget.testRunId === testRunId && budget.mandateId === mandateId
+          && budget.mandateVersion === mandateVersion && budget.reservedAmount === "0.00"
+          && budget.consumedAmount !== undefined && budget.releasedAmount === "0.00"
+          && budget.reservationCount === 1 && budget.consumedCount === 1 && budget.releasedCount === 0;
+        mandateBudgetVerification = { status: verified ? "VERIFIED" : "NOT_VERIFIED", readStatus: budgetResponse.status, snapshot: budget ?? null };
+      } catch {
+        mandateBudgetVerification = { status: "NOT_VERIFIED", readStatus: "UNAVAILABLE", snapshot: null };
+      }
+    }
+    const reconciliation = { status: cashMatch && positionsMatch ? "MATCH" : "DISCREPANCY", portfolio: { cash: portfolio.cash, positions: portfolioPositions, reservations: runReservation }, fakeBroker: { currency: assets.currency, currentCash: assets.current_cash, positions: brokerPositions }, discrepancies: [...(!cashMatch ? ["CASH_MISMATCH"] : []), ...(!positionsMatch ? ["POSITION_MISMATCH"] : [])] };
+    if (childResults.length > 1) return {
+      replayed: childResults.every((item) => item.replayed === true),
+      orders: childResults.map((item) => ({ ...item, clientOrderId: item.order?.clientOrderId })),
+      fills: childResults.map((item) => item.fill).filter(Boolean),
+      outboxes: childResults.map((item) => item.outbox),
+      order: childResults[0].order,
+      fill: childResults[0].fill,
+      outbox: childResults[0].outbox,
+      authorization: facts.authorization,
+      ...(mandateBudgetVerification ? { mandateBudgetVerification } : {}), independentAssets: assets, reconciliation,
+    };
+    return { ...(childResults[0] as Record<string, unknown>), ...(mandateBudgetVerification ? { mandateBudgetVerification } : {}), independentAssets: assets, reconciliation };
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/fills/:externalFillId/fee-corrections")
   @HttpCode(202)
@@ -854,6 +1001,7 @@ export class V14AcceptanceController {
   @Get("scenarios") scenarios(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return V14_SCENARIOS; }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V14Scenario; seed?: number; policy?: unknown }) {
     const ownerId = identity(cookie, testHeader);
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["scenarioId", "seed", "policy"].includes(key))) throw new UnprocessableEntityException("V1.4 run request contains unsupported fields");
     if (!V14_SCENARIOS.some((s) => s.scenarioId === body.scenarioId)) throw new ForbiddenException("scenario is not available for V1.4");
     let policy: typeof V14_DEFAULT_EXECUTION_POLICY;
     try {
@@ -874,7 +1022,7 @@ export class V14AcceptanceController {
     if (!verified) throw new NotFoundException("V1.4 report does not belong to this owner/TestRun or failed its immutable hash check");
     return { artifactRef: verified.ref, content: verified.payload };
   }
-  @Post("runs/:testRunId/cancel") @HttpCode(202) async cancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.service.cancel(id, identity(cookie, testHeader)); return { accepted: true, testRunId: run.testRunId, status: run.status, cancelRequested: true }; }
+  @Post("runs/:testRunId/cancel") @HttpCode(202) async cancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string, @Body() body?: unknown) { rejectUnexpectedBody(body, "V1.4 cancellation"); const run = await this.service.cancel(id, identity(cookie, testHeader)); return { accepted: true, testRunId: run.testRunId, status: run.status, cancelRequested: true }; }
   resumePending() { return this.service.resumePending(); }
 }
 
@@ -882,18 +1030,29 @@ export class V14AcceptanceController {
 export class V15AcceptanceController {
   private readonly engine = new V15OrchestrationEngine();
   private readonly service: PersistentStageRunService;
-  constructor(private readonly container: PlatformContainer) { this.service = new PersistentStageRunService(container.stageRuns, "V1.5", (scenarioId, seed) => this.engine.run(scenarioId as V15Scenario, seed), () => "1.1.0"); }
+  private readonly cancellation: V15AutoTradeCancellationService;
+  constructor(private readonly container: PlatformContainer) {
+    this.service = new PersistentStageRunService(container.stageRuns, "V1.5", (scenarioId, seed) => this.engine.run(scenarioId as V15Scenario, seed), () => "1.1.0");
+    this.cancellation = new V15AutoTradeCancellationService(container.stageRuns, container.schedulerClock);
+  }
   @Get("scenarios") scenarios(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return V15_SCENARIOS; }
+  @Get("runs") async listRuns(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Query("limit") limit?: string) {
+    const ownerId = identity(cookie, testHeader);
+    const parsedLimit = limit === undefined ? 20 : Number(limit);
+    if (!Number.isSafeInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 50) throw new UnprocessableEntityException("limit must be an integer from 1 to 50");
+    return this.container.stageRuns.listV15Runs(ownerId, parsedLimit);
+  }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V15Scenario; seed?: number }) {
     const ownerId = identity(cookie, testHeader);
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["scenarioId", "seed"].includes(key))) throw new UnprocessableEntityException("V1.5 run request contains unsupported fields");
     if (!V15_SCENARIOS.some((s) => s.scenarioId === body.scenarioId)) throw new ForbiddenException("scenario is not available for V1.5");
     const scenarioId = body.scenarioId as V15Scenario;
-    if (scenarioId !== "normal" || !process.env.STOCKQUANT_TEMPORAL_ADDRESS || !process.env.STOCKQUANT_NATS_URL) {
+    if (!["normal", "auto-trade", "rejection", "recovery"].includes(scenarioId) || !process.env.STOCKQUANT_TEMPORAL_ADDRESS || !process.env.STOCKQUANT_NATS_URL) {
       return { ...(await this.service.create(ownerId, scenarioId, body.seed ?? 20260907)), workflowDispatch: "NOT_CONNECTED" };
     }
     const run = this.engine.run(scenarioId, body.seed ?? 20260907);
-    const namespace = `v1-5-normal-${run.testRunId}`;
-    const fixture = loadV15NoTradeCalendar();
+    const namespace = `v1-5-${scenarioId}-${run.testRunId}`;
+    const fixture = scenarioId === "auto-trade" ? loadV15AutoTradeCalendar() : loadV15NoTradeCalendar();
     await this.container.stageRuns.enqueueV15NoTrade(
       { ...run, ownerId, namespace, evidence: { ...run.evidence, workflow: "NATS_OUTBOX_QUEUED", nats: "OUTBOX_PENDING", temporal: "WAITING", businessExecution: "QUEUED" } },
       { testRunId: run.testRunId, ownerId, namespace, seed: run.seed, scenarioId, ...fixture }
@@ -901,6 +1060,24 @@ export class V15AcceptanceController {
     return { accepted: true, testRunId: run.testRunId, status: run.status, workflowDispatch: "NATS_OUTBOX_QUEUED" };
   }
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.service.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V1.5") throw new NotFoundException("V1.5 run was not found in user scope"); return run; }
+  @Get("runs/:testRunId/incidents") async incidents(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
+    const ownerId = identity(cookie, testHeader);
+    return this.container.stageRuns.projectV15RunIncidents(id, ownerId);
+  }
+  @Post("runs/:testRunId/incidents/:incidentId/acknowledge") @HttpCode(200)
+  async acknowledgeIncident(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("incidentId") incidentId: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "V1.5 incident acknowledgement");
+    const actorId = identity(cookie, testHeader);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(incidentId)) throw new NotFoundException("V1.5 incident was not found");
+    await this.container.stageRuns.projectV15RunIncidents(testRunId, actorId);
+    return this.container.stageRuns.acknowledgeV15RunIncident(testRunId, actorId, incidentId, actorId);
+  }
+  @Post("runs/:testRunId/cancel") @HttpCode(202) async cancelAutoTrade(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string, @Body() body?: unknown) {
+    rejectUnexpectedBody(body, "V1.5 cancellation");
+    const ownerId = identity(cookie, testHeader);
+    const run = await this.cancellation.request(id, ownerId);
+    return { accepted: true, testRunId: run.testRunId, cancellation: run.evidence.autoTradeCancellation };
+  }
 }
 
 @Controller("api/v1/acceptance/v2/v2.4")

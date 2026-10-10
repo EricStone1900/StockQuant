@@ -7,7 +7,7 @@ export interface ReplayPortfolioClient {
 
 export interface ReplayTradeExecutionClient {
   executeHistoricalFakeOrder(body: Contracts.HistoricalFakeExecutionCommand): Promise<Contracts.HistoricalFakeExecutionResult>;
-  readHistoricalFakeOrderById(orderId: string): Promise<Contracts.HistoricalFakeOrderState>;
+  readHistoricalFakeOrderById(orderId: string, namespace: string): Promise<Contracts.HistoricalFakeOrderState>;
 }
 
 export interface ReplayGovernanceAndResearchClient {

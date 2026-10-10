@@ -119,8 +119,8 @@ S0～S6是服务生命周期。以下D编号是交付包，禁止继续发明S7/
 | uv run ruff check . / uv run mypy src | Python质量/类型 |
 | uv run pytest tests/unit、tests/integration、tests/contract、tests/e2e | 各服务创建对应目录/标记，区分Fake和真实依赖 |
 | pnpm stack:up / stack:down | 启停基础/模拟/生产组；down不默认删除业务卷 |
-| pnpm seed:paper | 固定CN/US/FX模拟输入幂等初始化 |
-| pnpm verify:paper / verify:shadow | 双市场Paper真实服务闭环/真实时间Shadow |
+| `pnpm seed:paper -- --stage V1.3 --run <TestRun UUID>` | 在登录owner范围内对既有WAITING V1.3 Run幂等初始化CN_A/CNY与US_EQUITY/USD PAPER+FAKE账户；只接受loopback API、不会创建订单/成交。FX不属于当前V1范围，后续版本另行排期。 |
+| `pnpm verify:paper` / `pnpm verify:shadow` | 前者运行当前V1.3双市场Paper/FakeBroker完整隔离Web/API/CLI E2E；后者属于真实时间Shadow观察，当前不在V1范围，保持未实现。 |
 | pnpm verify:release | 按market/account检查证据和配置，默认只读，不隐式发实盘单 |
 | pnpm backup / restore:verify | 备份、隔离恢复验证；记录Hash/版本和结果 |
 

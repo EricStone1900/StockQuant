@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "v1.1-interactive-stack-lifecycle-v1",
+  "status": "PASS",
+  "stage": "V1.1",
+  "date": "2026-10-09",
+  "commandSequence": [
+    "pnpm stack:up -- --stage V1.1",
+    "GET /api/v1/session",
+    "GET /acceptance/v1/v1.1",
+    "pnpm stack:down -- --project sq-v11-stack-53867a668e79209fcb2f"
+  ],
+  "isolatedProject": "sq-v11-stack-53867a668e79209fcb2f",
+  "webUrl": "http://127.0.0.1:53152/acceptance/v1/v1.1",
+  "platformApiUrl": "http://127.0.0.1:53151",
+  "identity": {
+    "sessionHttpStatus": 200,
+    "setCookieName": "sq_session",
+    "cookieValueRecorded": false,
+    "ownerId": "acceptance-owner-1"
+  },
+  "webHttpStatus": 200,
+  "brokerMode": "FAKE",
+  "environmentMode": "PAPER",
+  "liveTradingEnabled": false,
+  "stackUpExit": 0,
+  "stackDownExit": 0,
+  "cleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "networks": 0,
+    "projectImages": 0,
+    "credentialsAndStateFileRemoved": true
+  },
+  "sourceSha256": {
+    "scripts/stack-up.mjs": "7424e81f6810b27196a82c5f2f9cc02efe4aa0721762588b2e4ba21c3f88eeca",
+    "scripts/stack-down.mjs": "b941dc0290e8d537763eeba31f5cd90b310b7627dde34cdf88f34c79f53810d5",
+    "scripts/remove-isolated-project-images.mjs": "e18486be8d2e0d9e2f20975491a8c0c66099821f4782a400ed3921eeab6e7ff4",
+    "scripts/stack-down-images.test.mjs": "0bd335e4a2e1db7e2f18c514df5484c8add244f67744712b5d0264f9b80c06e3"
+  },
+  "stackUpLog": "evidence/audits/2026-10-09-v11-current-stack-up-a02.log",
+  "stackUpLogSha256": "611239c14e17bfb72e718aa6c3b2a6c6b695dfab95bfb4e6e118bafcd73c5769",
+  "stackDownLog": "evidence/audits/2026-10-09-v11-current-stack-down-a02.log",
+  "stackDownLogSha256": "ca57a02d31881d8165442409295ef2f972604f7840e65170415eefd2ecd93126",
+  "firstAttemptFailure": "Before the isolated-image cleanup fix, stack:down removed containers, volumes, network and registration but left three project-specific image tags; those exact tags were removed and verified. The fixed lifecycle passed on a new isolated project; the failure is retained in 2026-10-09-v11-current-stack-down-a01.log."
+}

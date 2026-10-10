@@ -6,7 +6,9 @@ export interface HistoricalExecutionCommand {
   clientOrderId: string;
   security: string;
   requestedQuantity: number;
-  bar: { timestamp: string; open: string; volume: number };
+  /** Explicit independent FakeBroker account seed, bound into the authorized request hash. */
+  initialAccountCash?: string;
+  bar: { timestamp: string; open: string; volume: number; high?: string; low?: string; close?: string; tradingStatus?: "TRADED" | "SUSPENDED"; upperLimit?: string; lowerLimit?: string };
   side?: "BUY" | "SELL";
   orderType?: "MARKET" | "LIMIT";
   timeInForce?: "DAY";
@@ -38,10 +40,17 @@ export function historicalExecutionFingerprint(command: HistoricalExecutionComma
     clientOrderId: command.clientOrderId,
     security: command.security,
     requestedQuantity: command.requestedQuantity,
+    initialAccountCash: command.initialAccountCash ?? null,
     bar: {
       timestamp: command.bar.timestamp,
       open: command.bar.open,
-      volume: command.bar.volume
+      volume: command.bar.volume,
+      high: command.bar.high ?? null,
+      low: command.bar.low ?? null,
+      close: command.bar.close ?? null,
+      tradingStatus: command.bar.tradingStatus ?? null,
+      upperLimit: command.bar.upperLimit ?? null,
+      lowerLimit: command.bar.lowerLimit ?? null
     },
     side: command.side ?? "BUY",
     orderType: command.orderType ?? "MARKET",
@@ -59,6 +68,8 @@ export function historicalExecutionFingerprint(command: HistoricalExecutionComma
 /** Refuse to persist a fill whose reservation is bound to another order. */
 export function validateExecutionReservation(command: HistoricalExecutionCommand): void {
   if (command.currency !== undefined && !/^[A-Z]{3}$/u.test(command.currency)) throw new Error("INVALID_CURRENCY");
+  if (command.initialAccountCash !== undefined && !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.initialAccountCash)) throw new Error("INVALID_INITIAL_ACCOUNT_CASH");
+  if (command.reservation && command.initialAccountCash === undefined) throw new Error("INITIAL_ASSET_CASH_REQUIRED");
   if (command.reservation && (!command.reservation.reservationId || !command.reservation.ownerId || !command.reservation.testRunId || command.reservation.clientOrderId !== command.clientOrderId)) {
     throw new Error("RESERVATION_ORDER_MISMATCH");
   }
@@ -76,7 +87,7 @@ export interface HistoricalExecutionResult {
   orderId: string;
   status: "ACCEPTED" | "FILLED" | "PARTIALLY_FILLED" | "REJECTED" | "CANCEL_REQUESTED" | "CANCELLED" | "EXPIRED" | "UNKNOWN";
   fill?: { externalFillId: string; quantity: number; price: string; fee: string; effectiveAt: string };
-  rejectionReason?: "ZERO_VOLUME" | "INVALID_BAR" | "LIMIT_NOT_MARKETABLE" | "INVALID_RULE";
+  rejectionReason?: "ZERO_VOLUME" | "INVALID_BAR" | "LIMIT_NOT_MARKETABLE" | "INVALID_RULE" | "SUSPENDED" | "LOCKED_AT_UPPER_LIMIT" | "LOCKED_AT_LOWER_LIMIT";
   brokerMode: "FAKE";
 }
 
@@ -120,6 +131,32 @@ function quantityAtParticipation(volume: number, participationRate: number): num
 }
 
 export function calculateHistoricalExecution(command: HistoricalExecutionCommand, ids: { orderId: string; externalFillId: string }): HistoricalExecutionResult {
+  const restrictionFields = [command.bar.high, command.bar.low, command.bar.close, command.bar.tradingStatus, command.bar.upperLimit, command.bar.lowerLimit];
+  const hasRestrictionContext = restrictionFields.some((field) => field !== undefined);
+  if (hasRestrictionContext) {
+    const decimal = (value: unknown): value is string => typeof value === "string" && /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(value);
+    if (!restrictionFields.every((field) => field !== undefined) || !decimal(command.bar.open) || !decimal(command.bar.high) || !decimal(command.bar.low) || !decimal(command.bar.close) || !decimal(command.bar.upperLimit) || !decimal(command.bar.lowerLimit) || !["TRADED", "SUSPENDED"].includes(command.bar.tradingStatus!) || !Number.isSafeInteger(command.bar.volume) || command.bar.volume < 0) {
+      return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "INVALID_BAR", brokerMode: "FAKE" };
+    }
+    const [highWhole, highFraction = ""] = command.bar.high!.split(".");
+    const [lowWhole, lowFraction = ""] = command.bar.low!.split(".");
+    const [closeWhole, closeFraction = ""] = command.bar.close!.split(".");
+    const [openWholeForRange, openFractionForRange = ""] = command.bar.open.split(".");
+    const high = BigInt(`${highWhole}${highFraction.padEnd(4, "0")}`);
+    const low = BigInt(`${lowWhole}${lowFraction.padEnd(4, "0")}`);
+    const close = BigInt(`${closeWhole}${closeFraction.padEnd(4, "0")}`);
+    const open = BigInt(`${openWholeForRange}${openFractionForRange.padEnd(4, "0")}`);
+    const [upperWhole, upperFraction = ""] = command.bar.upperLimit!.split(".");
+    const [lowerWhole, lowerFraction = ""] = command.bar.lowerLimit!.split(".");
+    const upper = BigInt(`${upperWhole}${upperFraction.padEnd(4, "0")}`);
+    const lower = BigInt(`${lowerWhole}${lowerFraction.padEnd(4, "0")}`);
+    if (low > high || open < low || open > high || close < low || close > high || lower >= upper || lower > low || high > upper) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "INVALID_BAR", brokerMode: "FAKE" };
+    if (command.bar.tradingStatus === "SUSPENDED") return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "SUSPENDED", brokerMode: "FAKE" };
+    if (command.bar.volume === 0) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "ZERO_VOLUME", brokerMode: "FAKE" };
+    const side = command.side ?? "BUY";
+    if (side === "BUY" && low === upper && high === upper) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "LOCKED_AT_UPPER_LIMIT", brokerMode: "FAKE" };
+    if (side === "SELL" && low === lower && high === lower) return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "LOCKED_AT_LOWER_LIMIT", brokerMode: "FAKE" };
+  }
   if (command.marketFeeSchedule) {
     const schedule = command.marketFeeSchedule;
     const executionDate = command.bar.timestamp.slice(0, 10);

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "stage": "V1.1",
+  "task": "A04 final code suite with migration and persistence coverage",
+  "command": "pnpm verify:stage -- --stage V1.1 --suite code",
+  "exitCode": 0,
+  "log": "./2026-10-09-v11-code-suite-a04.log",
+  "logSha256": "63d9c533f59d9bd6cd71990b596c4edc2197c7cc956755265326598a25de21d6",
+  "logBytes": 94252,
+  "addedCommand": "node scripts/run-isolated-postgres-command.mjs --url-env PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test -- pnpm --filter @stockquant/platform-api-service test:integration:persistence",
+  "securityBoundary": "Disposable platform_api_test PostgreSQL on loopback; active services not connected; container/network cleanup confirmed.",
+  "limitations": [
+    "Code suite is engineering evidence only; human acceptance remains pending.",
+    "Does not perform the active TestRun storage cutover."
+  ]
+}

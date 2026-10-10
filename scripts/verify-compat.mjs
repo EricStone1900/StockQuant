@@ -16,7 +16,11 @@ const run = (command, commandArgs, env = process.env) => {
   return result.status ?? 1;
 };
 
-const image = `stockquant-compat-platform-api:${platform.replaceAll("/", "-")}`;
+const image = process.env.STOCKQUANT_COMPAT_IMAGE ?? `stockquant-compat-platform-api:${platform.replaceAll("/", "-")}`;
+if (!/^[a-z0-9][a-z0-9._/-]*:[a-z0-9][a-z0-9._-]*$/i.test(image)) {
+  console.error("STOCKQUANT_COMPAT_IMAGE must be a tagged Docker image reference");
+  process.exit(2);
+}
 const expectedArch = platform === "linux/amd64" ? "x64" : "arm64";
 const architectureEmulatedAgainstHostProcess = process.arch !== expectedArch;
 const probe = `if (process.platform !== 'linux' || process.arch !== '${expectedArch}' || !process.version.startsWith('v24.')) process.exit(1); console.log(JSON.stringify({ platform: process.platform, arch: process.arch, node: process.version }))`;

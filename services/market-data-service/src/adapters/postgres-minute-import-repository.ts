@@ -23,8 +23,8 @@ function mapRow(row: MinuteImportRow): MinuteImportRecord {
 export class MinuteImportRepository implements MinuteImportPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_minute_imports (
         import_key_sha256 TEXT NOT NULL CHECK (import_key_sha256 ~ '^[0-9a-f]{64}$'),
         source_sha256 TEXT NOT NULL CHECK (source_sha256 ~ '^[0-9a-f]{64}$'),

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "stockquant.w1-v12-qlib-loop-attempt.v1",
+  "stageId": "V1.2",
+  "status": "FAIL",
+  "isolatedProject": "sq-v12-e2e-f7f1e55be577086c83f6",
+  "apiPort": 30348,
+  "webPort": 57294,
+  "testRunIds": [],
+  "testRunSummaries": [],
+  "failureReason": "AssertionError [ERR_ASSERTION]: V1.2 isolated Web/API/CLI browser scenario failed (status=1, signal=none)\n\n1 !== 0\n\n    at file:///Users/huangbosong/Documents/ChatGPT/StockQuant/scripts/test-v12-e2e-isolated.mjs:191:12\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+  "browserOutput": "\nRunning 1 test using 1 worker\nF\n\n  1) tests/e2e/v11-acceptance.spec.ts:253:1 › V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI \n\n    Error: expect(locator).toContainText(expected) failed\n\n    Locator: getByTestId('research-fixture-preview')\n    Timeout: 5000ms\n    - Expected substring  -  1\n    + Received string     + 10\n\n    - v1.2-market-data-4\n    + {\n    +   \"fixtureVersion\": \"v1.2-market-data-5\",\n    +   \"dataMode\": \"FIXTURE\",\n    +   \"securityCount\": 13,\n    +   \"barCount\": 774,\n    +   \"markets\": [\n    +     \"CN_A\",\n    +     \"US_EQUITY\"\n    +   ]\n    + }\n\n    Call log:\n      - Expect \"toContainText\" getByTestId('research-fixture-preview') with timeout 5000ms\n      - waiting for getByTestId('research-fixture-preview')\n        13 × locator resolved to <pre data-testid=\"research-fixture-preview\">{↵  \"fixtureVersion\": \"v1.2-market-data-5\",↵  \"da…</pre>\n           - unexpected value \"{\n      \"fixtureVersion\": \"v1.2-market-data-5\",\n      \"dataMode\": \"FIXTURE\",\n      \"securityCount\": 13,\n      \"barCount\": 774,\n      \"markets\": [\n        \"CN_A\",\n        \"US_EQUITY\"\n      ]\n    }\"\n\n\n      265 |   expect(badPreview.quality.errors.map((error: any) => error.code)).toContain(\"FUTURE_DATA\");\n      266 |   await page.getByRole(\"button\", { name: \"读取双市场研究 Fixture\" }).click();\n    > 267 |   await expect(page.getByTestId(\"research-fixture-preview\")).toContainText(\"v1.2-market-data-4\");\n          |                                                              ^\n      268 |   await expect(page.getByTestId(\"research-fixture-preview\")).toContainText(\"774\");\n      269 |   await expect(page.getByTestId(\"research-fixture-preview\")).toContainText(\"13\");\n      270 |   await page.getByRole(\"button\", { name: \"运行 Qlib CPU 探针\" }).click();\n        at /Users/huangbosong/Documents/ChatGPT/StockQuant/apps/web/tests/e2e/v11-acceptance.spec.ts:267:62\n\n    Error Context: test-results/v11-acceptance-V1-2-normal-7c6b5-erified-by-the-same-run-CLI/error-context.md\n\n  1 failed\n    tests/e2e/v11-acceptance.spec.ts:253:1 › V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI \nundefined\n/Users/huangbosong/Documents/ChatGPT/StockQuant/apps/web:\n ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: playwright test --grep V1.2\n",
+  "browserError": "(node:41036) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "isolatedContainersVolumesNetworksAndImagesRemoved": true,
+  "marketSourceAuthorization": "NONE",
+  "marketSourceCalls": 0,
+  "qlibFitCalls": null,
+  "externalModelCalls": 0,
+  "brokerCalls": 0,
+  "liveTradingEnabled": false,
+  "humanAcceptance": "NOT_CHANGED"
+}

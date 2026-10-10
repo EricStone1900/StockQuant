@@ -108,10 +108,11 @@ async function getRun(testRunId: string) {
 async function recoverUnknown(testRunId: string) {
   const found = await runs.find(testRunId);
   if (!found?.result) throw new Error("replay result is not available");
+  if (!found.namespace) throw new Error("replay run namespace is not available");
   const current = found.result as any;
   const orderId = current.execution?.result?.orderId;
   if (!orderId) throw new Error("replay result has no original order");
-  const order = await tradeExecutionClient.readHistoricalFakeOrderById(orderId);
+  const order = await tradeExecutionClient.readHistoricalFakeOrderById(orderId, found.namespace);
   if (order.status !== "UNKNOWN") return { ...current, unknownRecovery: { observedStatus: order.status, action: "NO_RETRY_REQUIRED" } };
   const result = { ...current, unknownRecovery: { observedStatus: order.status, action: "MANUAL_REVIEW_REQUIRED", reason: "original order remains UNKNOWN; no resend was attempted" } };
   await runs.saveResult(testRunId, result);

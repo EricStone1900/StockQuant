@@ -1,0 +1,631 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-V15-RESPONSIBILITY-A01",
+  "status": "PASS_WITH_OPEN_DELIVERY_GAPS",
+  "sourceMatrix": "2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 20,
+  "rows": [
+    {
+      "requirementId": "V1.5-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 23,
+        "summary": "实现市场日历调度与自动日终对账；工作流保存步骤/等待，领域数据库拥有业务事实；网页不承担调度。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "platform-api-service owns current V1.5 orchestration/progress projection",
+      "collaborators": "NATS and Temporal provide durable dispatch/workflow state; Market Data owns calendars; Governance, Trade and Portfolio own each business decision/fact",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Current code coordinates durable NO_TRADE/AUTO runs and fixed calendar re-evaluation; no standalone workflow-orchestration-service is deployed as V1.5 owner. Full real-time calendar, continuous schedule and daily settlement remain unverified.",
+      "existingGap": "The two-session synthetic Fixture verifies that the first window is marked MISSED_WINDOW with no stale order, and the next session creates a new scoped Proposal/Mandate, executes once per market, and reconciles at close. It does not establish real-clock delayed scheduling, repeated multi-day AUTO cycles, complete exchange calendars, settled-cash/settlement rules, or trading-worker failure recovery.",
+      "closureEvidence": [
+        "../../fixtures/v1/v1.5/auto-trade-calendar.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-manifest.json",
+        "../../services/platform-api-service/src/application/v15-auto-trade.ts",
+        "../../services/platform-api-service/src/application/v15-auto-trade-calendar.ts",
+        "../../services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+        "../../apps/web/src/main.tsx",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json",
+        "../../evidence/audits/2026-10-09-v15-missed-window-code-suite-a25.log",
+        "../../evidence/audits/2026-10-09-v15-missed-window-code-suite-a25.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../architecture/services/platform-api-service.md",
+        "../../architecture/services/market-data-service.md",
+        "../../architecture/services/decision-governance-service.md",
+        "../../architecture/services/trade-execution-service.md",
+        "../../architecture/services/portfolio-risk-service.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 25,
+        "summary": "完整暂停/恢复、UNKNOWN原单查询、执行中的重启恢复与错过窗口策略；固定Trade/PostgreSQL组合故障后按原clientOrderId恢复已验证，真实时钟、其他故障组合、完整跨域恢复与结算仍开放。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "trade-execution-service owns FakeBroker order state, UNKNOWN query and idempotent original-clientOrderId recovery",
+      "collaborators": "platform-api-service orchestrates; decision-governance-service owns mandates/authorization; portfolio-risk-service owns reservations/ledger; Temporal retries durable activities",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Named fixed fault/restart/UNKNOWN paths pass in isolation. Complete domain-wide recovery, actual clock/sleep and all multi-fault combinations remain open.",
+      "existingGap": "UNKNOWN original-order recovery, AUTO duplicate dispatch, missed-window re-evaluation, Trade restart/failover after FakeBroker commit, Platform dispatch Worker failover, fixed dual-Trade outage, and combined dual-Trade/PostgreSQL recovery are verified. Real-clock scheduling, settlement, other independent fault combinations and full cross-domain recovery remain open.",
+      "closureEvidence": [
+        "../../scripts/test-v15-web-e2e-isolated.mjs",
+        "../../services/platform-api-service/tests/unit/v15-nats-dispatch.spec.ts",
+        "./2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-e09b3c5a08f1a6594056.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9d20807a341936dceaf1.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-91f6525571ab14125e64.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-38f6de33ef35ba78617c.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json",
+        "../../evidence/audits/2026-10-09-v15-missed-window-code-suite-a25.log",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9ab3f1b90438b7f715eb.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-e2e-a01.log",
+        "../../services/trade-execution-service/src/bootstrap/main.ts",
+        "../../evidence/audits/2026-10-09-v15-worker-failover-sq-v15-e2e-17f973b67e6e20e35f29.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-sq-v15-e2e-75b262d7e2b9d8fa1806.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v1-crosswalk-trade-failover-refresh-a01.json",
+        "../../services/platform-api-service/tests/unit/v15-auto-trade.spec.ts",
+        "../../services/platform-api-service/tests/integration/v15-outbox-atomicity.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-967e0b65c09fe54c5332.json",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-9af92a999559bec94e57.json",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-dd8affc13398a8448de9.json",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-idempotency-code-suite-a03.log",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-64e119e1e01cdbd2515d.json",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-64e119e1e01cdbd2515d.json.sha256",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-after-commit-e2e-a01.log",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-after-commit-e2e-a01.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-after-commit-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-after-commit-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-398bd38ec91b610d9653.json",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-398bd38ec91b610d9653.json.sha256",
+        "../../evidence/audits/2026-10-09-v15-cancellation-clock-code-suite-a03.log",
+        "../../evidence/audits/2026-10-09-v15-cancellation-clock-code-suite-a03.log.sha256",
+        "../../services/platform-api-service/src/application/v15-auto-trade-cancellation.ts",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-4e5746d1118a6280c5e6.json",
+        "../../evidence/audits/2026-10-09-v15-auto-trade-cancellation-sq-v15-e2e-4e5746d1118a6280c5e6.json.sha256",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-partial-fill-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-auto-cancel-partial-fill-code-suite-a01.log.sha256",
+        "../../services/decision-governance-service/src/bootstrap/main.ts",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-failure-sq-v15-e2e-d3d07879c69cbbf93168.json",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-e2e-a04.log",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-code-suite-a02.log",
+        "../../architecture/services/platform-api-service.md",
+        "../../architecture/services/decision-governance-service.md",
+        "../../architecture/services/trade-execution-service.md",
+        "../../architecture/services/portfolio-risk-service.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S2-L19",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 29,
+        "summary": "把已创建页面的告警、能力阻塞、验收中心证据和比较功能贯通；支持从任一成交追溯完整链路。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "platform-api-service owns TestRun, Incident projection, capability status, history/comparison APIs",
+      "collaborators": "Trade, Governance and Portfolio expose authoritative domain facts; apps/web renders them",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Incident lifecycle and selected history comparisons exist; traceability from every Fill through all domains is not complete. Platform projection is not ledger authority.",
+      "existingGap": "Owner-scoped run history/comparison, persisted workflow/NATS/Temporal/domain blocker display, owner-scoped Incident lifecycle/acknowledgment and automatic Incident projection on Run evidence save are implemented and verified. Outbound notifications, cross-stage trade lineage and arbitrary-fill trace remain open.",
+      "closureEvidence": [
+        "../../apps/web/src/main.tsx",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-1c93141314b58f1a2cd5.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-45fbf478d4dcba196115.json",
+        "../../evidence/audits/2026-10-09-v15-fill-trace-selector-code-suite-a03.log",
+        "../../services/platform-api-service/src/ports/stage-run-repository.ts",
+        "../../services/platform-api-service/src/adapters/postgres-stage-run-repository.ts",
+        "../../services/platform-api-service/src/bootstrap/app.module.ts",
+        "../../services/platform-api-service/tests/integration/v15-outbox-atomicity.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-owner-run-history-comparison-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-owner-run-history-comparison-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-owner-run-history-comparison-web-e2e-a02.log",
+        "../../evidence/audits/2026-10-09-v15-owner-run-history-comparison-web-e2e-a02.log.sha256",
+        "../../apps/web/src/v15-capability-status.ts",
+        "../../apps/web/src/v15-capability-status.test.ts",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-capability-blockers-code-suite-a02.log",
+        "../../evidence/audits/2026-10-09-v15-capability-blockers-code-suite-a02.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-capability-blockers-web-e2e-a02.log",
+        "../../evidence/audits/2026-10-09-v15-capability-blockers-web-e2e-a02.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-capability-alerts-code-suite-a03.log",
+        "../../evidence/audits/2026-10-09-v15-capability-alerts-code-suite-a03.log.sha256",
+        "../../evidence/audits/2026-10-09-v15-capability-alerts-web-e2e-a03.log",
+        "../../evidence/audits/2026-10-09-v15-capability-alerts-web-e2e-a03.log.sha256",
+        "../../services/platform-api-service/tests/integration/v15-run-incidents.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-auto-incident-projection-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-auto-incident-projection-web-e2e-a01.log",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-f8bca4e6e2fb4e454d6a.json",
+        "../../evidence/audits/2026-10-09-v15-auto-incident-projection-cross-stage-code-suite-a01.log",
+        "../../architecture/services/platform-api-service.md",
+        "../../architecture/services/decision-governance-service.md",
+        "../../architecture/services/trade-execution-service.md",
+        "../../architecture/services/portfolio-risk-service.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S2-L20",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 35,
+        "summary": "提供外部故障演练脚本和操作Runbook，覆盖Worker/总线重启、断网、睡眠恢复、双Worker竞争；Web仅记录操作提示和回收证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "shared test/operations responsibility; scripts and runbook own exact isolated fault actions",
+      "collaborators": "project operator executes host sleep/wake; service owners supply fault semantics and recovery checks",
+      "currentGapClassification": "PARTIAL",
+      "reconciliation": "Worker/bus/network/dual-worker and fixed DB failures have isolated evidence. Mac sleep/wake remains NOT_RUN because host is locked; runbook preflight stack is live. No service code can substitute for the real host observation.",
+      "existingGap": "Fixed isolated fault scripts and reports are indexed; the manual host sleep/wake procedure now specifies the stack, UI scenario, same-run check, evidence capture and exact cleanup. The operator procedure is unexecuted. Actual sleep/wake observation, other independent fault combinations, production/host recovery and human acceptance remain OPEN.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v15-temporal-server-outage-e2e.md",
+        "../../evidence/audits/2026-10-07-v15-network-outage-e2e.md",
+        "../../evidence/audits/2026-10-07-v15-database-outage-e2e.md",
+        "../../evidence/audits/2026-10-07-v15-multiworker-e2e.md",
+        "../../evidence/audits/2026-10-07-v15-worker-failover-e2e.md",
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../scripts/test-v15-web-e2e-isolated.mjs",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-sq-v15-e2e-75b262d7e2b9d8fa1806.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-sq-v15-e2e-75b262d7e2b9d8fa1806.json.sha256",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-failover-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v1-crosswalk-check-a20.log",
+        "../../evidence/audits/2026-10-10-v15-trade-double-failure-sq-v15-e2e-e2b3577ef5b427c3b250.json",
+        "../../evidence/audits/2026-10-10-v15-trade-double-failure-e2e-a02.log",
+        "../../evidence/audits/2026-10-10-v15-trade-double-failure-code-suite-a02.log",
+        "../../services/decision-governance-service/src/bootstrap/main.ts",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-failure-sq-v15-e2e-d3d07879c69cbbf93168.json",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-e2e-a04.log",
+        "../../evidence/audits/2026-10-10-v15-trade-database-combined-code-suite-a02.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S2-L21",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 37,
+        "summary": "隔离备份恢复；执行Mac M1完整模拟E2E及目标Ubuntu架构烟测，记录未覆盖环境，V1证据打包。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "operations/scripts own isolated backup/restore and environment evidence",
+      "collaborators": "each service owns its volume facts; project owner supplies actual Ubuntu host/architecture and acceptance",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "V1.5 four-volume isolated restore is bounded to its stack. It is not V1.1–V1.4 full business restore, host/remote disaster recovery, RPO/RTO or Ubuntu evidence.",
+      "existingGap": "2026-10-10复验生产备份器恢复的合成TestRun/FakeBroker订单与Fill/Portfolio两条账本事实，业务关系匹配；该复验重复确认既有能力。另有实际Web创建的V1.5 TestRun及PostgreSQL、NATS JetStream、Temporal SQLite、合成Artifact四卷同点恢复证据。仍未覆盖Research Automation API发布产物、V1.1-V1.4真实模型/回测输出、完整生产备份编排/保留、实际Ubuntu、异地复制、实测RPO/RTO及人验。",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v15-paired-backup-restore-e2e.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log",
+        "./2026-10-09-v1-artifact-volume-backup-restore-a01.log",
+        "./2026-10-09-v1-artifact-volume-backup-restore-a01.log.sha256",
+        "../../services/research-automation-service/scripts/artifact-volume-backup-restore-smoke.mjs",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-a9366d9c50ee4001.json",
+        "../../evidence/audits/2026-10-09-v1-linux-amd64-compat-a173.log",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-8b984f5ff18c4e87.json",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-2f0c1de2e66d49b7.json",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-business-facts-a01.log",
+        "../../scripts/backup-retention.test.mjs",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-2d597dbd749e4b19.json",
+        "../../evidence/audits/2026-10-09-v15-paired-backup-restore-sq-v15-e2e-a378990c03fcf9de8260.json",
+        "../../evidence/audits/2026-10-09-v15-four-volume-paired-restore-e2e-a01.log",
+        "../../scripts/test-v15-web-e2e-isolated.mjs",
+        "../../infra/compose/docker-compose.v15-integration.yml",
+        "../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-6ec18309cc38403b.json",
+        "../../evidence/audits/2026-10-10-v1-isolated-cluster-paired-business-facts-a01.log",
+        "../../evidence/audits/2026-10-10-v1-isolated-cluster-paired-business-facts-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v1-isolated-cluster-paired-business-facts-a01.log.exit.txt",
+        "../../scripts/cluster-paired-backup.test.mjs",
+        "../../scripts/paired-backup.test.mjs",
+        "../../evidence/audits/2026-10-10-v1-paired-backup-coverage-a01.log",
+        "../../evidence/audits/2026-10-10-v1-paired-backup-coverage-a01.log.sha256"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S2-L22",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 2,
+        "currentLine": 70,
+        "summary": "V1.5 Platform TestRun创建只接受scenarioId/seed，服务端固定交易环境和券商模式；客户端交易模式字段须在创建Run/派发后台工作前拒绝。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P3",
+      "leadResponsibility": "platform-api-service",
+      "collaborators": "apps/web and stage CLI; downstream dispatch is owned by Platform orchestration",
+      "currentGapClassification": "CURRENT_INCREMENTAL_BOUNDARY",
+      "reconciliation": "Run creation accepts scenarioId/seed and fixes PAPER/FAKE before dispatch; tested mode injection returns 422. This atomic entry check does not establish every service/worker write-path mode boundary.",
+      "existingGap": "The V1.5 run-creation route rejects four injected mode combinations before persistence and workflow dispatch. All other V1 routes/workers, active deployment, historical exports, Ubuntu, decisions and human acceptance remain open.",
+      "closureEvidence": [
+        "../../scripts/test-v15-web-e2e-isolated.mjs",
+        "../../services/platform-api-service/src/bootstrap/app.module.ts",
+        "./2026-10-10-v15-platform-mode-boundary-code-suite-a01.log",
+        "./2026-10-10-v15-platform-mode-boundary-e2e-a01.log",
+        "./2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-f9a9f2684c0d09bbe7e8.json",
+        "./2026-10-10-v1-crosswalk-v15-mode-a01.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L56",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 68,
+        "summary": "契约、数据结构、场景定义和预期结果已冻结。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "packages/contracts and Platform scenario/TestRun contracts",
+      "collaborators": "Trade/Portfolio/Governance and shared Fixture owners",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Scenario and assertion contracts are cross-domain; freeze status does not mean every workflow branch or market rule is complete.",
+      "existingGap": "The hash-verified three-session-per-market fixture, explicit quantities, two executed sessions, missed-window re-evaluation and daily reconciliation are verified. Full exchange calendar semantics, settled-cash rules and the complete trading/rejection/recovery matrix remain open.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/v15-orchestration.spec.ts",
+        "../../fixtures/v1/v1.5/no-trade-calendar.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L57",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 69,
+        "summary": "第2节后端任务完成，真实依赖与替身明确。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "each service owns its backend behavior",
+      "collaborators": "platform-api-service owns orchestration; NATS/Temporal infrastructure operators own durable engine operation",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Fixed backend slices exist; full scheduling, settlement and restore tasks remain open.",
+      "existingGap": "The bounded synthetic multi-session AUTO path now persists scoped Proposal/Mandate identities, executes FakeBroker orders across two sessions and reconciles both ledgers at close. Real-market calendar/settlement, real-clock continuous operation, cancellation/in-flight Fill and trading-worker failover remain open.",
+      "closureEvidence": [
+        "../../services/platform-api-service/tests/unit/v15-orchestration.spec.ts",
+        "../../services/platform-api-service/tests/integration/v15-outbox-atomicity.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L58",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 70,
+        "summary": "正式Web功能页及验收中心正常/异常场景完成。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "apps/web and platform-api-service",
+      "collaborators": "domain APIs own source facts",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Normal/rejection/recovery and selected AUTO Web paths are exercised. Current scope human acceptance remains NOT_RUN.",
+      "existingGap": "The four isolated normal/AUTO/rejection/recovery scenarios pass through Web/API/CLI/export for bounded Fixture workflows; all four AUTO Fill trace options were individually selected and verified. Formal alert/capability screens, full-stage scenario coverage, live-clock observation and user acceptance remain open.",
+      "closureEvidence": [
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-a58ec06b245a3eb3c82f.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-45fbf478d4dcba196115.json",
+        "../../evidence/audits/2026-10-09-v15-fill-trace-selector-code-suite-a03.log",
+        "../../apps/web/src/main.tsx"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L59",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 71,
+        "summary": "命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "scripts and Platform stage docs",
+      "collaborators": "service owners for configs; operator for actual host",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Runbook now records exact inputs/config/session and distinguishes automated checks from user sign-off; host sleep/wake and Ubuntu remain not run.",
+      "existingGap": "The current section 8 is only PARTIALLY_VERIFIED_EXECUTABLE; do not infer complete Web URL/config/fault-step handoff from aggregate E2E.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L60",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 72,
+        "summary": "开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "cross-service test/evidence harness",
+      "collaborators": "Platform Web/API/CLI, Trade/Portfolio/Governance; operator for host recovery",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Developer fixed-scenario E2E is extensively recorded; actual Mac sleep/wake and full-V1 recovery still need independent observation.",
+      "existingGap": "The current runbook records the per-Fill selector, four-scenario Web/API/CLI/export E2E, actual Trade Execution process restart during the pending HTTP response and full V1.5 code-suite results. Current-scope user acceptance, Ubuntu evidence and unresolved calendar/settlement/recovery requirements remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log",
+        "../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-a58ec06b245a3eb3c82f.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json",
+        "../../evidence/audits/2026-10-09-v15-interactive-stack-lifecycle-a01.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-45fbf478d4dcba196115.json",
+        "../../evidence/audits/2026-10-09-v15-fill-trace-selector-code-suite-a03.log",
+        "../../apps/web/src/main.tsx",
+        "../../apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9ab3f1b90438b7f715eb.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-e2e-a01.log",
+        "../../services/trade-execution-service/src/bootstrap/main.ts",
+        "../../scripts/test-v15-web-e2e-isolated.mjs"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L61",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 73,
+        "summary": "重复/恢复及适用观察期验证完成，未覆盖项如实记录。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "domain service owners for idempotency/recovery; operations owner for runtime disruptions",
+      "collaborators": "Platform and durable infrastructure for coordination",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Bounded service/worker/database interruption cases are tested. Long real-time observation, Mac wake, full cross-version restore and Ubuntu remain incomplete.",
+      "existingGap": "UNKNOWN recovery, Trade Execution process restart after committed FakeBroker order/Fill, duplicate dispatch, missed-window re-evaluation, synthetic multi-session execution and daily double-ledger reconciliation are verified. Cancellation/in-flight Fill, multi-worker Trading failover, full-V1 paired restore, Ubuntu and human observation remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v15-multiworker-e2e.md",
+        "../../evidence/audits/2026-10-07-v15-paired-backup-restore-e2e.md",
+        "../../evidence/audits/2026-10-08-v15-nats-temporal-dispatch-sq-v15-e2e-a58ec06b245a3eb3c82f.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9ab3f1b90438b7f715eb.json",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v15-trade-worker-restart-e2e-a01.log",
+        "../../services/trade-execution-service/src/bootstrap/main.ts",
+        "../../scripts/test-v15-web-e2e-isolated.mjs"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L62",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 74,
+        "summary": "用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，PASS）。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "project owner / human acceptor",
+      "collaborators": "none",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "2026-09-09 historical sign-off is limited to its original scope; current V1.5 additions cannot be signed by the agent.",
+      "existingGap": "The 2026-09-09 signature is retained for its historical scope only. Current-scope user acceptance is NOT_RUN; it must be signed by the user after delivery.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/99-acceptance.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S7-L63",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 7,
+        "currentLine": 83,
+        "summary": "操作说明与限制已更新，本版验收表已同步。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "Platform/stage documentation owner",
+      "collaborators": "service owners for operational limits; project owner for final acceptance record",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Documentation has executable selected paths and limitations; acceptance table remains authoritative and current user signature is NOT_RUN.",
+      "existingGap": "The current runbook and acceptance summary are updated and linked to the latest isolated E2E and stack lifecycle report. This delivery checkbox is checked; stage acceptance remains partial and current-scope human acceptance is NOT_RUN.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../docs/prd/v1-local-simulation/99-acceptance.md",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json",
+        "../../evidence/audits/2026-10-09-v15-interactive-stack-lifecycle-a01.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L67",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 79,
+        "summary": "8.1 当前可执行性与验收准备",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "Platform runbook/evidence owner",
+      "collaborators": "stack operator and service owners",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Readiness facts and capability state are presented; the pending host sleep/wake must continue the existing isolated run or record a failure, not infer a pass.",
+      "existingGap": "Current tools, fixed Fixture hashes, modes, isolated project cleanup, timeouts, Web controls, same-run CLI/export and multi-session scenario outcomes are documented. Full exchange calendar/settlement, real-time operation, complete recovery, Ubuntu and human acceptance remain open.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-6e7301d0edfd5bcdb496.json",
+        "../../evidence/audits/2026-10-09-v15-interactive-stack-lifecycle-a01.json",
+        "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json",
+        "../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2.json",
+        "../../fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L87",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 99,
+        "summary": "8.2 初始化与启动（目标命令，待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "stack-up/down scripts",
+      "collaborators": "operator",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Random isolated project startup/cleanup is owned by the scripts and operator, not an active service deployment.",
+      "existingGap": "Only the listed current isolated NO_TRADE/code paths have execution evidence. Unimplemented commands, trade business behavior, or user/Ubuntu operations remain open per the section 8 text.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L105",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 122,
+        "summary": "8.3 Web逐步操作及预期结果",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "apps/web",
+      "collaborators": "platform-api-service and domain APIs",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Web interactions are projections/commands through APIs; they do not own scheduling or order/ledger truth.",
+      "existingGap": "Only the listed current isolated NO_TRADE/code paths have execution evidence. Unimplemented commands, trade business behavior, or user/Ubuntu operations remain open per the section 8 text.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L120",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 138,
+        "summary": "8.4 命令行复验与相同运行核对（待实现）",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "verify-stage/evidence-export scripts",
+      "collaborators": "platform-api-service authenticated owner-scoped API",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "CLI must use exact stage, local API URL and current session; stage-specific evidence export is required. WAITING aggregate assertions correctly retain exit 2.",
+      "existingGap": "Only the listed current isolated NO_TRADE/code paths have execution evidence. Unimplemented commands, trade business behavior, or user/Ubuntu operations remain open per the section 8 text.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L155",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 174,
+        "summary": "8.5 交叉核对、失败定位与恢复",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "domain owners per authoritative fact",
+      "collaborators": "Platform coordinates TestRun; operations restores host/dependencies",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Reconciliation requires original Run/Order/Fill/ledger/workflow facts; isolated service restarts do not prove full V1 cross-domain restore.",
+      "existingGap": "Only the listed current isolated NO_TRADE/code paths have execution evidence. Unimplemented commands, trade business behavior, or user/Ubuntu operations remain open per the section 8 text.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.5-S8-L163",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "section": 8,
+        "currentLine": 182,
+        "summary": "8.6 验收记录与收尾",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P5",
+      "leadResponsibility": "Platform acceptance records",
+      "collaborators": "project owner / human acceptor",
+      "currentGapClassification": "RECHECK",
+      "reconciliation": "Record only actual human conclusion and preserve historical failures/signatures; current scope remains unsigned.",
+      "existingGap": "Only the listed current isolated NO_TRADE/code paths have execution evidence. Unimplemented commands, trade business behavior, or user/Ubuntu operations remain open per the section 8 text.",
+      "closureEvidence": [
+        "../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md",
+        "../../evidence/audits/2026-10-08-v1-development-run.md",
+        "../../evidence/audits/2026-10-09-v15-code-suite.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    }
+  ],
+  "scopeBoundary": "Manual responsibility reconciliation for all 20 V1.5 section 2, 7 and 8 rows present in A31. It does not establish multi-fault/host recovery, Ubuntu, human acceptance, delivery completeness or V1 completion."
+}

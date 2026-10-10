@@ -4,6 +4,12 @@ export type PortfolioCaller = "platform-api-service" | "trade-execution-service"
 export type PortfolioCredentials = Partial<Record<PortfolioCaller, string>>;
 export type PortfolioAuthResult = "AUTHORIZED" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_CONFIGURED";
 
+export function arePortfolioServiceCredentialsValid(credentials: PortfolioCredentials): boolean {
+  const required = [credentials["platform-api-service"], credentials["trade-execution-service"], credentials["historical-replay-worker"]];
+  return required.every((credential) => typeof credential === "string" && credential.length >= 32)
+    && new Set(required).size === required.length;
+}
+
 const ACCOUNT_ID = "[^/]+";
 
 function isAllowedRoute(caller: string, method: string, path: string): caller is PortfolioCaller {
@@ -28,6 +34,7 @@ export function authorizePortfolioRequest(input: {
   credentials: PortfolioCredentials;
 }): PortfolioAuthResult {
   if (!input.callerId || !isAllowedRoute(input.callerId, input.method, input.path)) return "FORBIDDEN";
+  if (!arePortfolioServiceCredentialsValid(input.credentials)) return "NOT_CONFIGURED";
   const expected = input.credentials[input.callerId];
   if (!expected) return "NOT_CONFIGURED";
   const bearer = /^Bearer ([A-Za-z0-9_-]{32,})$/u.exec(input.authorization ?? "");

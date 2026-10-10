@@ -54,6 +54,8 @@ let cancellationSummary;
 let restartRecoverySummary;
 let governanceDatabaseAssertion;
 let artifactExportSummary;
+let identityBoundarySummary;
+let modeInjectionSummary;
 
 try {
   if (manualAcceptance) {
@@ -96,6 +98,50 @@ try {
     await delay(250);
   }
   assert.equal(webReady, true, "isolated V1.2 Web did not become ready");
+  const platformSource = await readFile("services/platform-api-service/src/bootstrap/app.module.ts", "utf8");
+  const controllerStart = platformSource.indexOf('@Controller("api/v1/acceptance/v1/v1.2")');
+  assert.notEqual(controllerStart, -1, "V1.2 acceptance controller was not found for route-auth inventory");
+  const controllerEnd = platformSource.indexOf("\n@Controller(", controllerStart + 1);
+  const controllerSource = platformSource.slice(controllerStart, controllerEnd === -1 ? undefined : controllerEnd);
+  const declaredRoutes = [...controllerSource.matchAll(/@(Get|Post|Put|Patch|Delete)\("([^"]*)"\)/gu)]
+    .map((match) => ({ method: match[1].toUpperCase(), path: match[2] }));
+  assert.equal(declaredRoutes.length, 11, "update the V1.2 Platform identity probes when controller operations change");
+  const authCases = declaredRoutes.map(({ method, path: route }) => ({ method, route: `/api/v1/acceptance/v1/v1.2/${route.replace(/:([A-Za-z0-9_]+)/gu, "00000000-0000-4000-8000-000000000001")}` }));
+  for (const { method, route } of authCases) {
+    for (const [identityName, headers, expected] of [
+      ["anonymous", {}, 401],
+      ["forged test owner", { "x-stockquant-user": "unauthorized-owner" }, 403],
+    ]) {
+      const response = await fetch(`${apiUrl}${route}`, {
+        method,
+        ...(method === "GET" ? {} : { headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({}) }),
+        ...(method === "GET" ? { headers } : {}),
+      });
+      assert.equal(response.status, expected, `${method} ${route} must reject ${identityName} before data access or side effects`);
+    }
+  }
+  identityBoundarySummary = { routes: authCases, anonymousRejected: authCases.length, forgedOwnerRejected: authCases.length, expectedStatuses: { anonymous: 401, forgedOwner: 403 } };
+  console.info(`[V1.2 Platform identity boundary] ${JSON.stringify(identityBoundarySummary)}`);
+  const modeHeaders = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1" };
+  const v12RunCount = () => {
+    const query = compose(["exec", "-T", "postgres", "psql", "-U", "postgres", "-d", "platform_api", "-Atc", "SELECT count(*) FROM acceptance_stage_runs WHERE stage_id='V1.2'"], "pipe");
+    assert.equal(query.status, 0, query.stderr);
+    return Number(query.stdout.trim());
+  };
+  const v12RunsBeforeModeProbe = v12RunCount();
+  const rejectedModes = [
+    { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "REAL" },
+  ];
+  for (const modes of rejectedModes) {
+    const response = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.2/runs`, { method: "POST", headers: modeHeaders, body: JSON.stringify({ scenarioId: "rejection", seed: 20260907, ...modes }) });
+    assert.equal(response.status, 422, `V1.2 run creation must reject client mode injection ${JSON.stringify(modes)}`);
+  }
+  assert.equal(v12RunCount(), v12RunsBeforeModeProbe, "rejected V1.2 mode injection must not create a TestRun or dispatch Qlib work");
+  modeInjectionSummary = { rejectedModes, status: 422, testRunCountUnchanged: true };
+  console.info(`[V1.2 Platform mode-injection boundary] ${JSON.stringify(modeInjectionSummary)}`);
   if (manualAcceptance) {
     process.stdout.write(`${JSON.stringify({
       status: "READY_FOR_MANUAL_ACCEPTANCE",
@@ -246,7 +292,7 @@ if (exitCode !== 0) {
   await mkdir(evidenceDir, { recursive: true });
   const evidencePath = `${evidenceDir}/2026-10-06-w1-v12-qlib-loop-failed-${project}.json`;
   await writeFile(evidencePath, `${JSON.stringify({ schemaVersion: "stockquant.w1-v12-qlib-loop-attempt.v1", stageId: "V1.2", status: "FAIL", isolatedProject: project, apiPort, webPort, testRunIds, testRunId, testRunSummaries, failureReason, browserOutput, browserError, isolatedContainersVolumesNetworksAndImagesRemoved: true, marketSourceAuthorization: "NONE", marketSourceCalls: 0, qlibFitCalls: null, externalModelCalls: 0, brokerCalls: 0, liveTradingEnabled: false, humanAcceptance: "NOT_CHANGED" }, null, 2)}\n`, { mode: 0o600 });
-  const inputs = [evidencePath, "infra/compose/docker-compose.v12-integration.yml", "scripts/test-v12-e2e-isolated.mjs", "apps/web/src/main.tsx", "apps/web/tests/e2e/v11-acceptance.spec.ts", "services/platform-api-service/src/application/v12-acceptance.ts", "services/platform-api-service/src/bootstrap/app.module.ts", "services/platform-api-service/src/adapters/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/qlib-fixture-artifact-repository.ts", "services/platform-api-service/Dockerfile", "services/decision-governance-service/src/application/governance-api.ts", "services/decision-governance-service/src/application/service-auth.ts", "services/decision-governance-service/src/bootstrap/main.ts", "services/decision-governance-service/src/adapters/postgres-strategy-snapshot-repository.ts", "services/decision-governance-service/src/ports/strategy-snapshot-repository.ts", "services/market-data-service/src/bootstrap/main.ts", "services/market-data-service/src/service-auth.ts", "services/quant-research-service/src/application/qlib-research-service.ts", "services/quant-research-service/qlib-worker.py", "services/quant-research-service/qlib-worker.Dockerfile", "services/quant-research-service/qlib-worker-requirements.lock", "services/quant-research-service/tests/test_qlib_fit_validation.py", "packages/contracts/schemas/common/v12-strategy-snapshot-command.schema.json", "packages/contracts/schemas/common/v12-strategy-target.schema.json", "packages/contracts/schemas/research/v12-qlib-strategy-artifact-v1.schema.json", "packages/contracts/openapi/decision-governance-v12-strategy-snapshots.v1.json", "packages/contracts/openapi/platform-v12-qlib-fixture.v1.json", "scripts/check-openapi-contract.mjs", "scripts/verify-v12-research-fixture.mjs", "fixtures/v1/v1.2/v1.2-market-data-4/manifest.json", "fixtures/v1/v1.2/v1.2-market-data-4/daily_bars.csv", "fixtures/v1/v1.2/v1.2-market-data-4/securities.csv"];
+  const inputs = [evidencePath, "infra/compose/docker-compose.v12-integration.yml", "scripts/test-v12-e2e-isolated.mjs", "apps/web/src/main.tsx", "apps/web/tests/e2e/v11-acceptance.spec.ts", "services/platform-api-service/src/application/v12-acceptance.ts", "services/platform-api-service/src/bootstrap/app.module.ts", "services/platform-api-service/src/adapters/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/qlib-fixture-artifact-repository.ts", "services/platform-api-service/Dockerfile", "services/decision-governance-service/src/application/governance-api.ts", "services/decision-governance-service/src/application/service-auth.ts", "services/decision-governance-service/src/bootstrap/main.ts", "services/decision-governance-service/src/adapters/postgres-strategy-snapshot-repository.ts", "services/decision-governance-service/src/ports/strategy-snapshot-repository.ts", "services/market-data-service/src/bootstrap/main.ts", "services/market-data-service/src/service-auth.ts", "services/quant-research-service/src/application/qlib-research-service.ts", "services/quant-research-service/qlib-worker.py", "services/quant-research-service/qlib-worker.Dockerfile", "services/quant-research-service/qlib-worker-requirements.lock", "services/quant-research-service/tests/test_qlib_fit_validation.py", "packages/contracts/schemas/common/v12-strategy-snapshot-command.schema.json", "packages/contracts/schemas/common/v12-strategy-target.schema.json", "packages/contracts/schemas/research/v12-qlib-strategy-artifact-v1.schema.json", "packages/contracts/openapi/decision-governance-v12-strategy-snapshots.v1.json", "packages/contracts/openapi/platform-v12-qlib-fixture.v1.json", "scripts/check-openapi-contract.mjs", "scripts/verify-v12-research-fixture.mjs", "fixtures/v1/v1.2/v1.2-market-data-5/manifest.json", "fixtures/v1/v1.2/v1.2-market-data-5/daily_bars.csv", "fixtures/v1/v1.2/v1.2-market-data-5/market_sessions.csv", "fixtures/v1/v1.2/v1.2-market-data-5/securities.csv"];
   const manifest = [];
   for (const path of inputs) manifest.push(`${createHash("sha256").update(await readFile(path)).digest("hex")}  ${path}`);
   await writeFile(evidencePath.slice(0, -5) + ".sha256", `${manifest.join("\n")}\n`, { mode: 0o600 });
@@ -276,6 +322,8 @@ await writeFile(evidencePath, `${JSON.stringify({
   restartRecoverySummary: restartRecoverySummary ?? null,
   browserOutput,
   browserError,
+  platformIdentityBoundary: identityBoundarySummary,
+  platformModeInjectionBoundary: modeInjectionSummary,
   isolatedContainersVolumesNetworksAndImagesRemoved: true,
   marketSourceAuthorization: "NONE",
   marketSourceCalls: 0,
@@ -285,7 +333,7 @@ await writeFile(evidencePath, `${JSON.stringify({
   liveTradingEnabled: false,
   humanAcceptance: "NOT_CHANGED"
 }, null, 2)}\n`, { mode: 0o600 });
-const manifestInputs = [evidencePath, "infra/compose/docker-compose.v12-integration.yml", "scripts/test-v12-e2e-isolated.mjs", "scripts/evidence-export.mjs", "scripts/evidence-export-core.mjs", "scripts/evidence-export.test.mjs", "apps/web/src/main.tsx", "apps/web/tests/e2e/v11-acceptance.spec.ts", "services/platform-api-service/src/application/v12-acceptance.ts", "services/platform-api-service/src/bootstrap/app.module.ts", "services/platform-api-service/src/adapters/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/qlib-fixture-artifact-repository.ts", "services/platform-api-service/Dockerfile", "services/decision-governance-service/src/application/governance-api.ts", "services/decision-governance-service/src/application/service-auth.ts", "services/decision-governance-service/src/bootstrap/main.ts", "services/decision-governance-service/src/adapters/postgres-strategy-snapshot-repository.ts", "services/decision-governance-service/src/ports/strategy-snapshot-repository.ts", "services/market-data-service/src/bootstrap/main.ts", "services/market-data-service/src/service-auth.ts", "services/quant-research-service/src/application/qlib-research-service.ts", "services/quant-research-service/qlib-worker.py", "services/quant-research-service/qlib-worker.Dockerfile", "services/quant-research-service/qlib-worker-requirements.lock", "services/quant-research-service/tests/test_qlib_fit_validation.py", "packages/contracts/schemas/common/v12-strategy-snapshot-command.schema.json", "packages/contracts/schemas/common/v12-strategy-target.schema.json", "packages/contracts/schemas/research/v12-qlib-strategy-artifact-v1.schema.json", "packages/contracts/openapi/decision-governance-v12-strategy-snapshots.v1.json", "packages/contracts/openapi/platform-v12-qlib-fixture.v1.json", "scripts/check-openapi-contract.mjs", "scripts/verify-v12-research-fixture.mjs", "fixtures/v1/v1.2/v1.2-market-data-4/manifest.json", "fixtures/v1/v1.2/v1.2-market-data-4/daily_bars.csv", "fixtures/v1/v1.2/v1.2-market-data-4/securities.csv"];
+const manifestInputs = [evidencePath, "infra/compose/docker-compose.v12-integration.yml", "scripts/test-v12-e2e-isolated.mjs", "scripts/evidence-export.mjs", "scripts/evidence-export-core.mjs", "scripts/evidence-export.test.mjs", "apps/web/src/main.tsx", "apps/web/tests/e2e/v11-acceptance.spec.ts", "services/platform-api-service/src/application/v12-acceptance.ts", "services/platform-api-service/src/bootstrap/app.module.ts", "services/platform-api-service/src/adapters/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/v12-strategy-governance-client.ts", "services/platform-api-service/src/ports/qlib-fixture-artifact-repository.ts", "services/platform-api-service/Dockerfile", "services/decision-governance-service/src/application/governance-api.ts", "services/decision-governance-service/src/application/service-auth.ts", "services/decision-governance-service/src/bootstrap/main.ts", "services/decision-governance-service/src/adapters/postgres-strategy-snapshot-repository.ts", "services/decision-governance-service/src/ports/strategy-snapshot-repository.ts", "services/market-data-service/src/bootstrap/main.ts", "services/market-data-service/src/service-auth.ts", "services/quant-research-service/src/application/qlib-research-service.ts", "services/quant-research-service/qlib-worker.py", "services/quant-research-service/qlib-worker.Dockerfile", "services/quant-research-service/qlib-worker-requirements.lock", "services/quant-research-service/tests/test_qlib_fit_validation.py", "packages/contracts/schemas/common/v12-strategy-snapshot-command.schema.json", "packages/contracts/schemas/common/v12-strategy-target.schema.json", "packages/contracts/schemas/research/v12-qlib-strategy-artifact-v1.schema.json", "packages/contracts/openapi/decision-governance-v12-strategy-snapshots.v1.json", "packages/contracts/openapi/platform-v12-qlib-fixture.v1.json", "scripts/check-openapi-contract.mjs", "scripts/verify-v12-research-fixture.mjs", "fixtures/v1/v1.2/v1.2-market-data-5/manifest.json", "fixtures/v1/v1.2/v1.2-market-data-5/daily_bars.csv", "fixtures/v1/v1.2/v1.2-market-data-5/market_sessions.csv", "fixtures/v1/v1.2/v1.2-market-data-5/securities.csv"];
 const manifest = [];
 for (const path of manifestInputs) manifest.push(`${createHash("sha256").update(await readFile(path)).digest("hex")}  ${path}`);
 const manifestPath = `${evidencePath.slice(0, -5)}.sha256`;

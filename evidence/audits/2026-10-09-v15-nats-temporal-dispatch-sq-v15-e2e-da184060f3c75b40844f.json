@@ -1,0 +1,343 @@
+{
+  "schemaVersion": "v1.5-nats-temporal-dispatch-e2e-v2",
+  "status": "PASS",
+  "faultMode": "NATS_AND_WORKER_RECOVERY",
+  "isolatedProject": "sq-v15-e2e-da184060f3c75b40844f",
+  "stage": "V1.5",
+  "testRunIds": [
+    {
+      "scenario": "normal",
+      "testRunId": "2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa"
+    },
+    {
+      "scenario": "auto-trade",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63"
+    },
+    {
+      "scenario": "rejection",
+      "testRunId": "a407905b-12e4-4cf1-92fb-febf3ca9cfb6"
+    },
+    {
+      "scenario": "recovery",
+      "testRunId": "1c6ddf79-0bd3-4f66-88c3-ae2877c713f7"
+    }
+  ],
+  "browserExitCode": 0,
+  "output": "\nRunning 2 tests using 1 worker\n\n(node:41429) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n[V1.5 E2E] scenario=normal begin\n[V1.5 E2E] scenario=normal selector visible\n[V1.5 E2E] scenario=normal priorRun=none\n[V1.5 E2E] scenario=normal selected\n[V1.5 E2E] scenario=normal submit dispatched\n[V1.5 E2E] scenario=normal created testRunId=2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa elapsedMs=101\n[V1.5 E2E] scenario=normal 120 observations complete elapsedMs=41604\n[V1.5 E2E] scenario=normal starting same-run CLI/export elapsedMs=41620\n[V1.5 E2E] scenario=normal CLI/export complete elapsedMs=41746\n[V1.5 E2E] scenario=auto-trade begin\n[V1.5 E2E] scenario=auto-trade selector visible\n[V1.5 E2E] scenario=auto-trade priorRun=2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa\n[V1.5 E2E] scenario=auto-trade selected\n[V1.5 E2E] scenario=auto-trade submit dispatched\n[V1.5 E2E] scenario=auto-trade created testRunId=bad660e2-5f8c-4ce6-8744-4bc8a40dec63 elapsedMs=152\n[V1.5 E2E] owner-scoped run comparison current=bad660e2-5f8c-4ce6-8744-4bc8a40dec63 previous=2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa\n[V1.5 E2E] scenario=auto-trade starting same-run CLI/export elapsedMs=50832\n[V1.5 E2E] scenario=auto-trade CLI/export complete elapsedMs=50969\n[V1.5 E2E] scenario=rejection begin\n[V1.5 E2E] scenario=rejection selector visible\n[V1.5 E2E] scenario=rejection priorRun=bad660e2-5f8c-4ce6-8744-4bc8a40dec63\n[V1.5 E2E] scenario=rejection selected\n[V1.5 E2E] scenario=rejection submit dispatched\n[V1.5 E2E] scenario=rejection created testRunId=a407905b-12e4-4cf1-92fb-febf3ca9cfb6 elapsedMs=150\n[V1.5 E2E] scenario=rejection starting same-run CLI/export elapsedMs=6115\n[V1.5 E2E] scenario=rejection CLI/export complete elapsedMs=6241\n[V1.5 E2E] scenario=recovery begin\n[V1.5 E2E] scenario=recovery selector visible\n[V1.5 E2E] scenario=recovery priorRun=a407905b-12e4-4cf1-92fb-febf3ca9cfb6\n[V1.5 E2E] scenario=recovery selected\n[V1.5 E2E] scenario=recovery submit dispatched\n[V1.5 E2E] scenario=recovery created testRunId=1c6ddf79-0bd3-4f66-88c3-ae2877c713f7 elapsedMs=141\n[V1.5 E2E] scenario=recovery starting same-run CLI/export elapsedMs=11156\n[V1.5 E2E] scenario=recovery CLI/export complete elapsedMs=11284\n  ✓  1 tests/e2e/v11-acceptance.spec.ts:846:1 › V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows (1.8m)\n  ✓  2 tests/e2e/v11-acceptance.spec.ts:1831:1 › V1.5 displays explicit capability blockers without converting NOT_RUN into failure (118ms)\n\n  2 passed (1.9m)\n",
+  "faultSequence": [
+    {
+      "event": "normal_test_run_created",
+      "testRunId": "2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa",
+      "at": "2026-10-09T13:41:39.982Z"
+    },
+    {
+      "event": "isolated_nats_stopped",
+      "at": "2026-10-09T13:41:40.170Z"
+    },
+    {
+      "event": "isolated_nats_restored",
+      "at": "2026-10-09T13:41:43.354Z"
+    },
+    {
+      "event": "platform_api_restarted_and_ready",
+      "at": "2026-10-09T13:41:55.501Z"
+    },
+    {
+      "event": "platform_temporal_worker_restarted_during_workflow_activity",
+      "testRunId": "2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa",
+      "activityMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_ACTIVITY_STARTED testRunId=2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa market=CN_A",
+      "workflowCompleteBeforeRestart": false,
+      "at": "2026-10-09T13:42:16.466Z"
+    },
+    {
+      "event": "malformed_and_wrong_owner_terminated_then_jetstream_redelivered_unacked_duplicate",
+      "output": "{\"poisonStreamSequence\":1,\"poisonAckFloor\":1,\"invalidOwnerStreamSequence\":2,\"invalidOwnerAckFloor\":2,\"duplicateStreamSequence\":3,\"duplicateAckFloor\":3,\"numRedelivered\":0,\"stableWorkflowId\":\"v15-no-trade-2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa\"}",
+      "redeliveryMarker": "platform-api-service-1  | STOCKQUANT_V15_DISPATCH_REDELIVERED eventId=2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa seq=3",
+      "at": "2026-10-09T13:42:16.576Z"
+    },
+    {
+      "event": "workflow_completed_after_nats_restore",
+      "testRunId": "2ad2e7b6-8a96-4852-98f4-90bd3ba0aaaa",
+      "at": "2026-10-09T13:42:21.486Z"
+    },
+    {
+      "event": "active_auto_workflow_duplicate_dispatch_acked_without_starting_a_second_workflow",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "activityMarker": "platform-api-service-1  | STOCKQUANT_V15_TEST_AUTO_ACTIVITY_STARTED testRunId=bad660e2-5f8c-4ce6-8744-4bc8a40dec63 market=CN_A session=2",
+      "sequence": 6,
+      "consumerAckFloor": 6,
+      "duplicateWorkflowMarker": "platform-api-service-1  | STOCKQUANT_V15_TEMPORAL_WORKFLOW_ALREADY_STARTED workerId=3750df2274c3 eventId=bad660e2-5f8c-4ce6-8744-4bc8a40dec63 seq=6",
+      "at": "2026-10-09T13:42:54.496Z"
+    },
+    {
+      "event": "active_cn_mandate_paused_after_order_authorized_and_new_order_rejected_before_reservation_or_fakebroker_send",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "marker": {
+        "faultScenario": "V15_PAUSE_AFTER_MANDATE_AUTHORIZATION",
+        "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "market": "CN_A",
+        "mandateId": "5f522529-bb85-5849-9d51-fb6f942281a0",
+        "mandateVersion": 1,
+        "ownerId": "acceptance-owner-1",
+        "accountId": "18325be3-374d-404e-bb3e-5bfd9b7c1a5a",
+        "namespace": "v1-5-auto-trade-bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "proposalId": "bf036806-e7ed-4775-99eb-dea804fb0648",
+        "clientOrderId": "v15-auto-CN_A-bad660e2-5f8c-4ce6-8744-4bc8a40dec63-session-2",
+        "now": "2026-01-06T01:31:00.000Z",
+        "eventSequence": 1
+      },
+      "pauseResult": {
+        "status": 200,
+        "body": {
+          "status": "PAUSED",
+          "mandateId": "5f522529-bb85-5849-9d51-fb6f942281a0",
+          "mandateVersion": 1
+        }
+      },
+      "blockedCommand": {
+        "accountId": "18325be3-374d-404e-bb3e-5bfd9b7c1a5a",
+        "clientOrderId": "v15-paused-followup-CN_A-bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "mandateId": "5f522529-bb85-5849-9d51-fb6f942281a0",
+        "mandateVersion": 1,
+        "namespace": "v1-5-auto-trade-bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "now": "2026-01-06T01:31:00.000Z",
+        "ownerId": "acceptance-owner-1",
+        "proposalId": "bf036806-e7ed-4775-99eb-dea804fb0648",
+        "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63"
+      },
+      "blockedResult": {
+        "status": 403,
+        "body": {
+          "error": "AUTO_POLICY Mandate rejected this Proposal",
+          "detail": {
+            "reasonCode": "MANDATE_INACTIVE"
+          }
+        }
+      },
+      "at": "2026-10-09T13:42:55.080Z"
+    },
+    {
+      "event": "trade_execution_terminated_after_fakebroker_commit_before_http_response",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "marker": {
+        "faultScenario": "V15_AUTO_RESPONSE_PENDING_BEFORE_TRADE_RESTART",
+        "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "clientOrderId": "v15-auto-CN_A-bad660e2-5f8c-4ce6-8744-4bc8a40dec63-session-2",
+        "eventSequence": 1
+      },
+      "at": "2026-10-09T13:43:00.388Z"
+    },
+    {
+      "event": "temporal_retry_queried_original_order_after_trade_execution_restart",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "marker": {
+        "faultScenario": "V15_AUTO_ORIGINAL_ORDER_LOOKUP_AFTER_TRADE_RESTART",
+        "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "clientOrderId": "v15-auto-CN_A-bad660e2-5f8c-4ce6-8744-4bc8a40dec63-session-2",
+        "eventSequence": 2
+      },
+      "at": "2026-10-09T13:43:02.223Z"
+    },
+    {
+      "event": "same_run_unknown_order_recovered_by_original_client_order_query",
+      "testRunId": "1c6ddf79-0bd3-4f66-88c3-ae2877c713f7",
+      "injectedEvents": [
+        {
+          "faultScenario": "AUTO_RESPONSE_LOST_AFTER_FAKEBROKER_COMMIT",
+          "testRunId": "1c6ddf79-0bd3-4f66-88c3-ae2877c713f7",
+          "clientOrderId": "v13-fault-unknown-CN_A-1c6ddf79-0bd3-4f66-88c3-ae2877c713f7",
+          "eventSequence": 1
+        },
+        {
+          "faultScenario": "AUTO_ORIGINAL_ORDER_QUERY_UNAVAILABLE_ONCE",
+          "testRunId": "1c6ddf79-0bd3-4f66-88c3-ae2877c713f7",
+          "clientOrderId": "v13-fault-unknown-CN_A-1c6ddf79-0bd3-4f66-88c3-ae2877c713f7",
+          "eventSequence": 2
+        }
+      ],
+      "at": "2026-10-09T13:43:30.412Z"
+    },
+    {
+      "event": "completed_auto_workflow_dispatch_replayed",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "sequence": 9,
+      "consumerAckFloor": 9,
+      "at": "2026-10-09T13:43:30.835Z"
+    },
+    {
+      "event": "duplicate_auto_dispatch_left_budget_orders_fills_portfolio_ledgers_unchanged",
+      "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+      "summary": {
+        "namespace": "v1-5-auto-trade-bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+        "brokerMode": "FAKE",
+        "order_count": 4,
+        "unresolved_order_count": 0,
+        "fill_count": 4,
+        "pending_outbox_count": 0,
+        "externalOnlyOrderCount": 0,
+        "discrepancies": []
+      },
+      "byMarket": {
+        "CN_A": {
+          "portfolio": {
+            "cash": {
+              "amount": "8990.0000",
+              "currency": "CNY"
+            },
+            "positions": [
+              {
+                "security": "600000.SH",
+                "quantity": 100
+              }
+            ],
+            "ledgerEntryCount": 3,
+            "ledgerVersion": 3
+          },
+          "budgets": [
+            {
+              "sessionSequence": 2,
+              "mandateId": "5f522529-bb85-5849-9d51-fb6f942281a0",
+              "mandateVersion": 1,
+              "ownerId": "acceptance-owner-1",
+              "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+              "reservedAmount": "0.00",
+              "consumedAmount": "505.00",
+              "releasedAmount": "0.00",
+              "reservationCount": 1,
+              "consumedCount": 1,
+              "releasedCount": 0
+            },
+            {
+              "sessionSequence": 3,
+              "mandateId": "6a5ceeb4-f689-5347-8cc0-9a83b5afcb4f",
+              "mandateVersion": 1,
+              "ownerId": "acceptance-owner-1",
+              "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+              "reservedAmount": "0.00",
+              "consumedAmount": "505.00",
+              "releasedAmount": "0.00",
+              "reservationCount": 1,
+              "consumedCount": 1,
+              "releasedCount": 0
+            }
+          ]
+        },
+        "US_EQUITY": {
+          "portfolio": {
+            "cash": {
+              "amount": "9749.9000",
+              "currency": "USD"
+            },
+            "positions": [
+              {
+                "security": "AAPL",
+                "quantity": 10
+              }
+            ],
+            "ledgerEntryCount": 3,
+            "ledgerVersion": 3
+          },
+          "budgets": [
+            {
+              "sessionSequence": 2,
+              "mandateId": "fdc1bc59-e586-5e94-a3f8-4d22a7b0cfae",
+              "mandateVersion": 1,
+              "ownerId": "acceptance-owner-1",
+              "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+              "reservedAmount": "0.00",
+              "consumedAmount": "125.05",
+              "releasedAmount": "0.00",
+              "reservationCount": 1,
+              "consumedCount": 1,
+              "releasedCount": 0
+            },
+            {
+              "sessionSequence": 3,
+              "mandateId": "d77d0ba4-842d-529c-8315-951ec622b819",
+              "mandateVersion": 1,
+              "ownerId": "acceptance-owner-1",
+              "testRunId": "bad660e2-5f8c-4ce6-8744-4bc8a40dec63",
+              "reservedAmount": "0.00",
+              "consumedAmount": "125.05",
+              "releasedAmount": "0.00",
+              "reservationCount": 1,
+              "consumedCount": 1,
+              "releasedCount": 0
+            }
+          ]
+        }
+      },
+      "existingWorkflowMarker": "platform-api-service-1  | STOCKQUANT_V15_TEMPORAL_WORKFLOW_ALREADY_STARTED workerId=3750df2274c3 eventId=bad660e2-5f8c-4ce6-8744-4bc8a40dec63 seq=6",
+      "at": "2026-10-09T13:43:31.133Z"
+    },
+    {
+      "event": "original_outbox_message_acknowledged_after_relay_recovery",
+      "output": "{\"originalOutboxSequence\":4,\"consumerAckFloor\":9}",
+      "at": "2026-10-09T13:43:31.285Z"
+    },
+    {
+      "event": "injected_temporal_unavailable_caused_transient_nak",
+      "testRunId": "bb6fa6df-73ff-4fb7-a9e3-693414d00e26",
+      "sequence": 10,
+      "marker": "platform-api-service-1  | STOCKQUANT_V15_TEST_TRANSIENT_NAK eventId=bb6fa6df-73ff-4fb7-a9e3-693414d00e26 seq=10 error=TemporalServiceUnavailableError",
+      "at": "2026-10-09T13:43:31.739Z"
+    },
+    {
+      "event": "temporal_retry_run_completed_and_message_acknowledged",
+      "testRunId": "bb6fa6df-73ff-4fb7-a9e3-693414d00e26",
+      "output": "{\"streamSequence\":10,\"consumerAckFloor\":10}",
+      "authoritativeObservations": 120,
+      "at": "2026-10-09T13:43:45.434Z"
+    }
+  ],
+  "externalSourceCalls": 0,
+  "realBrokerCalls": 0,
+  "exactProjectResourcesRemoved": true,
+  "sourceSha256": {
+    "services/platform-api-service/src/application/v15-auto-trade-cancellation.ts": "2aefb1b99c66834a02b7b14499bb1c5b30bb8d40d1481a16771ebddeae590e51",
+    "services/platform-api-service/tests/unit/v15-auto-trade-cancellation.spec.ts": "79c0177c6f968d58c7b89b313eb26242a2ecdb6262beec132e9667a452a7274d",
+    "services/platform-api-service/src/integration/v15-nats-dispatch.ts": "92f593a8e99da39e9a12980864377cf96a3b72a91f2ccbbf23e6c2ac9d3af90a",
+    "services/platform-api-service/src/integration/temporal-runtime.ts": "3d091a11e0db87d9213c1971f30502b8483ac3973224c1161ae2fecb536d94ca",
+    "services/platform-api-service/src/integration/temporal-workflow.ts": "4dc8dbe9acb36318a47b22d6403cad4abced23c589268f90f09b0c4a68308b11",
+    "services/platform-api-service/src/application/v15-auto-trade.ts": "1992ad0f0a3079bff8674e21e4d062c2ffce76f98b7d6737146270f6c04fb034",
+    "services/platform-api-service/src/application/v15-auto-trade-calendar.ts": "3cb4d20f9742bee2f357f5cdf30de9463012d2245be5b294972c55ce08dabe73",
+    "services/platform-api-service/src/application/v15-orchestration.ts": "d32c49d266328a1a08ad48399f9cb4ad5c94043db31c3452e8763c9b39d4235c",
+    "services/platform-api-service/src/adapters/postgres-stage-run-repository.ts": "ed54dd5c6b1d52e840f1c03ed79e2a8631cc7d9603238d6ced2354d06ac70161",
+    "services/platform-api-service/src/bootstrap/app.module.ts": "170d7295c26ca88a95a3816a4e0b1fa38004c41a4a3744b6b0a61f602a542f84",
+    "services/platform-api-service/src/main.ts": "706bbcb7dae307458c68a7cd72fb44f387591e6ab58e7e764d90f31b2263c07f",
+    "services/platform-api-service/src/contracts/generated-v13-auto-mandate-client.ts": "7c68a528d824bd88011531d7fbaf8d65fb7816b9358553b630823c32bee06901",
+    "services/platform-api-service/tests/unit/v15-auto-trade.spec.ts": "040cf2dda42d9ed2408758efa56edc5a0d31f2795a5626583a23327c2cd70871",
+    "services/decision-governance-service/src/application/governance-api.ts": "c737409d4ee87b778f8f11e83aed7e504a889dd6fd4414271014c3a138e5b73c",
+    "services/decision-governance-service/src/application/service-auth.ts": "3e3397935e5ca7ce1b267a98bb52d80e027d10c472e0de02c0c59a087bdd250e",
+    "services/decision-governance-service/src/ports/auto-mandate-repository.ts": "c22ac3c392efdce265d4e304c829ef989d78e8d7ef23cc432b20f699baaa7f32",
+    "services/decision-governance-service/src/adapters/postgres-auto-mandate-repository.ts": "eacbc9e8d4cc83d64c39e6eb59f58f957417f883676a294b24f7d090656424c0",
+    "services/decision-governance-service/src/bootstrap/main.ts": "87fd8c3e7a1e8da862929f56c36c5825f3388411aec82a3880793b750f4987e6",
+    "services/decision-governance-service/tests/unit/governance-api.spec.ts": "911fa321b51297005dddaace79d3d5e5e3ddad2fc1efb890ee8a41ef397e1e18",
+    "packages/contracts/openapi/decision-governance-v13-auto-mandates.v1.json": "36a4daf418032bdbeb03f2311c49630f7ef8e67374d4c9335c0bed7537bc9e10",
+    "scripts/generate-v13-auto-mandate-client.mjs": "4022220aede8bdfba7f5803dfaaf4b034b4fbafc6b0d58b14b1de78d71d46b1a",
+    "services/portfolio-risk-service/src/bootstrap/app.module.ts": "df0c6ee84ff5c02cd93a565c6d9f57f9cf401a78b62b8ae785050d1cac2ffe70",
+    "services/trade-execution-service/src/application/v13-manual-execution.ts": "5b8aac2578a19a0f8e2beb7073cb03a39d7d56d1c7fd756167e9f61a9994b796",
+    "services/trade-execution-service/src/application/v13-manual-paper-execution.ts": "13b28458ed27db7e108062cb3ba560cba14a9112e965259ad5efde9f96700adb",
+    "services/trade-execution-service/src/adapters/postgres-fake-broker-repository.ts": "351e5890ac3e815c330fddb61382f5e2588e41d134ae4a48c54b00c1643690bb",
+    "services/trade-execution-service/src/bootstrap/main.ts": "f7922caa35f4489086b91723486f8fa29231af892e0c8fb70d6cb1cde3ec8927",
+    "services/trade-execution-service/tests/unit/v13-manual-execution.spec.ts": "a9d0512d8f0508566c0e88f3c1aec72b48abf932e7e68fc1d9870c8b3c9a3fda",
+    "services/trade-execution-service/tests/unit/v13-auto-paper-execution.spec.ts": "83605dc2895b463431746118583f0f3a5313182b682b4d331aa2f65d947c1da3",
+    "packages/contracts/schemas/common/v13-auto-paper-execution-command.schema.json": "d373d48cf89f4f953adf4eb50897aecfaa57bc524a4761f5eaa43ca400e58189",
+    "packages/contracts/openapi/trade-execution-v13-manual-paper.v1.json": "209fd007749ce6fb14349c5ba8441e0ba44b578fe347b4b8979b3d70685ae454",
+    "services/quant-research-service/src/bootstrap/main.ts": "4a64dae0300df5817e0eed37b4b948a1723098f91403b48780a105fba4689321",
+    "fixtures/v1/v1.5/no-trade-calendar.json": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+    "fixtures/v1/v1.5/auto-trade-calendar.json": "a2d16e34a79594304a52bbd690c9f276e69edf98e19984e383d0a6360345c854",
+    "fixtures/v1/v1.5/auto-trade-calendar-manifest.json": "f263e5c37f9b4f11295ae1cf0126f547d256e5ec425c8db7ef682235417b0662",
+    "fixtures/v1/v1.5/auto-trade-calendar-2.json": "793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc",
+    "fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json": "d8a7e2adf550c67404cf874551b5aa2f2587c00952b479ef2829b8866fcf6b01",
+    "infra/compose/docker-compose.v15-integration.yml": "3c48e01f5e0abe735981ec3dd70530dcc86818240fc5a6fa7c9ec99173e97dac",
+    "apps/web/src/main.tsx": "e3aa6176aba97b6b92bb2d3cb8513d87bb0b9046be889c749b2f32b2bebfaab4",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "080de52dbe6ec1dc5cfd1ca9ea7e6c758707438f35b01dffc6472daa7b577d12",
+    "scripts/unique-evidence.mjs": "440bdcbcf64d9df68524eb8c16acb1fb2d76fd9e17cb952c6ba422f15e8b3067",
+    "scripts/test-v15-web-e2e-isolated.mjs": "308e5c23d7776a23bc52b338c35e6db10273ebed426c70d2f0427d6454e0ef78"
+  },
+  "failureReason": null,
+  "webUrl": "http://127.0.0.1:50384/acceptance/v1/v1.5",
+  "apiHealthUrl": "http://127.0.0.1:50383/live",
+  "evidencePath": "evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-da184060f3c75b40844f.json"
+}

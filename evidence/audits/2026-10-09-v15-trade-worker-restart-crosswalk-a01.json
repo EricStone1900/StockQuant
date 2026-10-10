@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "check": "V1.5 Trade Execution restart recovery crosswalk refresh",
+  "crosswalkPath": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+  "crosswalkSha256": "b078fa9ef34f01b22add5a2cdaca87dfca95ac2f3528a0b9184e7c8269eff72f",
+  "updatedRequirementIds": [
+    "V1.5-S2-L18",
+    "V1.5-S7-L61",
+    "V1.5-S7-L60"
+  ],
+  "evidence": {
+    "e2e": {
+      "path": "../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9ab3f1b90438b7f715eb.json",
+      "sha256": "1886eae2af5356c2b347f8b339a51489de069753f32e8ae65ffa57929d6611f7",
+      "testRunId": "90567c92-04e2-445e-a1cf-f6d354c24755",
+      "sequence": [
+        "FakeBroker order and Fill committed",
+        "Trade Execution process killed before HTTP response",
+        "Trade Execution restarted against persistent database",
+        "Temporal retry looked up the same clientOrderId",
+        "four-scenario E2E completed with independent reconciliation"
+      ]
+    },
+    "codeSuite": {
+      "path": "../../evidence/audits/2026-10-09-v15-trade-worker-restart-code-suite-a01.log",
+      "sha256": "89168b7cb6bd158ec2982f4e5ce4b3768131db7c11fbcc9ad51c5a38eb55fb41",
+      "exitCode": 0
+    },
+    "terminalLog": {
+      "path": "../../evidence/audits/2026-10-09-v15-trade-worker-restart-e2e-a01.log",
+      "sha256": "64acb430140e2cdd5a7babd439f513215b5e029cee378e4f542add33d5322197"
+    }
+  },
+  "completionClassificationChanged": false,
+  "stillOpen": [
+    "cancellation and in-flight Fill behavior",
+    "multi-worker Trading failover",
+    "real-clock scheduling and settlement",
+    "Ubuntu evidence and current-scope human acceptance"
+  ]
+}

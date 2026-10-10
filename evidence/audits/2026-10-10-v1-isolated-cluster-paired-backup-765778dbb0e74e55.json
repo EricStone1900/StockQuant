@@ -1,0 +1,260 @@
+{
+  "schemaVersion": "stockquant.v1.isolated-cluster-paired-backup.v1",
+  "status": "PASS",
+  "scope": "isolated-test-only",
+  "composeProject": "stockquant-paired-cluster-765778dbb0e74e55-DOnNoN",
+  "sourceDatabaseInventory": [
+    "decision_governance",
+    "historical_replay",
+    "market_data",
+    "platform_api",
+    "portfolio_risk",
+    "postgres",
+    "quant_research",
+    "research_automation",
+    "trade_execution",
+    "trade_execution_test"
+  ],
+  "artifactVolume": "stockquant-paired-cluster-765778dbb0e74e55-DOnNoN_research-artifacts-v1",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v24.1.0",
+    "postgresImageId": "sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2",
+    "backupHelperImageId": "sha256:ce165dcca6608664c518ae71c86ed3fce33da1d1e88b5dee2504fc0cbff55beb"
+  },
+  "sourceSha256": {
+    "scripts/test-isolated-cluster-paired-backup.mjs": "a3ff4474a05b966c9b60d05fb76aed71b85b83d7275577d7ff58d10d6d0517a1",
+    "scripts/create-cluster-paired-backup.mjs": "4bbff846fa656972bf650c465f458fab753d21d34ba511eac523c99a87dc2197",
+    "scripts/cluster-paired-backup.mjs": "4c39a73f9c2b2d4ff2b009581de3113aaf216143aa56760a32e63774669b3d02",
+    "scripts/backup-retention.mjs": "569ded292dabb7bf94182650a09f5ea28147d51522ed4ff1837117063fb6e655",
+    "scripts/unique-evidence.mjs": "440bdcbcf64d9df68524eb8c16acb1fb2d76fd9e17cb952c6ba422f15e8b3067",
+    "infra/compose/postgres-init.sql": "14000ad3752ab7611a1e70684b40ef659eb781dedfbf0215148f5035646abdba"
+  },
+  "seededPublishedArtifactRef": {
+    "namespace": "research/v1-paired-backup/09a0de7e-6a69-46c4-b186-5386cf49ecbb/model",
+    "artifactId": "weights.bin",
+    "sha256": "8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767",
+    "restoredContentPath": "research/v1-paired-backup/09a0de7e-6a69-46c4-b186-5386cf49ecbb/model/8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767/weights.bin"
+  },
+  "seededV12QlibArtifactRef": {
+    "testRunId": "fdd35d95-9b2a-4edf-82c1-c6f092a188d4",
+    "namespace": "research/fdd35d95-9b2a-4edf-82c1-c6f092a188d4/qlib-fixture",
+    "artifactId": "8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767",
+    "sha256": "8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767",
+    "restoredContentPath": "research/fdd35d95-9b2a-4edf-82c1-c6f092a188d4/qlib-fixture/8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767/8ecba6a9c6e7352b82b93ed39df64e22e124f992211e0415af9eed859edf8767"
+  },
+  "pairedBusinessFacts": {
+    "testRunId": "09a0de7e-6a69-46c4-b186-5386cf49ecbb",
+    "run": {
+      "testRunId": "09a0de7e-6a69-46c4-b186-5386cf49ecbb",
+      "stageId": "V1.3",
+      "scenarioId": "normal",
+      "ownerId": "paired-backup-owner",
+      "namespace": "v1-3-paired-backup-09a0de7e-6a69-46c4-b186-5386cf49ecbb",
+      "status": "WAITING",
+      "seed": 20261009
+    },
+    "trade": {
+      "orderId": "b40ad53c-3d2d-4ec8-8eb4-cf8028073c38",
+      "clientOrderId": "backup-09a0de7e-6a69-46c4-b186-5386cf49ecbb",
+      "orderStatus": "FILLED",
+      "fillId": "6e77cabc-fafd-4339-81f9-0f5306b5dfc9",
+      "quantity": 10,
+      "price": "10.0000",
+      "fee": "0.1000",
+      "outboxStatus": "DELIVERED"
+    },
+    "portfolio": {
+      "accountId": "21abf1d3-e97c-4f70-ac5e-d2126c6e7735",
+      "ownerId": "paired-backup-owner",
+      "testRunId": "09a0de7e-6a69-46c4-b186-5386cf49ecbb",
+      "cashAmount": "899.9000",
+      "currency": "CNY",
+      "ledgerVersion": 3,
+      "ledgerEntryCount": 2,
+      "fillId": "6e77cabc-fafd-4339-81f9-0f5306b5dfc9",
+      "positionQuantity": 10
+    },
+    "relationChecks": {
+      "namespaceMatches": true,
+      "orderFillOutboxLinked": true,
+      "portfolioAndBrokerFillIdsMatch": true,
+      "ledgerAndPositionRestored": true
+    }
+  },
+  "v14BacktestValidation": {
+    "backtestRunId": "0fc3790c-6845-431d-b39a-4e56def4b4e5",
+    "testRunId": "0fc3790c-6845-431d-b39a-4e56def4b4e5",
+    "ownerId": "paired-backup-owner",
+    "resultSha256": "7c83201bc8a3802fb50569b110773ffd2469908cb9fc86d324538672f03e1b42",
+    "manifestSha256": "5ce5dbb872066f743cb7f738d72ae44d5a741917756b50c367b02ba72f9dee38",
+    "status": "COMPLETED",
+    "artifactRef": {
+      "kind": "BACKTEST_REPORT",
+      "sha256": "7c83201bc8a3802fb50569b110773ffd2469908cb9fc86d324538672f03e1b42",
+      "status": "PUBLISHED",
+      "ownerId": "paired-backup-owner",
+      "mediaType": "application/vnd.stockquant.v14-backtest-report+json",
+      "namespace": "research/0fc3790c-6845-431d-b39a-4e56def4b4e5/daily-backtest",
+      "sourceRef": "quant-research-service:v1.4:0fc3790c-6845-431d-b39a-4e56def4b4e5",
+      "testRunId": "0fc3790c-6845-431d-b39a-4e56def4b4e5",
+      "artifactId": "7c83201bc8a3802fb50569b110773ffd2469908cb9fc86d324538672f03e1b42",
+      "schemaVersion": "artifact-ref.v1"
+    },
+    "relationChecks": {
+      "quantRunManifestLinked": true,
+      "quantPayloadHashMatches": true,
+      "manifestHashMatches": true,
+      "platformTestRunMatches": true,
+      "platformReportHashMatches": true,
+      "reportArtifactRefMatchesQuant": true
+    }
+  },
+  "restoreValidation": {
+    "status": "PASS",
+    "checkedAt": "2026-10-10T09:38:42.198Z",
+    "publishedArtifactRefs": 2,
+    "restoredDatabases": [
+      "decision_governance",
+      "historical_replay",
+      "market_data",
+      "platform_api",
+      "portfolio_risk",
+      "postgres",
+      "quant_research",
+      "research_automation",
+      "trade_execution",
+      "trade_execution_test"
+    ],
+    "restoredRoles": [
+      {
+        "name": "decision_governance",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "historical_replay",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "market_data",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "platform_api",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "portfolio_risk",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "postgres",
+        "superuser": true,
+        "inherit": true,
+        "createRole": true,
+        "createDb": true,
+        "login": true,
+        "replication": true,
+        "bypassRls": true,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "quant_research",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "research_automation",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "trade_execution",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      },
+      {
+        "name": "trade_execution_test",
+        "superuser": false,
+        "inherit": true,
+        "createRole": false,
+        "createDb": false,
+        "login": true,
+        "replication": false,
+        "bypassRls": false,
+        "connlimit": -1,
+        "validUntil": null
+      }
+    ],
+    "method": "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256"
+  },
+  "backupManifestSha256": "6dcc3eccccff7de5222aea4cbcda96ec48bf482351486332db0cffa0cae59b8e",
+  "activeProjectOrVolumeTouched": false,
+  "exactProjectResourcesRemoved": true,
+  "realBrokerCalls": 0,
+  "externalSourceCalls": 0,
+  "at": "2026-10-10T09:38:42.788Z"
+}

@@ -1,4 +1,4 @@
-import type { Pool } from "pg";
+import type { PoolClient } from "pg";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS research_candidates (
@@ -69,6 +69,6 @@ const statements = [
   )`,
 ] as const;
 
-export async function initializeQuantResearchSchema(pool: Pick<Pool, "query">): Promise<void> {
-  for (const statement of statements) await pool.query(statement);
+export async function initializeQuantResearchSchema(queryable: Pick<PoolClient, "query">): Promise<void> {
+  for (const statement of statements) await queryable.query(statement);
 }

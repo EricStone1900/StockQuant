@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "stockquant.v1-crosswalk-v14-mode-audit.v1",
+  "date": "2026-10-10",
+  "status": "PASS",
+  "requirementId": "V1-90-STAGE-V1.4",
+  "requirementClassification": "RECHECK",
+  "exactAssertion": {
+    "path": "../../scripts/test-v14-backtest-isolated.mjs",
+    "name": "V1.4 run creation must reject client mode injection for PAPER/FAKE, LIVE/FAKE, BACKTEST/REAL, LIVE/REAL with HTTP 422 and no Quant run"
+  },
+  "assertionPresentInScript": true,
+  "modeCases": [
+    "PAPER/FAKE",
+    "LIVE/FAKE",
+    "BACKTEST/REAL",
+    "LIVE/REAL"
+  ],
+  "httpStatusAssertionPresent": true,
+  "noQuantRunAssertionPresent": true,
+  "strictTopLevelAllowListPresent": true,
+  "evidencePaths": [
+    {
+      "path": "scripts/test-v14-backtest-isolated.mjs",
+      "exists": true
+    },
+    {
+      "path": "services/platform-api-service/src/bootstrap/app.module.ts",
+      "exists": true
+    },
+    {
+      "path": "evidence/audits/2026-10-10-v14-platform-mode-injection-http-e2e-a01.log",
+      "exists": true
+    },
+    {
+      "path": "evidence/audits/2026-10-10-v14-mode-boundary-code-suite-a01.log",
+      "exists": true
+    }
+  ],
+  "evidenceHashes": {
+    "integration": "d18511fa164ab5b02142e8beeeb8646ca16046f6a5788972790979dab425822a",
+    "codeSuite": "2ac4b11d8718b55b14b8b6f934d31b1502c8ae80f18684bdd4627250538722e9"
+  },
+  "parentRequirementClosed": false,
+  "remainingGap": "The V1.4 isolated Platform run-creation endpoint rejects four client-injected environment/broker mode combinations before TestRun/Quant side effects; this is an atomic route assertion only. Settlement semantics/calendar, full two-market Paper/Backtest ledger parity, every required V1.4 scenario and human acceptance remain open."
+}

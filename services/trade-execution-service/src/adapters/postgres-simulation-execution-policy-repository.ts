@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { V24ExecutionPolicy } from "../domain/v24-execution-policy.js";
 import type { SimulationExecutionPolicyRepository } from "../ports/simulation-execution-policy-repository.js";
 
@@ -39,8 +39,8 @@ function validatePreparationPolicy(policy: V24ExecutionPolicy): void {
 export class PostgresSimulationExecutionPolicyRepository implements SimulationExecutionPolicyRepository {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pool | PoolClient = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS simulation_execution_policies (
         policy_id TEXT NOT NULL,
         policy_version TEXT NOT NULL,

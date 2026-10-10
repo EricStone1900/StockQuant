@@ -39,19 +39,46 @@ export function buildV12QlibFixtureRequest(fixture: V12ResearchFixturePreview, m
   rowKeys: Array<{ ticker: string; market: string; currency: string; date: string }>;
   factorRows: Array<{ ticker: string; market: string; currency: string; date: string; momentum20: number; volumeRatio20: number; rangeRatio: number; label: number }>;
 } {
-  if (fixture.fixtureVersion !== "v1.2-market-data-4" || fixture.dataMode !== "FIXTURE") throw new Error("unsupported V1.2 research Fixture version or mode");
-  const groups = new Map<string, typeof fixture.bars>();
-  for (const bar of fixture.bars.filter((item) => market === undefined || item.market === market)) groups.set(bar.securityId, [...(groups.get(bar.securityId) ?? []), bar]);
+  if (!(fixture.fixtureVersion === "v1.2-market-data-4" || fixture.fixtureVersion === "v1.2-market-data-5") || fixture.dataMode !== "FIXTURE") throw new Error("unsupported V1.2 research Fixture version or mode");
   const rows: Array<{ key: { ticker: string; market: string; currency: string; date: string }; features: number[]; label: number; metadata: { decisionAt: string; featureAvailableAt: string; labelAvailableAt: string } }> = [];
-  for (const bars of groups.values()) {
-    bars.sort((a, b) => a.date.localeCompare(b.date));
-    for (let index = 20; index < bars.length - 1; index += 1) {
-      const current = bars[index];
-      const previous = bars[index - 20];
-      const next = bars[index + 1];
+  const selectedSecurities = fixture.securities.filter((item) => market === undefined || item.market === market);
+  const securitiesById = new Map(selectedSecurities.map((item) => [item.securityId, item]));
+  const barsBySecurity = new Map<string, Map<string, (typeof fixture.bars)[number]>>();
+  for (const bar of fixture.bars.filter((item) => market === undefined || item.market === market)) {
+    const security = securitiesById.get(bar.securityId);
+    if (!security) throw new Error(`V1.2 Fixture bar references an unknown security ${bar.securityId}`);
+    if (bar.ticker !== security.ticker || bar.market !== security.market || bar.currency !== security.currency || bar.timezone !== security.timezone) throw new Error(`V1.2 Fixture bar identity does not match security master for ${bar.securityId}`);
+    if (bar.date < security.listedAt || (security.delistedAt !== null && bar.date > security.delistedAt)) throw new Error(`V1.2 Fixture bar is outside the security listing interval for ${bar.ticker} ${bar.date}`);
+    const series = barsBySecurity.get(bar.securityId) ?? new Map<string, (typeof fixture.bars)[number]>();
+    if (series.has(bar.date)) throw new Error(`duplicate V1.2 Fixture bar for ${bar.ticker} ${bar.date}`);
+    series.set(bar.date, bar);
+    barsBySecurity.set(bar.securityId, series);
+  }
+  const sessionsByMarket = new Map<string, string[]>();
+  for (const row of fixture.marketSessions.filter((item) => market === undefined || item.market === market)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(row.sessionDate) || Number.isNaN(Date.parse(`${row.sessionDate}T00:00:00Z`))) throw new Error(`invalid V1.2 expected market session ${row.market} ${row.sessionDate}`);
+    const sessions = sessionsByMarket.get(row.market) ?? [];
+    if (sessions.includes(row.sessionDate)) throw new Error(`duplicate V1.2 expected market session ${row.market} ${row.sessionDate}`);
+    sessions.push(row.sessionDate);
+    sessionsByMarket.set(row.market, sessions);
+  }
+  for (const sessions of sessionsByMarket.values()) sessions.sort((a, b) => a.localeCompare(b));
+  for (const security of selectedSecurities) {
+    const series = barsBySecurity.get(security.securityId) ?? new Map<string, (typeof fixture.bars)[number]>();
+    const sessions = sessionsByMarket.get(security.market) ?? [];
+    for (let index = 20; index < sessions.length - 1; index += 1) {
+      const requiredDates = sessions.slice(index - 20, index + 1);
+      const window = requiredDates.map((date) => series.get(date));
+      const next = series.get(sessions[index + 1]);
+      // A missing session invalidates the affected lookback and next-session
+      // label. Do not compress the series and silently turn a two-session
+      // change into a one-session target.
+      if (window.some((bar) => !bar) || !next) continue;
+      const current = window.at(-1)!;
+      const previous = window[0]!;
       const close = Number(current.close);
       const oldClose = Number(previous.close);
-      const volumes = bars.slice(index - 19, index + 1).map((bar) => bar.volume);
+      const volumes = window.slice(1).map((bar) => bar!.volume);
       const meanVolume = volumes.reduce((sum, value) => sum + value, 0) / volumes.length;
       const volumeRatio20 = current.volume / meanVolume - 1;
       const rangeRatio = (Number(current.high) - Number(current.low)) / close;
@@ -111,7 +138,7 @@ export class V12AcceptanceService {
       status: "RUNNING",
       seed,
       assertions: [],
-      evidence: { environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE", dataVersion: "v1.2-market-data-4", qlibTask: { phase: "QUEUED", cancelRequested: false, artifactPublished: false } }
+      evidence: { environmentMode: "BACKTEST", dataMode: "FIXTURE", brokerMode: "FAKE", dataVersion: "v1.2-market-data-5", qlibTask: { phase: "QUEUED", cancelRequested: false, artifactPublished: false } }
     };
     await this.repository.save(run);
     queueMicrotask(() => void this.execute(run));
@@ -169,6 +196,7 @@ export class V12AcceptanceService {
       if (!(await progress("LOADING_SCENARIO_INPUTS", { qlibProbe: effectiveProbe.probe ?? { status: "NOT_RUN" } }))) { await finishCancelled(); return; }
       let assertions = this.assertions(run.scenarioId as V12Scenario, normal, bad, effectiveProbe, factor);
       let qlibEvidence: Record<string, unknown> = { status: "NOT_RUN" };
+      let artifact: Awaited<ReturnType<QlibFixtureArtifactRepository["savePending"]>> | null = null;
       if (run.scenarioId === "normal") {
         if (!(await progress("LOADING_RESEARCH_FIXTURE"))) { await finishCancelled(); return; }
         const researchFixture = await this.marketData.getV12ResearchFixturePreview();
@@ -177,10 +205,13 @@ export class V12AcceptanceService {
         const errors: string[] = [];
         const predictions: Array<{ ticker: string; market: string; currency: string; date: string; momentum20: number; volumeRatio20: number; rangeRatio: number; label: number; prediction: number }> = [];
         const ranking: Array<{ ticker: string; market: string; currency: string; factor: number; rank: number; signal: string; reason: string }> = [];
-        for (const market of markets) {
+        // Preflight every market's frozen history and temporal splits before
+        // invoking any model worker. A deficient later market must not leave a
+        // partial cross-market fit or publish a one-market strategy Artifact.
+        const inputs = markets.map((market) => ({ market, built: buildV12QlibFixtureRequest(researchFixture, market) }));
+        for (const { market, built } of inputs) {
           if (await cancelled()) { await finishCancelled(); return; }
           if (!(await progress(market === "CN_A" ? "FITTING_CN_A" : "FITTING_US_EQUITY", { currentMarket: market, completedMarkets: fits.map((fit) => fit.market) }))) { await finishCancelled(); return; }
-          const built = buildV12QlibFixtureRequest(researchFixture, market);
           const inputSha256 = createHash("sha256").update(JSON.stringify(built.request)).digest("hex");
           const qlib = await this.quantResearch.fitQlibFixtureModel(built.request);
           fits.push({ market, inputSha256, built, qlib });
@@ -205,11 +236,10 @@ export class V12AcceptanceService {
         const inputSha256 = createHash("sha256").update(JSON.stringify(fits.map((fit) => ({ market: fit.market, inputSha256: fit.inputSha256 })))).digest("hex");
         const payloadBase = { schemaVersion: "v1.2-qlib-strategy-artifact-v1", fixtureVersion: researchFixture.fixtureVersion, dailyBarsSha256: researchFixture.dailyBarsSha256, inputSha256, factorVersion: "v1.2-momentum-volume-1", dataVersion: researchFixture.fixtureVersion, asOf, qlibModels: fits.map((fit) => ({ market: fit.market, version: fit.qlib.qlibVersion, lightgbmVersion: fit.qlib.lightgbmVersion, model: fit.qlib.model, modelSha256: fit.qlib.modelSha256, modelArtifactBase64: fit.qlib.modelArtifactBase64, testPredictionsSha256: fit.qlib.testPredictionsSha256 })), predictions, strategies };
         for (const strategy of strategies) strategy.strategyHash = createHash("sha256").update(JSON.stringify({ ...strategy, strategyHash: undefined, fixtureVersion: researchFixture.fixtureVersion, dailyBarsSha256: researchFixture.dailyBarsSha256, modelHashes: fits.map((fit) => fit.qlib.modelSha256) })).digest("hex");
-        let artifact = null;
         if (errors.length === 0) {
           if (await cancelled()) { await finishCancelled(); return; }
           if (!(await progress("PUBLISHING_ARTIFACT", { modelFitCount: fits.length, predictionCount: predictions.length }))) { await finishCancelled(); return; }
-          artifact = await this.artifacts.save({ testRunId: run.testRunId, ownerId: run.ownerId, mediaType: "application/vnd.stockquant.qlib-fixture-model+json", payload: payloadBase as never });
+          artifact = await this.artifacts.savePending({ testRunId: run.testRunId, ownerId: run.ownerId, mediaType: "application/vnd.stockquant.qlib-fixture-model+json", payload: payloadBase as never });
         }
         const computed = errors.length === 0 && ranking.filter((item) => item.signal === "TOPK_TARGET").length === markets.length && strategies[1].targets.length === 0;
         const governanceReceipts: Array<{ strategyId: string; snapshotId: string; status: string; replayed: boolean }> = [];
@@ -229,12 +259,18 @@ export class V12AcceptanceService {
         assertions.push({ assertionId: "V1.2-GOVERNANCE-001", status: governanceReceipts.length === strategies.length ? "PASS" : this.governance ? "FAIL" : "WAITING", expected: "Governance durably receives both exact strategy snapshots without execution side effects", actual: { status: governanceReceipts.length === strategies.length ? "RECEIVED" : this.governance ? "FAILED" : "NOT_CONFIGURED", receipts: governanceReceipts }, evidence: { artifactId: artifact?.artifactId ?? null } });
         const modelTraining = fits.every((fit) => fit.qlib.modelTraining === "PASS") ? "PASS" : "NOT_RUN";
         const temporalValidation = fits.every((fit) => fit.qlib.temporalValidation === "PASS") ? "PASS" : "FAIL";
-        assertions = assertions.map((item) => item.assertionId === "V1.2-FACTOR-PREVIEW-001" ? { ...item, status: computed ? "PASS" : "FAIL", expected: "locked Qlib fits, per-market test-segment TOPK targets, and explicit NO_TRADE output", actual: { status: computed ? "COMPLETED" : "FAILED", modelTraining, temporalValidation, marketFits: fits.map(({ market, qlib }) => ({ market, version: qlib.qlibVersion, modelTraining: qlib.modelTraining, temporalValidation: qlib.temporalValidation, inputRows: qlib.segments.train.rows + qlib.segments.valid.rows + qlib.segments.test.rows, testPredictionCount: qlib.testPredictionCount, modelSha256: qlib.modelSha256, testPredictionsSha256: qlib.testPredictionsSha256 })), predictionCount: predictions.length, marketTargets: ranking.filter((row) => row.signal === "TOPK_TARGET").map(({ ticker, market, currency }) => ({ ticker, market, currency })), strategies, artifactId: artifact?.artifactId ?? null, artifactSha256: artifact?.sha256 ?? null, errors }, evidence: { source: "locked Qlib workers over separate CN_A/US_EQUITY time axes in v1.2-market-data-4", fixtureVersion: researchFixture.fixtureVersion, dailyBarsSha256: researchFixture.dailyBarsSha256 } } : item);
+        assertions = assertions.map((item) => item.assertionId === "V1.2-FACTOR-PREVIEW-001" ? { ...item, status: computed ? "PASS" : "FAIL", expected: "locked Qlib fits, per-market test-segment TOPK targets, and explicit NO_TRADE output", actual: { status: computed ? "COMPLETED" : "FAILED", modelTraining, temporalValidation, marketFits: fits.map(({ market, qlib }) => ({ market, version: qlib.qlibVersion, modelTraining: qlib.modelTraining, temporalValidation: qlib.temporalValidation, inputRows: qlib.segments.train.rows + qlib.segments.valid.rows + qlib.segments.test.rows, testPredictionCount: qlib.testPredictionCount, modelSha256: qlib.modelSha256, testPredictionsSha256: qlib.testPredictionsSha256 })), predictionCount: predictions.length, marketTargets: ranking.filter((row) => row.signal === "TOPK_TARGET").map(({ ticker, market, currency }) => ({ ticker, market, currency })), strategies, artifactId: artifact?.artifactId ?? null, artifactSha256: artifact?.sha256 ?? null, errors }, evidence: { source: "locked Qlib workers over separate CN_A/US_EQUITY time axes in v1.2-market-data-5", fixtureVersion: researchFixture.fixtureVersion, dailyBarsSha256: researchFixture.dailyBarsSha256 } } : item);
         qlibEvidence = { marketFits: fits.map(({ market, inputSha256: marketInputSha256, built, qlib }) => ({ market, qlibVersion: qlib.qlibVersion, lightgbmVersion: qlib.lightgbmVersion, model: qlib.model, modelTraining: qlib.modelTraining, modelValidation: qlib.modelValidation, temporalValidation: qlib.temporalValidation, inputRows: built.request.featureRows.length, featureCount: built.request.featureRows[0]?.length ?? 0, splits: qlib.segments, testPredictionCount: qlib.testPredictionCount, modelSha256: qlib.modelSha256, testPredictionsSha256: qlib.testPredictionsSha256, inputSha256: marketInputSha256 })), qlibVersion: fits[0]?.qlib.qlibVersion, lightgbmVersion: fits[0]?.qlib.lightgbmVersion, modelTraining, temporalValidation, inputRows: fits.reduce((sum, fit) => sum + fit.built.request.featureRows.length, 0), testPredictionCount: predictions.length, inputSha256, fixtureVersion: researchFixture.fixtureVersion, dailyBarsSha256: researchFixture.dailyBarsSha256, strategies, governanceReceipts, governanceHandoff: governanceReceipts.length === strategies.length ? "RECEIVED" : this.governance ? "FAILED" : "NOT_CONFIGURED", artifactSchemaVersion: artifact ? "v1.2-qlib-strategy-artifact-v1" : null, artifactId: artifact?.artifactId ?? null, artifactSha256: artifact?.sha256 ?? null, artifactUrl: artifact ? `/api/v1/acceptance/v1/v1.2/runs/${run.testRunId}/artifacts/${artifact.artifactId}` : null, ...(artifact ? { artifactRef: projectV12QlibArtifactRef(artifact) } : {}), errors };
       }
       const status = assertions.some((item) => item.status === "WAITING") ? "WAITING" : assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED";
       const latest = await this.repository.find(run.testRunId, run.ownerId);
       if (latest?.status !== "RUNNING" || (latest?.evidence.qlibTask as Record<string, unknown> | undefined)?.cancelRequested === true) { await finishCancelled(); return; }
+      if (status === "FAILED" && (qlibEvidence as Record<string, unknown>).artifactId) {
+        qlibEvidence = { ...qlibEvidence, artifactSchemaVersion: null, artifactId: null, artifactSha256: null, artifactUrl: null, artifactRef: undefined };
+      } else if (artifact && artifact.status === "PENDING") {
+        artifact = await this.artifacts.publishPending(run.testRunId, artifact.artifactId, run.ownerId);
+        qlibEvidence = { ...qlibEvidence, artifactSchemaVersion: "v1.2-qlib-strategy-artifact-v1", artifactId: artifact.artifactId, artifactSha256: artifact.sha256, artifactUrl: `/api/v1/acceptance/v1/v1.2/runs/${run.testRunId}/artifacts/${artifact.artifactId}`, artifactRef: projectV12QlibArtifactRef(artifact) };
+      }
       const evidence = { ...latest.evidence, artifacts: { normal, bad, factor }, qlib: effectiveProbe.probe, qlibFit: qlibEvidence, qlibTask: { ...((latest.evidence.qlibTask as Record<string, unknown> | undefined) ?? {}), phase: status, completedAt: new Date().toISOString(), artifactPublished: Boolean((qlibEvidence as Record<string, unknown>).artifactId) } };
       await this.repository.finishV12Run(run.testRunId, run.ownerId, status, assertions, evidence);
     } catch (error) {

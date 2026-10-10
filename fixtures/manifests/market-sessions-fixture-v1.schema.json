@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/fixtures/market-sessions-fixture-v1.schema.json",
+  "title": "Market Sessions Fixture",
+  "type": "object",
+  "required": ["market", "session_date"],
+  "properties": {
+    "market": { "enum": ["CN_A", "US_EQUITY"] },
+    "session_date": { "type": "string", "format": "date" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "auditId": "V1-V14-RESPONSIBILITY-A01",
+  "status": "PASS_WITH_OPEN_DELIVERY_GAPS",
+  "sourceMatrix": "2026-10-10-v1-current-gap-matrix-a31.json",
+  "sourceMatrixSha256": "c4bd36b46c40fd5b30b59896bd1d7974e71425f1ccdef52c0a03a89a2d8081ee",
+  "requirementCount": 6,
+  "rows": [
+    {
+      "requirementId": "V1.4-S2-L13",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 15,
+        "summary": "建立BacktestRun及固定Manifest：数据、股票池、策略/因子、规则、成本、依赖/镜像、种子、初始账户、区间与基准。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service",
+      "collaborators": "market-data-service supplies versioned data; platform-api-service owns the user TestRun projection",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Quant owns BacktestRun/Manifest and immutable result hashes; Platform owns session, Web/API invocation and TestRun projection. The current ownership design is explicitly documented in architecture/services/v14-quant-backtest-ownership.md.",
+      "existingGap": "Manifest/report identity is tested; the parent requirement also includes every field and stage Web/CLI binding that needs exact evidence links.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-durable-tasks-ab5fb8f4ee92e8c60081.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.4-S2-L14",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 16,
+        "summary": "实现按运行隔离的历史时钟与日线撮合；日终确认信号最早下一可交易时点执行，原价用于成交，复权研究与公司行动入账分离。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service",
+      "collaborators": "platform-api-service coordinates requests; Market Data supplies frozen input",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Quant owns run-scoped daily replay clock and simulation engine for the fixed Fixture. This does not grant live data or active scheduling.",
+      "existingGap": "Next-session and PIT behavior are covered; full corporate-action/calendar/replay scope and service parity remain open. The Trade historical FakeBroker HTTP boundary now rejects unsupported top-level and nested fields before authorization; complete replay/calendar and market-rule scope remains open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-slippage-tick-parity.md",
+        "../../evidence/audits/2026-10-09-v13-historical-execution-strict-body-trade-integration-a02.log",
+        "../../evidence/audits/2026-10-09-v13-historical-execution-strict-body-trade-integration-a02.log.sha256",
+        "../../evidence/audits/2026-10-09-v13-historical-execution-strict-body-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v13-historical-execution-strict-body-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-09-v14-historical-execution-strict-body-compat-code-suite-a01.log",
+        "../../evidence/audits/2026-10-09-v14-historical-execution-strict-body-compat-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-09-v14-historical-execution-strict-body-web-e2e-a01.log",
+        "../../evidence/audits/2026-10-09-v14-historical-execution-strict-body-web-e2e-a01.log.sha256"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.4-S2-L15",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 23,
+        "summary": "完成费用、滑点、成交量约束、停牌/限制价、可卖量及结算处理；当前已实现固定费用/不利滑点、可配置A股佣金参数/最低佣金、沪深经手费与过户费、卖方印花税、成交量约束、T+1与单卖单次一Fixture Session结算，并有合成停牌/锁板场景；另有独立合成历史日期费率Fixture覆盖2023-08-28前后规则切换。完整券商费率、交易所结算日历、公司行动及交易规则一致性仍缺；日线无法确定的盘中顺序采用明确保守规则。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service for backtest-rule computation",
+      "collaborators": "trade-execution-service and portfolio-risk-service own independent Paper execution/ledger facts; platform-api-service orchestrates comparison",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Fees/slippage/volume/T+1 are proven only for named fixed fixtures. Paper settlement and SELL-to-BUY parity remain blocked on OD-014; do not claim full market-rule equivalence.",
+      "existingGap": "The isolated three-service HTTP+PostgreSQL harness exercises actual Decision Governance Replay grant/consume with command-hash binding; real Trade and Portfolio HTTP; fixed CN/US BUY/SELL, historical-fee and partial-fill scenarios; nine persisted Fill/Outbox rows; five independent BUY Portfolio ledger checks; nine exact Quant daily cash (settled plus unsettled proceeds) / holdings comparisons to Portfolio snapshots; and negative probes for wrong grant caller, altered command hash and unknown execution authorization with no forbidden side effects. Amount parity does not establish SELL availability, receivable classification or settlement release parity. OD-014, complete fee/tax/calendar/corporate-action coverage, full P4 rule parity and human acceptance remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-cn-a-fee-parity.md",
+        "../../evidence/audits/2026-10-07-v14-corporate-actions.md",
+        "../../evidence/audits/2026-10-10-v14-fill-outbox-payload-parity-code-suite-a02.log",
+        "../../evidence/audits/2026-10-10-v14-fill-outbox-payload-parity-code-suite-a02.log.sha256",
+        "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "../../evidence/audits/2026-10-10-v14-portfolio-buy-ledger-parity-code-suite-a01.log",
+        "../../evidence/audits/2026-10-10-v14-portfolio-buy-ledger-parity-code-suite-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-portfolio-buy-ledger-parity-sandbox-denial-a00.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a02.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a02.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a02.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a02.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a03.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a03.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a04.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a04.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a03.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a04.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-a04.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a05.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a05.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a06.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a06.exit.txt",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a06.log.sha256",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a12.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a12.exit.txt",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a12.log.sha256",
+        "../../evidence/audits/2026-10-10-v1-crosswalk-check-a11.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a13.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a13.exit.txt",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-code-suite-a13.log.sha256",
+        "../../evidence/audits/2026-10-10-v1-crosswalk-check-a12.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-web-e2e-a01.log",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-web-e2e-a01.exit.txt",
+        "../../evidence/audits/2026-10-10-v14-paper-http-parity-web-e2e-a01.log.sha256",
+        "../../evidence/audits/2026-10-10-v1-crosswalk-check-a14.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.4-S2-L16",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 19,
+        "summary": "单证券日线Fixture按交易Session记录持仓、T+1未可卖量和可卖量；成交日持仓纳入估值，下一条Fixture交易日才释放卖出可用量；同日卖出被拒绝，后续显式SELL按可卖持仓/成交参与率成交，扣费后计未结算款并在下一Fixture Session转为现金。后端断言、Web结果和同Run CLI核对均通过；Fixture结束时未结款仍作为应收项。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service for simulated position availability and fixture settlement",
+      "collaborators": "trade-execution-service owns FakeBroker orders/fills; portfolio-risk-service owns account ledgers/settlement",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Quant’s fixed engine tracks T+1 sellable quantity and fixture-session settlement. The independent Paper ledger requires separate service evidence; cross-market settlement calendar semantics are not approved.",
+      "existingGap": "Evidence covers a CN Fixture session; US settlement/holiday behavior and complete service reconciliation remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-corporate-actions.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.4-S2-L17",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 20,
+        "summary": "提供收益/基准、回撤、换手、费用归因、成交率、拒绝/未成交数量和数据覆盖；关联实际模拟流水。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service computes backtest metrics and associates fills",
+      "collaborators": "platform-api-service owns Web/TestRun result projection and acceptance assertions",
+      "currentGapClassification": "HISTORICAL",
+      "reconciliation": "Metrics/coverage exist for bounded simulations. This does not prove complete rule coverage or independent result correctness across all markets.",
+      "existingGap": "Report metrics include current tested slices; full brokerage ledger trace, both markets and complete attribution remains open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-durable-tasks-ab5fb8f4ee92e8c60081.md"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    },
+    {
+      "requirementId": "V1.4-S2-L18",
+      "source": {
+        "path": "../../docs/prd/v1-local-simulation/04-daily-backtest.md",
+        "section": 2,
+        "currentLine": 21,
+        "summary": "Qlib快速研究报告和交易链路回放分开标注执行模型；同一基准案例比对规则与费用，无差异才作为一致性证据。",
+        "anchorStatus": "MANUALLY_RECONCILED_CURRENT_SOURCE"
+      },
+      "package": "P4",
+      "leadResponsibility": "quant-research-service separates Qlib research and execution replay models",
+      "collaborators": "platform-api-service links model/run identity; trade-execution-service and portfolio-risk-service provide Paper comparison facts",
+      "currentGapClassification": "OPEN",
+      "reconciliation": "Same-input comparison exists for selected fixtures; Qlib/quant calculation vs FakeBroker/Portfolio persistent facts remains incomplete for settlement, all costs/markets, and full recovery.",
+      "existingGap": "CN_A and US_EQUITY deterministic order facts now have scoped FakeBroker parity cases, but the US fee is an explicitly synthetic fixed Fixture fee. Full account/settlement/Paper equality, date-dependent schedules and all applicable market rules/corporate actions remain open.",
+      "closureEvidence": [
+        "../../evidence/audits/2026-10-07-v14-trade-rule-parity.md",
+        "../../evidence/audits/2026-10-09-v14-us-fixture-parity-a08.json",
+        "../../evidence/audits/2026-10-09-v14-code-suite-a08.log"
+      ],
+      "status": "MANUALLY_RECONCILED_SCOPE_ONLY"
+    }
+  ],
+  "scopeBoundary": "Manual ownership reconciliation for the six V1.4 section 2 requirements present in A31. Does not assert full market-rule/settlement parity, delivery, user acceptance, or V1 completion."
+}

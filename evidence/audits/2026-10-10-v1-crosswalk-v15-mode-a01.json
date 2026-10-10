@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "stockquant.v1-crosswalk-v15-mode-audit.v1",
+  "date": "2026-10-10",
+  "status": "PASS",
+  "requirementId": "V1.5-S2-L22",
+  "requirementClassification": "PASS_FOR_ATOMIC_ROUTE_ASSERTION_PARENT_OPEN",
+  "exactAssertion": {
+    "path": "../../scripts/test-v15-web-e2e-isolated.mjs",
+    "name": "V1.5 run creation must reject client mode injection ${JSON.stringify(modes)}"
+  },
+  "assertionPresentInScript": true,
+  "modeCases": [
+    "PAPER/FAKE",
+    "LIVE/FAKE",
+    "BACKTEST/REAL",
+    "LIVE/REAL"
+  ],
+  "httpStatusAssertionPresent": true,
+  "noRunSideEffectAssertionPresent": true,
+  "serverOwnedRequestAllowListPresent": true,
+  "evidencePaths": [
+    {
+      "path": "../../scripts/test-v15-web-e2e-isolated.mjs",
+      "exists": true
+    },
+    {
+      "path": "../../services/platform-api-service/src/bootstrap/app.module.ts",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-10-v15-platform-mode-boundary-code-suite-a01.log",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-10-v15-platform-mode-boundary-e2e-a01.log",
+      "exists": true
+    },
+    {
+      "path": "./2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-f9a9f2684c0d09bbe7e8.json",
+      "exists": true
+    }
+  ],
+  "evidenceHashes": {
+    "codeSuite": "40704f1725e31e700da19af1e06b4e533ccda3964e2d41fb9da46ba053d62678",
+    "e2e": "b94ca0ba17698698471f829f95ecfa488872fdac600316295987c3336ec8aab9",
+    "machineReport": "0db5c1c6b3430f177acfb2fc76b858ce23a4a94a9f7fe6e01a068537cdbddfd8"
+  },
+  "parentRequirementClosed": false,
+  "remainingGap": "The V1.5 run-creation route rejects four injected mode combinations before persistence and workflow dispatch. All other V1 routes/workers, active deployment, historical exports, Ubuntu, decisions and human acceptance remain open."
+}

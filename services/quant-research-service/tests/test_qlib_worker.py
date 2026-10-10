@@ -94,12 +94,17 @@ class QlibWorkerBoundaryTests(unittest.TestCase):
         self.assertEqual(result["method"], "FIXTURE_SUMMARY_HASH_RECOMPUTATION")
         self.assertEqual(result["independentModelValidation"], "NOT_RUN")
 
-    def test_probe_reports_backend_unavailable_when_qlib_is_missing(self):
+    def test_probe_executes_fixed_compatibility_code_even_when_qlib_backend_is_missing(self):
         request = Request(f"{self.base}/probe", headers={"authorization": f"Bearer {self.quant_token}", "x-stockquant-service-id": "quant-research-service"})
         with urlopen(request, timeout=5) as response:
             result = json.load(response)
         self.assertEqual(result["status"], "NOT_RUN")
         self.assertIn("No module named 'qlib'", result["detail"])
+        self.assertEqual(result["codeProbe"]["status"], "READY")
+        self.assertEqual(result["codeProbe"]["result"], "fixed-probe-ok")
+        self.assertEqual(result["codeProbe"]["value"], 42)
+        self.assertRegex(result["codeProbe"]["sourceSha256"], r"^[a-f0-9]{64}$")
+        self.assertIsInstance(result["dockerSocketMounted"], bool)
 
     def test_qlib_fit_requires_quant_research_service_bearer_and_rejects_invalid_fixture(self):
         fixture = {"schemaVersion": "qlib-fit-fixture-v1", "sourceMode": "FIXTURE", "featureRows": [[float(i)] for i in range(30)], "labels": [float(i) for i in range(30)], "splits": {"train": [0, 20], "valid": [20, 25], "test": [25, 30]}}

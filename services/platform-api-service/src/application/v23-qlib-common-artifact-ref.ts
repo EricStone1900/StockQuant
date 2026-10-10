@@ -8,11 +8,12 @@ function record(value: unknown): RecordValue | null {
 }
 
 /** Projects the V2.3 Qlib payload ref into the shared owner/run-scoped TestRun contract. */
-export function projectV23QlibArtifactRef(testRunId: string, ownerId: string, evidenceValue: unknown, lifecycle?: { status: "PUBLISHED" | "RETAINED" | "EXPIRED"; expiresAt?: string | null }): ArtifactRef[] {
+export function projectV23QlibArtifactRef(testRunId: string, ownerId: string, evidenceValue: unknown, lifecycle?: { status: "PENDING" | "PUBLISHED" | "RETAINED" | "EXPIRED"; expiresAt?: string | null }): ArtifactRef[] {
   const evidence = record(evidenceValue);
   const crossService = record(evidence?.crossService);
   const research = record(crossService?.research);
   const ref = record(research?.artifactRef);
+  if (lifecycle?.status === "PENDING") return [];
   if (!ref) return [];
   if (typeof ref.artifactId !== "string" || !HASH.test(ref.artifactId) || ref.sha256 !== ref.artifactId
     || ref.mediaType !== "application/vnd.stockquant.qlib-fixture-model+json"

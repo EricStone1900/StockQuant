@@ -41,6 +41,35 @@ test("cluster backup records the complete database/role inventory and is retenti
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("cluster backup business-fact evidence is persisted and malformed linkage is rejected", async () => {
+  const root = await mkdtemp(join(tmpdir(), "stockquant-cluster-paired-business-facts-"));
+  const businessFactValidation = {
+    testRunId: "056c21c0-59cd-4140-9c7c-b09783efe77c",
+    run: { testRunId: "056c21c0-59cd-4140-9c7c-b09783efe77c", stageId: "V1.3", scenarioId: "normal", ownerId: "owner", namespace: "v1-3-test-run", status: "WAITING", seed: 20261009 },
+    trade: { orderId: "697c04df-ee7c-4a52-ba16-1f36a63614bb", clientOrderId: "client-order", orderStatus: "FILLED", fillId: "a9eea35f-7b37-48df-997a-72b87d746eb3", quantity: 10, price: "10.0000", fee: "0.1000", outboxStatus: "DELIVERED" },
+    portfolio: { accountId: "fdcaa8f0-3705-46df-a00d-dc910e7c16fb", ownerId: "owner", testRunId: "056c21c0-59cd-4140-9c7c-b09783efe77c", cashAmount: "899.9000", currency: "CNY", ledgerVersion: 3, ledgerEntryCount: 2, fillId: "a9eea35f-7b37-48df-997a-72b87d746eb3", positionQuantity: 10 },
+    relationChecks: { namespaceMatches: true, orderFillOutboxLinked: true, portfolioAndBrokerFillIdsMatch: true, ledgerAndPositionRestored: true },
+  };
+  try {
+    const captured = await produceClusterPairedBackup(await optionsFor(root, {
+      verifyRestore: async ({ expectedDatabases, expectedRoles }) => ({
+        status: "PASS", checkedAt: "2026-09-30T12:00:01Z", publishedArtifactRefs: 1,
+        restoredDatabases: expectedDatabases, restoredRoles: expectedRoles,
+        method: "ISOLATED_CLUSTER_RESTORE_AND_ARTIFACT_SHA256", businessFactValidation,
+      }),
+    }));
+    assert.deepEqual(captured.manifest.businessFactValidation, businessFactValidation);
+    assert.equal((await inspectBackupDirectory(captured.directory)).valid, true);
+
+    const manifestPath = join(captured.directory, "manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.businessFactValidation.relationChecks.portfolioAndBrokerFillIdsMatch = false;
+    await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
+    assert.deepEqual(await inspectBackupDirectory(captured.directory), { valid: false, reason: "invalid-business-fact-restore-validation" });
+    assert.equal((await runBackupRetention({ root, now: "2026-09-30T12:00:00Z" })).eligibleBackups, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("cluster backup fails closed when the database or role inventory drifts during capture", async () => {
   const root = await mkdtemp(join(tmpdir(), "stockquant-cluster-paired-drift-"));
   try {

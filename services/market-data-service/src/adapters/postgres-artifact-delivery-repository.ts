@@ -9,8 +9,8 @@ type ArtifactTaskRow = QueryResultRow & { task_id: string; artifact_id: string; 
 export class ArtifactDeliveryRepository implements ArtifactDeliveryPort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_artifact_rows (
         artifact_id TEXT NOT NULL REFERENCES market_data_collection_artifacts(artifact_id),
         project_id TEXT NOT NULL,
@@ -45,7 +45,7 @@ export class ArtifactDeliveryRepository implements ArtifactDeliveryPort {
       );
     `);
     // Additive upgrade for task records created by the status-only implementation.
-    await this.pool.query(`
+    await queryable.query(`
       ALTER TABLE market_data_artifact_tasks DROP CONSTRAINT IF EXISTS market_data_artifact_tasks_status_check;
       ALTER TABLE market_data_artifact_tasks ADD COLUMN IF NOT EXISTS artifact_id TEXT;
       ALTER TABLE market_data_artifact_tasks ADD COLUMN IF NOT EXISTS fixture_version TEXT;

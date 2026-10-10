@@ -10,8 +10,8 @@ type LeaseRow = QueryResultRow & { owner_id: string; fencing_token: number; leas
 export class CollectionScheduleRepository implements CollectionSchedulePort {
   constructor(private readonly pool: Pool) {}
 
-  async migrate(): Promise<void> {
-    await this.pool.query(`
+  async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
+    await queryable.query(`
       CREATE TABLE IF NOT EXISTS market_data_collection_schedules (
         subscription_id TEXT PRIMARY KEY,
         subscription_version INTEGER NOT NULL CHECK (subscription_version > 0),

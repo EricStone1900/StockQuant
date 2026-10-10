@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "auditId": "A01-PARENT-DECOMPOSITION-V1.2-RDAGENT-PROBE",
+  "sourceCrosswalk": {
+    "path": "evidence/audits/2026-10-09-v1-requirement-test-crosswalk.json",
+    "sha256": "5dea436effa5db738efde08f87bdc92ece4a372fae09e0f8b70f9ba1c73a052e"
+  },
+  "requirementId": "V1.2-S2-L19",
+  "atomicElements": [
+    {
+      "element": "Fixed compatibility code is executed inside the isolated Qlib Worker and returns its observed value, result and source hash.",
+      "status": "PASS_FOR_FIXED_PROBE",
+      "test": {
+        "path": "services/quant-research-service/tests/test_qlib_worker.py",
+        "name": "test_probe_executes_fixed_compatibility_code_even_when_qlib_backend_is_missing"
+      },
+      "evidence": "evidence/audits/2026-10-09-v12-rdagent-probe-code-suite.log"
+    },
+    {
+      "element": "The Web same-run scenario observes the isolated worker boundary, no mounted Docker socket, fixed result value 42, and modelCalls=NOT_RUN.",
+      "status": "PASS_FOR_ISOLATED_WEB_E2E",
+      "test": {
+        "path": "apps/web/tests/e2e/v11-acceptance.spec.ts",
+        "name": "V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI"
+      },
+      "evidence": "evidence/audits/2026-10-09-v12-rdagent-probe-code-suite.log"
+    },
+    {
+      "element": "Actual RD-Agent package/model execution, credentials-backed experiment, Ubuntu target run, and human acceptance.",
+      "status": "OPEN",
+      "remainingGap": "The deterministic probe validates only constrained Python execution in the Qlib Worker. It is not an RD-Agent package/model experiment; modelCalls remains NOT_RUN. Ubuntu and current user acceptance remain separate gates."
+    }
+  ],
+  "validation": {
+    "exactTestReferences": 2,
+    "uniqueExactTests": 2,
+    "fullV1_2CodeSuiteExitCode": 0,
+    "isolatedV1_2BrowserE2E": "1 passed",
+    "observedProbe": {
+      "status": "READY",
+      "result": "fixed-probe-ok",
+      "value": 42,
+      "dockerSocketMounted": false,
+      "modelCalls": "NOT_RUN"
+    }
+  },
+  "scopeNote": "This closes only the fixed-code probe behavior for this isolated scenario. V1.2 and V1 remain open pending other requirements, environmental evidence, history recovery, and human acceptance."
+}

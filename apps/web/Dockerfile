@@ -10,6 +10,8 @@ COPY services/quant-research-service/package.json services/quant-research-servic
 COPY packages/contracts/generated packages/contracts/generated
 COPY fixtures/v1/v1.3/manifest.json fixtures/v1/v1.3/manifest.json
 COPY fixtures/v1/v1.3/trading-loop-scenarios.json fixtures/v1/v1.3/trading-loop-scenarios.json
+COPY fixtures/v1/v1.3-multileg-v1.0.3/manifest.json fixtures/v1/v1.3-multileg-v1.0.3/manifest.json
+COPY fixtures/v1/v1.3-multileg-v1.0.3/trading-loop-scenarios.json fixtures/v1/v1.3-multileg-v1.0.3/trading-loop-scenarios.json
 COPY apps/web apps/web
 RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked \
     corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile --prod=false

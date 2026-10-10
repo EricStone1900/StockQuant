@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-export type V15Scenario = "normal" | "rejection" | "recovery";
+export type V15Scenario = "normal" | "auto-trade" | "rejection" | "recovery";
 export const V15_SCENARIOS = [
   { scenarioId: "normal", version: "1.1.0", title: "后台调度与 60 日 HOLD", expected: "真实后台工作流继续执行，CN/US权威账本与FakeBroker状态均为零委托" },
+  { scenarioId: "auto-trade", version: "1.3.0", title: "双市场多会话 Fixture 自动交易", expected: "首个合成窗口错过后，两次重新评估分别经独立AUTO Mandate、FakeBroker成交、Portfolio入账并在每个合成收盘核对；本场景不代表真实市场日历、实时时钟或结算" },
   { scenarioId: "rejection", version: "1.1.0", title: "暂停与窗口拒绝", expected: "暂停和过期窗口由治理/执行服务拒绝且没有新发送" },
-  { scenarioId: "recovery", version: "1.1.0", title: "Worker/总线与备份恢复", expected: "未知订单查询原单，恢复后无重复副作用且备份事实一致" }
+  { scenarioId: "recovery", version: "1.2.0", title: "Worker/总线与备份恢复", expected: "UNKNOWN后查询原单，恢复后无重复订单或账务副作用；完整备份恢复仍单独验收" }
 ] as const;
 
 type Assertion = {
@@ -16,7 +17,8 @@ type Assertion = {
 
 const ASSERTION_IDS: Record<V15Scenario, readonly string[]> = {
   normal: ["V1.5-SYS-SCHEDULE-001", "V1.5-HOLD-002"],
-  rejection: ["V1.5-OPS-PAUSE-001", "V1.5-XMK-CURRENCY-002"],
+  "auto-trade": ["V1.5-AUTO-ORDER-001", "V1.5-AUTO-RECON-001", "V1.5-AUTO-EOD-RECON-001"],
+  rejection: ["V1.5-OPS-PAUSE-001", "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001"],
   recovery: ["V1.5-RECOVERY-001", "V1.5-RECOVERY-002"]
 };
 
