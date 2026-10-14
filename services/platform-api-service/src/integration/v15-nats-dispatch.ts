@@ -15,10 +15,16 @@ const testFailedDatabaseEventIds = new Set<string>();
 class PermanentDispatchError extends Error {}
 
 export function validateV15DispatchEnvelope(value: unknown): { eventId: string; payload: V15NoTradeInput } {
-  if (!value || typeof value !== "object") throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
+  const exactKeys = (candidate: unknown, required: readonly string[], optional: readonly string[] = []): candidate is Record<string, unknown> => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+    const keys = Object.keys(candidate);
+    return required.every((key) => Object.hasOwn(candidate, key)) && keys.every((key) => required.includes(key) || optional.includes(key));
+  };
+  if (!exactKeys(value, ["eventId", "payload"])) throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
   const envelope = value as { eventId?: string; payload?: V15NoTradeInput };
   const input = envelope.payload;
-  if (!envelope.eventId || !input?.testRunId || !input.ownerId || !["normal", "auto-trade", "rejection", "recovery"].includes(input.scenarioId)) throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
+  if (!envelope.eventId || !exactKeys(input, ["testRunId", "ownerId", "namespace", "seed", "scenarioId", "sessions", "fixtureVersion", "fixtureSha256"]) || !input.testRunId || !input.ownerId || !["normal", "auto-trade", "rejection", "recovery"].includes(input.scenarioId)) throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
+  if (!Array.isArray(input.sessions) || input.sessions.some((session) => !exactKeys(session, ["market", "localDate", "timeZone", "calendarVersion", "sequence"], ["orderQuantity", "openTimeLocal", "closeTimeLocal"]))) throw new PermanentDispatchError("invalid V1.5 workflow dispatch envelope");
   if (envelope.eventId !== input.testRunId) throw new PermanentDispatchError("V1.5 dispatch event identity does not match TestRun");
   return { eventId: envelope.eventId, payload: input };
 }

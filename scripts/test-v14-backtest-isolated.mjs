@@ -27,7 +27,7 @@ let rejectionTestRunId;
 let recoveryTestRunId;
 let restrictionsTestRunId;
 const testRuns = [];
-const fixtureSha256 = "88a198cbf5e2cf8f3bf1351a31c5aba1b9d9c6ce2d28343fb05a1dc462569bef";
+const fixtureSha256 = "a89d48a93bc72dd95ca85b7ddf29a08f5dd2092d8b618f2cd09ede3d6f198a2d";
 let quantRunCount = 0;
 let quantRetryIdempotent = false;
 let quantRetryConflictRejected = false;
@@ -113,7 +113,9 @@ try {
   const quantCountBeforeModeProbe = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
   for (const modes of [
     { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
     { environmentMode: "BACKTEST", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "REAL" },
   ]) {
@@ -128,6 +130,19 @@ try {
 
   const quantCountBeforeCancellation = Number(compose(["exec", "-T", "postgres", "psql", "-U", "quant_research", "-d", "quant_research", "-Atc", "SELECT count(*) FROM research_backtest_runs"], "pipe").stdout.trim());
   const cancelAccepted = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs`, { method: "POST", headers, body: JSON.stringify({ scenarioId: "recovery", seed: 20260907 }) }).then((response) => response.json());
+  for (const modes of [
+    { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "REAL" },
+  ]) {
+    const modeCancel = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}/cancel`, { method: "POST", headers, body: JSON.stringify(modes) });
+    assert.equal(modeCancel.status, 422, `V1.4 cancellation must reject mode injection ${JSON.stringify(modes)}`);
+    const unchanged = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}`, { headers }).then((response) => response.json());
+    assert.equal(unchanged.evidence.v14Task.cancelRequested, false, `rejected V1.4 mode injection must not request cancellation ${JSON.stringify(modes)}`);
+  }
   const injectedV14Cancel = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}/cancel`, { method: "POST", headers, body: JSON.stringify({ status: "CANCELLED", cash: { amount: "999999.00", currency: "CNY" } }) });
   assert.equal(injectedV14Cancel.status, 422, "V1.4 cancellation must reject client-supplied business facts");
   const unchangedV14Run = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.4/runs/${cancelAccepted.testRunId}`, { headers }).then((response) => response.json());
@@ -220,7 +235,7 @@ try {
     assert.equal(testRun.evidence.codeVersion, codeVersion, `${scenario} run must preserve its workspace digest`);
     if (scenario === "rejection") assert.equal(testRun.assertions.find((item) => item.assertionId === "V1.4-BT-TPLUS1-REJECT-009")?.actual, "T_PLUS_1_UNAVAILABLE");
     if (scenario === "market-restrictions") { assert.equal(testRun.scenarioVersion, "1.2.0"); assert.equal(testRun.evidence.fixtureSha256, "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a"); assert.equal(testRun.assertions[0]?.status, "PASS"); }
-    if (scenario === "historical-fees") { assert.equal(testRun.scenarioVersion, "1.3.0"); assert.equal(testRun.evidence.fixtureSha256, "5a3d946c23d81097a29307b53813281be15b07f187b325b2b32c577a2d2e2573"); assert.equal(testRun.assertions.find((item) => item.assertionId === "V1.4-BT-HISTORICAL-FEE-001")?.status, "PASS"); }
+    if (scenario === "historical-fees") { assert.equal(testRun.scenarioVersion, "1.3.0"); assert.equal(testRun.evidence.fixtureSha256, "c87f3253ea55082bc9dbe10cc46e25122667c4566e7ccd80211a60e3a66a2b48"); assert.equal(testRun.assertions.find((item) => item.assertionId === "V1.4-BT-HISTORICAL-FEE-001")?.status, "PASS"); }
     if (scenario === "corporate-actions") { assert.equal(testRun.scenarioVersion, "1.4.0"); assert.equal(testRun.evidence.fixtureSha256, "914f703cd19b7e3f305b59c3353cb8356f075c820c1806cdcee97f6b09f595dc"); assert.equal(testRun.evidence.priceBasis, "RAW"); assert.ok(testRun.assertions.every((item) => item.status === "PASS")); }
     testRuns.push({ origin: `cli-${scenario}`, testRun });
     if (scenario === "rejection") rejectionTestRunId = testRunId;

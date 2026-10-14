@@ -394,6 +394,8 @@ export async function completeV15AutoTrade(input: V15NoTradeInput, accounts: Rec
   }
   const evidence = {
     evidenceScope: "TEMPORAL_AUTO_TRADE_FIXED_FIXTURE",
+    environmentMode: "PAPER",
+    dataMode: "FIXTURE",
     businessExecution: "AUTO_TRADE_EXECUTED",
     businessServicesCalled: ["decision-governance-service", "portfolio-risk-service", "trade-execution-service"],
     workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED",
@@ -406,7 +408,10 @@ export async function completeV15AutoTrade(input: V15NoTradeInput, accounts: Rec
     dailyEndOfDay: { status: "MATCH", clockSource: "VERSIONED_AUTO_TRADE_FIXTURE_SESSION_CLOSE", sessionsPerMarket: 3, executedSessionsPerMarket: 2, byMarket: endOfDaySessions },
     multiSessionObservation: "NOT_RUN", humanAcceptance: "NOT_RUN"
   };
-  const run: Parameters<StageRunRepository["save"]>[0] = { testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.3.0", ownerId: input.ownerId, namespace: input.namespace, status: "WAITING", seed: input.seed, assertions: [
+  // This fixed Fixture workflow has completed and every required business
+  // assertion above is based on fresh authoritative service reads. Human
+  // acceptance and long-duration observation remain separate evidence fields.
+  const run: Parameters<StageRunRepository["save"]>[0] = { testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.3.0", ownerId: input.ownerId, namespace: input.namespace, status: "COMPLETED", seed: input.seed, assertions: [
     { assertionId: "V1.5-AUTO-ORDER-001", status: "PASS", expected: "Each CN_A and US session reevaluation produces a distinct persisted FakeBroker Fill and delivered Outbox", actual: evidence.orders },
     { assertionId: "V1.5-AUTO-RECON-001", status: "PASS", expected: "Portfolio and independent FakeBroker cash/positions match; exactly four orders and fills across two execution sessions have no unresolved or pending facts", actual: evidence.reconciliation },
     { assertionId: "V1.5-AUTO-TERMINAL-RECON-001", status: "PASS", expected: "Fresh owner/TestRun-scoped Portfolio and FakeBroker reads for both markets still match after all AUTO activities finish", actual: evidence.workflowCompletionReconciliation },
@@ -459,6 +464,8 @@ export async function completeV15AutoTradeCancelled(
   const orders = result.orders.map(({ sessionSequence, proposal, mandate, execution, reconciliation, windowDecision }) => ({ market: proposal.market, sessionSequence, proposalId: proposal.proposalId, mandate, order: execution.order, fill: execution.fill, fills: execution.fills, cancellation: execution.cancellation, outbox: execution.outbox, reconciliation, windowDecision }));
   const evidence = {
     evidenceScope: "TEMPORAL_AUTO_TRADE_FIXED_FIXTURE_CANCELLATION",
+    environmentMode: "PAPER",
+    dataMode: "FIXTURE",
     businessExecution: "AUTO_TRADE_CANCELLED",
     businessServicesCalled: ["decision-governance-service", "portfolio-risk-service", "trade-execution-service"],
     workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED",
@@ -481,8 +488,8 @@ export async function completeV15Recovery(input: V15NoTradeInput, accounts: Reco
   const summary = await ports.readBrokerSummary(input.namespace);
   if (summary.namespace !== input.namespace || summary.brokerMode !== "FAKE" || summary.order_count !== 2 || summary.fill_count !== 2 || summary.unresolved_order_count !== 0 || summary.pending_outbox_count !== 0 || summary.externalOnlyOrderCount !== 0) throw new Error("V1.5 recovery requires exactly two original FakeBroker orders and Fills with no unresolved facts");
   const ordersEvidence = orders.map(({ proposal, execution, reconciliation }) => ({ market: proposal.market, clientOrderId: (execution.order as Record<string, unknown>).clientOrderId, replayedOriginal: execution.replayed, orderId: (execution.order as Record<string, unknown>).order_id, fillId: (execution.fill as Record<string, unknown>).externalFillId, reconciliation }));
-  const evidence = { evidenceScope: "TEMPORAL_AUTO_TRADE_UNKNOWN_RECOVERY", workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED", businessExecution: "AUTO_TRADE_RECOVERED", liveTradingEnabled: false, brokerMode: "FAKE", fixtureVersion: input.fixtureVersion, fixtureSha256: input.fixtureSha256, seed: input.seed, accountIds: { CN_A: accounts.CN_A.accountId, US_EQUITY: accounts.US_EQUITY.accountId }, orders: ordersEvidence, recovery: { responseLostAfterFakeBrokerCommit: true, originalOrderQueried: true, replayedOriginalPerMarket: orders.map((item) => ({ market: item.proposal.market, replayed: item.execution.replayed })) }, reconciliation: { status: "MATCH", fakeBroker: summary }, dailyEndOfDay: "NOT_RUN", backupRestore: "NOT_RUN", humanAcceptance: "NOT_RUN" };
-  return ports.saveRun({ testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.2.0", ownerId: input.ownerId, namespace: input.namespace, status: "WAITING", seed: input.seed, assertions: [
+  const evidence = { evidenceScope: "TEMPORAL_AUTO_TRADE_UNKNOWN_RECOVERY", environmentMode: "PAPER", dataMode: "FIXTURE", workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED", businessExecution: "AUTO_TRADE_RECOVERED", liveTradingEnabled: false, brokerMode: "FAKE", fixtureVersion: input.fixtureVersion, fixtureSha256: input.fixtureSha256, seed: input.seed, accountIds: { CN_A: accounts.CN_A.accountId, US_EQUITY: accounts.US_EQUITY.accountId }, orders: ordersEvidence, recovery: { responseLostAfterFakeBrokerCommit: true, originalOrderQueried: true, replayedOriginalPerMarket: orders.map((item) => ({ market: item.proposal.market, replayed: item.execution.replayed })) }, reconciliation: { status: "MATCH", fakeBroker: summary }, dailyEndOfDay: "NOT_RUN", backupRestore: "NOT_RUN", humanAcceptance: "NOT_RUN" };
+  return ports.saveRun({ testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.2.0", ownerId: input.ownerId, namespace: input.namespace, status: "COMPLETED", seed: input.seed, assertions: [
     { assertionId: "V1.5-RECOVERY-001", status: "PASS", expected: "After the CN accepted response is lost, the same clientOrderId queries and reuses its original order; the US control order executes once", actual: evidence.recovery },
     { assertionId: "V1.5-RECOVERY-002", status: "PASS", expected: "Exactly two original FakeBroker orders/fills, delivered outboxes, matched ledgers, and zero unresolved/pending facts", actual: { orders: ordersEvidence, reconciliation: evidence.reconciliation } }
   ], evidence });
@@ -491,8 +498,8 @@ export async function completeV15Recovery(input: V15NoTradeInput, accounts: Reco
 export async function completeV15PausedRejection(input: V15NoTradeInput, results: Awaited<ReturnType<typeof rejectV15PausedAutoTrade>>[], saveRun: (run: Parameters<StageRunRepository["save"]>[0]) => Promise<unknown>) {
   if (input.scenarioId !== "rejection" || results.length !== 2 || !results.some((item) => item.market === "CN_A") || !results.some((item) => item.market === "US_EQUITY")) throw new Error("V1.5 rejection completion requires both frozen market Fixtures");
   if (results.some((item) => item.crossCurrencyStatus !== 422)) throw new Error("V1.5 rejection completion requires a 422 Governance rejection for each cross-currency Proposal");
-  const evidence = { evidenceScope: "TEMPORAL_PAUSED_MANDATE_REJECTION", workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED", businessExecution: "PAUSED_MANDATE_REJECTED", liveTradingEnabled: false, brokerMode: "FAKE", fixtureVersion: input.fixtureVersion, fixtureSha256: input.fixtureSha256, seed: input.seed, rejections: results, orders: "NONE", fills: "NONE", budgetReservations: "NONE", humanAcceptance: "NOT_RUN" };
-  return saveRun({ testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.1.0", ownerId: input.ownerId, namespace: input.namespace, status: "WAITING", seed: input.seed, assertions: [
+  const evidence = { evidenceScope: "TEMPORAL_PAUSED_MANDATE_REJECTION", environmentMode: "PAPER", dataMode: "FIXTURE", workflow: "TEMPORAL_COMPLETED", nats: "JETSTREAM_ACKED", temporal: "COMPLETED", businessExecution: "PAUSED_MANDATE_REJECTED", liveTradingEnabled: false, brokerMode: "FAKE", fixtureVersion: input.fixtureVersion, fixtureSha256: input.fixtureSha256, seed: input.seed, rejections: results, orders: "NONE", fills: "NONE", budgetReservations: "NONE", humanAcceptance: "NOT_RUN" };
+  return saveRun({ testRunId: input.testRunId, stageId: "V1.5", scenarioId: input.scenarioId, scenarioVersion: "1.1.0", ownerId: input.ownerId, namespace: input.namespace, status: "COMPLETED", seed: input.seed, assertions: [
     { assertionId: "V1.5-OPS-PAUSE-001", status: "PASS", expected: "CN and US AUTO proposals are rejected with Governance reason MANDATE_INACTIVE while their mandates are PAUSED", actual: results.map(({ market, mandateStatus, executionStatus, rejectionReasonCode, rejection }) => ({ market, mandateStatus, executionStatus, rejectionReasonCode, rejection })) },
     { assertionId: "V1.5-XMK-CURRENCY-002", status: "PASS", expected: "Governance rejects AUTO_POLICY Proposals whose market and currency do not match before persistence or Trade Execution", actual: results.map(({ market, crossCurrencyStatus, crossCurrencyRejection }) => ({ market, httpStatus: crossCurrencyStatus, rejection: crossCurrencyRejection })) },
     { assertionId: "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001", status: "PASS", expected: "No FakeBroker orders, fills, pending outbox, Portfolio position, or cash change in either market", actual: results.map(({ market, portfolio, brokerSummary }) => ({ market, portfolio, brokerSummary })) }

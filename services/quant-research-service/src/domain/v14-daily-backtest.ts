@@ -1,3 +1,5 @@
+import { calculateCnAEquityFeeCents, isValidCnAEquityFeeSchedule, type CnAEquityFeeBreakdown, type CnAEquityFeeSchedule } from "@stockquant/cn-a-fee-rules";
+
 export type V14Scenario = "normal" | "rejection" | "recovery" | "market-restrictions" | "historical-fees" | "corporate-actions";
 export const V14_SCENARIOS = [
   { scenarioId: "normal", version: "1.1.0", title: "日线回测与净值", expected: "根据冻结日线Fixture计算逐日净值和成交" },
@@ -9,6 +11,8 @@ export const V14_SCENARIOS = [
 ] as const;
 
 export type V14DailyBar = { date: string; securityId: string; closeCents: number; volume: number };
+export type V14SettlementCalendar = { fixtureVersion: string; calendarVersion: string; sha256: string; market: "CN_A" | "US_EQUITY"; sessions: readonly { sessionDate: string; settlementDate: string | null }[] };
+export type V14BenchmarkBar = { date: string; close: number };
 export type V14RestrictionBar = {
   caseId: string; side: "BUY" | "SELL"; date: string; securityId: string;
   openCents: number; highCents: number; lowCents: number; closeCents: number; volume: number;
@@ -73,7 +77,7 @@ export function runV14CorporateActionScenario(bars: readonly V14CorporateActionB
     { assertionId: "V1.4-BT-CORPORATE-ACTION-IDEMPOTENCY-002", status: duplicateDeliveries === 1 && actionLedger.length === 2 ? "PASS" : "FAIL", expected: { duplicateDeliveriesIgnored: 1, uniqueActionsApplied: 2 }, actual: { duplicateDeliveriesIgnored: duplicateDeliveries, uniqueActionsApplied: actionLedger.length } },
     { assertionId: "V1.4-BT-CORPORATE-ACTION-NO-ADJUSTED-DOUBLE-COUNT-003", status: bars[2]!.closeCents === 500 && bars[3]!.closeCents === 490 && nav.at(-1)!.valueCents === 200_000 ? "PASS" : "FAIL", expected: { rawSplitDateCloseCents: 500, rawExDividendCloseCents: 490, finalNavCents: 200_000 }, actual: { rawSplitDateCloseCents: bars[2]!.closeCents, rawExDividendCloseCents: bars[3]!.closeCents, finalNavCents: nav.at(-1)!.valueCents } }
   ];
-  return { stageId: "V1.4", scenarioId: "corporate-actions", seed, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence: { dataVersion: "v1.4-corporate-actions-1", fixtureSha256, barType: "DAILY_BAR", priceBasis: "RAW", dataMode: "FIXTURE", environmentMode: "BACKTEST", brokerMode: "FAKE", initialQuantity: 0, initialCashCents: 200_000, execution: { signalDate: first.date, visibleAt: `${first.date}T15:00:00+08:00`, executionDate: execution.date, quantity: 100, priceCents: execution.closeCents, feeCents: 0 }, corporateActionLedger: actionLedger, duplicateDeliveriesIgnored: duplicateDeliveries, nav } };
+  return { stageId: "V1.4", scenarioId: "corporate-actions", seed, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence: { dataVersion: "v1.4-corporate-actions-1", fixtureSha256, barType: "DAILY_BAR", priceBasis: "RAW", dataMode: "FIXTURE", environmentMode: "BACKTEST", brokerMode: "FAKE", executionModel: { component: "QUANT_BACKTEST_ENGINE", modelId: "RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1" }, initialQuantity: 0, initialCashCents: 200_000, execution: { signalDate: first.date, visibleAt: `${first.date}T15:00:00+08:00`, executionDate: execution.date, quantity: 100, priceCents: execution.closeCents, feeCents: 0 }, corporateActionLedger: actionLedger, duplicateDeliveriesIgnored: duplicateDeliveries, nav } };
 }
 
 /** Synthetic fixture rule only. Daily OHLC can establish a locked bar when all prices equal a fixture-supplied boundary. */
@@ -95,22 +99,23 @@ export function runV14RestrictionScenario(bars: readonly V14RestrictionBar[], fi
   ];
   const decisions = bars.map(evaluateV14RestrictionBar);
   const assertions = [{ assertionId: "V1.4-BT-MARKET-RESTRICTIONS-001", status: JSON.stringify(expected) === JSON.stringify(decisions) ? "PASS" as const : "FAIL" as const, expected, actual: decisions }];
-  return { stageId: "V1.4", scenarioId: "market-restrictions", seed, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence: { dataVersion: "v1.4-market-restrictions-synthetic-1", fixtureSha256, barType: "DAILY_BAR", dataMode: "FIXTURE", environmentMode: "BACKTEST", brokerMode: "FAKE", ruleScope: "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY", decisions } };
+  return { stageId: "V1.4", scenarioId: "market-restrictions", seed, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED", assertions, evidence: { dataVersion: "v1.4-market-restrictions-synthetic-1", fixtureSha256, barType: "DAILY_BAR", dataMode: "FIXTURE", environmentMode: "BACKTEST", brokerMode: "FAKE", executionModel: { component: "QUANT_BACKTEST_ENGINE", modelId: "SYNTHETIC_DAILY_OHLC_RESTRICTION_RULES_V1" }, ruleScope: "SYNTHETIC_FIXTURE_BOUNDARIES_ONLY", decisions } };
 }
 export type V14SellOrder = { signalDate: string; executionDate: string; quantity: number };
-export type V14CnAshareFeeSchedule = { scheduleId: "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" | "CN_A_CASH_EQUITY_2023_08_28"; commissionRatePartsPerBillion: number; minimumCommissionCents: number };
+export type V14CnAshareFeeSchedule = CnAEquityFeeSchedule;
 export type V14ExecutionPolicy = { initialCashCents: number; targetQuantity: number; participationRateBasisPoints: number; slippageBasisPoints: number; fixedFeeCents: number; marketFeeSchedule?: V14CnAshareFeeSchedule; sellOrder?: V14SellOrder };
 export const V14_DEFAULT_EXECUTION_POLICY: Readonly<V14ExecutionPolicy> = { initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500 };
 type Assertion = { assertionId: string; status: "PASS" | "FAIL"; expected: unknown; actual: unknown };
-type FeeBreakdown = { commissionCents: number; transferFeeCents: number; stampDutyCents: number; totalCents: number };
+type FeeBreakdown = CnAEquityFeeBreakdown;
 type BacktestReport = {
   signals: Array<{ securityId: string; visibleAt: string; executionDate: string }>;
   nav: Array<{ date: string; valueCents: number }>;
   positionAvailability: Array<{ date: string; securityId: string; heldQuantity: number; sellableQuantity: number; unsettledQuantity: number }>;
   cashLedger: Array<{ date: string; settledCashCents: number; unsettledSaleProceedsCents: number }>;
-  settlements: Array<{ tradeDate: string; settlementDate: string | null; proceedsCents: number; status: "SETTLED" | "UNSETTLED_AT_END" }>;
+  settlements: Array<{ tradeDate: string; settlementDate: string | null; settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" | null; calendarVersion: string; proceedsCents: number; status: "SETTLED" | "UNSETTLED_AT_END" }>;
   orderOutcomes: Array<{ side: "BUY" | "SELL"; signalDate: string; executionDate: string; requestedQuantity: number; filledQuantity: number; status: "FILLED" | "PARTIALLY_FILLED" | "REJECTED"; reason?: "ZERO_VOLUME" | "INSUFFICIENT_CASH" | "PARTICIPATION_LIMIT" | "T_PLUS_1_UNAVAILABLE" | "NO_SELLABLE_POSITION" }>;
   trades: Array<{ side: "BUY" | "SELL"; quantity: number; priceCents: number; feeCents: number; feeBreakdown?: FeeBreakdown; signalDate: string; executionDate: string }>;
+  benchmark?: { benchmarkId: string; initialClose: number; finalClose: number; returnBasisPoints: number; excessReturnBasisPoints: number };
   metrics: { returnBasisPoints: number; maxDrawdownBasisPoints: number; turnoverCents: number; feesCents: number; fillRateBasisPoints: number; rejectedOrders: number; partiallyFilledOrders: number; unfilledQuantity: number; finalCashCents: number; finalNavCents: number; unsettledSaleProceedsCents: number };
 };
 type SimulationOutcome =
@@ -135,25 +140,9 @@ function roundedBasisPoints(numerator: bigint, denominator: bigint): number {
   return safeNumber(numerator < 0n ? -rounded : rounded, "basis-point result");
 }
 
-const FEE_RATE_DENOMINATOR = 1_000_000_000n;
-const CN_A_COMMISSION_PASS_THROUGH_PARTS_PER_BILLION = 54_100n;
-const CN_A_HISTORICAL_COMMISSION_PASS_THROUGH_PARTS_PER_BILLION = 68_700n;
-const CN_A_MAX_COMMISSION_PARTS_PER_BILLION = 3_000_000n;
-const CN_A_TRANSFER_FEE_PARTS_PER_BILLION = 100_000n;
-const CN_A_SELL_STAMP_DUTY_PARTS_PER_BILLION = 500_000n;
-
-function ceilRateFee(notionalCents: number, ratePartsPerBillion: bigint): number {
-  return safeNumber((BigInt(notionalCents) * ratePartsPerBillion + FEE_RATE_DENOMINATOR - 1n) / FEE_RATE_DENOMINATOR, "market fee cents");
-}
-
 function feeBreakdown(side: "BUY" | "SELL", quantity: number, priceCents: number, policy: V14ExecutionPolicy): FeeBreakdown {
   if (!policy.marketFeeSchedule) return { commissionCents: policy.fixedFeeCents, transferFeeCents: 0, stampDutyCents: 0, totalCents: policy.fixedFeeCents };
-  const notional = safeNumber(BigInt(quantity) * BigInt(priceCents), "trade notional cents");
-  const commissionCents = Math.max(policy.marketFeeSchedule.minimumCommissionCents, ceilRateFee(notional, BigInt(policy.marketFeeSchedule.commissionRatePartsPerBillion)));
-  const transferFeeCents = ceilRateFee(notional, CN_A_TRANSFER_FEE_PARTS_PER_BILLION);
-  const stampDutyRate = policy.marketFeeSchedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 1_000_000n : CN_A_SELL_STAMP_DUTY_PARTS_PER_BILLION;
-  const stampDutyCents = side === "SELL" ? ceilRateFee(notional, stampDutyRate) : 0;
-  return { commissionCents, transferFeeCents, stampDutyCents, totalCents: safeNumber(BigInt(commissionCents) + BigInt(transferFeeCents) + BigInt(stampDutyCents), "total trade fees cents") };
+  return calculateCnAEquityFeeCents(side, quantity, priceCents, policy.marketFeeSchedule);
 }
 
 function affordableBuyQuantity(maxQuantity: number, priceCents: number, initialCashCents: number, policy: V14ExecutionPolicy): number {
@@ -168,7 +157,7 @@ function affordableBuyQuantity(maxQuantity: number, priceCents: number, initialC
   return low;
 }
 
-function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14ExecutionPolicy, cancelAfterSignal = false): SimulationOutcome {
+function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14ExecutionPolicy, settlementCalendar: V14SettlementCalendar, cancelAfterSignal = false): SimulationOutcome {
   const first = bars[0]!;
   const execution = bars[1]!;
   if (cancelAfterSignal) return { status: "CANCELLED", reportPublished: false, report: null, cancelledAfter: "SIGNAL_QUEUED" };
@@ -220,8 +209,10 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
     }
   }
   const sellProceedsCents = safeNumber(BigInt(sellFill) * BigInt(sellPriceCents) - BigInt(sellFeeCents), "sell proceeds cents");
-  const settlementIndex = sellFill > 0 ? sellExecutionIndex + 1 : -1;
-  const settlementDate = settlementIndex >= 0 && settlementIndex < bars.length ? bars[settlementIndex]!.date : null;
+  const settlement = sellFill > 0 ? settlementCalendar.sessions.find((session) => session.sessionDate === sellOrder!.executionDate) : undefined;
+  const settlementDate = settlement?.settlementDate ?? null;
+  const settlementErrorCode = sellFill > 0 && (!settlement || !settlement.settlementDate) ? "SETTLEMENT_CALENDAR_UNAVAILABLE" as const : null;
+  const settlementIndex = sellFill > 0 && settlementDate ? bars.findIndex((bar) => bar.date === settlementDate) : -1;
   const trades = [...buyTrade, ...(sellFill > 0 ? [{ side: "SELL" as const, quantity: sellFill, priceCents: sellPriceCents, feeCents: sellFeeCents, ...(policy.marketFeeSchedule ? { feeBreakdown: sellFees } : {}), signalDate: sellOrder!.signalDate, executionDate: sellOrder!.executionDate }] : [])];
   const nav: BacktestReport["nav"] = [];
   const positionAvailability: BacktestReport["positionAvailability"] = [];
@@ -231,7 +222,7 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
     const bar = bars[index]!;
     let unsettledSaleProceedsCents = 0;
     if (sellFill > 0 && settlementIndex === index) settledCashCents = safeNumber(BigInt(settledCashCents) + BigInt(sellProceedsCents), "settled cash cents");
-    if (sellFill > 0 && sellExecutionIndex === index && settlementIndex !== index) unsettledSaleProceedsCents = sellProceedsCents;
+    if (sellFill > 0 && sellExecutionIndex <= index && (settlementIndex < 0 || settlementIndex > index)) unsettledSaleProceedsCents = sellProceedsCents;
     const heldQuantity = quantity - (sellFill > 0 && sellExecutionIndex <= index ? sellFill : 0);
     const sellableQuantity = index <= 1 ? 0 : heldQuantity;
     positionAvailability.push({ date: bar.date, securityId: bar.securityId, heldQuantity, sellableQuantity, unsettledQuantity: heldQuantity - sellableQuantity });
@@ -243,7 +234,7 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
     { side: "BUY", signalDate: first.date, executionDate: execution.date, requestedQuantity: policy.targetQuantity, filledQuantity: quantity, status: quantity === 0 ? "REJECTED" : quantity === policy.targetQuantity ? "FILLED" : "PARTIALLY_FILLED", ...(buyReason ? { reason: buyReason } : {}) },
     ...(sellOrder ? [{ side: "SELL" as const, signalDate: sellOrder.signalDate, executionDate: sellOrder.executionDate, requestedQuantity: sellOrder.quantity, filledQuantity: sellFill, status: sellFill === 0 ? "REJECTED" as const : sellFill === sellOrder.quantity ? "FILLED" as const : "PARTIALLY_FILLED" as const, ...(sellReason ? { reason: sellReason } : {}) }] : [])
   ];
-  const settlements: BacktestReport["settlements"] = sellFill > 0 ? [{ tradeDate: sellOrder!.executionDate, settlementDate, proceedsCents: sellProceedsCents, status: settlementDate ? "SETTLED" : "UNSETTLED_AT_END" }] : [];
+  const settlements: BacktestReport["settlements"] = sellFill > 0 ? [{ tradeDate: sellOrder!.executionDate, settlementDate, settlementErrorCode, calendarVersion: settlementCalendar.calendarVersion, proceedsCents: sellProceedsCents, status: settlementIndex >= 0 ? "SETTLED" : "UNSETTLED_AT_END" }] : [];
   const finalNav = nav.at(-1)!.valueCents;
   const returnBasisPoints = roundedBasisPoints(BigInt(finalNav) - BigInt(policy.initialCashCents), BigInt(policy.initialCashCents));
   let highWater = policy.initialCashCents;
@@ -269,22 +260,19 @@ function simulateDailyBacktest(bars: readonly V14DailyBar[], policy: V14Executio
 }
 
 export class V14BacktestEngine {
-  constructor(private readonly bars: readonly V14DailyBar[], private readonly fixtureSha256: string, private readonly policy: V14ExecutionPolicy = V14_DEFAULT_EXECUTION_POLICY) {
+  constructor(private readonly bars: readonly V14DailyBar[], private readonly fixtureSha256: string, private readonly policy: V14ExecutionPolicy = V14_DEFAULT_EXECUTION_POLICY, private readonly benchmark?: { benchmarkId: string; bars: readonly V14BenchmarkBar[] }, private readonly settlementCalendar: V14SettlementCalendar = { fixtureVersion: "UNSET", calendarVersion: "UNSET", sha256: "UNSET", market: "CN_A", sessions: [] }) {
     if (bars.length < 2 || bars.some((bar, i) => !isValidIsoDate(bar.date) || !bar.securityId || !Number.isSafeInteger(bar.closeCents) || bar.closeCents <= 0 || !Number.isSafeInteger(bar.volume) || bar.volume < 0 || (i > 0 && bars[i - 1]!.date >= bar.date))) {
       throw new Error("V1.4 requires at least two strictly ordered, valid daily bars");
     }
     if (bars.some((bar) => bar.securityId !== bars[0]!.securityId)) throw new Error("V1.4 single-security daily backtest does not accept mixed security bars");
+    if (benchmark && (!benchmark.benchmarkId || benchmark.bars.length !== bars.length || benchmark.bars.some((bar, index) => !isValidIsoDate(bar.date) || !Number.isSafeInteger(bar.close) || bar.close <= 0 || bar.date !== bars[index]!.date))) throw new Error("V1.4 benchmark bars must have positive closes aligned one-to-one with every strategy session");
     if (!Number.isSafeInteger(policy.initialCashCents) || policy.initialCashCents < 1
       || !Number.isSafeInteger(policy.targetQuantity) || policy.targetQuantity < 1
       || !Number.isSafeInteger(policy.participationRateBasisPoints) || policy.participationRateBasisPoints < 1 || policy.participationRateBasisPoints > 10_000
       || !Number.isSafeInteger(policy.slippageBasisPoints) || policy.slippageBasisPoints < 0 || policy.slippageBasisPoints > 10_000
       || (policy.sellOrder !== undefined && policy.slippageBasisPoints >= 10_000)
       || !Number.isSafeInteger(policy.fixedFeeCents) || policy.fixedFeeCents < 0
-      || (policy.marketFeeSchedule !== undefined && (!(["CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27", "CN_A_CASH_EQUITY_2023_08_28"] as const).includes(policy.marketFeeSchedule.scheduleId)
-        || !Number.isSafeInteger(policy.marketFeeSchedule.commissionRatePartsPerBillion)
-        || policy.marketFeeSchedule.commissionRatePartsPerBillion < Number(policy.marketFeeSchedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? CN_A_HISTORICAL_COMMISSION_PASS_THROUGH_PARTS_PER_BILLION : CN_A_COMMISSION_PASS_THROUGH_PARTS_PER_BILLION)
-        || policy.marketFeeSchedule.commissionRatePartsPerBillion > Number(CN_A_MAX_COMMISSION_PARTS_PER_BILLION)
-        || !Number.isSafeInteger(policy.marketFeeSchedule.minimumCommissionCents) || policy.marketFeeSchedule.minimumCommissionCents < 0))
+      || (policy.marketFeeSchedule !== undefined && !isValidCnAEquityFeeSchedule(policy.marketFeeSchedule))
       || (policy.sellOrder !== undefined && (!isValidIsoDate(policy.sellOrder.signalDate) || !isValidIsoDate(policy.sellOrder.executionDate) || !Number.isSafeInteger(policy.sellOrder.quantity) || policy.sellOrder.quantity < 1 || !bars.some((bar) => bar.date === policy.sellOrder!.signalDate) || !bars.some((bar) => bar.date === policy.sellOrder!.executionDate)))) {
       throw new Error("V1.4 execution policy contains invalid cash, quantity, participation, slippage, or fee values");
     }
@@ -300,21 +288,30 @@ export class V14BacktestEngine {
   run(scenarioId: V14Scenario, seed = 20260907): V14Run {
     const assertions: Assertion[] = [];
     const pass = (id: string, expected: unknown, actual: unknown) => assertions.push({ assertionId: id, status: stable(expected) === stable(actual) ? "PASS" : "FAIL", expected, actual });
-    const common = { dataVersion: scenarioId === "historical-fees" ? "v1.4-historical-fees-1" : "v1.4-daily-backtest-1", fixtureSha256: this.fixtureSha256, barType: "DAILY_BAR", seed, brokerMode: "FAKE", environmentMode: "BACKTEST", executionPolicy: this.policy, costModel: this.policy.marketFeeSchedule ? "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1" : "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2" };
+    const common = { dataVersion: scenarioId === "historical-fees" ? "v1.4-historical-fees-2" : "v1.4-daily-backtest-2", fixtureSha256: this.fixtureSha256, barType: "DAILY_BAR", seed, brokerMode: "FAKE", environmentMode: "BACKTEST", executionModel: { component: "QUANT_BACKTEST_ENGINE", modelId: "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1" }, executionPolicy: this.policy, costModel: this.policy.marketFeeSchedule ? "CN_A_MARKET_FEES_WITH_EXPLICIT_BROKER_COMMISSION_V1" : "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2" };
     let evidence: Record<string, unknown>;
 
     if (scenarioId === "normal" || scenarioId === "historical-fees") {
-      const outcome = simulateDailyBacktest(this.bars, this.policy);
+      const outcome = simulateDailyBacktest(this.bars, this.policy, this.settlementCalendar);
       if (outcome.status !== "COMPLETED") throw new Error("normal V1.4 run unexpectedly cancelled");
       const report = outcome.report;
+      if (this.benchmark) {
+        const firstBenchmark = this.benchmark.bars[0]!;
+        const lastBenchmark = this.benchmark.bars.at(-1)!;
+        const benchmarkReturn = roundedBasisPoints(BigInt(lastBenchmark.close) - BigInt(firstBenchmark.close), BigInt(firstBenchmark.close));
+        const excessReturn = report.metrics.returnBasisPoints - benchmarkReturn;
+        report.benchmark = { benchmarkId: this.benchmark.benchmarkId, initialClose: firstBenchmark.close, finalClose: lastBenchmark.close, returnBasisPoints: benchmarkReturn, excessReturnBasisPoints: excessReturn };
+        pass("V1.4-BT-BENCHMARK-001", { benchmarkId: this.benchmark.benchmarkId, sessions: this.bars.length }, { benchmarkId: report.benchmark.benchmarkId, sessions: this.benchmark.bars.length });
+        pass("V1.4-BT-EXCESS-RETURN-002", report.metrics.returnBasisPoints - report.benchmark.returnBasisPoints, report.benchmark.excessReturnBasisPoints);
+      }
       const trade = report.trades[0];
-      evidence = { ...common, ...report };
+      evidence = { ...common, settlementCalendar: { fixtureVersion: this.settlementCalendar.fixtureVersion, calendarVersion: this.settlementCalendar.calendarVersion, sha256: this.settlementCalendar.sha256, market: this.settlementCalendar.market }, ...report };
       pass("V1.4-BT-NEXT-BAR-001", report.signals[0]!.visibleAt < `${report.signals[0]!.executionDate}T09:30:00+08:00`, true);
       pass("V1.4-BT-FEE-002", report.trades.reduce((total, item) => total + item.feeCents, 0), report.metrics.feesCents);
       if (this.policy.marketFeeSchedule) pass("V1.4-BT-CN-A-FEE-BREAKDOWN-010", report.trades.every((item) => item.feeBreakdown !== undefined && item.feeBreakdown.totalCents === item.feeCents && (item.side === "BUY" ? item.feeBreakdown.stampDutyCents === 0 : item.feeBreakdown.stampDutyCents > 0)), true);
       if (scenarioId === "historical-fees") {
         const sell = report.trades.find((item) => item.side === "SELL");
-        pass("V1.4-BT-HISTORICAL-FEE-001", { executionDate: "2023-08-25", stampDutyCents: sell ? ceilRateFee(sell.quantity * sell.priceCents, 1_000_000n) : null, scheduleId: "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" }, { executionDate: sell?.executionDate ?? null, stampDutyCents: sell?.feeBreakdown?.stampDutyCents ?? null, scheduleId: this.policy.marketFeeSchedule?.scheduleId ?? null });
+        pass("V1.4-BT-HISTORICAL-FEE-001", { executionDate: "2023-08-25", stampDutyCents: sell && this.policy.marketFeeSchedule ? calculateCnAEquityFeeCents("SELL", sell.quantity, sell.priceCents, this.policy.marketFeeSchedule).stampDutyCents : null, scheduleId: "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" }, { executionDate: sell?.executionDate ?? null, stampDutyCents: sell?.feeBreakdown?.stampDutyCents ?? null, scheduleId: this.policy.marketFeeSchedule?.scheduleId ?? null });
       }
       pass("V1.4-BT-LEDGER-003", report.metrics.finalCashCents + report.metrics.unsettledSaleProceedsCents + (report.positionAvailability.at(-1)?.heldQuantity ?? 0) * this.bars.at(-1)!.closeCents, report.metrics.finalNavCents);
       pass("V1.4-BT-VOLUME-004", (trade?.quantity ?? 0) <= Math.floor(this.bars[1]!.volume * this.policy.participationRateBasisPoints / 10_000), true);
@@ -343,12 +340,16 @@ export class V14BacktestEngine {
         const expectedStatus = expectedFill === 0 ? "REJECTED" : expectedFill === sellOrder.quantity ? "FILLED" : "PARTIALLY_FILLED";
         const expectedSellPrice = Number(BigInt(sellBar.closeCents) * BigInt(10_000 - this.policy.slippageBasisPoints) / 10_000n);
         const expectedProceeds = expectedFill > 0 ? Number(BigInt(expectedFill) * BigInt(expectedSellPrice) - BigInt(feeBreakdown("SELL", expectedFill, expectedSellPrice, this.policy).totalCents)) : 0;
-        const nextSession = this.bars[executionIndex + 1];
+        const settlementCalendarEntry = this.settlementCalendar.sessions.find((session) => session.sessionDate === sellOrder.executionDate);
+        const mappedSettlementDate = settlementCalendarEntry?.settlementDate ?? null;
+        const mappedSettlementIndex = mappedSettlementDate ? this.bars.findIndex((bar) => bar.date === mappedSettlementDate) : -1;
         const expectedSettlement = expectedFill > 0 ? {
           tradeDate: sellOrder.executionDate,
-          settlementDate: nextSession?.date ?? null,
+          settlementDate: mappedSettlementDate,
+          settlementErrorCode: mappedSettlementDate ? null : "SETTLEMENT_CALENDAR_UNAVAILABLE",
+          calendarVersion: this.settlementCalendar.calendarVersion,
           proceedsCents: expectedProceeds,
-          status: nextSession ? "SETTLED" : "UNSETTLED_AT_END"
+          status: mappedSettlementIndex >= 0 ? "SETTLED" : "UNSETTLED_AT_END"
         } : null;
         const executionCash = report.cashLedger.find((entry) => entry.date === sellOrder.executionDate);
         const actual = {
@@ -380,9 +381,9 @@ export class V14BacktestEngine {
       pass("V1.4-BT-REPORT-002", false, evidence.reportPublished);
       pass("V1.4-BT-TPLUS1-REJECT-009", "T_PLUS_1_UNAVAILABLE", sameSessionSellAttempt.reason);
     } else {
-      const cancelled = simulateDailyBacktest(this.bars, this.policy, true);
-      const completed = simulateDailyBacktest(this.bars, this.policy);
-      const replay = simulateDailyBacktest(this.bars.map((bar) => ({ ...bar })), this.policy);
+      const cancelled = simulateDailyBacktest(this.bars, this.policy, this.settlementCalendar, true);
+      const completed = simulateDailyBacktest(this.bars, this.policy, this.settlementCalendar);
+      const replay = simulateDailyBacktest(this.bars.map((bar) => ({ ...bar })), this.policy, this.settlementCalendar);
       if (completed.status !== "COMPLETED" || replay.status !== "COMPLETED") throw new Error("fixed-input V1.4 replay did not complete");
       const cancelState = { status: cancelled.status, reportPublished: cancelled.reportPublished, report: cancelled.report };
       const expectedCancelState = { status: "CANCELLED", reportPublished: false, report: null };

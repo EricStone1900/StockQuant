@@ -128,6 +128,15 @@ test("V1.2 export binds the owner-scoped Qlib bytes to the persisted common Arti
   assert.throws(() => v12QlibArtifactPath({ ...bundle, evidence: { qlibFit: { ...bundle.evidence.qlibFit, artifactRef: { ...artifactRef, ownerId: "other" } } } }, "https://attacker.invalid"), /TestRun and owner/u);
 });
 
+test("V1.2 export permits a valid TestRun with no Qlib ArtifactRef", () => {
+  const bundle = buildEvidenceBundle({
+    stage: "V1.2",
+    runId: testRunId,
+    responseBody: { testRunId, stageId: "V1.2", ownerId: "local-owner", status: "REJECTED", evidence: { qlibFit: null } },
+  });
+  assert.equal(v12QlibArtifactPath(bundle, "http://127.0.0.1:3000"), null);
+});
+
 test("V1.4 export downloads only the owner-scoped completed report and verifies its canonical hash", () => {
   const canonical = (value) => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : value && typeof value === "object" ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}` : JSON.stringify(value);
   const content = { testRunId, status: "COMPLETED", assertions: [{ assertionId: "daily", status: "PASS" }] };

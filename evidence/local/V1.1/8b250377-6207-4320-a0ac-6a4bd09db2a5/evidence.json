@@ -1,0 +1,67 @@
+{
+  "evidenceVersion": "v1.1-1",
+  "mode": {
+    "environmentMode": "PAPER",
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE"
+  },
+  "run": {
+    "testRunId": "8b250377-6207-4320-a0ac-6a4bd09db2a5",
+    "stageId": "V1.1",
+    "scenarioId": "normal",
+    "scenarioVersion": "1.0.0",
+    "namespace": "v1-1-normal-8b250377-6207-4320-a0ac-6a4bd09db2a5",
+    "ownerId": "acceptance-owner-1",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "accountId": "076f6def-db0b-4837-96ec-c84d8fa1d29f",
+    "createdAt": "2026-10-12T09:18:16.847Z",
+    "completedAt": "2026-10-12T09:18:16.904Z",
+    "error": null
+  },
+  "assertions": [
+    {
+      "assertionId": "V1.1-ACCOUNT-IDEMPOTENCY-001",
+      "status": "PASS",
+      "expected": {
+        "allReplayed": true,
+        "replayCount": 10
+      },
+      "actual": {
+        "allReplayed": true,
+        "replayCount": 10
+      },
+      "evidence": {
+        "accountId": "076f6def-db0b-4837-96ec-c84d8fa1d29f"
+      }
+    },
+    {
+      "assertionId": "V1.1-ACCOUNT-INIT-001",
+      "status": "PASS",
+      "expected": {
+        "cash": {
+          "amount": "10000.0000",
+          "currency": "CNY"
+        },
+        "positionCount": 0,
+        "ledgerEntryCount": 1
+      },
+      "actual": {
+        "cash": {
+          "amount": "10000.0000",
+          "currency": "CNY"
+        },
+        "positionCount": 0,
+        "ledgerEntryCount": 1
+      },
+      "evidence": {
+        "accountId": "076f6def-db0b-4837-96ec-c84d8fa1d29f",
+        "firstReplayed": false,
+        "retriesReplayed": true
+      }
+    }
+  ],
+  "manualConclusion": "NOT_RUN",
+  "stageId": "V1.1",
+  "testRunId": "8b250377-6207-4320-a0ac-6a4bd09db2a5"
+}

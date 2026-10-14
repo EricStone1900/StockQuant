@@ -30,6 +30,11 @@ export class GeneratedPortfolioAccountClient {
     return this.send<{ "snapshot": Contracts.AccountSnapshot; "replayed": boolean; }>("POST", path, body);
   }
 
+  async settleAccountReceivables(accountId: string, body: { "asOf": string; }): Promise<{ "settledFillIds": Array<string>; }> {
+    const path = `/internal/v1/accounts/${encodeURIComponent(accountId)}/settlements`;
+    return this.send<{ "settledFillIds": Array<string>; }>("POST", path, body);
+  }
+
   async getAccountSnapshot(accountId: string, ownerId: string): Promise<Contracts.AccountSnapshot> {
     const path = `/internal/v1/accounts/${encodeURIComponent(accountId)}/snapshot`;
     return this.send<Contracts.AccountSnapshot>("GET", path, undefined, { "x-stockquant-owner-id": ownerId });

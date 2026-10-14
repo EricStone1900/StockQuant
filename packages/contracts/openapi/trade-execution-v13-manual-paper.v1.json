@@ -31,6 +31,16 @@
         "responses": { "200": { "description": "Independent FakeBroker asset snapshot" }, "403": { "description": "Service identity or scope rejected" }, "404": { "description": "FakeBroker assets were not found" } }
       }
     },
+    "/internal/v1/v13/accounts/settlements": {
+      "post": {
+        "operationId": "settleV13PaperReceivables",
+        "summary": "Settle due receivables on FakeBroker and Portfolio using the TestRun clock",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["namespace", "accountId", "ownerId", "testRunId", "asOf"], "properties": { "namespace": { "type": "string", "minLength": 1, "maxLength": 128 }, "accountId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 }, "testRunId": { "type": "string", "format": "uuid" }, "asOf": { "type": "string", "format": "date-time" } } } } } },
+        "responses": { "200": { "description": "Both books processed due settlements idempotently" }, "403": { "description": "Service identity rejected" }, "422": { "description": "Invalid settlement scope or clock" }, "503": { "description": "One or both settlement books are unavailable; safe retry" } }
+      }
+    },
     "/internal/v1/orders/by-client-id": {
       "get": {
         "operationId": "readV13FakeBrokerOrderByClientId",

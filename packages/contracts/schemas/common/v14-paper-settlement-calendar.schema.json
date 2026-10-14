@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v14-paper-settlement-calendar.schema.json",
+  "title": "V14PaperSettlementCalendarFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "fixtureId", "fixtureVersion", "calendarVersion", "dataMode", "usageEligibility", "markets", "unsupportedDateBehavior"],
+  "properties": {
+    "$schema": { "const": "https://stockquant.local/schemas/common/v14-paper-settlement-calendar.schema.json" },
+    "schemaVersion": { "enum": ["v1.4-paper-settlement-calendar-v1", "v1.4-paper-settlement-calendar-v2"] },
+    "fixtureId": { "const": "v1.4-paper-settlement-calendar" },
+    "fixtureVersion": { "enum": ["v1.4-paper-settlement-calendar-1", "v1.4-paper-settlement-calendar-2"] },
+    "calendarVersion": { "type": "string", "minLength": 1 },
+    "dataMode": { "const": "FIXTURE" },
+    "usageEligibility": { "const": "SIMULATION_ONLY" },
+    "markets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CN_A", "US_EQUITY"],
+      "properties": {
+        "CN_A": { "type": "object", "additionalProperties": false, "required": ["currency", "sessions"], "properties": { "currency": { "const": "CNY" }, "sessions": { "type": "array", "minItems": 2, "items": { "type": "object", "additionalProperties": false, "required": ["sessionDate", "settlementDate"], "properties": { "sessionDate": { "type": "string", "format": "date" }, "settlementDate": { "type": ["string", "null"], "format": "date" } } } } } },
+        "US_EQUITY": { "type": "object", "additionalProperties": false, "required": ["currency", "sessions"], "properties": { "currency": { "const": "USD" }, "sessions": { "type": "array", "minItems": 2, "items": { "type": "object", "additionalProperties": false, "required": ["sessionDate", "settlementDate"], "properties": { "sessionDate": { "type": "string", "format": "date" }, "settlementDate": { "type": ["string", "null"], "format": "date" } } } } } }
+      }
+    },
+    "unsupportedDateBehavior": { "const": "SETTLEMENT_CALENDAR_UNAVAILABLE; keep receivable pending; do not infer weekends, holidays, next sessions, or settlement from elapsed hours" }
+  }
+}

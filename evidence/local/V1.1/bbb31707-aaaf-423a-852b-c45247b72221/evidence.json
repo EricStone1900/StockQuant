@@ -1,0 +1,64 @@
+{
+  "evidenceVersion": "v1.1-1",
+  "mode": {
+    "environmentMode": "PAPER",
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE"
+  },
+  "run": {
+    "testRunId": "bbb31707-aaaf-423a-852b-c45247b72221",
+    "stageId": "V1.1",
+    "scenarioId": "recovery",
+    "scenarioVersion": "1.0.0",
+    "namespace": "v1-1-recovery-bbb31707-aaaf-423a-852b-c45247b72221",
+    "ownerId": "acceptance-owner-1",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "accountId": "e5c0a73f-0517-4cb6-981e-ad60578ab58f",
+    "createdAt": "2026-10-12T09:18:18.991Z",
+    "completedAt": "2026-10-12T09:18:32.603Z",
+    "error": null
+  },
+  "assertions": [
+    {
+      "assertionId": "V1.1-RECOVERY-001",
+      "status": "PASS",
+      "expected": {
+        "cash": {
+          "amount": "10000.0000",
+          "currency": "CNY"
+        },
+        "ledgerEntryCount": 1
+      },
+      "actual": {
+        "cash": {
+          "amount": "10000.0000",
+          "currency": "CNY"
+        },
+        "ledgerEntryCount": 1
+      },
+      "evidence": {
+        "accountId": "e5c0a73f-0517-4cb6-981e-ad60578ab58f",
+        "restartVerifiedBy": "post-restart snapshot query"
+      }
+    },
+    {
+      "assertionId": "V1.1-RUN-ISOLATION-001",
+      "status": "PASS",
+      "expected": {
+        "namespace": "v1-1-recovery-bbb31707-aaaf-423a-852b-c45247b72221",
+        "testRunId": "bbb31707-aaaf-423a-852b-c45247b72221"
+      },
+      "actual": {
+        "namespace": "v1-1-recovery-bbb31707-aaaf-423a-852b-c45247b72221",
+        "testRunId": "bbb31707-aaaf-423a-852b-c45247b72221"
+      },
+      "evidence": {
+        "accountId": "e5c0a73f-0517-4cb6-981e-ad60578ab58f"
+      }
+    }
+  ],
+  "manualConclusion": "NOT_RUN",
+  "stageId": "V1.1",
+  "testRunId": "bbb31707-aaaf-423a-852b-c45247b72221"
+}

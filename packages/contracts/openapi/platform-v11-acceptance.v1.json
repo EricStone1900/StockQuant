@@ -1,0 +1,116 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant V1.1 Acceptance API", "version": "v1" },
+  "servers": [{ "url": "http://platform-api-service:3000" }],
+  "security": [{ "localSession": [] }],
+  "paths": {
+    "/api/v1/acceptance/v1/v1.1/scenarios": {
+      "get": {
+        "operationId": "listV11AcceptanceScenarios",
+        "summary": "List fixed V1.1 acceptance scenarios",
+        "security": [{ "localSession": [] }],
+        "responses": {
+          "200": { "description": "The fixed V1.1 scenario catalog", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["scenarioId", "version", "title", "expected"], "properties": { "scenarioId": { "enum": ["normal", "rejection", "recovery"] }, "version": { "const": "1.0.0" }, "title": { "type": "string", "minLength": 1 }, "expected": { "type": "string", "minLength": 1 } } } } } } },
+          "401": { "description": "A local session is required" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.1/runs": {
+      "post": {
+        "operationId": "createV11AcceptanceRun",
+        "summary": "Create an owner-scoped V1.1 Fixture acceptance run",
+        "security": [{ "localSession": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["scenarioId"], "properties": { "scenarioId": { "enum": ["normal", "rejection", "recovery"] }, "seed": { "type": "integer", "minimum": 0 } } } } } },
+        "responses": {
+          "202": { "description": "The run was accepted for asynchronous execution", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["accepted", "testRunId", "status"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "enum": ["QUEUED", "RUNNING", "WAITING", "COMPLETED", "FAILED"] } } } } } },
+          "400": { "description": "Malformed or unsupported request" },
+          "401": { "description": "A local session is required" },
+          "403": { "description": "The scenario is unavailable for V1.1" },
+          "422": { "description": "The client supplied an unsupported trading mode" }
+        }
+      }
+    },
+    "/api/v1/acceptance/runs/{testRunId}/continue-recovery": {
+      "post": {
+        "operationId": "continueOwnedV11AcceptanceRecovery",
+        "summary": "Continue an owner-scoped V1.1 recovery run",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "maxProperties": 0 } } } },
+        "responses": {
+          "202": { "description": "Recovery continuation accepted", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["accepted", "testRunId"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" } } } } } },
+          "400": { "description": "Unexpected request fields" },
+          "401": { "description": "A local session is required" },
+          "404": { "description": "The run was not found in the authenticated owner scope" }
+        }
+      }
+    },
+    "/api/v1/acceptance/runs/{testRunId}": {
+      "get": {
+        "operationId": "readOwnedV11AcceptanceRun",
+        "summary": "Read an owner-scoped V1.1 acceptance run and assertions",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Available only when the local test identity header is enabled.", "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "The V1.1 Platform projection, including assertions; it is intentionally distinct from the shared TestRun schema.", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v11-acceptance-run.schema.json" } } } },
+          "401": { "description": "A local session is required" },
+          "404": { "description": "The run was not found in the authenticated owner scope" }
+        }
+      }
+    },
+    "/api/v1/acceptance/runs/{testRunId}/evidence": {
+      "get": {
+        "operationId": "exportOwnedV1AcceptanceEvidence",
+        "summary": "Read owner-scoped evidence for a V1 acceptance run",
+        "description": "Used by the evidence exporter for V1.1, V1.3 and V1.5. V1.1 returns its dedicated run projection; the stored StageRun branch can return V1.2–V1.5 projections when this shared endpoint is called directly. The exporter uses stage-specific Run routes for V1.2 and V1.4. Human acceptance remains NOT_RUN in both response forms.",
+        "security": [{ "localSession": [] }],
+        "parameters": [
+          { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Available only when the local test identity header is enabled.", "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "One of the two V1 evidence projections", "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/V11EvidenceExport" }, { "$ref": "#/components/schemas/V1StageRunEvidenceExport" }] } } } },
+          "401": { "description": "A local session is required" },
+          "404": { "description": "The run was not found in the authenticated owner scope" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "stockquant_session" } },
+    "schemas": {
+      "V11EvidenceExport": {
+        "type": "object", "additionalProperties": false,
+        "required": ["evidenceVersion", "mode", "run", "assertions", "manualConclusion"],
+        "properties": {
+          "evidenceVersion": { "const": "v1.1-1" },
+          "mode": { "$ref": "#/components/schemas/V1EvidenceMode" },
+          "run": { "$ref": "https://stockquant.local/schemas/common/v11-acceptance-run.schema.json" },
+          "assertions": { "type": "array", "items": { "type": "object" } },
+          "manualConclusion": { "const": "NOT_RUN" }
+        }
+      },
+      "V1StageRunEvidenceExport": {
+        "type": "object", "additionalProperties": false,
+        "required": ["evidenceVersion", "mode", "run", "assertions", "manualConclusion"],
+        "properties": {
+          "evidenceVersion": { "const": "v2-stage-run-1" },
+          "mode": { "$ref": "#/components/schemas/V1EvidenceMode" },
+          "run": { "type": "object", "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "stageId": { "enum": ["V1.2", "V1.3", "V1.4", "V1.5"] }, "scenarioId": { "type": "string" }, "scenarioVersion": { "type": "string" }, "ownerId": { "type": "string" }, "namespace": { "type": "string" }, "status": { "type": "string" }, "seed": { "type": "integer" }, "assertions": { "type": "array" }, "evidence": { "type": "object" }, "createdAt": { "type": "string", "format": "date-time" }, "completedAt": { "type": ["string", "null"], "format": "date-time" } } },
+          "assertions": { "type": "array", "items": { "type": "object" } },
+          "manualConclusion": { "const": "NOT_RUN" }
+        }
+      },
+      "V1EvidenceMode": {
+        "type": "object", "additionalProperties": false,
+        "required": ["environmentMode", "dataMode", "brokerMode"],
+        "properties": { "environmentMode": { "type": "string" }, "dataMode": { "type": "string" }, "brokerMode": { "type": "string" } }
+      }
+    }
+  }
+}

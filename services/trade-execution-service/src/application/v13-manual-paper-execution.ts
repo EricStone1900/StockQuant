@@ -11,6 +11,7 @@ import type { GeneratedTradeV13AutoMandateClient } from "../contracts/generated-
 
 type Command = { proposalId: string; ownerId: string; testRunId: string; accountId: string; namespace: string; clientOrderId: string; now: string };
 type Broker = {
+  settlePaperReceivables(namespace: string, accountId: string, asOf: string): Promise<{ settledFillIds: string[] }>;
   executeV13ManualPaper(command: ReturnType<typeof buildV13FixedPaperOrder> & { reservation: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string } }): Promise<{ result: { orderId: string; status: string; brokerMode: "FAKE"; fill?: { externalFillId: string; quantity: number; price: string; fee: string; effectiveAt: string } }; replayed: boolean }>;
   find(orderId: string): Promise<Record<string, unknown> | null>;
   findByNamespaceClientOrderId(namespace: string, clientOrderId: string): Promise<any>;
@@ -36,11 +37,19 @@ export class V13ManualPaperExecutionService {
 
   async execute(command: Command) { return this.executeWithMode(command, false); }
   async executeSequenced(command: Command) { return this.executeWithMode(command, true); }
+  async settleForSession(command: Pick<Command, "accountId" | "namespace" | "now" | "ownerId" | "testRunId">): Promise<void> {
+    const brokerAssets = await this.broker.independentAssetSnapshot(command.namespace, command.accountId);
+    if (brokerAssets?.owner_id !== command.ownerId || brokerAssets?.test_run_id !== command.testRunId
+      || brokerAssets?.namespace !== command.namespace) throw new V13ManualPaperExecutionError(403, "V1.3 settlement account is outside the requested owner/TestRun scope");
+    await this.broker.settlePaperReceivables(command.namespace, command.accountId, command.now);
+    await this.portfolio.settleAccountReceivables(command.accountId, { asOf: command.now });
+  }
 
   private async executeMultiLeg(command: Command, proposal: V13ProposalResult, sequenced: boolean) {
-    if (sequenced || command.clientOrderId.length > 100 || proposal.legs.length < 2 || proposal.legs.length > 10 || proposal.legs.some((leg) => leg.side !== "BUY")) {
-      throw new V13ManualPaperExecutionError(422, "multi-leg MANUAL execution currently requires 2-10 fixed BUY legs; SELL cash-path semantics remain unresolved");
+    if (sequenced || command.clientOrderId.length > 100 || proposal.legs.length < 2 || proposal.legs.length > 10) {
+      throw new V13ManualPaperExecutionError(422, "multi-leg MANUAL execution requires 2-10 fixed immediate legs");
     }
+    await this.settleDue(command);
     const plans = proposal.legs.map((leg, index) => {
       const childProposal = { ...proposal, legs: [leg] };
       const childClientOrderId = `${command.clientOrderId}:leg:${String(index + 1).padStart(2, "0")}`;
@@ -69,7 +78,11 @@ export class V13ManualPaperExecutionService {
         const result = await this.portfolio.reserveAccountResources(command.accountId, {
           namespace: command.namespace, testRunId: command.testRunId, ownerId: command.ownerId,
           idempotencyKey: `${plan.clientOrderId}-v13-reservation`, clientOrderId: plan.clientOrderId,
-          side: "BUY", currency: plan.currency, cashAmount: plan.reservedCash, security: null, quantity: null,
+          side: plan.side, currency: plan.currency,
+          cashAmount: plan.side === "BUY" ? plan.reservedCash : null,
+          security: plan.side === "SELL" ? plan.security : null,
+          quantity: plan.side === "SELL" ? plan.quantity : null,
+          ...(plan.side === "SELL" ? { asOf: command.now } : {}),
         });
         reservations.push({ reservation: result.reservation, plan });
       }
@@ -132,7 +145,7 @@ export class V13ManualPaperExecutionService {
     return {
       replayed: validation.body.replayed === true,
       proposal: { proposalId: command.proposalId, proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, status: proposal.status },
-      riskEvaluation: { status: "PASS_RISK_CHECK", rule: "all-fixed-buy-legs-reserved-before-one-time-batch-authorization" },
+      riskEvaluation: { status: "PASS_RISK_CHECK", rule: "all-fixed-legs-reserved-before-one-time-batch-authorization; only settled cash funds buys; sell proceeds remain pending until a later session settlement" },
       resourceReservations: reservations.map((entry) => entry.reservation), orders, fills, outboxes,
       independentAssets: await this.broker.independentAssetSnapshot(command.namespace, command.accountId),
       reconciliation: await this.broker.reconciliationSummary(command.namespace),
@@ -148,6 +161,7 @@ export class V13ManualPaperExecutionService {
     const plan = sequenced
       ? buildV13FixedSequencedPaperOrder({ proposal, namespace: command.namespace, clientOrderId: command.clientOrderId, now: command.now })
       : buildV13FixedPaperOrder({ proposal, namespace: command.namespace, clientOrderId: command.clientOrderId, now: command.now });
+    await this.settleDue(command);
     let reservation: Awaited<ReturnType<GeneratedPortfolioAccountClient["reserveAccountResources"]>>;
     try {
       reservation = await this.portfolio.reserveAccountResources(command.accountId, { namespace: command.namespace, testRunId: command.testRunId, ownerId: command.ownerId, idempotencyKey: `${command.clientOrderId}-v13-reservation`, clientOrderId: command.clientOrderId, side: plan.side, currency: plan.currency, cashAmount: plan.side === "BUY" ? plan.reservedCash : null, security: plan.side === "SELL" ? plan.security : null, quantity: plan.side === "SELL" ? plan.quantity : null, ...(plan.side === "SELL" ? { asOf: command.now } : {}) });
@@ -174,10 +188,15 @@ export class V13ManualPaperExecutionService {
     const order = await this.broker.find(executed.result.orderId); const outbox = await this.broker.outboxStatus(executed.result.orderId);
     return { replayed: executed.replayed, proposal: { proposalId: command.proposalId, proposalVersion: plan.proposalVersion, contentHash: plan.contentHash, status: proposal.status }, riskEvaluation: { status: "PASS_RISK_CHECK", rule: "fixed-fixture-budget-and-portfolio-resource-reservation" }, resourceReservation: reservation.reservation, order: { ...order, clientOrderId: command.clientOrderId }, fill: executed.result.fill ?? null, outbox, independentAssets: await this.broker.independentAssetSnapshot(command.namespace, command.accountId), reconciliation: await this.broker.reconciliationSummary(command.namespace) };
   }
+
+  private async settleDue(command: Command): Promise<void> {
+    await this.broker.settlePaperReceivables(command.namespace, command.accountId, command.now);
+    await this.portfolio.settleAccountReceivables(command.accountId, { asOf: command.now });
+  }
 }
 
 type AutoCommand = Command & { mandateId: string; mandateVersion: number; executionMode?: "IMMEDIATE" | "SEQUENCED" };
-type AutoBroker = Pick<Broker, "executeV13ManualPaper" | "findByNamespaceClientOrderId" | "pendingFill" | "outboxStatus" | "independentAssetSnapshot" | "reconciliationSummary" | "find">;
+type AutoBroker = Pick<Broker, "settlePaperReceivables" | "executeV13ManualPaper" | "findByNamespaceClientOrderId" | "pendingFill" | "outboxStatus" | "independentAssetSnapshot" | "reconciliationSummary" | "find">;
 export type V13AutoFaultSequence = {
   afterMandateAuthorization(command: AutoCommand): Promise<void>;
   afterFakeBrokerCommit(command: AutoCommand): Promise<void>;
@@ -194,9 +213,14 @@ export class V13AutoPaperExecutionService {
     if (result.status !== 200) throw new V13ManualPaperExecutionError(503, `AUTO_POLICY budget reservation ${outcome.toLowerCase()} settlement is pending`);
   }
 
+  private async settleDue(command: AutoCommand): Promise<void> {
+    await this.broker.settlePaperReceivables(command.namespace, command.accountId, command.now);
+    await this.portfolio.settleAccountReceivables(command.accountId, { asOf: command.now });
+  }
+
   private async executeMultiLeg(command: AutoCommand, proposal: V13ProposalResult, mandateReservationId: string, replayed: boolean) {
-    if (command.clientOrderId.length > 96 || proposal.legs.length < 2 || proposal.legs.length > 10 || proposal.legs.some((leg) => leg.side !== "BUY")) {
-      throw new V13ManualPaperExecutionError(422, "multi-leg AUTO_POLICY requires 2-10 fixed BUY legs; SELL cash-path semantics remain unresolved");
+    if (command.clientOrderId.length > 96 || proposal.legs.length < 2 || proposal.legs.length > 10) {
+      throw new V13ManualPaperExecutionError(422, "multi-leg AUTO_POLICY requires 2-10 fixed immediate legs");
     }
     const plans = proposal.legs.map((leg, index) => buildV13FixedAutoPaperOrder({
       proposal: { ...proposal, legs: [leg] }, namespace: command.namespace,
@@ -218,7 +242,11 @@ export class V13AutoPaperExecutionService {
         const result = await this.portfolio.reserveAccountResources(command.accountId, {
           namespace: command.namespace, testRunId: command.testRunId, ownerId: command.ownerId,
           idempotencyKey: `${plan.clientOrderId}-v13-auto-reservation`, clientOrderId: plan.clientOrderId,
-          side: "BUY", currency: plan.currency, cashAmount: plan.reservedCash, security: null, quantity: null,
+          side: plan.side, currency: plan.currency,
+          cashAmount: plan.side === "BUY" ? plan.reservedCash : null,
+          security: plan.side === "SELL" ? plan.security : null,
+          quantity: plan.side === "SELL" ? plan.quantity : null,
+          ...(plan.side === "SELL" ? { asOf: command.now } : {}),
         });
         reservations.push({ reservation: result.reservation, plan });
       }
@@ -289,11 +317,11 @@ export class V13AutoPaperExecutionService {
     if (legs.some((leg) => (market === "CN_A") !== (leg.securityId.endsWith(".SH") || leg.securityId.endsWith(".SZ")))) throw new V13ManualPaperExecutionError(422, "AUTO_POLICY proposal mixes or uses unsupported Fixture markets");
     const multiLeg = proposal.operation === "REBALANCE" && legs.length > 1;
     if (proposal.operation === "REBALANCE" && (!legs.length || legs.length > 10 || legs.some((leg) => !leg.limitPrice))) throw new V13ManualPaperExecutionError(422, "AUTO_POLICY order is outside the fixed CN/US Fixture");
-    if (multiLeg && legs.some((leg) => leg.side !== "BUY")) throw new V13ManualPaperExecutionError(422, "multi-leg AUTO_POLICY SELL cash-path semantics remain unresolved");
     if (proposal.operation === "HOLD" && legs.length !== 0) throw new V13ManualPaperExecutionError(422, "AUTO_POLICY HOLD must contain no order legs");
 
     const multiLegPlans = multiLeg ? proposal.legs.map((leg, index) => buildV13FixedAutoPaperOrder({ proposal: { ...proposal, legs: [leg] }, namespace: command.namespace, clientOrderId: `${command.clientOrderId}:leg:${String(index + 1).padStart(2, "0")}`, now: command.now, mandateId: command.mandateId, mandateVersion: command.mandateVersion, executionMode: command.executionMode })) : null;
     const plan = proposal.operation === "REBALANCE" && !multiLeg ? buildV13FixedAutoPaperOrder({ proposal, namespace: command.namespace, clientOrderId: command.clientOrderId, now: command.now, mandateId: command.mandateId, mandateVersion: command.mandateVersion, executionMode: command.executionMode }) : null;
+    await this.settleDue(command);
     const commandHash = multiLegPlans ? createHash("sha256").update(JSON.stringify({ mandateId: command.mandateId, mandateVersion: command.mandateVersion, proposalId: proposal.proposalId, proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, clientOrderId: command.clientOrderId, legs: multiLegPlans.map((item) => ({ clientOrderId: item.clientOrderId, commandHash: item.commandHash })) })).digest("hex") : plan?.commandHash ?? createHash("sha256").update(JSON.stringify({ mandateId: command.mandateId, mandateVersion: command.mandateVersion, proposalId: proposal.proposalId, proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, clientOrderId: command.clientOrderId, operation: "HOLD" })).digest("hex");
     const authorization = await this.mandates.authorizeOrder(command.mandateId, { mandateVersion: command.mandateVersion, ownerId: command.ownerId, clientOrderId: command.clientOrderId, commandHash, proposal: { proposalId: proposal.proposalId, proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, ownerId: proposal.ownerId, testRunId: proposal.testRunId, accountId: proposal.accountId, strategyVersion: proposal.strategyVersion, operation: proposal.operation, market, currency, legs }, now: command.now });
     if (authorization.status !== 200 || typeof authorization.body !== "object" || authorization.body === null || !("decision" in authorization.body)) {

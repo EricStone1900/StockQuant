@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
-import { createReadStream, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
@@ -37,6 +37,7 @@ const tradeWorkerFailureMode = tradeFailoverMode || tradeDoubleFailureMode || tr
 assert.ok([temporalOutageMode, networkOutageMode, databaseRetryMode, databaseOutageMode, databaseConnectionDropMode, multiWorkerMode, workerFailoverMode, tradeFailoverMode, tradeDoubleFailureMode, tradeAndDatabaseFailureMode, backupRestoreMode, autoCancelMode].filter(Boolean).length <= 1, "select only one isolated fault mode");
 const project = `sq-v15-e2e-${randomBytes(10).toString("hex")}`;
 const evidenceRoot = mkdtempSync(join(tmpdir(), "sq-v15-e2e-evidence-"));
+const preserveRunExports = process.env.STOCKQUANT_V15_PRESERVE_RUN_EXPORTS === "true";
 const composeFile = "infra/compose/docker-compose.v15-integration.yml";
 const [apiPort, webPort] = await Promise.all([freeLoopbackPort(), freeLoopbackPort()]);
 const env = {
@@ -140,6 +141,7 @@ try {
   const identityRoutes = [
     { label: "scenario discovery", method: "GET", path: "/api/v1/acceptance/v1/v1.5/scenarios" },
     { label: "owner-scoped run history", method: "GET", path: "/api/v1/acceptance/v1/v1.5/runs?limit=20" },
+    { label: "owner-scoped arbitrary Fill trace lookup", method: "GET", path: "/api/v1/acceptance/v1/v1.5/fills/missing-fill/trace" },
     { label: "run creation", method: "POST", path: "/api/v1/acceptance/v1/v1.5/runs", body: { scenarioId: "rejection", seed: 20260907 } },
     { label: "TestRun read", method: "GET", path: "/api/v1/acceptance/v1/v1.5/runs/00000000-0000-4000-8000-000000000001" },
     { label: "owner-scoped Run incidents", method: "GET", path: "/api/v1/acceptance/v1/v1.5/runs/00000000-0000-4000-8000-000000000001/incidents" },
@@ -157,6 +159,7 @@ try {
   const requiredRoutes = [
     "GET /api/v1/acceptance/v1/v1.5/scenarios",
     "GET /api/v1/acceptance/v1/v1.5/runs",
+    "GET /api/v1/acceptance/v1/v1.5/fills/:externalFillId/trace",
     "POST /api/v1/acceptance/v1/v1.5/runs",
     "GET /api/v1/acceptance/v1/v1.5/runs/:testRunId",
     "GET /api/v1/acceptance/v1/v1.5/runs/:testRunId/incidents",
@@ -188,7 +191,9 @@ try {
   const runCountBeforeModeProbe = v15RunCount();
   const rejectedModes = [
     { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
     { environmentMode: "BACKTEST", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "REAL" },
   ];
@@ -232,6 +237,19 @@ try {
     assert.equal(wrongOwner.status, 403, "another owner must not acknowledge this Run incident");
     const injectedAcknowledgement = await incidentRequest(`${incidentBasePath}/${incidentId}/acknowledge`, "POST", "acceptance-owner-1", { state: "ACKNOWLEDGED", status: "COMPLETED", cash: { amount: "999999.00", currency: "CNY" } });
     assert.equal(injectedAcknowledgement.status, 422, "incident acknowledgement must reject client-supplied state or business facts");
+    for (const modes of [
+      { environmentMode: "PAPER", brokerMode: "FAKE" },
+      { environmentMode: "PAPER", brokerMode: "REAL" },
+      { environmentMode: "LIVE", brokerMode: "FAKE" },
+      { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+      { environmentMode: "BACKTEST", brokerMode: "REAL" },
+      { environmentMode: "LIVE", brokerMode: "REAL" },
+    ]) {
+      const modeAcknowledgement = await incidentRequest(`${incidentBasePath}/${incidentId}/acknowledge`, "POST", "acceptance-owner-1", modes);
+      assert.equal(modeAcknowledgement.status, 422, `incident acknowledgement must reject mode injection ${JSON.stringify(modes)}`);
+      const unchangedIncidents = await incidentRequest();
+      assert.equal((await unchangedIncidents.json())[0].state, "OPEN", `rejected mode injection must leave incident open ${JSON.stringify(modes)}`);
+    }
     const incidentAfterRejectedAcknowledgement = await incidentRequest();
     assert.equal((await incidentAfterRejectedAcknowledgement.json())[0].state, "OPEN", "rejected acknowledgement must leave the incident open");
     const acknowledgedResponse = await incidentRequest(`${incidentBasePath}/${incidentId}/acknowledge`, "POST");
@@ -1197,8 +1215,11 @@ console.log(JSON.stringify({summary,portfolio,budgets}));`;
     assert.equal(holdAssertion?.status, "PASS", "restored PostgreSQL did not preserve the authoritative NO_TRADE assertion");
     assert.equal(holdAssertion?.actual?.authoritativeObservations, 120, "restored PostgreSQL did not preserve all 120 authoritative observations");
     const autoCli = spawnSync("pnpm", ["verify:stage", "--", "--stage", "V1.5", "--run", autoRunId, "--check-only"], { cwd: process.cwd(), env, encoding: "utf8", stdio: "pipe", timeout: 120_000, maxBuffer: 8 * 1024 * 1024 });
-    assert.equal(autoCli.status, 2, `restored AUTO check-only should preserve the WAITING run/version-gate exit code while reading its facts: ${autoCli.stderr || autoCli.stdout}`);
+    assert.equal(autoCli.status, 0, `restored completed AUTO check-only should return success while reading its verified facts: ${autoCli.stderr || autoCli.stdout}`);
     assert.ok(`${autoCli.stdout}\n${autoCli.stderr}`.includes(autoRunId), "restored AUTO CLI did not return the requested TestRun ID");
+    const restoredAutoRun = parseRunResult(autoCli.stdout);
+    assert.equal(restoredAutoRun.status, "COMPLETED", "restored AUTO TestRun did not preserve its completed execution state");
+    assert.ok(restoredAutoRun.assertions.length > 0 && restoredAutoRun.assertions.every((assertion) => assertion.status === "PASS"), "restored AUTO TestRun did not preserve all-PASS business assertions");
     assert.equal(autoRunBefore.evidence?.businessExecution, "AUTO_TRADE_EXECUTED");
     assert.equal(autoRunBefore.evidence?.workflowCompletionReconciliation?.status, "MATCH");
     assert.equal(autoRunBefore.evidence?.orders?.length, 4);
@@ -1289,6 +1310,22 @@ console.log(JSON.stringify({summary,portfolio,budgets}));`;
       const result = spawnSync("docker", args, { encoding: "utf8" });
       return result.status === 0 && result.stdout.trim() === "";
     });
+  }
+  if (preserveRunExports && exitCode === 0) {
+    const exportedRuns = join(evidenceRoot, "evidence/local/V1.5");
+    const retainedRuns = [];
+    if (readdirSync(evidenceRoot, { withFileTypes: true }).some((entry) => entry.isDirectory() && entry.name === "evidence")) {
+      const destination = resolve("evidence/local/V1.5");
+      mkdirSync(destination, { recursive: true });
+      for (const entry of readdirSync(exportedRuns, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !/^[0-9a-f-]{36}$/iu.test(entry.name)) continue;
+        const target = join(destination, entry.name);
+        assert.throws(() => statSync(target), { code: "ENOENT" }, `refusing to overwrite retained evidence ${target}`);
+        cpSync(join(exportedRuns, entry.name), target, { recursive: true, errorOnExist: true, force: false });
+        retainedRuns.push(entry.name);
+      }
+    }
+    auditRecord.retainedRunExports = retainedRuns;
   }
   rmSync(evidenceRoot, { recursive: true, force: true });
   auditRecord.status = exitCode === 0 ? "PASS" : "FAIL";

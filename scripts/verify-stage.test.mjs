@@ -5,12 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 
-async function runCheckOnly(run) {
+async function runCheckOnly(run, stage = "V2.4") {
   const directory = await mkdtemp(join(tmpdir(), "stockquant-verify-stage-"));
   const mock = join(directory, "mock-fetch.mjs");
   await writeFile(mock, `globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => (${JSON.stringify(run)}) });\n`);
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ["--import", mock, "scripts/verify-stage.mjs", "--stage", "V2.4", "--run", "test-run", "--check-only"], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, ["--import", mock, "scripts/verify-stage.mjs", "--stage", stage, "--run", "test-run", "--check-only"], { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -27,4 +27,29 @@ test("check-only rejects a completed run with no assertions", async () => {
 test("check-only preserves the failure exit code for a failed run", async () => {
   const result = await runCheckOnly({ status: "FAILED", assertions: [{ status: "FAIL" }] });
   assert.equal(result.code, 1);
+});
+
+test("V1.1 check-only accepts the generated owner-scoped run contract", async () => {
+  const result = await runCheckOnly({
+    testRunId: "00000000-0000-4000-8000-000000000001",
+    stageId: "V1.1",
+    scenarioId: "normal",
+    scenarioVersion: "1.0.0",
+    namespace: "v11-test",
+    ownerId: "acceptance-owner-1",
+    status: "COMPLETED",
+    seed: 20260907,
+    accountId: null,
+    createdAt: "2026-10-11T00:00:00.000Z",
+    completedAt: "2026-10-11T00:00:01.000Z",
+    error: null,
+    assertions: [{ assertionId: "V1.1-TEST-001", status: "PASS", expected: true, actual: true, evidence: {} }],
+  }, "V1.1");
+  assert.equal(result.code, 0);
+});
+
+test("V1.1 check-only rejects responses that drift from the generated run contract", async () => {
+  const result = await runCheckOnly({ status: "COMPLETED", assertions: [{ status: "PASS" }] }, "V1.1");
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /violates V11AcceptanceRun/);
 });

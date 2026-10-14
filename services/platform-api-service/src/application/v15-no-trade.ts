@@ -82,6 +82,8 @@ export async function completeV15NoTrade(input: V15NoTradeInput, accounts: Recor
   const finalObservations = observations.at(-1);
   const evidence = {
     evidenceScope: "TEMPORAL_NO_TRADE_WITH_AUTHORITATIVE_DOMAIN_READS",
+    environmentMode: "PAPER",
+    dataMode: "FIXTURE",
     businessExecution: "NO_TRADE_SESSIONS_EXECUTED",
     businessServicesCalled: ["portfolio-risk-service", "trade-execution-service"],
     brokerMode: "FAKE", liveTradingEnabled: false, fixtureVersion: input.fixtureVersion, fixtureSha256: input.fixtureSha256,

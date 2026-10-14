@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { Pool } from "pg";
 import { PostgresFakeBrokerRepository } from "../dist/adapters/postgres-fake-broker-repository.js";
-import { V14BacktestEngine } from "../../quant-research-service/dist/domain/v14-daily-backtest.js";
+import { evaluateV14RestrictionBar, V14BacktestEngine } from "../../quant-research-service/dist/domain/v14-daily-backtest.js";
 import { PostgresAccountRepository } from "../../portfolio-risk-service/dist/adapters/postgres-account-repository.js";
 
 const connectionString = process.env.TRADE_EXECUTION_TEST_DATABASE_URL;
@@ -93,6 +93,19 @@ function centsFromMoney(amount) {
   assert.equal(fractional.slice(2), "00", `Portfolio amount must preserve exact cent precision: ${amount}`);
   const cents = BigInt(match[2]) * 100n + BigInt(fractional.slice(0, 2));
   return Number(match[1] === "-" ? -cents : cents);
+}
+
+function quantRestrictionBarFromFixture(row) {
+  const cents = (value) => {
+    const match = /^(\d+)\.(\d{2})$/u.exec(value);
+    assert.ok(match, `restriction Fixture price must be cent-aligned: ${value}`);
+    return Number(BigInt(match[1]) * 100n + BigInt(match[2]));
+  };
+  return {
+    caseId: row[0], side: row[1], date: row[2], securityId: row[3],
+    openCents: cents(row[4]), highCents: cents(row[5]), lowCents: cents(row[6]), closeCents: cents(row[7]),
+    volume: Number(row[8]), tradingStatus: row[9], upperLimitCents: cents(row[10]), lowerLimitCents: cents(row[11]),
+  };
 }
 
 async function postJson(url, caller, token, body) {
@@ -219,8 +232,11 @@ async function executePaperHttpScenario({ scenario, market, currency, security, 
   const consumedGrant = await governancePool.query("SELECT status,command_hash FROM execution_authorizations WHERE authorization_id=$1", [grant.authorizationId]);
   assert.equal(consumedGrant.rowCount, 1);
   assert.equal(consumedGrant.rows[0].status, "CONSUMED", "the real Governance HTTP authorization must be consumed by Trade before FakeBroker execution");
-  const expectedCash = await portfolioPool.query("SELECT ($1::numeric + CASE WHEN $5='BUY' THEN -1 ELSE 1 END * ($2::numeric * $3::numeric + CASE WHEN $5='BUY' THEN $4::numeric ELSE -$4::numeric END))::numeric(20,4)::text AS cash", [account.cash, executed.result.fill.quantity, executed.result.fill.price, executed.result.fill.fee, side]);
-  account.cash = expectedCash.rows[0].cash;
+  const priorSettledCash = account.cash;
+  const expectedCash = await portfolioPool.query("SELECT ($1::numeric - ($2::numeric * $3::numeric + $4::numeric))::numeric(20,4)::text AS cash", [priorSettledCash, executed.result.fill.quantity, executed.result.fill.price, executed.result.fill.fee]);
+  // BUY consumes settled cash immediately. A Paper SELL creates a receivable and must not
+  // increase available cash until the versioned settlement session is reached.
+  account.cash = side === "BUY" ? expectedCash.rows[0].cash : priorSettledCash;
   account.tradeCount += 1;
   const previousQuantity = account.quantityBySecurity.get(security) ?? 0;
   account.quantityBySecurity.set(security, previousQuantity + (side === "BUY" ? executed.result.fill.quantity : -executed.result.fill.quantity));
@@ -240,6 +256,8 @@ async function executePaperHttpScenario({ scenario, market, currency, security, 
   assert.equal(fakeBrokerAssets.test_run_id, account.runId);
   assert.equal(fakeBrokerAssets.currency, currency);
   assert.equal(fakeBrokerAssets.current_cash, account.cash, "independent FakeBroker cash must match the fixed execution ledger");
+  const portfolioPendingCents = snapshot.unsettledReceivables.filter((item) => item.status === "PENDING").reduce((total, item) => total + centsFromMoney(item.amount), 0);
+  const brokerPendingCents = fakeBrokerAssets.unsettledReceivables.filter((item) => item.status === "PENDING").reduce((total, item) => total + centsFromMoney(item.amount), 0);
   assert.deepEqual(fakeBrokerAssets.positions, [...account.quantityBySecurity.entries()].filter(([, positionQuantity]) => positionQuantity > 0).map(([positionSecurity, positionQuantity]) => ({ security: positionSecurity, quantity: positionQuantity })).sort((left, right) => left.security.localeCompare(right.security)));
   assert.equal(fakeBrokerAssets.fill_event_count, account.tradeCount, "every durable historical Fill must apply once to the independent FakeBroker asset ledger");
   fakeBrokerAssetReconciliations += 1;
@@ -247,8 +265,10 @@ async function executePaperHttpScenario({ scenario, market, currency, security, 
   const quantPositionAtSession = quantBacktest.evidence.positionAvailability.find((entry) => entry.date === executionDate);
   assert.ok(quantCashAtSession, `Quant cash ledger must include ${executionDate}`);
   assert.ok(quantPositionAtSession, `Quant position ledger must include ${executionDate}`);
-  const quantPortfolioCashCents = quantCashAtSession.settledCashCents + quantCashAtSession.unsettledSaleProceedsCents;
-  assert.equal(centsFromMoney(snapshot.cash.amount), quantPortfolioCashCents, `${scenario} Portfolio cash must match Quant settled cash plus explicitly unsettled sale proceeds on ${executionDate}`);
+  assert.equal(centsFromMoney(snapshot.cash.amount), quantCashAtSession.settledCashCents, `${scenario} Portfolio cash must match Quant settled cash on ${executionDate}`);
+  assert.equal(portfolioPendingCents, quantCashAtSession.unsettledSaleProceedsCents, `${scenario} Portfolio pending receivables must match Quant unsettled sale proceeds on ${executionDate}`);
+  assert.equal(centsFromMoney(fakeBrokerAssets.current_cash), quantCashAtSession.settledCashCents, `${scenario} independent FakeBroker cash must match Quant settled cash on ${executionDate}`);
+  assert.equal(brokerPendingCents, quantCashAtSession.unsettledSaleProceedsCents, `${scenario} independent FakeBroker pending receivables must match Quant unsettled sale proceeds on ${executionDate}`);
   assert.equal(snapshot.positions.find((position) => position.security === security)?.quantity ?? 0, quantPositionAtSession.heldQuantity, `${scenario} Portfolio quantity must match Quant held quantity on ${executionDate}`);
   portfolioQuantLedgerReconciliations += 1;
   return { ...executed, accountId: account.accountId, reservationId: reservation.reservationId, snapshot, quantLedger: { settledCashCents: quantCashAtSession.settledCashCents, unsettledSaleProceedsCents: quantCashAtSession.unsettledSaleProceedsCents, heldQuantity: quantPositionAtSession.heldQuantity } };
@@ -423,7 +443,7 @@ try {
   // USD serialization and persisted FakeBroker facts without claiming a real
   // US market fee/tax model.
   const usBars = ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"].map((date) => ({ date, securityId: "AAPL", closeCents: 1_000, volume: 1_000 }));
-  const usPolicy = { initialCashCents: 200_000, targetQuantity: 100, participationRateBasisPoints: 2_900, slippageBasisPoints: 0, fixedFeeCents: 100 };
+  const usPolicy = { initialCashCents: 200_000, targetQuantity: 100, participationRateBasisPoints: 2_900, slippageBasisPoints: 55, fixedFeeCents: 100 };
   for (const item of [
     { side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03" },
     { side: "SELL", signalDate: "2024-01-04", executionDate: "2024-01-05" },
@@ -434,7 +454,7 @@ try {
     assert.ok(expected, `US ${item.side} fill is missing from the Quant result`);
     const clientOrderId = `parity-us-${item.side.toLowerCase()}-${randomUUID()}`;
     expectedOutboxInputs.set(clientOrderId, { security: "AAPL", side: item.side, currency: "USD", scenario: "us-standard" });
-    const execution = await executePaperHttpScenario({ scenario: "us-standard", market: "US_EQUITY", currency: "USD", security: "AAPL", side: item.side, clientOrderId, quantity: 100, executionDate: item.executionDate, timestamp: `${item.executionDate}T14:30:00.000Z`, open: "10.00", volume: 1_000, participationRate: 0.29, slippageBps: 0, quantBacktest: backtest });
+    const execution = await executePaperHttpScenario({ scenario: "us-standard", market: "US_EQUITY", currency: "USD", security: "AAPL", side: item.side, clientOrderId, quantity: 100, executionDate: item.executionDate, timestamp: `${item.executionDate}T14:30:00.000Z`, open: "10.00", volume: 1_000, participationRate: 0.29, slippageBps: 55, quantBacktest: backtest });
     assert.equal(execution.replayed, false);
     assert.equal(execution.result.status, "FILLED");
     assert.ok(execution.result.fill);
@@ -563,12 +583,18 @@ try {
   const restrictionFixture = readFileSync(resolve("fixtures/v1/v1.4/market_restrictions_synthetic.csv"), "utf8");
   assert.equal(createHash("sha256").update(restrictionFixture).digest("hex"), "45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a", "Paper restrictions must use the frozen Quant scenario Fixture");
   const restrictionRows = restrictionFixture.trim().split(/\r?\n/u).slice(1).map((line) => line.split(","));
+  const openMarketRow = restrictionRows.find((row) => row[0] === "open-market-buy");
+  assert.ok(openMarketRow, "frozen restriction Fixture must contain the open-market BUY row");
+  assert.deepEqual(evaluateV14RestrictionBar(quantRestrictionBarFromFixture(openMarketRow)), { caseId: "open-market-buy", side: "BUY", status: "FILLABLE" });
   const restrictionCases = restrictionRows.filter((row) => ["suspended-buy", "locked-upper-buy"].includes(row[0])).map((row) => ({
     name: row[0], side: row[1], date: row[2], security: row[3], open: row[4], high: row[5], low: row[6], close: row[7], volume: Number(row[8]), tradingStatus: row[9], upperLimit: row[10], lowerLimit: row[11],
     reason: row[0] === "suspended-buy" ? "SUSPENDED" : "LOCKED_AT_UPPER_LIMIT",
   }));
   assert.equal(restrictionCases.length, 2, "frozen restriction Fixture must contain suspended and locked-upper BUY rows");
   for (const restriction of restrictionCases) {
+    const restrictionRow = restrictionRows.find((row) => row[0] === restriction.name);
+    assert.ok(restrictionRow, `${restriction.name} must be present in the frozen Fixture`);
+    assert.deepEqual(evaluateV14RestrictionBar(quantRestrictionBarFromFixture(restrictionRow)), { caseId: restriction.name, side: restriction.side, status: "REJECTED", reason: restriction.reason }, `${restriction.name} Quant decision must match the corresponding Paper rejection`);
     const restrictionClientOrderId = `parity-http-${restriction.name}-${randomUUID()}`;
     const restrictionReservationResult = await postJson(`${portfolioHttpUrl}/internal/v1/accounts/${rejectionAccountId}/reservations`, "trade-execution-service", serviceTokens.trade, {
       namespace: rejectionNamespace, testRunId: rejectionRunId, ownerId: rejectionOwnerId, idempotencyKey: restrictionClientOrderId,
@@ -615,6 +641,7 @@ try {
 
   const lockedLowerRow = restrictionRows.find((row) => row[0] === "locked-lower-sell");
   assert.ok(lockedLowerRow, "frozen restriction Fixture must contain the locked-lower SELL row");
+  assert.deepEqual(evaluateV14RestrictionBar(quantRestrictionBarFromFixture(lockedLowerRow)), { caseId: "locked-lower-sell", side: "SELL", status: "REJECTED", reason: "LOCKED_AT_LOWER_LIMIT" });
   const lockedLowerClientOrderId = `parity-http-locked-lower-sell-${randomUUID()}`;
   const lockedLowerBar = { timestamp: `${lockedLowerRow[2]}T01:30:00.000Z`, open: lockedLowerRow[4], high: lockedLowerRow[5], low: lockedLowerRow[6], close: lockedLowerRow[7], volume: Number(lockedLowerRow[8]), tradingStatus: lockedLowerRow[9], upperLimit: lockedLowerRow[10], lowerLimit: lockedLowerRow[11] };
   const lockedLowerCommand = { namespace: rejectionNamespace, accountId: rejectionAccountId, clientOrderId: lockedLowerClientOrderId, security: lockedLowerRow[3], requestedQuantity: 29, initialAccountCash: "2000.0000", bar: lockedLowerBar, side: "SELL", participationRate: 0.29, slippageBps: 55, currency: "CNY" };
@@ -833,7 +860,7 @@ try {
   assert.equal(fakeBrokerAssetReconciliations, 9);
   assert.equal(fakeBrokerIdempotentAssetReplays, 9);
   assert.equal(fakeBrokerInsufficientAssetRecovery, true);
-  console.log(JSON.stringify({ status: "PASS", databases: ["isolated trade_execution_test", "isolated portfolio_risk_test", "isolated decision_governance_test"], liveServices: ["Decision Governance HTTP", "Trade Execution HTTP", "Portfolio Risk HTTP"], governanceAuthorization: "real Replay authorization grant/consume HTTP+PostgreSQL; nine fixed outcome orders, two insufficient-cash/recovery grants, and REJECTED, EXPIRED, suspended and locked-limit terminal outcomes were command-hash-bound", scenario: "V1.4 Quant versus Trade HTTP/FakeBroker persistence and independent FakeBroker/Portfolio HTTP-ledger outcomes", fixtures: { CN_A: "synthetic exact-cent CNY with versioned current and historical fee schedules", US_EQUITY: "synthetic USD with fixed fixture fee; not a real-market fee claim" }, compared: ["CN BUY/SELL through Trade and Portfolio HTTP", "CN partial BUY through Trade and Portfolio HTTP", "CN zero-volume rejection and nonmarketable LIMIT expiry through Trade HTTP with durable reservation release and idempotent replay", "CN suspension, locked-upper BUY and locked-lower SELL rejection through Trade HTTP; complete bar limits bound into Governance and idempotency", "CN historical-fee BUY/SELL before 2023-08-28", "CN current-fee BUY/SELL from 2023-08-28", "US BUY/SELL through Trade and Portfolio HTTP", "independent FakeBroker cash/positions/events", "same-command retry preserves order/fill/assets or terminal rejection/expiry", "insufficient FakeBroker cash rejects with zero side effects and a newly authorized corrected retry recovers exactly once", "independent Portfolio ledger snapshots and Outbox account scope", "prior-session holding plus real sell reservation released on locked-lower SELL"], fields: ["status", "quantity", "price", "fee", "session", "rejection reason", "Fill outbox", "reservation resolution outbox", "FakeBroker independent cash and positions", "Portfolio cash", "Portfolio position", "Portfolio ledger entries", "Governance authorization command hash/status"], portfolioBuyReconciliations, portfolioQuantLedgerReconciliations, fakeBrokerAssetReconciliations, fakeBrokerIdempotentAssetReplays, fakeBrokerInsufficientAssetRecovery, rejectedHttpReservationReleased: true, expiredHttpReservationReleased: true, marketRestrictionHttpReservationsReleased: 3, marketRestrictionLockedLowerSellHttp: true, marketRestrictionSellReservationBacked: true, governanceGrantCount, governanceAuthorizationRows: authorizationRows.rows[0], settlementBoundary: "Portfolio cash is compared against Quant settled cash plus unsettled sale proceeds; sell availability/receivable settlement parity remains unasserted pending OD-014", counts: counts.rows[0] }));
+  console.log(JSON.stringify({ status: "PASS", databases: ["isolated trade_execution_test", "isolated portfolio_risk_test", "isolated decision_governance_test"], liveServices: ["Decision Governance HTTP", "Trade Execution HTTP", "Portfolio Risk HTTP"], governanceAuthorization: "real Replay grant/consume HTTP+PostgreSQL; fixed outcomes are command-hash-bound", scenario: "V1.4 Quant versus Trade HTTP/FakeBroker persistence and independent FakeBroker/Portfolio HTTP-ledger outcomes", fixtures: { CN_A: "synthetic exact-cent CNY with versioned current and historical fee schedules", US_EQUITY: "synthetic USD with fixed fixture fee; not a real-market fee claim" }, compared: ["CN BUY/SELL through Trade and Portfolio HTTP", "CN partial BUY through Trade and Portfolio HTTP", "CN zero-volume rejection and nonmarketable LIMIT expiry through Trade HTTP with durable reservation release and idempotent replay", "CN suspension, locked-upper BUY and locked-lower SELL rejection through Trade HTTP; complete bar limits bound into Governance and idempotency", "CN historical-fee BUY/SELL before 2023-08-28", "CN current-fee BUY/SELL from 2023-08-28", "US BUY/SELL through Trade and Portfolio HTTP with 55bps slippage and fixed synthetic USD fee", "independent FakeBroker cash/positions/events", "same-command retry preserves order/fill/assets or terminal rejection/expiry", "insufficient FakeBroker cash rejects with zero side effects and a newly authorized corrected retry recovers exactly once", "independent Portfolio ledger snapshots and Outbox account scope", "prior-session holding plus real sell reservation released on locked-lower SELL", "CN_A settled-cash and pending-receivable parity against Quant on historical fee sessions"], quantRestrictionParityCases: restrictionRows.map((row) => row[0]), fields: ["status", "quantity", "price", "fee", "session", "rejection reason", "Fill outbox", "reservation resolution outbox", "FakeBroker independent settled cash, pending receivables, positions and events", "Portfolio settled cash, pending receivables, positions and ledger entries", "Quant settled and unsettled cash", "Governance authorization command hash/status"], portfolioBuyReconciliations, portfolioQuantLedgerReconciliations, fakeBrokerAssetReconciliations, fakeBrokerIdempotentAssetReplays, fakeBrokerInsufficientAssetRecovery, rejectedHttpReservationReleased: true, expiredHttpReservationReleased: true, marketRestrictionHttpReservationsReleased: 3, marketRestrictionLockedLowerSellHttp: true, marketRestrictionSellReservationBacked: true, governanceGrantCount, governanceAuthorizationRows: authorizationRows.rows[0], settlementBoundary: "Portfolio and FakeBroker settled cash match Quant settled cash; pending receivables in both ledgers match Quant unsettled sale proceeds on each tested session", counts: counts.rows[0] }));
 } finally {
   for (const child of [...serviceProcesses].reverse()) await stopService(child);
   await governancePool.end();

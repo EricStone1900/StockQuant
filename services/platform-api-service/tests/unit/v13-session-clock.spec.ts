@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveNextV13CnSession, V13SessionClockError, type V13FixtureCalendarDay } from "../../src/application/v13-session-clock.js";
+import { readV13UsSyntheticCalendarDay, resolveFirstV13UsSession, resolveNextV13CnSession, resolveNextV13UsSession, V13SessionClockError, type V13FixtureCalendarDay } from "../../src/application/v13-session-clock.js";
 
 const version = "sse-cn-a-share-2026-1";
 const trading = (date: string, calendarVersion = version): V13FixtureCalendarDay => ({ date, status: "TRADING", calendarVersion, sessions: [{ start: "09:30", end: "11:30" }, { start: "13:00", end: "15:00" }] });
@@ -31,5 +31,21 @@ describe("V1.3 persistent session clock calendar resolution", () => {
     { name: "calendar version change", current: "2026-09-28T09:31:00+08:00", get: async (date: string) => date === "2026-09-28" ? trading(date) : trading(date, "sse-cn-a-share-2026-2"), code: "CALENDAR_VERSION_CHANGED" },
   ])("fails closed for $name", async ({ current, get, code }) => {
     await expect(resolveNextV13CnSession(current, get)).rejects.toMatchObject<V13SessionClockError>({ code });
+  });
+});
+
+
+describe("V1.3 US synthetic session calendar", () => {
+  it("normalizes a Sunday Run Clock to the first explicit New York session", async () => {
+    const resolved = await resolveFirstV13UsSession("2026-09-28T09:31:00+08:00", readV13UsSyntheticCalendarDay);
+    expect(resolved).toEqual({ clock: "2026-09-28T13:31:00.000Z", calendarVersion: "v1.3-us-synthetic-session-1" });
+  });
+
+  it("advances using New York wall time and fails closed beyond the frozen schedule", async () => {
+    const resolved = await resolveNextV13UsSession("2026-09-28T13:31:00.000Z", readV13UsSyntheticCalendarDay);
+    expect(resolved).toEqual({ clock: "2026-09-29T13:31:00.000Z", calendarVersion: "v1.3-us-synthetic-session-1" });
+    const second = await resolveNextV13UsSession(resolved.clock, readV13UsSyntheticCalendarDay);
+    expect(second.clock).toBe("2026-09-30T13:31:00.000Z");
+    await expect(resolveNextV13UsSession("2026-10-02T13:31:00.000Z", readV13UsSyntheticCalendarDay)).rejects.toMatchObject({ code: "CALENDAR_GAP" });
   });
 });

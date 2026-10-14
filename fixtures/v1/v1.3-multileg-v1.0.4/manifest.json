@@ -1,0 +1,90 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.3-multileg-paper",
+  "fixtureVersion": "1.0.4",
+  "stageId": "V1.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Versioned synthetic V1.3 multi-leg inputs, preserving prior fixed BUY batches and adding OD-014 strict settled-cash SELL/BUY normal and insufficient-settled-cash scenarios; not market data.",
+    "license": "Internal synthetic fixture; no external market data or broker access",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-12T00:00:00Z",
+  "semantics": {
+    "markets": [
+      "CN_A",
+      "US_EQUITY"
+    ],
+    "currencies": [
+      "CNY",
+      "USD"
+    ],
+    "timezone": "Asia/Shanghai",
+    "prices": "Synthetic fixed limit prices; decimal strings, no external market provenance.",
+    "sessions": {
+      "count": 1,
+      "start": "2026-09-28",
+      "end": "2026-09-28",
+      "calendar": "Synthetic fixed V1.3 session; does not imply settlement calendar."
+    },
+    "securities": {
+      "CN_A": 2,
+      "US_EQUITY": 2
+    },
+    "qualityCases": [
+      "two BUY legs and exact per-leg fees",
+      "aggregate per-batch cash reservation",
+      "insufficient settled-cash rejection with zero orders and fills",
+      "first-leg response-loss recovery with stable child clientOrderIds",
+      "AUTO_POLICY fixed two-leg BUY: one aggregate Mandate budget reservation and per-leg Portfolio reservations, with exact cash and positions",
+      "US_EQUITY AUTO_POLICY fixed two-leg BUY: one USD 450.10 aggregate Mandate consumption and two per-leg Portfolio reservations",
+      "MANUAL mixed SELL/BUY batch posts only against independent Portfolio reservations while SELL proceeds remain pending",
+      "AUTO mixed SELL/BUY failure proves pending receivable cannot fund later BUY and releases every reservation and Mandate budget"
+    ]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.3-multileg-v1.0.4/trading-loop-scenarios.json",
+      "sha256": "f7e8ad101279626e31bae47667f5621f61108a1b2dd40096889b9e9daafae8dd",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v13-multileg-trading-loop.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.3-MULTILEG-CN-001",
+      "description": "CN_A starts with CNY 10000.0000, buys 100 shares each of 600000.SH and 000001.SZ, reserves CNY 2210.0000 and ends at CNY 7790.0000 with 100 shares each."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-US-001",
+      "description": "US_EQUITY starts with USD 10000.0000, buys AAPL and MSFT, reserves USD 450.1000 and ends at USD 9549.9000 with the exact expected positions."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-REJECTION-001",
+      "description": "A CNY 0.0001 settled-cash shortfall rejects the whole batch before any FakeBroker order or Fill."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-RECOVERY-001",
+      "description": "After a first-leg response loss and Trade restart, query the original child clientOrderId and complete only the missing leg; end with two orders, two fills and reconciliation MATCH."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-AUTO-001",
+      "description": "One active AUTO_POLICY Mandate authorizes the fixed CN_A two-leg BUY batch; one CNY 2210.0000 aggregate Mandate reservation and two per-leg Portfolio reservations precede two stable child orders, yielding CNY 7790.0000 and 100 shares each after fills."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-AUTO-US-001",
+      "description": "One active AUTO_POLICY Mandate authorizes the fixed US_EQUITY two-leg BUY batch; one USD 450.10 aggregate Mandate reservation and per-leg Portfolio reservations precede two stable child orders, yielding USD 9549.9000 and 10 AAPL/5 MSFT shares after fills."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-OD014-MANUAL-001",
+      "description": "A fixed MANUAL SELL/BUY batch leaves CN_A SELL proceeds as a PENDING receivable while the BUY leg uses settled cash; FakeBroker and Portfolio reconcile."
+    },
+    {
+      "assertionId": "V1.3-MULTILEG-OD014-AUTO-REJECT-001",
+      "description": "After settled cash is reduced to CNY 1960.0000, a pending CNY 995.0000 SELL receivable does not fund a later BUY; HTTP 409, zero batch orders/fills, both earlier Portfolio reservations RELEASED, AUTO Mandate budget released."
+    }
+  ]
+}

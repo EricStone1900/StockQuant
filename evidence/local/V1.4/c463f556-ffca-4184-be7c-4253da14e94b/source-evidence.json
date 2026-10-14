@@ -1,0 +1,212 @@
+{
+  "testRunId": "c463f556-ffca-4184-be7c-4253da14e94b",
+  "stageId": "V1.4",
+  "scenarioId": "rejection",
+  "scenarioVersion": "1.1.0",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v1-4-rejection-c463f556-ffca-4184-be7c-4253da14e94b",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": true,
+      "status": "PASS",
+      "expected": true,
+      "assertionId": "V1.4-BT-PIT-001"
+    },
+    {
+      "actual": false,
+      "status": "PASS",
+      "expected": false,
+      "assertionId": "V1.4-BT-REPORT-002"
+    },
+    {
+      "actual": "T_PLUS_1_UNAVAILABLE",
+      "status": "PASS",
+      "expected": "T_PLUS_1_UNAVAILABLE",
+      "assertionId": "V1.4-BT-TPLUS1-REJECT-009"
+    }
+  ],
+  "evidence": {
+    "seed": 20260907,
+    "quant": {
+      "seed": 20260907,
+      "barType": "DAILY_BAR",
+      "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+      "brokerMode": "FAKE",
+      "rejections": [
+        "FUTURE_SIGNAL_SAME_DAY",
+        "T_PLUS_1_UNAVAILABLE"
+      ],
+      "codeVersion": "sha256:7a8a92c5e091b6edb6d883a8753620c550d8bc41dc9983914b9ae4ba60943f22",
+      "dataVersion": "v1.4-daily-backtest-2",
+      "fixtureSha256": "a89d48a93bc72dd95ca85b7ddf29a08f5dd2092d8b618f2cd09ede3d6f198a2d",
+      "executionModel": {
+        "modelId": "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1",
+        "component": "QUANT_BACKTEST_ENGINE"
+      },
+      "environmentMode": "BACKTEST",
+      "executionPolicy": {
+        "fixedFeeCents": 500,
+        "targetQuantity": 100,
+        "initialCashCents": 1000000,
+        "slippageBasisPoints": 0,
+        "participationRateBasisPoints": 100
+      },
+      "reportPublished": false,
+      "rejectedSellOrder": {
+        "side": "SELL",
+        "reason": "T_PLUS_1_UNAVAILABLE",
+        "status": "REJECTED",
+        "signalDate": "2024-01-02",
+        "executionDate": "2024-01-03",
+        "filledQuantity": 0,
+        "requestedQuantity": 100
+      }
+    },
+    "barType": "DAILY_BAR",
+    "v14Task": {
+      "phase": "COMPLETED",
+      "policy": {
+        "fixedFeeCents": 500,
+        "targetQuantity": 100,
+        "initialCashCents": 1000000,
+        "slippageBasisPoints": 0,
+        "participationRateBasisPoints": 100
+      },
+      "attempt": 1,
+      "updatedAt": "2026-10-13T12:39:22.635Z",
+      "finishedAt": "2026-10-13T12:39:22.648Z",
+      "lastStartedAt": "2026-10-13T12:39:22.634Z",
+      "cancelRequested": false,
+      "quantResultStatus": "COMPLETED",
+      "quantBacktestRunId": "c463f556-ffca-4184-be7c-4253da14e94b"
+    },
+    "dataMode": "FIXTURE",
+    "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+    "brokerMode": "FAKE",
+    "rejections": [
+      "FUTURE_SIGNAL_SAME_DAY",
+      "T_PLUS_1_UNAVAILABLE"
+    ],
+    "codeVersion": "sha256:7a8a92c5e091b6edb6d883a8753620c550d8bc41dc9983914b9ae4ba60943f22",
+    "dataVersion": "v1.4-daily-backtest-2",
+    "fixtureSha256": "a89d48a93bc72dd95ca85b7ddf29a08f5dd2092d8b618f2cd09ede3d6f198a2d",
+    "reportPayload": {
+      "seed": 20260907,
+      "status": "COMPLETED",
+      "stageId": "V1.4",
+      "evidence": {
+        "seed": 20260907,
+        "barType": "DAILY_BAR",
+        "costModel": "FIXED_FEE_CENTS_PLUS_ADVERSE_SLIPPAGE_BPS_V2",
+        "brokerMode": "FAKE",
+        "rejections": [
+          "FUTURE_SIGNAL_SAME_DAY",
+          "T_PLUS_1_UNAVAILABLE"
+        ],
+        "codeVersion": "sha256:7a8a92c5e091b6edb6d883a8753620c550d8bc41dc9983914b9ae4ba60943f22",
+        "dataVersion": "v1.4-daily-backtest-2",
+        "fixtureSha256": "a89d48a93bc72dd95ca85b7ddf29a08f5dd2092d8b618f2cd09ede3d6f198a2d",
+        "executionModel": {
+          "modelId": "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1",
+          "component": "QUANT_BACKTEST_ENGINE"
+        },
+        "environmentMode": "BACKTEST",
+        "executionPolicy": {
+          "fixedFeeCents": 500,
+          "targetQuantity": 100,
+          "initialCashCents": 1000000,
+          "slippageBasisPoints": 0,
+          "participationRateBasisPoints": 100
+        },
+        "reportPublished": false,
+        "rejectedSellOrder": {
+          "side": "SELL",
+          "reason": "T_PLUS_1_UNAVAILABLE",
+          "status": "REJECTED",
+          "signalDate": "2024-01-02",
+          "executionDate": "2024-01-03",
+          "filledQuantity": 0,
+          "requestedQuantity": 100
+        }
+      },
+      "testRunId": "c463f556-ffca-4184-be7c-4253da14e94b",
+      "assertions": [
+        {
+          "actual": true,
+          "status": "PASS",
+          "expected": true,
+          "assertionId": "V1.4-BT-PIT-001"
+        },
+        {
+          "actual": false,
+          "status": "PASS",
+          "expected": false,
+          "assertionId": "V1.4-BT-REPORT-002"
+        },
+        {
+          "actual": "T_PLUS_1_UNAVAILABLE",
+          "status": "PASS",
+          "expected": "T_PLUS_1_UNAVAILABLE",
+          "assertionId": "V1.4-BT-TPLUS1-REJECT-009"
+        }
+      ],
+      "scenarioId": "rejection",
+      "durableReport": {
+        "resultSha256": "bdfac372764c585ea185232356c75b50af608921a97d68d6622d8c888e310e93",
+        "manifestSha256": "bd61ba5daf607510079b24d91ffff67a509a8dcfd2eabd91c6683a4e7b235d99"
+      }
+    },
+    "executionModel": {
+      "modelId": "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1",
+      "component": "QUANT_BACKTEST_ENGINE"
+    },
+    "environmentMode": "BACKTEST",
+    "executionPolicy": {
+      "fixedFeeCents": 500,
+      "targetQuantity": 100,
+      "initialCashCents": 1000000,
+      "slippageBasisPoints": 0,
+      "participationRateBasisPoints": 100
+    },
+    "reportPublished": false,
+    "rejectedSellOrder": {
+      "side": "SELL",
+      "reason": "T_PLUS_1_UNAVAILABLE",
+      "status": "REJECTED",
+      "signalDate": "2024-01-02",
+      "executionDate": "2024-01-03",
+      "filledQuantity": 0,
+      "requestedQuantity": 100
+    },
+    "reportArtifactRef": {
+      "kind": "BACKTEST_REPORT",
+      "sha256": "bdfac372764c585ea185232356c75b50af608921a97d68d6622d8c888e310e93",
+      "status": "PUBLISHED",
+      "ownerId": "acceptance-owner-1",
+      "mediaType": "application/vnd.stockquant.v14-backtest-report+json",
+      "namespace": "research/c463f556-ffca-4184-be7c-4253da14e94b/daily-backtest",
+      "sourceRef": "quant-research-service:v1.4:c463f556-ffca-4184-be7c-4253da14e94b",
+      "testRunId": "c463f556-ffca-4184-be7c-4253da14e94b",
+      "artifactId": "bdfac372764c585ea185232356c75b50af608921a97d68d6622d8c888e310e93",
+      "schemaVersion": "artifact-ref.v1"
+    }
+  },
+  "createdAt": "2026-10-13T12:39:22.631Z",
+  "completedAt": "2026-10-13T12:39:22.649Z",
+  "artifactRefs": [
+    {
+      "schemaVersion": "artifact-ref.v1",
+      "artifactId": "bdfac372764c585ea185232356c75b50af608921a97d68d6622d8c888e310e93",
+      "testRunId": "c463f556-ffca-4184-be7c-4253da14e94b",
+      "ownerId": "acceptance-owner-1",
+      "kind": "BACKTEST_REPORT",
+      "namespace": "research/c463f556-ffca-4184-be7c-4253da14e94b/daily-backtest",
+      "mediaType": "application/vnd.stockquant.v14-backtest-report+json",
+      "sha256": "bdfac372764c585ea185232356c75b50af608921a97d68d6622d8c888e310e93",
+      "status": "PUBLISHED",
+      "sourceRef": "quant-research-service:v1.4:c463f556-ffca-4184-be7c-4253da14e94b"
+    }
+  ]
+}

@@ -163,6 +163,10 @@ Pure validation/decision functions now live in `src/domain/`. Candidate registra
 
 The five-layer migration is still incomplete. PromotionRequest/report/decision HTTP flows still access `pg` directly in bootstrap, schema DDL is still inline, and Qlib calls still use the generated contract client directly without an application port. Do not add the entire service to baseline layer PASS until these remaining seams have been extracted and behavior-tested. The candidate slice passes Quant build/lint, 10 TS unit files/54 tests, isolated candidate+Promotion integration (including the two restricted ARM64 validation containers), and service-auth HTTP smoke. No active/provider/market source or activation was used.
 
+## 2026-10-12 V1.4 strict settlement-calendar input
+
+The V1.4 daily-backtest Fixture adapter now verifies the frozen settlement-calendar manifest identity and file SHA, and injects its CN_A session mapping into the Quant domain simulation. SELL proceeds enter settled cash only when the explicit mapped settlement date is present in the simulated window; unsupported dates remain receivables and stay in NAV across later sessions. Run evidence records the calendar Fixture/version/hash. The Quant image copies both the calendar and its manifest. Targeted tests, the V1.4 code suite and containerized Web/API/CLI E2E pass; the broader V1.4 rules and Quant/Paper parity requirement remains open. See [V1.4 §8.108](../../docs/prd/v1-local-simulation/04-daily-backtest.md#8108-quant回测按冻结结算fixture处理已结算现金与未知日历应收2026-10-12).
+
 ## 2026-10-02 V2.3 frozen Qlib fixture input
 
 The Platform V2.3 Qlib TestRun now reads the exact payload from `fixtures/v2/v2.3/qlib-fit/manifest.json` and verifies its raw SHA-256 before calling Quant Research. This closes only reproducibility for the synthetic Fixture Fit input; market-source authorization, real-data/PIT validity, independent model validation, and user acceptance remain NOT_RUN. See [frozen-fixture audit](../../evidence/audits/2026-10-02-w4-v23-frozen-qlib-fixture.md).

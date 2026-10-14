@@ -30,4 +30,25 @@ describe("historical replay Portfolio Account client", () => {
       signal: expect.any(AbortSignal),
     }));
   });
+
+  it("uses the declared bounded timeout for both V1 Replay→Portfolio operations", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    const client = new GeneratedPortfolioAccountClient("http://portfolio.local", "historical-replay-worker", "r".repeat(40), request);
+
+    try {
+      await client.initializeAccount({
+        fixtureAccountRef: "replay-fixture", ownerId: "owner-a", market: "CN_A", environmentMode: "BACKTEST",
+        brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" },
+        namespace: "replay-run", testRunId: "test-run", idempotencyKey: "init-replay",
+      });
+      await client.getAccountSnapshot("account/1", "owner-a");
+
+      expect(request).toHaveBeenCalledTimes(2);
+      expect(timeout).toHaveBeenCalledTimes(2);
+      expect(timeout.mock.calls.map(([milliseconds]) => milliseconds)).toEqual([5000, 5000]);
+    } finally {
+      timeout.mockRestore();
+    }
+  });
 });

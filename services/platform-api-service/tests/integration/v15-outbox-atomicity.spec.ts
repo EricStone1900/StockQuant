@@ -91,6 +91,30 @@ run("PostgreSQL V1.5 TestRun and dispatch Outbox atomicity", () => {
     await expect(repository.listV15Runs(ownerId, 51)).rejects.toThrow(/limit/u);
   });
 
+  it("finds a V1.5 fill by exact ID beyond the recent-run page and enforces owner scope", async () => {
+    const externalFillId = `fill-${randomUUID()}`;
+    await pool.query(`UPDATE acceptance_stage_runs SET created_at=now()-interval '90 days',
+      evidence=$3::jsonb WHERE test_run_id=$1 AND owner_id=$2`, [successfulRunId, ownerId, JSON.stringify({ orders: [{ fill: { externalFillId, quantity: 2, price: "10.00" }, proposalId: "proposal-1" }] })]);
+    await pool.query("UPDATE acceptance_stage_runs SET evidence=$3::jsonb WHERE test_run_id=$1 AND owner_id=$2", [foreignRunId, foreignOwnerId, JSON.stringify({ orders: [{ fill: { externalFillId, quantity: 2, price: "10.00" }, proposalId: "foreign-proposal" }] })]);
+
+    const recent = await repository.listV15Runs(ownerId, 1);
+    expect(recent.some((row) => row.testRunId === successfulRunId)).toBe(false);
+    await expect(repository.findV15RunByFillId(ownerId, externalFillId)).resolves.toMatchObject({
+      testRunId: successfulRunId, ownerId, evidence: { orders: [{ proposalId: "proposal-1" }] },
+    });
+    await expect(repository.findV15RunByFillId(`no-access-${ownerId}`, externalFillId)).resolves.toBeNull();
+    await expect(repository.findV15RunByFillId(ownerId, `missing-${externalFillId}`)).resolves.toBeNull();
+    await expect(repository.findV15RunByFillId(ownerId, "")).rejects.toThrow(/required/u);
+  });
+
+  it("fails closed if the same Fill ID occurs in multiple owner-scoped V1.5 runs", async () => {
+    const externalFillId = `duplicate-fill-${randomUUID()}`;
+    const evidence = JSON.stringify({ orders: [{ fill: { externalFillId } }] });
+    await pool.query("UPDATE acceptance_stage_runs SET evidence=$3::jsonb WHERE test_run_id=$1 AND owner_id=$2", [successfulRunId, ownerId, evidence]);
+    await pool.query("UPDATE acceptance_stage_runs SET evidence=$3::jsonb WHERE test_run_id=$1 AND owner_id=$2", [autoTradeRunId, ownerId, evidence]);
+    await expect(repository.findV15RunByFillId(ownerId, externalFillId)).rejects.toThrow(/ambiguous/u);
+  });
+
   it("rolls back the TestRun when inserting its Outbox event fails", async () => {
     rejectionConstraint = `v15_test_reject_${randomUUID().replaceAll("-", "")}`;
     await pool.query(`ALTER TABLE v15_workflow_dispatch_outbox ADD CONSTRAINT ${rejectionConstraint} CHECK (owner_id <> '${rollbackOwnerId}')`);

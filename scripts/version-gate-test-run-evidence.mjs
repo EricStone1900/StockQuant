@@ -138,7 +138,11 @@ async function verifyRunBundle(root, stageId, testRunId, stagePass) {
       // Also accept the explicit { run: ... } envelope used by newer exports.
       const run = evidence.run ?? evidence;
       if (run.status !== "COMPLETED") failures.push("PASS stage requires a COMPLETED structured TestRun");
-      const assertions = run.assertions;
+      // Some historical V1.1 exports wrap the run status in `run` while keeping
+      // the persisted assertion list at the envelope level. Read those two
+      // fields independently; identity and status checks above still bind the
+      // bundle to the requested stage and TestRun UUID.
+      const assertions = Array.isArray(run.assertions) ? run.assertions : evidence.assertions;
       if (!Array.isArray(assertions) || assertions.length === 0 || assertions.some((assertion) => assertion?.status !== "PASS")) failures.push("PASS stage requires non-empty all-PASS TestRun assertions");
     }
   }
@@ -151,7 +155,16 @@ export async function auditTestRunEvidence(repositoryRoot, acceptanceRows, stage
   const results = [];
   for (const row of acceptanceRows) {
     UUID.lastIndex = 0;
-    const testRunIds = [...new Set([...row.evidence.matchAll(UUID)].map(([id]) => id.toLowerCase()))];
+    const matches = [...row.evidence.matchAll(UUID)];
+    const testRunIds = [...new Set(matches
+      .filter((match, index) => {
+        // Acceptance rows may bind a TestRun to a separate account UUID. Do not
+        // interpret an explicitly labeled account identifier as another run.
+        const previousEnd = index === 0 ? 0 : matches[index - 1].index + matches[index - 1][0].length;
+        const label = row.evidence.slice(previousEnd, match.index);
+        return !/(?:^|\b)account(?:id)?\s*(?::|=)?\s*(?:\x60)?$/iu.test(label);
+      })
+      .map(([id]) => id.toLowerCase()))];
     const stageStatus = stages.get(row.stageId) ?? "";
     const stagePass = /^PASS(?:\s|\(|（|$)/u.test(stageStatus);
     const stageResults = [];

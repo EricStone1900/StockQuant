@@ -120,4 +120,44 @@ describe("OpenAPI-generated Portfolio Account client", () => {
     expect(calls[1]!.init.headers).toMatchObject({ "x-stockquant-owner-id": "owner-1" });
     expect(calls.slice(0, 1).concat(calls.slice(2)).every(({ init }) => init.method === "POST")).toBe(true);
   });
+
+  it("uses the declared bounded timeout for every V1 account operation", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    const client = new GeneratedPortfolioAccountClient("http://portfolio:3001", "platform-api-service", token, request);
+    const testRunId = "8bd87f3a-8741-4b0b-9610-46ae2fbcc4df";
+
+    try {
+      await client.initializeAccount({
+        fixtureAccountRef: "cn-paper-empty-10000-cny", ownerId: "owner-1", market: "CN_A",
+        environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.00", currency: "CNY" },
+        namespace: "scope-1", testRunId, idempotencyKey: "init-1",
+      });
+      await client.getAccountSnapshot("account-1", "owner-1");
+      await client.reserveAccountResources("account-1", {
+        namespace: "scope-1", testRunId, ownerId: "owner-1", idempotencyKey: "reserve-1",
+        clientOrderId: "order-1", side: "BUY", currency: "CNY", cashAmount: "1005.0000",
+      });
+      await client.recordAccountFill("account-1", {
+        namespace: "scope-1", testRunId, ownerId: "owner-1", reservationId: "reservation-1",
+        externalFillId: "fill-1", clientOrderId: "order-1", side: "BUY", security: "600000.SH",
+        quantity: 100, price: "10.0000", fee: "5.0000", currency: "CNY",
+        effectiveAt: "2026-09-28T01:30:00.000Z", evidenceRef: "fixture:fill-1",
+      });
+      await client.correctAccountFillFee("account-1", "fill-1", {
+        namespace: "scope-1", testRunId, ownerId: "owner-1", reservationId: "reservation-1",
+        revision: 1, previousFee: "5.0000", correctedFee: "5.1000", currency: "CNY",
+        effectiveAt: "2026-09-28T01:31:00.000Z", evidenceRef: "fixture:fee-correction-1",
+      });
+      await client.resolveAccountReservation("account-1", "reservation-1", {
+        namespace: "scope-1", testRunId, ownerId: "owner-1", outcome: "FILLED", evidenceRef: "fixture:fill-1",
+      });
+
+      expect(request).toHaveBeenCalledTimes(6);
+      expect(timeout).toHaveBeenCalledTimes(6);
+      expect(timeout.mock.calls.map(([milliseconds]) => milliseconds)).toEqual(Array(6).fill(5000));
+    } finally {
+      timeout.mockRestore();
+    }
+  });
 });

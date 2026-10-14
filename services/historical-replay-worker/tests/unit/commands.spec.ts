@@ -17,10 +17,16 @@ describe("historical replay HTTP command contract", () => {
   it.each([
     ["non-UUID run", { ...command, testRunId: "run-1" }],
     ["unknown command key", { ...command, accountId: "cross-boundary-field" }],
+    ["client-supplied PAPER/FAKE mode", { ...command, environmentMode: "PAPER", brokerMode: "FAKE" }],
+    ["client-supplied BACKTEST/REAL mode", { ...command, environmentMode: "BACKTEST", brokerMode: "REAL" }],
     ["unversioned time", { ...command, bar: { ...command.bar, timestamp: "2024-01-02T09:31:00" } }],
     ["imprecise price", { ...command, bar: { ...command.bar, open: "10.00001" } }],
     ["negative volume", { ...command, bar: { ...command.bar, volume: -1 } }],
   ])("rejects %s", (_label, value) => expect(() => parseHistoricalReplayCommand(value)).toThrow());
+
+  it("rejects client-supplied mode fields on a multi-bar request", () => {
+    expect(() => parseHistoricalReplayMultiCommand({ ...base, bars: [bar], environmentMode: "BACKTEST", brokerMode: "REAL" })).toThrow("unsupported properties");
+  });
 
   it("rejects an empty multi-bar replay and validates control-route run IDs", () => {
     expect(() => parseHistoricalReplayMultiCommand({ ...base, bars: [] })).toThrow("at least one");

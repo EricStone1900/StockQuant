@@ -15,6 +15,7 @@ const portfolioRoutes = [
   { method: "POST", path: "/internal/v1/accounts/account-id/fills", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/accounts/account-id/fills/fill-id/fee-corrections", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/accounts/account-id/reservations", callers: ["trade-execution-service"] },
+  { method: "POST", path: "/internal/v1/accounts/account-id/settlements", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/accounts/account-id/reservations/reservation-id/resolve", callers: ["trade-execution-service"] },
   { method: "GET", path: "/internal/v1/accounts/account-id/snapshot", callers: ["platform-api-service", "historical-replay-worker"] },
   { method: "POST", path: "/internal/v1/faults/fill", callers: ["test-harness"] },

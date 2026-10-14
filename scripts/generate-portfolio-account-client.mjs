@@ -57,7 +57,7 @@ const verbs = new Set(["get", "post", "put", "patch", "delete"]);
 const operations = Object.entries(document.paths ?? {}).flatMap(([path, item]) => Object.entries(item)
   .filter(([verb]) => verbs.has(verb))
   .map(([verb, operation]) => ({ path, verb, operation })));
-if (operations.length !== 6) throw new Error(`Expected six Portfolio Account operations, found ${operations.length}`);
+if (operations.length !== 7) throw new Error(`Expected seven Portfolio Account operations, found ${operations.length}`);
 
 const lines = [
   "// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/portfolio-account.v1.json",

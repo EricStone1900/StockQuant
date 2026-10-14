@@ -56,6 +56,7 @@ let governanceDatabaseAssertion;
 let artifactExportSummary;
 let identityBoundarySummary;
 let modeInjectionSummary;
+let evidenceExportSummaries = [];
 
 try {
   if (manualAcceptance) {
@@ -131,7 +132,9 @@ try {
   const v12RunsBeforeModeProbe = v12RunCount();
   const rejectedModes = [
     { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
     { environmentMode: "BACKTEST", brokerMode: "REAL" },
     { environmentMode: "LIVE", brokerMode: "REAL" },
   ];
@@ -153,7 +156,7 @@ try {
       liveTradingEnabled: false,
       brokerMode: "FAKE",
       webRuntime: "containerized Web",
-      shutdown: "Press Ctrl-C in this terminal; only this isolated project and its resources will be removed."
+      shutdown: `Run pnpm stack:down -- --project ${project} in another terminal; the harness will stop and verify only this isolated project.`
     })}\n`);
     const keepAlive = setInterval(() => {}, 60_000);
     exitCode = await new Promise((resolveSignal) => {
@@ -230,6 +233,21 @@ try {
     assert.equal(sessionResponse.status, 200, "could not issue an isolated owner session for the Artifact export check");
     const sessionCookie = sessionResponse.headers.getSetCookie().map((cookie) => cookie.split(";", 1)[0]).find((cookie) => cookie.startsWith("sq_session="));
     assert.match(sessionCookie ?? "", /^sq_session=[a-f0-9]{64}$/u, "Platform did not issue a valid isolated session cookie");
+    const sharedEvidenceResponse = await fetch(`${apiUrl}/api/v1/acceptance/runs/${testRunId}/evidence`, {
+      headers: { cookie: sessionCookie }, signal: AbortSignal.timeout(10_000)
+    });
+    assert.equal(sharedEvidenceResponse.status, 200, "the shared owner-scoped StageRun evidence route must read the V1.2 run");
+    const sharedEvidence = await sharedEvidenceResponse.json();
+    assert.equal(sharedEvidence.evidenceVersion, "v2-stage-run-1");
+    assert.equal(sharedEvidence.run?.testRunId, testRunId);
+    assert.equal(sharedEvidence.run?.stageId, "V1.2");
+    assert.equal(sharedEvidence.run?.ownerId, "acceptance-owner-1");
+    assert.equal(sharedEvidence.mode?.environmentMode, "BACKTEST");
+    assert.equal(sharedEvidence.mode?.dataMode, "FIXTURE");
+    assert.equal(sharedEvidence.mode?.brokerMode, "FAKE");
+    assert.deepEqual(sharedEvidence.assertions, sharedEvidence.run.assertions);
+    assert.equal(sharedEvidence.manualConclusion, "NOT_RUN", "the shared API must not turn automation into human acceptance");
+    console.info(`[V1 shared StageRun evidence runtime contract] ${JSON.stringify({ testRunId, stageId: sharedEvidence.run.stageId, evidenceVersion: sharedEvidence.evidenceVersion, mode: sharedEvidence.mode, assertionCount: sharedEvidence.assertions.length, manualConclusion: sharedEvidence.manualConclusion, responseStatus: sharedEvidenceResponse.status })}`);
     const exported = spawnSync(process.execPath, ["scripts/evidence-export.mjs", "--stage", "V1.2", "--run", testRunId], {
       cwd: process.cwd(), encoding: "utf8", env: { ...env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_EVIDENCE_SESSION_COOKIE: sessionCookie }, timeout: 30_000
     });
@@ -242,6 +260,25 @@ try {
     assert.equal(exportedBundle.artifacts?.length, 1, "normal TestRun Qlib ArtifactRef was not included in the export manifest");
     assert.equal(exportedBundle.artifacts[0].sha256, testRunSummaries[0].evidence?.qlibFit?.artifactRef?.sha256);
     artifactExportSummary = { outputDirectory: exportResult.outputDirectory, manifestHash: exportResult.manifestHash, artifact: exportResult.attachments?.[0], manualConclusion: exportedBundle.manualConclusion };
+    evidenceExportSummaries.push({ testRunId, outputDirectory: exportResult.outputDirectory, manifestHash: exportResult.manifestHash, manualConclusion: exportedBundle.manualConclusion });
+    for (const additionalRunId of [...testRunIds.slice(1), cancellationTestRunId]) {
+      assert.ok(additionalRunId, "V1.2 evidence export requires all scenario, cancellation, and restart TestRun IDs");
+      const additionalExport = spawnSync(process.execPath, ["scripts/evidence-export.mjs", "--stage", "V1.2", "--run", additionalRunId], {
+        cwd: process.cwd(), encoding: "utf8", env: { ...env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_EVIDENCE_SESSION_COOKIE: sessionCookie }, timeout: 30_000
+      });
+      assert.equal(additionalExport.status, 0, `V1.2 TestRun evidence export failed for ${additionalRunId}: ${additionalExport.stderr}`);
+      const additionalResult = JSON.parse(additionalExport.stdout);
+      assert.equal(additionalResult.stageId, "V1.2");
+      assert.equal(additionalResult.testRunId, additionalRunId);
+      const additionalBundle = JSON.parse(await readFile(path.join(additionalResult.outputDirectory, "evidence.json"), "utf8"));
+      assert.equal(additionalBundle.stageId, "V1.2");
+      assert.equal(additionalBundle.testRunId, additionalRunId);
+      assert.equal(additionalBundle.manualConclusion, "NOT_RUN", "automated export must not sign V1.2 acceptance");
+      assert.match(additionalResult.manifestHash, /^[a-f0-9]{64}$/u);
+      evidenceExportSummaries.push({ testRunId: additionalRunId, outputDirectory: additionalResult.outputDirectory, manifestHash: additionalResult.manifestHash, manualConclusion: additionalBundle.manualConclusion });
+      console.info(`[V1.2 same-run evidence export] ${JSON.stringify(evidenceExportSummaries.at(-1))}`);
+    }
+    assert.equal(evidenceExportSummaries.length, 5, "all V1.2 browser scenario and recovery TestRuns must have immutable evidence bundles");
     exitCode = 0;
   }
 } catch (error) {
@@ -317,6 +354,7 @@ await writeFile(evidencePath, `${JSON.stringify({
   testRunSummaries,
   governanceDatabaseAssertion,
   artifactExportSummary,
+  evidenceExportSummaries,
   cancellationTestRunId: cancellationTestRunId ?? null,
   cancellationSummary: cancellationSummary ? { status: cancellationSummary.status, qlibTask: cancellationSummary.evidence?.qlibTask, assertions: cancellationSummary.assertions } : null,
   restartRecoverySummary: restartRecoverySummary ?? null,

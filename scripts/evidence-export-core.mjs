@@ -236,8 +236,9 @@ export function qlibArtifactPath(bundle, baseUrl) {
 
 export function v12QlibArtifactPath(bundle, baseUrl) {
   const ref = bundle?.evidence?.qlibFit?.artifactRef;
-  if (bundle?.stageId !== "V1.2" || !UUID.test(bundle?.testRunId ?? "") || !ref
-    || ref.schemaVersion !== "artifact-ref.v1" || ref.testRunId !== bundle.testRunId || ref.ownerId !== bundle.ownerId
+  if (bundle?.stageId !== "V1.2" || !UUID.test(bundle?.testRunId ?? "")) throw new Error("V1.2 evidence is not bound to a valid TestRun");
+  if (!ref) return null;
+  if (ref.schemaVersion !== "artifact-ref.v1" || ref.testRunId !== bundle.testRunId || ref.ownerId !== bundle.ownerId
     || ref.kind !== "MODEL_PREDICTIONS" || ref.namespace !== `research/${bundle.testRunId}/qlib-fixture`
     || ref.mediaType !== "application/vnd.stockquant.qlib-fixture-model+json" || ref.status !== "PUBLISHED"
     || !/^[a-f0-9]{64}$/u.test(ref.sha256 ?? "") || ref.artifactId !== ref.sha256

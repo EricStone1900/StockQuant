@@ -18,6 +18,31 @@ describe("trade execution service identity and route scopes", () => {
     expect(request("POST", "/internal/v1/historical-orders/execute", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(true);
     expect(request("POST", "/internal/v1/historical-orders/execute", "platform-api-service", tokens["platform-api-service"])).toBe(false);
   });
+  it("exhaustively scopes every V1 protected write route to its intended caller", () => {
+    const routes = [
+      ["POST", "/internal/v1/historical-orders/execute", "historical-replay-worker"],
+      ["POST", "/internal/v1/v13/paper-orders/execute-manual-proposal", "platform-api-service"],
+      ["POST", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", "platform-api-service"],
+      ["POST", "/internal/v1/v13/paper-orders/execute-auto-proposal", "platform-api-service"],
+      ["POST", "/internal/v1/v13/accounts/settlements", "platform-api-service"],
+      ["POST", "/internal/v1/fake-broker/external-orders", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/cancel", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/cancel-result", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/expire", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/unknown", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/simulated-fill-reports", "platform-api-service"],
+      ["POST", "/internal/v1/orders/o1/fills/f1/fee-corrections", "platform-api-service"],
+      ["POST", "/internal/v1/outbox/e1/compensate", "platform-api-service"],
+    ] as const;
+
+    for (const [method, pathname, allowedCaller] of routes) {
+      const deniedCaller = allowedCaller === "platform-api-service" ? "historical-replay-worker" : "platform-api-service";
+      expect(request(method, pathname, allowedCaller, tokens[allowedCaller]), `${method} ${pathname} should allow ${allowedCaller}`).toBe(true);
+      expect(request(method, pathname, deniedCaller, tokens[deniedCaller]), `${method} ${pathname} should reject ${deniedCaller}`).toBe(false);
+      expect(request(method, pathname, allowedCaller, tokens[deniedCaller]), `${method} ${pathname} should reject a mismatched credential`).toBe(false);
+      expect(request(method, pathname, undefined, undefined), `${method} ${pathname} should reject an anonymous caller`).toBe(false);
+    }
+  });
   it("scopes UNKNOWN recovery reads to the replay-only historical route", () => {
     expect(request("GET", "/internal/v1/historical-orders/o1", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(true);
     expect(request("GET", "/internal/v1/historical-orders/o1", "platform-api-service", tokens["platform-api-service"])).toBe(false);

@@ -135,6 +135,17 @@ export type V14DailyBacktestFixtureResult = {
   "actual": unknown;
 }>;
   "evidence": {
+  "executionModel": {
+  "component": 'QUANT_BACKTEST_ENGINE';
+  "modelId": 'DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1' | 'SYNTHETIC_DAILY_OHLC_RESTRICTION_RULES_V1' | 'RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1';
+};
+  "benchmark"?: {
+  "benchmarkId": string;
+  "initialClose": number;
+  "finalClose": number;
+  "returnBasisPoints": number;
+  "excessReturnBasisPoints": number;
+};
   "orderOutcomes"?: Array<{
   "side": 'BUY' | 'SELL';
   "signalDate": string;
@@ -154,7 +165,7 @@ export type V14DailyBacktestFixtureResult = {
   "resultSha256": string;
   "manifestSha256": string;
 };
-}
+} & unknown & unknown & unknown
 
 export type V31ArtifactPublishCommand = {
   "ref": V31ResearchArtifactRef;
@@ -1134,6 +1145,16 @@ export type AccountSnapshot = {
   "environmentMode": 'PAPER' | 'BACKTEST';
   "brokerMode": 'FAKE';
   "cash": Money;
+  "unsettledReceivables": Array<{
+  "fillId": string;
+  "amount": string;
+  "currency": string;
+  "tradeDate": string;
+  "settlementDate": string | null;
+  "calendarVersion": string;
+  "settlementErrorCode": 'SETTLEMENT_CALENDAR_UNAVAILABLE' | null;
+  "status": 'PENDING' | 'SETTLED';
+}>;
   "positionCount": number;
   "ledgerEntryCount": number;
   "ledgerVersion": number;
@@ -1404,6 +1425,12 @@ export type ReservedFillCommand = {
   "currency": string;
   "effectiveAt": string;
   "side"?: 'BUY' | 'SELL';
+  "settlement"?: {
+  "tradeDate": string;
+  "settlementDate": string | null;
+  "calendarVersion": string;
+  "settlementErrorCode": 'SETTLEMENT_CALENDAR_UNAVAILABLE' | null;
+};
   "reservation"?: {
   "reservationId": string;
   "ownerId": string;
@@ -1482,6 +1509,28 @@ export type TestRun = {
   "createdAt": string;
   "completedAt"?: string | null;
   "artifactRefs"?: Array<ArtifactRef>;
+}
+
+export type V11AcceptanceRun = {
+  "testRunId": string;
+  "stageId": 'V1.1';
+  "scenarioId": 'normal' | 'rejection' | 'recovery';
+  "scenarioVersion": '1.0.0';
+  "namespace": string;
+  "ownerId": string;
+  "status": 'QUEUED' | 'RUNNING' | 'WAITING' | 'COMPLETED' | 'FAILED';
+  "seed": number;
+  "accountId": string | null;
+  "createdAt": string;
+  "completedAt": string | null;
+  "error": string | null;
+  "assertions": Array<{
+  "assertionId": string;
+  "status": 'PASS' | 'FAIL' | 'WAITING';
+  "expected": unknown;
+  "actual": unknown;
+  "evidence": Record<string, unknown>;
+}>;
 }
 
 export type V12StrategySnapshotCommand = {
@@ -1745,6 +1794,33 @@ export type V13ProposalRevisionCommand = {
   "legs": Array<V13ProposalLeg>;
   "reason": string;
   "now": string;
+}
+
+export type V14PaperSettlementCalendarFixture = {
+  "$schema": 'https://stockquant.local/schemas/common/v14-paper-settlement-calendar.schema.json';
+  "schemaVersion": 'v1.4-paper-settlement-calendar-v1' | 'v1.4-paper-settlement-calendar-v2';
+  "fixtureId": 'v1.4-paper-settlement-calendar';
+  "fixtureVersion": 'v1.4-paper-settlement-calendar-1' | 'v1.4-paper-settlement-calendar-2';
+  "calendarVersion": string;
+  "dataMode": 'FIXTURE';
+  "usageEligibility": 'SIMULATION_ONLY';
+  "markets": {
+  "CN_A": {
+  "currency": 'CNY';
+  "sessions": Array<{
+  "sessionDate": string;
+  "settlementDate": string | null;
+}>;
+};
+  "US_EQUITY": {
+  "currency": 'USD';
+  "sessions": Array<{
+  "sessionDate": string;
+  "settlementDate": string | null;
+}>;
+};
+};
+  "unsupportedDateBehavior": 'SETTLEMENT_CALENDAR_UNAVAILABLE; keep receivable pending; do not infer weekends, holidays, next sessions, or settlement from elapsed hours';
 }
 
 export type V15RunIncident = {

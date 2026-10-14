@@ -20,6 +20,8 @@ domain：Money/Quantity、账户/持仓Lot、结算/风控/占用；application�
 
 ## 3. 数据与一致性
 
+OD-014未知结算日处理（2026-10-12）：schema v3允许应收的`settlement_date`为空，但仅当`settlement_error_code=SETTLEMENT_CALENDAR_UNAVAILABLE`且状态为PENDING；此类应收不会被到期查询选中，也不能计入BUY可用现金。Portfolio保留有效SELL Fill对应的pending receivable，直到有明确结算日历映射和后续合法流程；不推测日期或释放现金。完整V1.4代码套件及隔离PostgreSQL证据见[阶段§8.105](../../docs/prd/v1-local-simulation/04-daily-backtest.md#8105-od-014未映射结算日sell成交保留为待结算应收2026-10-12)。
+
 逻辑持久化：accounts/portfolios、ledger_entries、position_lots、cash_settlements、risk_policy_versions/evaluations、resource_reservations、portfolio_snapshots、inbox/outbox。成交更正必须保留原始事实并追加版本化差额LedgerEntry；不能覆写既有流水或通过改写Fill消除差异。
 
 事务/幂等：初始化键唯一；Fill来源唯一约束；账户/币种/证券资源在事务内锁定，多个策略共享账户不能双重占用；Inbox与入账及快照版本推进同事务。

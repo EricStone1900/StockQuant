@@ -66,6 +66,7 @@ export class V13TradingEngine {
         businessServicesCalled: [],
         scenarioExpectation: scenario?.expected ?? "unknown scenario",
         environmentMode: "PAPER",
+        dataMode: "FIXTURE",
         brokerMode: "FAKE",
         liveTradingEnabled: false,
         seed,

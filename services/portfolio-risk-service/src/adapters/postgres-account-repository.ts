@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 import type { AccountSnapshot, CorrectFillFeeCommand, InitializeAccountCommand, RecordFillCommand, ReserveResourceCommand, ResourceReservation } from "../domain/account.js";
+import { assertPaperSettlement } from "../application/settlement-calendar.js";
 
 interface StoredAccount {
   account_id: string;
@@ -14,6 +15,17 @@ interface StoredAccount {
   cash_amount: string;
   currency: string;
   input_hash: string;
+}
+
+async function migrateUnmappedSettlementReceivables(client: PoolClient): Promise<void> {
+  await client.query(`ALTER TABLE sell_settlements ALTER COLUMN settlement_date DROP NOT NULL;
+    ALTER TABLE sell_settlements ADD COLUMN IF NOT EXISTS settlement_error_code TEXT NULL;
+    ALTER TABLE sell_settlements DROP CONSTRAINT IF EXISTS sell_settlements_mapping_check;
+    ALTER TABLE sell_settlements ADD CONSTRAINT sell_settlements_mapping_check CHECK (
+      (settlement_date IS NOT NULL AND settlement_error_code IS NULL)
+      OR (settlement_date IS NULL AND settlement_error_code='SETTLEMENT_CALENDAR_UNAVAILABLE' AND status='PENDING')
+    );`);
+  await client.query("INSERT INTO portfolio_risk_schema_migrations(version, description) VALUES (3, 'Persist unmapped Paper SELL receivables without releasing cash')");
 }
 
 export class PostgresAccountRepository {
@@ -33,8 +45,20 @@ export class PostgresAccountRepository {
       `);
       const applied = await client.query<{ version: number }>("SELECT version FROM portfolio_risk_schema_migrations ORDER BY version DESC LIMIT 1");
       const latestVersion = applied.rows[0]?.version ?? 0;
-      if (latestVersion > 1) throw new Error(`Unsupported Portfolio Risk schema version ${latestVersion}`);
+      if (latestVersion > 3) throw new Error(`Unsupported Portfolio Risk schema version ${latestVersion}`);
+      if (latestVersion === 3) { await client.query("COMMIT"); return; }
+      if (latestVersion === 2) { await migrateUnmappedSettlementReceivables(client); await client.query("COMMIT"); return; }
       if (latestVersion === 1) {
+        await client.query(`CREATE TABLE IF NOT EXISTS sell_settlements (
+          fill_id TEXT PRIMARY KEY REFERENCES recorded_fills(external_fill_id), account_id UUID NOT NULL REFERENCES accounts(account_id),
+          amount NUMERIC(20,4) NOT NULL CHECK (amount >= 0), currency CHAR(3) NOT NULL,
+          trade_date DATE NOT NULL, settlement_date DATE NOT NULL CHECK (settlement_date >= trade_date),
+          calendar_version TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('PENDING','SETTLED')),
+          settled_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        ); CREATE INDEX IF NOT EXISTS sell_settlements_due_idx ON sell_settlements(account_id,settlement_date) WHERE status='PENDING';`);
+        await client.query("ALTER TABLE ledger_entries DROP CONSTRAINT IF EXISTS ledger_entries_entry_type_check; ALTER TABLE ledger_entries ADD CONSTRAINT ledger_entries_entry_type_check CHECK (entry_type IN ('INITIAL_CASH','TRADE_FILL','FEE_CORRECTION','CASH_SETTLEMENT'))");
+        await client.query("INSERT INTO portfolio_risk_schema_migrations(version, description) VALUES (2, 'Strict settled cash and pending sell receivables')");
+        await migrateUnmappedSettlementReceivables(client);
         await client.query("COMMIT");
         return;
       }
@@ -143,6 +167,16 @@ export class PostgresAccountRepository {
       CREATE UNIQUE INDEX IF NOT EXISTS resource_reservations_order_identity_idx ON resource_reservations(account_id,client_order_id);
       `);
       await client.query("INSERT INTO portfolio_risk_schema_migrations(version, description) VALUES (1, 'V1 account, ledger, fills, and resource reservations')");
+      await client.query(`CREATE TABLE IF NOT EXISTS sell_settlements (
+        fill_id TEXT PRIMARY KEY REFERENCES recorded_fills(external_fill_id), account_id UUID NOT NULL REFERENCES accounts(account_id),
+        amount NUMERIC(20,4) NOT NULL CHECK (amount >= 0), currency CHAR(3) NOT NULL,
+        trade_date DATE NOT NULL, settlement_date DATE NOT NULL CHECK (settlement_date >= trade_date),
+        calendar_version TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('PENDING','SETTLED')),
+        settled_at TIMESTAMPTZ NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      ); CREATE INDEX IF NOT EXISTS sell_settlements_due_idx ON sell_settlements(account_id,settlement_date) WHERE status='PENDING';`);
+      await client.query("ALTER TABLE ledger_entries DROP CONSTRAINT IF EXISTS ledger_entries_entry_type_check; ALTER TABLE ledger_entries ADD CONSTRAINT ledger_entries_entry_type_check CHECK (entry_type IN ('INITIAL_CASH','TRADE_FILL','FEE_CORRECTION','CASH_SETTLEMENT'))");
+      await client.query("INSERT INTO portfolio_risk_schema_migrations(version, description) VALUES (2, 'Strict settled cash and pending sell receivables')");
+      await migrateUnmappedSettlementReceivables(client);
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -239,10 +273,33 @@ export class PostgresAccountRepository {
     return result.rowCount === 1;
   }
 
+  async settleDue(accountId: string, asOf: string): Promise<{ settledFillIds: string[] }> {
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/u.test(asOf) || !Number.isFinite(Date.parse(asOf))) throw new Error("INVALID_SETTLEMENT_CLOCK");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const accountResult = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1 FOR UPDATE", [accountId]);
+      const account = accountResult.rows[0];
+      if (!account) throw new Error("ACCOUNT_NOT_FOUND");
+      if (account.environment_mode !== "PAPER" || account.broker_mode !== "FAKE") throw new Error("SETTLEMENT_REQUIRES_PAPER_FAKE");
+      const timeZone = account.market === "CN_A" ? "Asia/Shanghai" : "America/New_York";
+      const due = await client.query<any>("SELECT fill_id,amount::text,currency FROM sell_settlements WHERE account_id=$1 AND status='PENDING' AND ((settlement_date + TIME '09:30') AT TIME ZONE $2) <= $3::timestamptz ORDER BY settlement_date,fill_id FOR UPDATE", [accountId, timeZone, asOf]);
+      for (const row of due.rows) {
+        await client.query("UPDATE sell_settlements SET status='SETTLED',settled_at=$2 WHERE fill_id=$1 AND status='PENDING'", [row.fill_id, asOf]);
+        await client.query("UPDATE accounts SET cash_amount=cash_amount+$2::numeric,ledger_version=ledger_version+1 WHERE account_id=$1", [accountId, row.amount]);
+        await client.query("INSERT INTO ledger_entries(entry_id,account_id,namespace,entry_type,amount,currency,effective_at,source_ref) VALUES($1,$2,$3,'CASH_SETTLEMENT',$4,$5,$6,$7) ON CONFLICT(account_id,source_ref) DO NOTHING", [randomUUID(), accountId, account.namespace, row.amount, account.currency, asOf, `settlement:${row.fill_id}`]);
+      }
+      await client.query("COMMIT");
+      return { settledFillIds: due.rows.map((row: { fill_id: string }) => row.fill_id) };
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  }
+
   async recordFill(command: RecordFillCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }> {
     if (!/^[A-Z0-9.]{3,20}$/u.test(command.security) || !Number.isSafeInteger(command.quantity) || command.quantity <= 0) {
       throw new Error("invalid fill security or quantity");
     }
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/u.test(command.effectiveAt) || !Number.isFinite(Date.parse(command.effectiveAt))) throw new Error("invalid fill effectiveAt");
     if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.price) || !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.fee) || !/^[A-Z]{3}$/u.test(command.currency)) {
       throw new Error("invalid fill price or currency");
     }
@@ -255,11 +312,19 @@ export class PostgresAccountRepository {
       if (account.currency !== command.currency) throw new Error("FILL_CURRENCY_MISMATCH");
       const side = command.side ?? "BUY";
       if (side !== "BUY" && side !== "SELL") throw new Error("INVALID_FILL_SIDE");
+      if (side === "SELL" && account.environment_mode === "PAPER" && (!command.settlement || !/^\d{4}-\d{2}-\d{2}$/u.test(command.settlement.tradeDate) || (command.settlement.settlementDate !== null && (!/^\d{4}-\d{2}-\d{2}$/u.test(command.settlement.settlementDate) || command.settlement.settlementDate < command.settlement.tradeDate)) || !command.settlement.calendarVersion || ![null, "SETTLEMENT_CALENDAR_UNAVAILABLE"].includes(command.settlement.settlementErrorCode))) throw new Error("INVALID_SELL_SETTLEMENT");
+      if (side === "BUY" && command.settlement) throw new Error("INVALID_BUY_SETTLEMENT");
+      if (side === "SELL" && account.environment_mode === "PAPER") assertPaperSettlement({ market: account.market, currency: command.currency, effectiveAt: command.effectiveAt, settlement: command.settlement! });
       const previousFill = await client.query<any>(`SELECT *, (price=$2::numeric AND original_fee=$3::numeric AND effective_at=$4::timestamptz) AS values_match
         FROM recorded_fills WHERE external_fill_id=$1`, [command.externalFillId, command.price, command.fee, command.effectiveAt]);
       if (previousFill.rowCount) {
         const row = previousFill.rows[0];
         if (!row.values_match || row.account_id !== command.accountId || row.namespace !== command.namespace || row.security !== command.security || Number(row.quantity) !== command.quantity || row.currency.trim() !== command.currency || row.side !== side || (row.reservation_id ?? null) !== (command.reservation?.reservationId ?? null)) throw new Error("FILL_IDEMPOTENCY_CONFLICT");
+        if (side === "SELL") {
+          const settlement = await client.query<any>("SELECT trade_date::text,settlement_date::text,calendar_version,settlement_error_code FROM sell_settlements WHERE fill_id=$1", [command.externalFillId]);
+          const saved = settlement.rows[0];
+          if (!saved || saved.trade_date !== command.settlement!.tradeDate || saved.settlement_date !== command.settlement!.settlementDate || saved.calendar_version !== command.settlement!.calendarVersion || saved.settlement_error_code !== command.settlement!.settlementErrorCode) throw new Error("FILL_IDEMPOTENCY_CONFLICT");
+        }
         if (command.reservation) {
           const bound = await client.query("SELECT 1 FROM resource_reservations WHERE account_id=$1 AND reservation_id=$2 AND owner_id=$3 AND test_run_id=$4 AND namespace=$5 AND client_order_id=$6 AND side=$7 AND currency=$8", [command.accountId, command.reservation.reservationId, command.reservation.ownerId, command.reservation.testRunId, command.namespace, command.reservation.clientOrderId, side, command.currency]);
           if (!bound.rowCount) throw new Error("FILL_RESERVATION_SCOPE_MISMATCH");
@@ -287,11 +352,16 @@ export class PostgresAccountRepository {
       );
       if (inserted.rowCount === 1) {
         const amount = await client.query<{ amount: string }>("SELECT CASE WHEN $4='BUY' THEN (-$1::numeric * $2::numeric - $3::numeric)::text ELSE ($1::numeric * $2::numeric - $3::numeric)::text END AS amount", [command.quantity, command.price, command.fee, side]);
-        await client.query("UPDATE accounts SET cash_amount = cash_amount + $1::numeric, ledger_version = ledger_version + 1 WHERE account_id = $2", [amount.rows[0].amount, command.accountId]);
+        if (side === "BUY" || account.environment_mode !== "PAPER") await client.query("UPDATE accounts SET cash_amount = cash_amount + $1::numeric, ledger_version = ledger_version + 1 WHERE account_id = $2", [amount.rows[0].amount, command.accountId]);
         await client.query(
           `INSERT INTO ledger_entries (entry_id, account_id, namespace, entry_type, amount, currency, effective_at, source_ref)
            VALUES ($1,$2,$3,'TRADE_FILL',$4,$5,$6,$7)`,
-          [randomUUID(), command.accountId, command.namespace, amount.rows[0].amount, command.currency, command.effectiveAt, command.externalFillId]
+          [randomUUID(), command.accountId, command.namespace, side === "SELL" && account.environment_mode === "PAPER" ? "0.0000" : amount.rows[0].amount, command.currency, command.effectiveAt, command.externalFillId]
+        );
+        if (side === "SELL" && account.environment_mode === "PAPER") await client.query(
+          `INSERT INTO sell_settlements(fill_id,account_id,amount,currency,trade_date,settlement_date,calendar_version,settlement_error_code,status)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,'PENDING')`,
+          [command.externalFillId, command.accountId, amount.rows[0].amount, command.currency, command.settlement!.tradeDate, command.settlement!.settlementDate, command.settlement!.calendarVersion, command.settlement!.settlementErrorCode]
         );
         if (side === "BUY") await client.query(
           `INSERT INTO account_positions (account_id, security, quantity) VALUES ($1,$2,$3)
@@ -347,7 +417,12 @@ export class PostgresAccountRepository {
       if (command.revision !== fill.fee_revision + 1 || !fill.fee_matches) throw new Error("FEE_CORRECTION_STALE_OR_OUT_OF_ORDER");
       const delta = await client.query<{ amount: string }>("SELECT ($1::numeric-$2::numeric)::numeric(20,4)::text AS amount", [command.previousFee, command.correctedFee]);
       await client.query("UPDATE recorded_fills SET fee=$2::numeric,fee_revision=$3 WHERE external_fill_id=$1", [command.externalFillId, command.correctedFee, command.revision]);
-      await client.query("UPDATE accounts SET cash_amount=cash_amount+$2::numeric,ledger_version=ledger_version+1 WHERE account_id=$1", [command.accountId, delta.rows[0].amount]);
+      if (fill.side === "SELL" && account.environment_mode === "PAPER") {
+        const pending = await client.query("UPDATE sell_settlements SET amount=amount+$2::numeric WHERE fill_id=$1 AND status='PENDING' RETURNING fill_id", [command.externalFillId, delta.rows[0].amount]);
+        if (pending.rowCount === 0) await client.query("UPDATE accounts SET cash_amount=cash_amount+$2::numeric,ledger_version=ledger_version+1 WHERE account_id=$1", [command.accountId, delta.rows[0].amount]);
+      } else {
+        await client.query("UPDATE accounts SET cash_amount=cash_amount+$2::numeric,ledger_version=ledger_version+1 WHERE account_id=$1", [command.accountId, delta.rows[0].amount]);
+      }
       await client.query(`INSERT INTO ledger_entries(entry_id,account_id,namespace,entry_type,amount,currency,effective_at,source_ref)
         VALUES($1,$2,$3,'FEE_CORRECTION',$4,$5,$6,$7)`, [randomUUID(), command.accountId, account.namespace, delta.rows[0].amount, fill.currency, command.effectiveAt, `fee-correction:${command.externalFillId}:${command.revision}`]);
       if (fill.side === "BUY" && fill.reservation_id) {
@@ -452,6 +527,7 @@ export class PostgresAccountRepository {
     )).rows[0].count);
     const positions = await this.pool.query<{ security: string; quantity: string }>("SELECT security,quantity::text FROM account_positions WHERE account_id=$1 AND quantity>0 ORDER BY security", [account.account_id]);
     const reservations = await this.pool.query<any>("SELECT reservation_id,client_order_id,side,cash_amount::text,captured_cash_amount::text,captured_quantity::text,status,evidence_ref FROM resource_reservations WHERE account_id=$1 ORDER BY created_at,reservation_id", [account.account_id]);
+    const receivables = await this.pool.query<any>("SELECT fill_id,amount::text,currency,trade_date::text,settlement_date::text,calendar_version,settlement_error_code,status FROM sell_settlements WHERE account_id=$1 ORDER BY settlement_date NULLS LAST,fill_id", [account.account_id]);
     return {
       accountId: account.account_id,
       namespace: account.namespace,
@@ -462,6 +538,7 @@ export class PostgresAccountRepository {
       environmentMode: account.environment_mode,
       brokerMode: account.broker_mode,
       cash: { amount: account.cash_amount, currency: account.currency },
+      unsettledReceivables: receivables.rows.map((row) => ({ fillId: row.fill_id, amount: row.amount, currency: row.currency.trim(), tradeDate: row.trade_date, settlementDate: row.settlement_date, calendarVersion: row.calendar_version, settlementErrorCode: row.settlement_error_code, status: row.status })),
       positionCount: Number((await this.pool.query<{ count: string }>("SELECT count(*) FROM account_positions WHERE account_id = $1 AND quantity > 0", [account.account_id])).rows[0].count),
       ledgerEntryCount,
       ledgerVersion: Number((await this.pool.query<{ ledger_version: number }>("SELECT ledger_version FROM accounts WHERE account_id = $1", [account.account_id])).rows[0].ledger_version),

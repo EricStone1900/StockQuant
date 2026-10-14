@@ -18,6 +18,14 @@ const tokens = { platform: token(), replay: token(), outbound: token() };
 const namespace = `service-auth-http-smoke/${randomUUID()}`;
 const orderId = randomUUID();
 const clientOrderId = `auth-${randomUUID()}`;
+const clientModeInjectionCases = [
+  { environmentMode: "PAPER", brokerMode: "FAKE" },
+  { environmentMode: "LIVE", brokerMode: "FAKE" },
+  { environmentMode: "PAPER", brokerMode: "REAL" },
+  { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+  { environmentMode: "BACKTEST", brokerMode: "REAL" },
+  { environmentMode: "LIVE", brokerMode: "REAL" },
+];
 async function freePort() {
   return new Promise((resolvePort, reject) => {
     const server = createNetServer();
@@ -140,9 +148,11 @@ try {
   ];
   const v13ModeInjectionResults = [];
   for (const [name, path, body] of v13ModeInjectionRoutes) {
-    const response = await request(path, "POST", "platform-api-service", tokens.platform, { ...body, environmentMode: "LIVE", brokerMode: "REAL" });
-    assert.equal(response.status, 422, `V1.3 ${name} HTTP contract must reject caller-supplied environment/broker modes`);
-    v13ModeInjectionResults.push({ route: name, status: response.status });
+    for (const modes of clientModeInjectionCases) {
+      const response = await request(path, "POST", "platform-api-service", tokens.platform, { ...body, ...modes });
+      assert.equal(response.status, 422, `V1.3 ${name} HTTP contract must reject caller-supplied ${modes.environmentMode}/${modes.brokerMode}`);
+      v13ModeInjectionResults.push({ route: name, ...modes, status: response.status });
+    }
   }
   const v13ModeInjectionSideEffects = await pool.query(`
     SELECT
@@ -157,6 +167,7 @@ try {
     ["manual proposal execute", "/internal/v1/v13/paper-orders/execute-manual-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["sequenced proposal execute", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["AUTO proposal execute", "/internal/v1/v13/paper-orders/execute-auto-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["Paper receivable settlement", "/internal/v1/v13/accounts/settlements", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["external simulated order", "/internal/v1/fake-broker/external-orders", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["order cancellation", `/internal/v1/orders/${orderId}/cancel`, "platform-api-service", "historical-replay-worker", tokens.replay],
     ["cancellation result", `/internal/v1/orders/${orderId}/cancel-result`, "platform-api-service", "historical-replay-worker", tokens.replay],
@@ -172,13 +183,24 @@ try {
     assert.equal(denied.status, 403, `${name} must reject ${deniedCaller} before parsing its command or touching domain facts`);
     writeRouteScopeResults.push({ route: name, deniedCaller, status: denied.status });
   }
+  const v1ProtectedWriteRouteCredentialResults = [];
+  for (const [name, path, allowedCaller] of writeRouteScopeCases.filter(([routeName]) => routeName !== "snapshot execute")) {
+    const missingIdentity = await request(path, "POST", null, null, {});
+    assert.equal(missingIdentity.status, 403, `${name} must reject a request without service identity or Bearer before parsing its command`);
+    const wrongToken = allowedCaller === "platform-api-service" ? tokens.replay : tokens.platform;
+    const forgedBearer = await request(path, "POST", allowedCaller, wrongToken, {});
+    assert.equal(forgedBearer.status, 403, `${name} must reject ${allowedCaller} with another service's Bearer before parsing its command`);
+    v1ProtectedWriteRouteCredentialResults.push({ route: name, missingIdentity: missingIdentity.status, forgedBearer: forgedBearer.status });
+  }
+  assert.equal(v1ProtectedWriteRouteCredentialResults.length, 13, "every in-scope V1 Trade write route must have missing-identity and forged-Bearer probes");
   const writeRouteScopeSideEffects = await pool.query(`
     SELECT
       (SELECT count(*)::int FROM fake_broker_orders WHERE namespace=$1) AS orders,
       (SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o ON o.order_id=f.order_id WHERE o.namespace=$1) AS fills,
       (SELECT count(*)::int FROM fake_broker_order_events e JOIN fake_broker_orders o ON o.order_id=e.order_id WHERE o.namespace=$1) AS events,
-      (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1) AS outbox`, [namespace]);
-  assert.deepEqual(writeRouteScopeSideEffects.rows[0], { orders: 0, fills: 0, events: 0, outbox: 0 }, "wrong service identities must cause no FakeBroker writes");
+      (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1) AS outbox,
+      (SELECT count(*)::int FROM fake_broker_sell_receivables WHERE namespace=$1) AS sell_receivables`, [namespace]);
+  assert.deepEqual(writeRouteScopeSideEffects.rows[0], { orders: 0, fills: 0, events: 0, outbox: 0, sell_receivables: 0 }, "wrong service identities must cause no FakeBroker writes");
   const noIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", null);
   const forgedToken = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "platform-api-service", tokens.replay);
   const unknownIdentity = await request(`/internal/v1/reconciliation/summary?namespace=${encodeURIComponent(namespace)}`, "GET", "forged-service", tokens.platform);
@@ -236,7 +258,7 @@ try {
   };
   const validationsBeforeInjectedMode = governanceValidationCalls;
   const historicalModeInjectionResults = [];
-  for (const [environmentMode, brokerMode] of [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+  for (const { environmentMode, brokerMode } of clientModeInjectionCases) {
     const response = await request("/internal/v1/historical-orders/execute", "POST", "historical-replay-worker", tokens.replay, { ...validHistoricalCommand, environmentMode, brokerMode });
     assert.equal(response.status, 422, `BACKTEST FakeBroker execution must reject ${environmentMode}/${brokerMode} injection before authorization or mutation`);
     historicalModeInjectionResults.push({ environmentMode, brokerMode, status: response.status });
@@ -273,19 +295,63 @@ try {
     (SELECT count(*)::int FROM fake_broker_outbox x WHERE x.order_id=o.order_id) AS outbox
     FROM fake_broker_orders o WHERE o.order_id=$1`, [simulated.result.orderId]);
   const stateBeforeOrderModeInjection = await orderStateForModeBoundary();
+  const v13AdditionalModeBoundaryBefore = await pool.query(`SELECT
+    (SELECT count(*)::int FROM fake_broker_external_orders WHERE namespace=$1) AS external_orders,
+    (SELECT count(*)::int FROM fake_broker_sell_receivables WHERE namespace=$1) AS sell_receivables,
+    (SELECT count(*)::int FROM fake_broker_simulated_reports WHERE order_id=$2) AS simulated_reports,
+    (SELECT count(*)::int FROM fake_broker_fee_corrections WHERE external_fill_id=(SELECT external_fill_id FROM fake_broker_fills WHERE order_id=$2 ORDER BY external_fill_id LIMIT 1)) AS fee_corrections,
+    (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=$2) AS fills,
+    (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=$2) AS outbox`, [namespace, simulated.result.orderId]);
+  const v13AdditionalModeBoundaryAttempts = [];
+  const rejectV13PaperWriteModeMatrix = async (route, path, body) => {
+    for (const modes of clientModeInjectionCases) {
+      const response = await request(path, "POST", "platform-api-service", tokens.platform, { ...body, ...modes });
+      assert.equal(response.status, 422, `${route} must reject caller-supplied ${modes.environmentMode}/${modes.brokerMode}`);
+      v13AdditionalModeBoundaryAttempts.push({ route, ...modes, status: response.status });
+    }
+  };
+  await rejectV13PaperWriteModeMatrix("settlement", "/internal/v1/v13/accounts/settlements", {
+    accountId: randomUUID(), asOf: "2026-09-28T01:30:00.000Z", namespace, ownerId: "auth-smoke-owner", testRunId: randomUUID()
+  });
+  await rejectV13PaperWriteModeMatrix("external-order", "/internal/v1/fake-broker/external-orders", {
+    evidenceRef: "auth-smoke:mode-boundary", externalOrderId: `mode-${randomUUID()}`, namespace,
+    observedAt: "2026-09-28T01:30:00.000Z", requestedQuantity: 1, security: "600000.SH", status: "NEW"
+  });
+  await rejectV13PaperWriteModeMatrix("simulated-fill-report", `/internal/v1/orders/${simulated.result.orderId}/simulated-fill-reports`, {
+    cumulativeQuantity: Number(simulated.result.fill.quantity), effectiveAt: simulated.result.fill.effectiveAt, evidenceRef: "auth-smoke:mode-boundary",
+    externalFillId: randomUUID(), fee: simulated.result.fill.fee, price: simulated.result.fill.price, sequence: 1
+  });
+  await rejectV13PaperWriteModeMatrix("fee-correction", `/internal/v1/orders/${simulated.result.orderId}/fills/${simulated.result.fill.externalFillId}/fee-corrections`, {
+    correctedFee: "1.0000", effectiveAt: simulated.result.fill.effectiveAt, evidenceRef: "auth-smoke:mode-boundary",
+    previousFee: simulated.result.fill.fee, revision: 1
+  });
+  const v13AdditionalModeBoundaryAfter = await pool.query(`SELECT
+    (SELECT count(*)::int FROM fake_broker_external_orders WHERE namespace=$1) AS external_orders,
+    (SELECT count(*)::int FROM fake_broker_sell_receivables WHERE namespace=$1) AS sell_receivables,
+    (SELECT count(*)::int FROM fake_broker_simulated_reports WHERE order_id=$2) AS simulated_reports,
+    (SELECT count(*)::int FROM fake_broker_fee_corrections WHERE external_fill_id=(SELECT external_fill_id FROM fake_broker_fills WHERE order_id=$2 ORDER BY external_fill_id LIMIT 1)) AS fee_corrections,
+    (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=$2) AS fills,
+    (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=$2) AS outbox`, [namespace, simulated.result.orderId]);
+  assert.deepEqual(v13AdditionalModeBoundaryAfter.rows, v13AdditionalModeBoundaryBefore.rows, "mode-injected settlement, external order, fill report and fee correction must have no business side effects");
   const transitionModeAttempts = [];
   for (const action of ["expire", "unknown", "cancel"]) {
-    const response = await request(`/internal/v1/orders/${simulated.result.orderId}/${action}`, "POST", "platform-api-service", tokens.platform, { environmentMode: "LIVE", brokerMode: "REAL" });
-    assert.equal(response.status, 422, `${action} must reject injected LIVE/REAL fields before changing order state`);
-    transitionModeAttempts.push({ action, status: response.status });
+    for (const modes of clientModeInjectionCases) {
+      const response = await request(`/internal/v1/orders/${simulated.result.orderId}/${action}`, "POST", "platform-api-service", tokens.platform, modes);
+      assert.equal(response.status, 422, `${action} must reject injected ${modes.environmentMode}/${modes.brokerMode} before changing order state`);
+      transitionModeAttempts.push({ action, ...modes, status: response.status });
+    }
   }
   assert.deepEqual((await orderStateForModeBoundary()).rows, stateBeforeOrderModeInjection.rows, "mode-injected cancel/expire/unknown calls must create no event, Fill or outbox facts");
   const cancelRequest = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel`, "POST", "platform-api-service", tokens.platform);
   assert.equal(cancelRequest.status, 202);
   const cancelRequestedState = await orderStateForModeBoundary();
-  const injectedCancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1, environmentMode: "LIVE", brokerMode: "REAL" });
-  assert.equal(injectedCancelResult.status, 422, "cancel-result must reject mode injection before applying the accepted result");
-  assert.deepEqual((await orderStateForModeBoundary()).rows, cancelRequestedState.rows, "mode-injected cancel-result must leave order facts unchanged");
+  const cancelResultModeAttempts = [];
+  for (const modes of clientModeInjectionCases) {
+    const injectedCancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1, ...modes });
+    assert.equal(injectedCancelResult.status, 422, `cancel-result must reject ${modes.environmentMode}/${modes.brokerMode} before applying the accepted result`);
+    cancelResultModeAttempts.push({ ...modes, status: injectedCancelResult.status });
+    assert.deepEqual((await orderStateForModeBoundary()).rows, cancelRequestedState.rows, "mode-injected cancel-result must leave order facts unchanged");
+  }
   const cancelResult = await request(`/internal/v1/orders/${simulated.result.orderId}/cancel-result`, "POST", "platform-api-service", tokens.platform, { outcome: "ACCEPTED", reason: "SIMULATED_AUTHORITY", sequence: 1 });
   const cancelResultBody = await cancelResult.json();
   const pendingRelease = await pool.query("SELECT count(*)::int AS count FROM fake_broker_outbox WHERE order_id=$1 AND event_type='RESERVATION_RESOLVE'", [simulated.result.orderId]);
@@ -305,15 +371,19 @@ try {
   await pool.query("UPDATE fake_broker_outbox SET status='COMPENSATION_REQUIRED',attempts=3,last_error='fixed HTTP smoke setup' WHERE event_id=$1", [compensationEvent.rows[0].event_id]);
   const compensationState = async () => pool.query("SELECT status,attempts,last_error FROM fake_broker_outbox WHERE event_id=$1", [compensationEvent.rows[0].event_id]);
   const compensationBeforeInjection = await compensationState();
-  const injectedCompensation = await request(`/internal/v1/outbox/${compensationEvent.rows[0].event_id}/compensate`, "POST", "platform-api-service", tokens.platform, { environmentMode: "LIVE", brokerMode: "REAL" });
-  assert.equal(injectedCompensation.status, 422, "Outbox compensation must reject mode injection before requeueing the event");
+  const compensationModeAttempts = [];
+  for (const modes of clientModeInjectionCases) {
+    const injectedCompensation = await request(`/internal/v1/outbox/${compensationEvent.rows[0].event_id}/compensate`, "POST", "platform-api-service", tokens.platform, modes);
+    assert.equal(injectedCompensation.status, 422, `Outbox compensation must reject ${modes.environmentMode}/${modes.brokerMode} before requeueing the event`);
+    compensationModeAttempts.push({ ...modes, status: injectedCompensation.status });
+    assert.deepEqual((await compensationState()).rows, compensationBeforeInjection.rows, "mode-injected compensation must leave event status, attempts and error unchanged");
+  }
   const compensationAfterInjection = await compensationState();
-  assert.deepEqual(compensationAfterInjection.rows, compensationBeforeInjection.rows, "mode-injected compensation must leave event status, attempts and error unchanged");
   const validCompensation = await request(`/internal/v1/outbox/${compensationEvent.rows[0].event_id}/compensate`, "POST", "platform-api-service", tokens.platform);
   assert.equal(validCompensation.status, 202, await validCompensation.text());
   const compensationAfterValid = await compensationState();
   assert.equal(compensationAfterValid.rows[0].status, "COMPENSATION_REQUIRED", "failed isolated Portfolio delivery remains visibly in compensation state");
-  runStatus = { v13IndependentAssetRead: { status: assetSnapshotResponse.status, wrongIdentity: assetSnapshotWrongIdentity.status, wrongAccount: assetSnapshotWrongAccount.status, wrongNamespace: assetSnapshotWrongNamespace.status, missingScope: assetSnapshotMissingScope.status, accountId: assetAccountId, ownerId: assetOwnerId, testRunId: assetTestRunId, currency: assetSnapshot.currency, currentCash: assetSnapshot.current_cash, positions: assetSnapshot.positions }, v13ModeInjection: v13ModeInjectionResults, v13ModeInjectionSideEffects: v13ModeInjectionSideEffects.rows[0], writeRouteScope: writeRouteScopeResults, writeRouteScopeSideEffects: writeRouteScopeSideEffects.rows[0], noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, historicalModeInjection: { attempts: historicalModeInjectionResults, governanceCallsUnchanged: historicalModeInjectionNoGovernanceCall, noOrderPersisted: injectedHistoricalOrder.rows[0].count === 0 }, outboxCompensationModeInjection: { injectedStatus: injectedCompensation.status, unchangedBeforeValidCompensation: JSON.stringify(compensationBeforeInjection.rows) === JSON.stringify(compensationAfterInjection.rows), validStatus: validCompensation.status, remainsCompensationRequired: compensationAfterValid.rows[0].status === "COMPENSATION_REQUIRED" }, rejectedZeroVolume: executionBody.result.rejectionReason, tradeOrderTransitionModeInjection: { attempts: transitionModeAttempts, cancelledResultStatus: injectedCancelResult.status, unchangedOrderFactsBeforeAndAfter: true }, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelResult.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
+  runStatus = { v13IndependentAssetRead: { status: assetSnapshotResponse.status, wrongIdentity: assetSnapshotWrongIdentity.status, wrongAccount: assetSnapshotWrongAccount.status, wrongNamespace: assetSnapshotWrongNamespace.status, missingScope: assetSnapshotMissingScope.status, accountId: assetAccountId, ownerId: assetOwnerId, testRunId: assetTestRunId, currency: assetSnapshot.currency, currentCash: assetSnapshot.current_cash, positions: assetSnapshot.positions }, v13ModeInjection: v13ModeInjectionResults, v13ModeInjectionSideEffects: v13ModeInjectionSideEffects.rows[0], v13AdditionalModeBoundary: { attempts: v13AdditionalModeBoundaryAttempts, unchangedBusinessFacts: JSON.stringify(v13AdditionalModeBoundaryBefore.rows) === JSON.stringify(v13AdditionalModeBoundaryAfter.rows), facts: v13AdditionalModeBoundaryAfter.rows[0] }, writeRouteScope: writeRouteScopeResults, v1ProtectedWriteRouteCredentialResults, writeRouteScopeSideEffects: writeRouteScopeSideEffects.rows[0], noIdentity: noIdentity.status, forgedToken: forgedToken.status, unknownIdentity: unknownIdentity.status, platformRead: platformSummary.status, replayRead: replayQuery.status, platformExecuteDenied: platformCannotExecute.status, replayCancelDenied: replayCannotCancel.status, replayCancelResultDenied: replayCannotRecordCancelResult.status, invalidCancelResult: invalidCancelResult.status, unmatchedCancelResult: unmatchedCancelResult.status, governanceDenied: governanceDenied.status, denialSideEffects: { orders: deniedOrders.rows[0].count, fills: deniedFills.rows[0].count, events: deniedEvents.rows[0].count, outbox: deniedOutbox.rows[0].count }, governedExecution: execution.status, historicalModeInjection: { attempts: historicalModeInjectionResults, governanceCallsUnchanged: historicalModeInjectionNoGovernanceCall, noOrderPersisted: injectedHistoricalOrder.rows[0].count === 0 }, outboxCompensationModeInjection: { attempts: compensationModeAttempts, unchangedBeforeValidCompensation: JSON.stringify(compensationBeforeInjection.rows) === JSON.stringify(compensationAfterInjection.rows), validStatus: validCompensation.status, remainsCompensationRequired: compensationAfterValid.rows[0].status === "COMPENSATION_REQUIRED" }, rejectedZeroVolume: executionBody.result.rejectionReason, tradeOrderTransitionModeInjection: { attempts: transitionModeAttempts, cancelResultAttempts: cancelResultModeAttempts, unchangedOrderFactsBeforeAndAfter: true }, cancelRequest: cancelRequest.status, simulatedCancelResult: { status: cancelRequest.status, orderStatus: cancelResultBody.status, releaseDeferredUntilFillPosted: pendingRelease.rows[0].count === 0 }, governanceBearerVerified: governanceIdentityVerified, governanceValidationCalls };
   console.log(JSON.stringify({ status: "PASS", namespace, evidence: runStatus }));
 } finally {
   if (service.exitCode === null) {
@@ -327,6 +397,7 @@ try {
       await client.query("BEGIN");
       await client.query("DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
+      await client.query("DELETE FROM fake_broker_sell_receivables WHERE namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
       await client.query("DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1", [namespace]);

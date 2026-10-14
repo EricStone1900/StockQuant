@@ -71,16 +71,17 @@
     "/api/v1/acceptance/v1/v1.3/runs/{testRunId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-results/{sequence}": {
       "post": {
         "operationId": "resolveOwnedV13SequencedPaperOrderCancel",
-        "summary": "Apply the fixed L07 seq=3 accepted cancel result after the original request",
+        "summary": "Apply the fixed CN_A or US_EQUITY L07 seq=3 rejected or seq=3/4 accepted cancel result after the original request",
         "security": [{ "localSession": [] }],
         "parameters": [
           { "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
           { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
           { "name": "clientOrderId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
-          { "name": "sequence", "in": "path", "required": true, "schema": { "const": "3" } }
+          { "name": "sequence", "in": "path", "required": true, "schema": { "enum": ["3", "4"] } }
         ],
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["outcome"], "properties": { "outcome": { "enum": ["ACCEPTED", "REJECTED"] } } } } } },
         "responses": {
-          "200": { "description": "The terminal CANCELLED order, released remainder reservation, posted Fills and independent reconciliation", "content": { "application/json": { "schema": { "type": "object", "required": ["resolution", "order"], "properties": { "resolution": { "type": "object" }, "order": { "type": "object", "required": ["order", "reconciliation"], "properties": { "order": { "type": "object", "required": ["status"], "properties": { "status": { "const": "CANCELLED" } } }, "reconciliation": { "type": "object", "properties": { "status": { "const": "MATCH" } } } } } } } } } },
+          "200": { "description": "An accepted result returns CANCELLED with released reservation; a rejected result restores PARTIALLY_FILLED and keeps the reservation HELD", "content": { "application/json": { "schema": { "type": "object", "required": ["resolution", "order"], "properties": { "resolution": { "type": "object" }, "order": { "type": "object", "required": ["order", "reconciliation"], "properties": { "order": { "type": "object", "required": ["status"], "properties": { "status": { "enum": ["CANCELLED", "PARTIALLY_FILLED", "CANCEL_REQUESTED"] } } }, "reconciliation": { "type": "object" } } } } } } } },
           "401": { "description": "A local session is required" },
           "403": { "description": "The order is outside the owner's fixed V1.3 TestRun/Proposal Fixture" },
           "404": { "description": "The run, proposal or FakeBroker order was not found in user scope" },

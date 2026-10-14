@@ -14,10 +14,14 @@ describe("V1.3 fixed manual Paper execution command", () => {
   it("derives the independent US exact fixture", () => {
     expect(buildV13FixedPaperOrder({ proposal: proposal("AAPL", 10), ...input })).toMatchObject({ security: "AAPL", quantity: 10, currency: "USD", price: "25.00", fee: "0.05", reservedCash: "250.05" });
   });
-  it("maps only the fixed CN SELL leg to a Portfolio sellability check", () => {
+  it("maps the fixed CN and US SELL legs to Portfolio sellability checks", () => {
     expect(buildV13FixedPaperOrder({ proposal: { ...proposal(), legs: [{ legId: "sell", securityId: "600000.SH", side: "SELL", quantity: 100 }] }, ...input })).toMatchObject({ side: "SELL", security: "600000.SH", quantity: 100, currency: "CNY" });
+    expect(buildV13FixedPaperOrder({ proposal: { ...proposal("AAPL", 10), legs: [{ legId: "sell", securityId: "AAPL", side: "SELL", quantity: 10 }] }, ...input })).toMatchObject({ side: "SELL", security: "AAPL", quantity: 10, currency: "USD", price: "25.00", fee: "0.05", reservedCash: "250.05" });
+    expect(() => buildV13FixedPaperOrder({ proposal: { ...proposal("MSFT", 5), legs: [{ legId: "sell", securityId: "MSFT", side: "SELL", quantity: 5 }] }, ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+    const autoUs = { ...proposal("AAPL", 10), status: "AUTO_POLICY_PENDING", approvalMode: "AUTO_POLICY", strategyVersion: "fixture-auto-policy-test-v1", legs: [{ legId: "sell", securityId: "AAPL", side: "SELL", quantity: 10 }] } as V13ProposalResult;
+    expect(buildV13FixedAutoPaperOrder({ proposal: autoUs, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 })).toMatchObject({ side: "SELL", security: "AAPL", quantity: 10 });
     const auto = { ...proposal(), status: "AUTO_POLICY_PENDING", approvalMode: "AUTO_POLICY", strategyVersion: "fixture-auto-policy-test-v1", legs: [{ legId: "sell", securityId: "600000.SH", side: "SELL", quantity: 100 }] } as V13ProposalResult;
-    expect(() => buildV13FixedAutoPaperOrder({ proposal: auto, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+    expect(buildV13FixedAutoPaperOrder({ proposal: auto, ...input, mandateId: "d8c1d600-22f6-44ab-9c2f-5581462d90a4", mandateVersion: 1 })).toMatchObject({ side: "SELL", security: "600000.SH", quantity: 100 });
   });
   it("rejects pending, expired, wrong strategy, and user-invented order terms", () => {
     expect(() => buildV13FixedPaperOrder({ proposal: { ...proposal(), status: "MANUAL_APPROVAL_PENDING" }, ...input })).toThrow("V13_PROPOSAL_NOT_EXECUTABLE");
@@ -61,9 +65,14 @@ describe("V1.3 fixed sequenced FakeBroker event fixture", () => {
     expect(command).toMatchObject({ executionMode: "SEQUENCED", security: "600000.SH", side: "BUY", quantity: 200, currency: "CNY", price: "10.00", fee: "5.00", reservedCash: "2005.00" });
     expect(command.commandHash).not.toBe(buildV13FixedPaperOrder({ proposal: { ...proposal("600000.SH", 100), legs: [{ legId: "leg-1", securityId: "600000.SH", side: "BUY", quantity: 100 }] }, ...input }).commandHash);
   });
-  it("fails closed for immediate 200-share orders, US orders, and sequenced SELL proposals", () => {
+  it("allows only the approved 200-share US AAPL manual event-sequence fixture", () => {
+    const command = buildV13FixedSequencedPaperOrder({ proposal: proposal("AAPL", 200), ...input });
+    expect(command).toMatchObject({ executionMode: "SEQUENCED", security: "AAPL", side: "BUY", quantity: 200, currency: "USD", price: "25.00", fee: "0.05", reservedCash: "5000.05" });
+  });
+  it("fails closed for immediate 200-share orders, unsupported sequenced securities, and sequenced SELL proposals", () => {
     expect(() => buildV13FixedPaperOrder({ proposal: proposal("600000.SH", 200), ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
-    expect(() => buildV13FixedSequencedPaperOrder({ proposal: proposal("AAPL", 200), ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+    expect(() => buildV13FixedSequencedPaperOrder({ proposal: proposal("MSFT", 200), ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+    expect(() => buildV13FixedSequencedPaperOrder({ proposal: proposal("AAPL", 10), ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
     expect(() => buildV13FixedSequencedPaperOrder({ proposal: { ...proposal("600000.SH", 200), legs: [{ legId: "leg-1", securityId: "600000.SH", side: "SELL", quantity: 200 }] }, ...input })).toThrow("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
   });
 });

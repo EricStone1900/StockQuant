@@ -111,6 +111,19 @@ class QlibWorkerBoundaryTests(unittest.TestCase):
         self.assertEqual(self.post_status("/qlib/fit-fixture", fixture, None)[0], 403)
         self.assertEqual(self.post_status("/qlib/fit-fixture", fixture, "wrong-token-value" * 3)[0], 403)
         self.assertEqual(self.post_status("/qlib/fit-fixture", fixture, self.quant_token, "platform-api-service")[0], 403)
+        for environment_mode, broker_mode in (
+            ("PAPER", "FAKE"),
+            ("PAPER", "REAL"),
+            ("BACKTEST", "FAKE"),
+            ("BACKTEST", "REAL"),
+            ("LIVE", "FAKE"),
+            ("LIVE", "REAL"),
+        ):
+            injected = {**fixture, "environmentMode": environment_mode, "brokerMode": broker_mode}
+            status, result = self.post_status("/qlib/fit-fixture", injected, self.quant_token)
+            self.assertEqual(status, 422, f"Qlib Worker must reject client trading mode {environment_mode}/{broker_mode}")
+            self.assertEqual(result["status"], "REJECTED")
+            self.assertEqual(result["reason"], "fit request fields are invalid")
         invalid = json.loads(json.dumps(fixture))
         invalid["splits"]["valid"] = [18, 25]
         status, result = self.post_status("/qlib/fit-fixture", invalid, self.quant_token)

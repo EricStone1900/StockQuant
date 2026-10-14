@@ -182,6 +182,20 @@ createServer(async (request, response) => {
     const assets = await broker.independentAssetSnapshot(namespace, accountId);
     return assets ? json(response, 200, assets) : json(response, 404, { error: "independent FakeBroker assets not found" });
   }
+  if (request.method === "POST" && pathname === "/internal/v1/v13/accounts/settlements") {
+    let raw = "";
+    for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 4096) return json(response, 413, { error: "V1.3 settlement command exceeds 4 KiB" }); }
+    let body: Record<string, unknown>;
+    try { body = JSON.parse(raw) as Record<string, unknown>; } catch { return json(response, 422, { error: "valid JSON body is required" }); }
+    if (!body || Array.isArray(body) || Object.keys(body).sort().join(",") !== "accountId,asOf,namespace,ownerId,testRunId" || Object.values(body).some((value) => typeof value !== "string" || !value.trim()) || !Number.isFinite(Date.parse(String(body.asOf)))) return json(response, 422, { error: "V1.3 settlement owner/TestRun scope and ISO clock are required" });
+    try {
+      await v13ManualPaperExecution.settleForSession({ accountId: String(body.accountId), namespace: String(body.namespace), now: String(body.asOf), ownerId: String(body.ownerId), testRunId: String(body.testRunId) });
+      return json(response, 200, { status: "SETTLED", asOf: body.asOf });
+    } catch (error) {
+      if (error instanceof V13ManualPaperExecutionError) return json(response, error.statusCode, { error: error.message });
+      return json(response, 503, { error: "V1.3 settlement could not be completed on both independent books; retry is safe" });
+    }
+  }
   if (request.method === "GET" && reconciliationMatch) return json(response, 200, await broker.reconciliationSummary(decodeURIComponent(reconciliationMatch[1])));
   if (request.method === "POST" && (pathname === "/internal/v1/v13/paper-orders/execute-manual-proposal" || pathname === "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal")) {
     const sequenced = pathname.endsWith("execute-manual-sequenced-proposal");

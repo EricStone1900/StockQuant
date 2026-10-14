@@ -38,9 +38,13 @@ try {
   const repository = new PostgresFakeBrokerRepository(pool);
   await migrateTradeExecutionSchema(pool);
   const migrationState = await pool.query("SELECT version, description FROM trade_execution_schema_migrations");
-  assert.deepEqual(migrationState.rows, [{ version: 1, description: "V1 FakeBroker orders, fills, events, outbox, and simulation policy schema" }]);
+  assert.deepEqual(migrationState.rows, [
+    { version: 1, description: "V1 FakeBroker orders, fills, events, outbox, and simulation policy schema" },
+    { version: 2, description: "OD-014 strict settled cash and Paper sell receivables" },
+    { version: 3, description: "Persist unmapped Paper SELL receivables without releasing cash" },
+  ]);
   await migrateTradeExecutionSchema(pool);
-  assert.equal((await pool.query("SELECT count(*)::int AS count FROM trade_execution_schema_migrations")).rows[0].count, 1, "re-running migrations must preserve the single applied baseline");
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM trade_execution_schema_migrations")).rows[0].count, 3, "re-running migrations must preserve all ordered schema versions");
   // Fixed, independent FakeBroker opening position for the SELL persistence scenario.
   await pool.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
     VALUES($1,$2,$3,$4,'CNY',$5::numeric,$5::numeric)`, [namespace, accountId, command.reservation.ownerId, command.reservation.testRunId, command.initialAccountCash]);
@@ -53,6 +57,39 @@ try {
   assert.equal(first.result.orderId, concurrentReplay.result.orderId, "the FakeBroker's externally returned orderId remains stable across concurrent clientOrderId retries");
   const original = first.replayed ? concurrentReplay : first;
   assert.equal(original.result.status, "PARTIALLY_FILLED");
+
+  const unknownSettlementCommand = {
+    ...command,
+    accountId: randomUUID(),
+    clientOrderId: `unknown-calendar-${randomUUID()}`,
+    requestedQuantity: 10,
+    bar: { timestamp: "2026-09-26T01:31:00.000Z", open: "10.0000", volume: 500 },
+    reservation: { ...command.reservation, reservationId: randomUUID(), clientOrderId: "", testRunId: randomUUID() },
+  };
+  unknownSettlementCommand.reservation.clientOrderId = unknownSettlementCommand.clientOrderId;
+  await pool.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+    VALUES($1,$2,$3,$4,'CNY',$5::numeric,$5::numeric)`, [namespace, unknownSettlementCommand.accountId, unknownSettlementCommand.reservation.ownerId, unknownSettlementCommand.reservation.testRunId, unknownSettlementCommand.initialAccountCash]);
+  await pool.query("INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,'600000.SH',20)", [namespace, unknownSettlementCommand.accountId]);
+  const unknownSettlementExecution = await repository.execute(unknownSettlementCommand);
+  assert.equal(unknownSettlementExecution.result.status, "FILLED");
+  const unknownSettlementFacts = await pool.query(`SELECT a.current_cash::text AS current_cash,p.quantity::text AS position,
+      r.amount::text AS receivable_amount,r.trade_date::text AS trade_date,r.settlement_date::text AS settlement_date,
+      r.settlement_error_code,r.status,x.payload->'settlement' AS outbox_settlement
+    FROM fake_broker_account_assets a
+    JOIN fake_broker_positions p ON p.namespace=a.namespace AND p.account_id=a.account_id AND p.security='600000.SH'
+    JOIN fake_broker_sell_receivables r ON r.namespace=a.namespace AND r.account_id=a.account_id
+    JOIN fake_broker_outbox x ON x.order_id=$3 AND x.event_type='FILL_POST'
+    WHERE a.namespace=$1 AND a.account_id=$2`, [namespace, unknownSettlementCommand.accountId, unknownSettlementExecution.result.orderId]);
+  assert.deepEqual(unknownSettlementFacts.rows[0], {
+    current_cash: "10000.0000", position: "10", receivable_amount: "99.8001", trade_date: "2026-09-26",
+    settlement_date: null, settlement_error_code: "SETTLEMENT_CALENDAR_UNAVAILABLE", status: "PENDING",
+    outbox_settlement: { tradeDate: "2026-09-26", settlementDate: null, calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" },
+  }, "unknown calendar dates must retain the durable FakeBroker Fill and pending receivable without releasing cash");
+  const unknownSettlementReplay = await repository.execute(unknownSettlementCommand);
+  assert.equal(unknownSettlementReplay.replayed, true);
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM fake_broker_sell_receivables WHERE namespace=$1 AND account_id=$2", [namespace, unknownSettlementCommand.accountId])).rows[0].count, 1);
+  console.log(`[FakeBroker unknown settlement calendar] ${JSON.stringify({ orderId: unknownSettlementExecution.result.orderId, fillId: unknownSettlementExecution.result.fill.externalFillId, cash: unknownSettlementFacts.rows[0].current_cash, receivable: unknownSettlementFacts.rows[0].receivable_amount, settlementDate: unknownSettlementFacts.rows[0].settlement_date, errorCode: unknownSettlementFacts.rows[0].settlement_error_code, outboxPayloadMatches: true, idempotentReplay: unknownSettlementReplay.replayed })}`);
+
   await assert.rejects(repository.execute({ ...command, requestedQuantity: 99 }), (error) => error?.statusCode === 409);
   await assert.rejects(repository.execute({ ...command, bar: { ...command.bar, open: "10.2100" } }), (error) => error?.statusCode === 409);
   const legacyClientOrderId = `legacy-${randomUUID()}`;
@@ -64,9 +101,9 @@ try {
     (SELECT count(*)::int FROM fake_broker_order_events e JOIN fake_broker_orders o USING (order_id) WHERE o.namespace=$1) AS events,
     (SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o USING (order_id) WHERE o.namespace=$1) AS outbox
     FROM fake_broker_orders WHERE namespace=$1`, [namespace]);
-  assert.deepEqual(rows.rows[0], { orders: 2, fills: 1, events: 1, outbox: 1 });
+  assert.deepEqual(rows.rows[0], { orders: 3, fills: 2, events: 2, outbox: 2 });
   const outbox = await pool.query("SELECT payload FROM fake_broker_outbox WHERE order_id=$1", [original.result.orderId]);
-  assert.deepEqual({ side: outbox.rows[0].payload.side, currency: outbox.rows[0].payload.currency, reservation: outbox.rows[0].payload.reservation }, { side: "SELL", currency: "CNY", reservation: command.reservation });
+  assert.deepEqual({ side: outbox.rows[0].payload.side, currency: outbox.rows[0].payload.currency, settlement: outbox.rows[0].payload.settlement, reservation: outbox.rows[0].payload.reservation }, { side: "SELL", currency: "CNY", settlement: { tradeDate: "2026-09-25", settlementDate: "2026-09-28", calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: null }, reservation: command.reservation });
 
   const partialFillBeforeCancel = await pool.query(`SELECT o.status, f.quantity::text AS quantity,
     (SELECT count(*)::int FROM fake_broker_order_events WHERE order_id=o.order_id) AS events,
@@ -325,6 +362,142 @@ try {
   const causalReadback = await repository.findByNamespaceClientOrderId(namespace, causalClientOrderId);
   assert.equal(causalReadback.payload.proposalId, causalCommand.proposalId);
   assert.equal(causalReadback.fills.length, 2, "owner/TestRun authorization metadata and all fills remain readable after sequencing");
+
+  // Seeded, real PostgreSQL event-arrival matrix. Each seed drives the actual
+  // arrival order injected into the repository; no fault sequence is inferred.
+  const seededArrivalMatrix = [];
+  const seededPermutation = (seed, values) => {
+    let state = seed >>> 0;
+    const random = () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+    const result = [...values];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const swap = Math.floor(random() * (index + 1));
+      [result[index], result[swap]] = [result[swap], result[index]];
+    }
+    return result;
+  };
+  for (let offset = 0; offset < 24; offset += 1) {
+    const seed = 20260907 + offset;
+    const testRunId = randomUUID();
+    const clientOrderId = `seeded-causal-${seed}-${randomUUID()}`;
+    const seededCommand = {
+      ...causalCommand,
+      proposalId: randomUUID(), testRunId, accountId: randomUUID(), clientOrderId,
+      security: "600000.SH", quantity: 200, price: "10.0000", fee: "5.0000", reservedCash: "2005.0000",
+      commandHash: seed.toString(16).padStart(64, "0"),
+      reservation: { ...causalCommand.reservation, reservationId: randomUUID(), testRunId, clientOrderId },
+    };
+    const seededOrder = await repository.executeV13ManualPaper(seededCommand);
+    assert.equal(seededOrder.result.status, "ACCEPTED");
+    const reports = [50, 125, 200].map((cumulativeQuantity, index) => ({
+      externalFillId: randomUUID(), sequence: index + 1, cumulativeQuantity, price: "10.0000", fee: "1.2500",
+      effectiveAt: `2026-09-25T01:35:0${index + 1}.000Z`,
+      evidenceRef: `seeded-fault:${seed}:${seededOrder.result.orderId}:sequence-${index + 1}`,
+    }));
+    const arrivalOrder = seededPermutation(seed, [1, 2, 3]);
+    const observed = [];
+    for (const sequence of arrivalOrder) {
+      observed.push(sequence);
+      await repository.recordSimulatedFillReport(seededOrder.result.orderId, reports[sequence - 1]);
+    }
+    assert.deepEqual(observed, arrivalOrder, "record the exact sequence injected for this seed");
+    const sequenceState = await pool.query(`SELECT s.last_applied_sequence,
+      (SELECT count(*)::int FROM fake_broker_authoritative_event_inbox WHERE order_id=$1 AND applied_at IS NULL) AS pending,
+      (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=$1) AS fills,
+      (SELECT COALESCE(sum(quantity),0)::int FROM fake_broker_fills WHERE order_id=$1) AS quantity,
+      (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST') AS fill_events
+      FROM fake_broker_order_event_sequences s WHERE s.order_id=$1`, [seededOrder.result.orderId]);
+    assert.deepEqual(sequenceState.rows[0], { last_applied_sequence: "3", pending: 0, fills: 3, quantity: 200, fill_events: 3 },
+      `seed ${seed} must drain all authoritative events into exactly-once Fill facts`);
+    const seededAssets = await repository.independentAssetSnapshot(namespace, seededCommand.accountId);
+    assert.equal(seededAssets.current_cash, "7996.2500", `seed ${seed} must debit exactly USD/CNY 2000 plus three 1.25 fees`);
+    assert.deepEqual(seededAssets.positions, [{ security: "600000.SH", quantity: 200 }]);
+    assert.equal(seededAssets.fill_event_count, 3);
+    for (const report of reports) assert.equal((await repository.recordSimulatedFillReport(seededOrder.result.orderId, report)).replayed, true);
+    await assert.rejects(repository.recordSimulatedFillReport(seededOrder.result.orderId, { ...reports[0], fee: "1.2600" }), /FAKEBROKER_EVENT_SEQUENCE_CONFLICT/u);
+    const afterReplay = await pool.query(`SELECT count(*)::int AS fills,
+      (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=$1 AND event_type='FILL_POST') AS fill_events
+      FROM fake_broker_fills WHERE order_id=$1`, [seededOrder.result.orderId]);
+    assert.deepEqual(afterReplay.rows[0], { fills: 3, fill_events: 3 }, `seed ${seed} replay/conflict cannot duplicate facts`);
+    seededArrivalMatrix.push({ seed, injectedArrivalSequence: observed, orderId: seededOrder.result.orderId, cursor: sequenceState.rows[0].last_applied_sequence });
+  }
+  assert.equal(new Set(seededArrivalMatrix.map((run) => run.injectedArrivalSequence.join(""))).size, 6,
+    "the 24 deterministic seeds exercise all six three-event arrival permutations");
+  // Seeded mixed Fill/cancellation arrivals exercise the same durable reducer
+  // with heterogeneous event types. The exact injection sequence is retained
+  // in the output so a failure can be reproduced from its seed.
+  const seededMixedArrivalMatrix = [];
+  for (let offset = 0; offset < 24; offset += 1) {
+    const seed = 20261001 + offset;
+    const testRunId = randomUUID();
+    const clientOrderId = `seeded-fill-cancel-${seed}-${randomUUID()}`;
+    const seededCommand = {
+      ...causalCommand,
+      proposalId: randomUUID(), testRunId, accountId: randomUUID(), clientOrderId,
+      security: "600000.SH", quantity: 200, price: "10.0000", fee: "5.0000", reservedCash: "2005.0000",
+      commandHash: seed.toString(16).padStart(64, "0"),
+      reservation: { ...causalCommand.reservation, reservationId: randomUUID(), testRunId, clientOrderId },
+    };
+    const seededOrder = await repository.executeV13ManualPaper(seededCommand);
+    assert.equal(seededOrder.result.status, "ACCEPTED");
+    assert.equal((await repository.cancel(seededOrder.result.orderId))?.status, "CANCEL_REQUESTED");
+    const mixedReports = [
+      { externalFillId: randomUUID(), sequence: 1, cumulativeQuantity: 50, price: "10.0000", fee: "1.2500",
+        effectiveAt: "2026-09-25T01:36:01.000Z", evidenceRef: `seeded-fill-cancel:${seed}:${seededOrder.result.orderId}:fill-1` },
+      { externalFillId: randomUUID(), sequence: 2, cumulativeQuantity: 125, price: "10.0000", fee: "1.2500",
+        effectiveAt: "2026-09-25T01:36:02.000Z", evidenceRef: `seeded-fill-cancel:${seed}:${seededOrder.result.orderId}:fill-2` },
+    ];
+    const mixedEvents = [
+      { sequence: 1, eventType: "FILL_REPORT", apply: () => repository.recordSimulatedFillReport(seededOrder.result.orderId, mixedReports[0]) },
+      { sequence: 2, eventType: "FILL_REPORT", apply: () => repository.recordSimulatedFillReport(seededOrder.result.orderId, mixedReports[1]) },
+      { sequence: 3, eventType: "CANCEL_RESULT", apply: () => repository.resolveCancellation(seededOrder.result.orderId, "ACCEPTED", `SEEDED_ACCEPTED_CANCEL_${seed}`, 3) },
+    ];
+    const arrivalOrder = seededPermutation(seed, mixedEvents);
+    const observed = [];
+    for (const event of arrivalOrder) {
+      const result = await event.apply();
+      observed.push({ sequence: event.sequence, eventType: event.eventType });
+      if (event.eventType === "CANCEL_RESULT" && observed.length < mixedEvents.length) {
+        assert.equal(result.buffered, true, `seed ${seed} buffers cancellation when prior Fill events are missing`);
+        assert.equal(result.status, "CANCEL_REQUESTED", `seed ${seed} cannot apply cancellation across an event gap`);
+      }
+    }
+    const mixedState = await pool.query(`SELECT o.status,
+      (SELECT last_applied_sequence FROM fake_broker_order_event_sequences WHERE order_id=o.order_id) AS last_sequence,
+      (SELECT count(*)::int FROM fake_broker_authoritative_event_inbox WHERE order_id=o.order_id AND applied_at IS NULL) AS pending,
+      (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=o.order_id) AS fills,
+      (SELECT COALESCE(sum(quantity),0)::int FROM fake_broker_fills WHERE order_id=o.order_id) AS filled_quantity,
+      (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='FILL_POST') AS fill_events,
+      (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='RESERVATION_RESOLVE') AS reservation_resolutions
+      FROM fake_broker_orders o WHERE o.order_id=$1`, [seededOrder.result.orderId]);
+    assert.deepEqual(mixedState.rows[0], { status: "CANCELLED", last_sequence: "3", pending: 0, fills: 2, filled_quantity: 125, fill_events: 2, reservation_resolutions: 0 },
+      `seed ${seed} must causally apply both partial Fills before the accepted cancellation and hold reservation release`);
+    const seededAssets = await repository.independentAssetSnapshot(namespace, seededCommand.accountId);
+    assert.equal(seededAssets.current_cash, "8747.5000", `seed ${seed} must debit exactly 125 shares and two fees`);
+    assert.deepEqual(seededAssets.positions, [{ security: "600000.SH", quantity: 125 }]);
+    assert.equal(seededAssets.fill_event_count, 2);
+
+    for (const event of mixedEvents) assert.equal((await event.apply()).replayed, true, `seed ${seed} replay of sequence ${event.sequence} is idempotent`);
+    await assert.rejects(repository.resolveCancellation(seededOrder.result.orderId, "REJECTED", `CONFLICTING_CANCEL_${seed}`, 3), /FAKEBROKER_EVENT_SEQUENCE_CONFLICT/u,
+      `seed ${seed} rejects a different event reusing the accepted cancellation sequence`);
+    const afterReplay = await pool.query(`SELECT o.status,
+      (SELECT count(*)::int FROM fake_broker_fills WHERE order_id=o.order_id) AS fills,
+      (SELECT COALESCE(sum(quantity),0)::int FROM fake_broker_fills WHERE order_id=o.order_id) AS quantity,
+      (SELECT count(*)::int FROM fake_broker_outbox WHERE order_id=o.order_id AND event_type='FILL_POST') AS fill_events
+      FROM fake_broker_orders o WHERE o.order_id=$1`, [seededOrder.result.orderId]);
+    assert.deepEqual(afterReplay.rows[0], { status: "CANCELLED", fills: 2, quantity: 125, fill_events: 2 },
+      `seed ${seed} event replay/conflict cannot duplicate business facts`);
+    seededMixedArrivalMatrix.push({ seed, injectedArrivalSequence: observed, orderId: seededOrder.result.orderId, status: mixedState.rows[0].status, cursor: mixedState.rows[0].last_sequence });
+  }
+  assert.equal(new Set(seededMixedArrivalMatrix.map((run) => run.injectedArrivalSequence.map((event) => event.sequence).join(""))).size, 6,
+    "the 24 deterministic mixed-event seeds exercise all six Fill/Fill/cancellation arrival permutations");
+  console.log(`[FakeBroker seeded Fill/cancellation arrivals] ${JSON.stringify({ runs: seededMixedArrivalMatrix.length, permutations: [...new Set(seededMixedArrivalMatrix.map((run) => run.injectedArrivalSequence.map((event) => event.sequence).join("")))].sort(), injections: seededMixedArrivalMatrix })}`);
   const reportFirstCommand = { ...command, clientOrderId: `report-before-cancel-ack-${randomUUID()}`, reservation: { ...command.reservation, reservationId: randomUUID() } };
   reportFirstCommand.reservation.clientOrderId = reportFirstCommand.clientOrderId;
   const reportFirstOrder = await repository.execute(reportFirstCommand);
@@ -387,9 +560,10 @@ try {
   assert.equal(discrepancy.externalOnlyOrderCount, 1, "independent broker-side order missing locally is reconciled as a discrepancy");
   assert.equal(discrepancy.discrepancies[0].kind, "EXTERNAL_ORDER_MISSING_LOCALLY");
   assert.equal(discrepancy.discrepancies[0].externalOrderId, externalOnly.externalOrderId);
-  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", stableFakeBrokerOrderId: { publicField: "orderId", firstResult: first.result.orderId, concurrentRetryResult: concurrentReplay.result.orderId, reconnectRetryResult: replayAfterReconnect.result.orderId, identicalAcrossRetries: first.result.orderId === concurrentReplay.result.orderId && first.result.orderId === replayAfterReconnect.result.orderId }, changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", partialFillCancellation: "duplicate requests idempotent; accepted result closes remainder; rejected result restores PARTIALLY_FILLED; late result ignored; fill/outbox preserved", competingCancelResults: { sameSequenceConflict: true, exactlyOnePayloadAccepted: true, reservationReleaseWaitsForFill: true }, cancellationReservationOutbox: "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered", fillDuringCancelRace: { laterCancelArrivesBeforeEarlierFill: true, bufferedWithoutStateChange: true, missingSequenceArrivalDrainsInOrder: true, postAckFillFenced: true, cumulativeToIncremental: true, cumulativeRegressionRejected: true, overfillRejected: true, noDeltaReportNoFill: true, idempotentReportReplay: true, reservationReleaseWaitsForAllFills: true }, fillCausalSequence: { testRunId: causalCommand.reservation.testRunId, orderId: causalOrder.result.orderId, sequence2Buffered: true, replayed10Times: true, sequence1DrainsBoth: true, cumulativeFrom100To150: true, incrementalSequence1: 0, incrementalSequence2: 50, authoritativeCashCny: expectedCausalCash, fillFactsAndOutboxExactlyOnce: true }, feeCorrection: "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable", externalOrderReconciliation: "independent durable broker-side observation, replay conflict isolation, missing-local discrepancy surfaced", reconnectReplay: "current CANCELLED state plus original partial Fill", brokerMode: "FAKE" }, null, 2));
+  console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", stableFakeBrokerOrderId: { publicField: "orderId", firstResult: first.result.orderId, concurrentRetryResult: concurrentReplay.result.orderId, reconnectRetryResult: replayAfterReconnect.result.orderId, identicalAcrossRetries: first.result.orderId === concurrentReplay.result.orderId && first.result.orderId === replayAfterReconnect.result.orderId }, changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", partialFillCancellation: "duplicate requests idempotent; accepted result closes remainder; rejected result restores PARTIALLY_FILLED; late result ignored; fill/outbox preserved", competingCancelResults: { sameSequenceConflict: true, exactlyOnePayloadAccepted: true, reservationReleaseWaitsForFill: true }, cancellationReservationOutbox: "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered", fillDuringCancelRace: { laterCancelArrivesBeforeEarlierFill: true, bufferedWithoutStateChange: true, missingSequenceArrivalDrainsInOrder: true, postAckFillFenced: true, cumulativeToIncremental: true, cumulativeRegressionRejected: true, overfillRejected: true, noDeltaReportNoFill: true, idempotentReportReplay: true, reservationReleaseWaitsForAllFills: true }, fillCausalSequence: { testRunId: causalCommand.reservation.testRunId, orderId: causalOrder.result.orderId, sequence2Buffered: true, replayed10Times: true, sequence1DrainsBoth: true, cumulativeFrom100To150: true, incrementalSequence1: 0, incrementalSequence2: 50, authoritativeCashCny: expectedCausalCash, fillFactsAndOutboxExactlyOnce: true }, seededFillCausalMatrix: { runs: seededArrivalMatrix.length, permutations: [...new Set(seededArrivalMatrix.map((run) => run.injectedArrivalSequence.join("")))].sort(), injections: seededArrivalMatrix }, feeCorrection: "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable", externalOrderReconciliation: "independent durable broker-side observation, replay conflict isolation, missing-local discrepancy surfaced", reconnectReplay: "current CANCELLED state plus original partial Fill", brokerMode: "FAKE" }, null, 2));
 } catch (error) {
   if (!databaseReady) {
+    console.error(error instanceof Error ? error.message : error);
     console.error("isolated trade-execution test database is unreachable; start the local PostgreSQL test service or set TRADE_EXECUTION_TEST_DATABASE_URL");
     process.exitCode = 2;
   } else {
@@ -404,6 +578,7 @@ try {
       await pool.query(`DELETE FROM fake_broker_fee_corrections c USING fake_broker_fills f, fake_broker_orders o WHERE c.external_fill_id=f.external_fill_id AND f.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query(`DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query(`DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1`, [namespace]);
+      await pool.query("DELETE FROM fake_broker_sell_receivables WHERE namespace=$1", [namespace]);
       await pool.query(`DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query(`DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query(`DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1`, [namespace]);

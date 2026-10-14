@@ -51,7 +51,7 @@ export type V13CancelAccount = { reservations?: Array<{ clientOrderId: string; s
 export type V13CancelPorts = Pick<V13SequencedFillPorts, "findRun" | "readProposal" | "readOrder" | "readOrderProjection"> & {
   readAccount(accountId: string, ownerId: string): Promise<V13CancelAccount>;
   requestCancel(orderId: string): Promise<{ status: number; body?: unknown }>;
-  resolveCancel(orderId: string, input: { outcome: "ACCEPTED"; reason: string; sequence: number }): Promise<{ status: number; body?: unknown }>;
+  resolveCancel(orderId: string, input: { outcome: "ACCEPTED" | "REJECTED"; reason: string; sequence: number }): Promise<{ status: number; body?: unknown }>;
 };
 
 export class V13OrderCancelError extends Error {
@@ -68,10 +68,13 @@ async function loadCancelContext(input: { ownerId: string; testRunId: string; pr
   if (proposalResponse.status !== 200 || !proposalResponse.body) throw new V13OrderCancelError(404, "proposal was not found in user scope");
   const proposal = proposalResponse.body;
   const leg = proposal.legs[0];
+  const marketSecurityMatches = fixture === "L07"
+    ? ((proposal.market === "CN_A" && leg?.securityId === "600000.SH") || (proposal.market === "US_EQUITY" && leg?.securityId === "AAPL"))
+    : proposal.market === "CN_A" && leg?.securityId === "600000.SH";
   const validProposal = proposal.ownerId === input.ownerId && proposal.testRunId === input.testRunId
     && proposal.status === "APPROVED_MANUAL" && proposal.approvalMode === "MANUAL_APPROVAL"
-    && proposal.market === "CN_A" && leg?.securityId === "600000.SH" && leg.side === "BUY"
-    && (fixture === "L07" ? leg.quantity === 200 && input.clientOrderId === `v13-${input.proposalId}` : [100, 200].includes(leg.quantity));
+    && marketSecurityMatches && leg?.side === "BUY"
+    && (fixture === "L07" ? leg?.quantity === 200 && input.clientOrderId === `v13-${input.proposalId}` : [100, 200].includes(leg?.quantity ?? 0));
   if (!validProposal) throw new V13OrderCancelError(403, `order is outside the fixed owner-scoped ${fixture} cancellation Fixture`);
   const read = await ports.readOrder(run.namespace, input.clientOrderId);
   if (read.status !== 200 || !read.body || typeof read.body !== "object") throw new V13OrderCancelError(404, `${fixture} FakeBroker order was not found`);
@@ -107,8 +110,11 @@ export async function requestV13L07SequencedCancel(input: { ownerId: string; tes
   const context = await loadCancelContext(input, ports, "L07");
   assertOrderScope(input, context.proposal, context.facts);
   const fills = context.facts.fills ?? [];
-  if (fills.map((fill) => `${fill.brokerSequence}:${fill.quantity}`).join(",") !== "1:100,2:50") {
-    throw new V13OrderCancelError(409, "L07 cancellation requires the exact persisted 100/50-share causal Fill sequence");
+  const fillSequence = fills.map((fill) => `${fill.brokerSequence}:${fill.quantity}`).join(",");
+  const afterFirstFill = fillSequence === "1:100" && context.facts.order?.status === "PARTIALLY_FILLED";
+  const afterBothFills = fillSequence === "1:100,2:50";
+  if (!afterFirstFill && !afterBothFills) {
+    throw new V13OrderCancelError(409, "L07 cancellation requires the exact persisted first Fill or full 100/50-share causal sequence");
   }
   if (context.facts.order?.status === "PARTIALLY_FILLED") {
     const requested = await ports.requestCancel(context.facts.order.order_id!);
@@ -124,16 +130,38 @@ export async function requestV13L07SequencedCancel(input: { ownerId: string; tes
   return { status: "CANCEL_REQUESTED", order: pending.body, reservation };
 }
 
-export async function resolveV13L07SequencedCancel(input: { ownerId: string; testRunId: string; proposalId: string; clientOrderId: string; sequence: number }, ports: V13CancelPorts) {
+export async function resolveV13L07SequencedCancel(input: { ownerId: string; testRunId: string; proposalId: string; clientOrderId: string; sequence: number; outcome?: "ACCEPTED" | "REJECTED" }, ports: V13CancelPorts) {
   const context = await loadCancelContext(input, ports, "L07");
   assertOrderScope(input, context.proposal, context.facts);
-  if (input.sequence !== 3 || context.facts.order?.status !== "CANCEL_REQUESTED") {
-    throw new V13OrderCancelError(409, "L07 requires the fixed seq=3 accepted cancel result after a persisted cancel request");
+  const outcome = input.outcome ?? "ACCEPTED";
+  // After an authoritative rejection, a seq=3 retry must reach Trade's
+  // persisted event fingerprint check. Trade accepts the identical rejection
+  // idempotently and rejects changed facts at that sequence as a conflict.
+  const resultReplay = input.sequence === 3 && context.facts.order?.status === "PARTIALLY_FILLED";
+  if ((input.sequence !== 3 && !(input.sequence === 4 && outcome === "ACCEPTED"))
+    || (context.facts.order?.status !== "CANCEL_REQUESTED" && !resultReplay)) {
+    throw new V13OrderCancelError(409, "L07 requires seq=3 rejection or seq=3/4 accepted cancel result after a persisted cancel request");
   }
+  const orderId = context.facts.order?.order_id;
+  if (!orderId) throw new V13OrderCancelError(404, "FakeBroker order identifier is missing");
   await heldReservation(input, context.proposal.accountId, ports, "L07");
-  const resolved = await ports.resolveCancel(context.facts.order.order_id!, { outcome: "ACCEPTED", reason: `V13_L07_RESTART_CANCEL:${input.testRunId}:${input.proposalId}`, sequence: 3 });
+  const resolved = await ports.resolveCancel(orderId, { outcome, reason: `V13_L07_${outcome}_CANCEL:${input.testRunId}:${input.proposalId}`, sequence: input.sequence });
   if (![200, 202].includes(resolved.status)) throw new V13OrderCancelError(409, "FakeBroker rejected the L07 cancellation result", resolved.body);
-  return { resolution: resolved.body, order: await validateCancellationResolved(input, ports, "L07") };
+  const resolution = resolved.body as { buffered?: boolean } | undefined;
+  // The test path may intentionally deliver seq=3 before seq=2. A buffered
+  // result is not a completed cancellation; keep the reservation and expose
+  // the current projection until the missing Fill closes the event gap.
+  let order: unknown;
+  if (resolution?.buffered === true) order = await ports.readOrderProjection(input);
+  else if (outcome === "REJECTED") {
+    order = await ports.readOrderProjection(input);
+    const facts = order as { order?: { status?: string }; reconciliation?: { portfolio?: { reservations?: Array<{ clientOrderId: string; status: string }> } } } | null;
+    const reservation = facts?.reconciliation?.portfolio?.reservations?.find((item) => item.clientOrderId === input.clientOrderId);
+    if (facts?.order?.status !== "PARTIALLY_FILLED" || reservation?.status !== "HELD") {
+      throw new V13OrderCancelError(409, "L07 rejected cancellation must restore the working order and retain its reservation");
+    }
+  } else order = await validateCancellationResolved(input, ports, "L07");
+  return { resolution: resolved.body, order };
 }
 
 export async function cancelV13L08PartialFill(input: { ownerId: string; testRunId: string; proposalId: string; clientOrderId: string; cancelSequence: number }, ports: V13CancelPorts) {
@@ -177,9 +205,12 @@ export async function recordV13SequencedProposalFill(input: {
   if (proposalResponse.status !== 200 || !proposalResponse.body) throw new V13SequencedFillError(404, "proposal was not found in user scope");
   const proposal = proposalResponse.body;
   const leg = proposal.legs[0];
+  const cnOrderedFixture = proposal.market === "CN_A" && leg?.securityId === "600000.SH" && [100, 200].includes(leg.quantity);
+  const usOrderedFixture = proposal.market === "US_EQUITY" && leg?.securityId === "AAPL" && leg.quantity === 200;
+  const cnPartialCancelFixture = proposal.market === "CN_A" && leg?.securityId === "600000.SH" && leg.quantity === 100;
   if (proposal.ownerId !== ownerId || proposal.testRunId !== testRunId || proposal.status !== "APPROVED_MANUAL"
-    || proposal.approvalMode !== "MANUAL_APPROVAL" || proposal.market !== "CN_A" || leg?.securityId !== "600000.SH"
-    || leg.side !== "BUY" || ![100, 200].includes(leg.quantity)) {
+    || proposal.approvalMode !== "MANUAL_APPROVAL" || (!cnOrderedFixture && !usOrderedFixture)
+    || leg?.side !== "BUY") {
     throw new V13SequencedFillError(403, "proposal is outside the fixed V1.3 sequenced Fixture");
   }
   const read = await ports.readOrder(run.namespace, clientOrderId);
@@ -196,13 +227,15 @@ export async function recordV13SequencedProposalFill(input: {
 
   const fillHash = createHash("sha256").update(`${orderId}:v13-sequence-${sequence}`).digest("hex").slice(0, 32);
   const externalFillId = `${fillHash.slice(0, 8)}-${fillHash.slice(8, 12)}-4${fillHash.slice(13, 16)}-a${fillHash.slice(17, 20)}-${fillHash.slice(20, 32)}`;
-  const partialCancelFixture = leg.quantity === 100;
+  const partialCancelFixture = cnPartialCancelFixture;
+  const fixedFillPrice = proposal.market === "US_EQUITY" ? "25.0000" : "10.0000";
+  const fixedFillFee = partialCancelFixture ? "1.0000" : proposal.market === "US_EQUITY" ? "0.0250" : "2.5000";
   const report: V13SequencedFillReport = {
     externalFillId,
     sequence,
     cumulativeQuantity: partialCancelFixture ? 40 : sequence === 1 ? 100 : 150,
-    price: "10.0000",
-    fee: partialCancelFixture ? "1.0000" : "2.5000",
+    price: fixedFillPrice,
+    fee: fixedFillFee,
     effectiveAt: new Date(Date.parse(String(run.evidence.runClockNow)) + sequence * 1000).toISOString(),
     evidenceRef: `v13-fixed-sequenced-fill:${testRunId}:${proposalId}:sequence-${sequence}`,
   };

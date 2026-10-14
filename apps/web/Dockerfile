@@ -8,10 +8,11 @@ COPY services/portfolio-risk-service/package.json services/portfolio-risk-servic
 COPY services/market-data-service/package.json services/market-data-service/package.json
 COPY services/quant-research-service/package.json services/quant-research-service/package.json
 COPY packages/contracts/generated packages/contracts/generated
+COPY packages/contracts/schemas/common packages/contracts/schemas/common
 COPY fixtures/v1/v1.3/manifest.json fixtures/v1/v1.3/manifest.json
 COPY fixtures/v1/v1.3/trading-loop-scenarios.json fixtures/v1/v1.3/trading-loop-scenarios.json
-COPY fixtures/v1/v1.3-multileg-v1.0.3/manifest.json fixtures/v1/v1.3-multileg-v1.0.3/manifest.json
-COPY fixtures/v1/v1.3-multileg-v1.0.3/trading-loop-scenarios.json fixtures/v1/v1.3-multileg-v1.0.3/trading-loop-scenarios.json
+COPY fixtures/v1/v1.3-multileg-v1.0.4/manifest.json fixtures/v1/v1.3-multileg-v1.0.4/manifest.json
+COPY fixtures/v1/v1.3-multileg-v1.0.4/trading-loop-scenarios.json fixtures/v1/v1.3-multileg-v1.0.4/trading-loop-scenarios.json
 COPY apps/web apps/web
 RUN --mount=type=cache,id=stockquant-pnpm-store,target=/pnpm/store,sharing=locked \
     corepack enable && pnpm install --store-dir /pnpm/store --frozen-lockfile --prod=false
@@ -28,3 +29,7 @@ RUN mkdir -p /workspace/apps/web/node_modules/.vite-temp && chown node:node /wor
 EXPOSE 8080
 USER node
 CMD ["sh", "-c", "cd apps/web && ./node_modules/.bin/vite preview --config vite.config.ts --host 0.0.0.0 --port 8080"]
+
+COPY fixtures/manifests/v13-us-ordered-fills.schema.json fixtures/manifests/v13-us-ordered-fills.schema.json
+COPY fixtures/v1/v1.3-us-ordered-fills-v1.0.0/manifest.json fixtures/v1/v1.3-us-ordered-fills-v1.0.0/manifest.json
+COPY fixtures/v1/v1.3-us-ordered-fills-v1.0.0/aapl-out-of-order-restart.json fixtures/v1/v1.3-us-ordered-fills-v1.0.0/aapl-out-of-order-restart.json

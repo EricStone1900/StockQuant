@@ -1,0 +1,32 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.3-us-synthetic-session-calendar",
+  "fixtureVersion": "v1.3-us-synthetic-session-1",
+  "stageId": "V1.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Authored synthetic V1 acceptance schedule; not sourced from or representative of an exchange calendar.",
+    "license": "Internal synthetic acceptance fixture; no external market data or broker access",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-11T00:00:00Z",
+  "semantics": {
+    "markets": ["US_EQUITY"],
+    "currencies": ["USD"],
+    "timezone": "America/New_York",
+    "prices": "Not a price dataset; open/close times are explicit synthetic fixture facts.",
+    "sessions": { "count": 6, "start": "2026-09-27", "end": "2026-10-02", "calendar": "Bounded synthetic US_EQUITY sessions and one explicitly closed Sunday; dates outside this schedule are UNKNOWN." },
+    "securities": { "US_EQUITY": 0 },
+    "qualityCases": ["market-local session clock normalization", "New York timezone conversion", "unknown dates fail closed", "not an exchange calendar"]
+  },
+  "files": [
+    { "path": "fixtures/v1/v1.3-us-synthetic-session-1/session-calendar.json", "sha256": "e9a658f7ad2d3bcb29fb96fc6bdbfcfaae8c74d72887975631f272628634948b", "mediaType": "application/json", "schemaRef": "https://stockquant.local/schemas/fixtures/us-synthetic-session-calendar.schema.json" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V1.3-US-CLOCK-001", "description": "Initial US_EQUITY account setup advances the Run Clock to the first explicit synthetic New York session." },
+    { "assertionId": "V1.3-US-CLOCK-002", "description": "Session advancement preserves New York wall time and fails closed when the bounded Fixture is exhausted." }
+  ]
+}

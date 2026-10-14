@@ -1,0 +1,30 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.3-us-ordered-fills",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V1.3",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Fixed US_EQUITY AAPL sequenced Fill/restart recovery acceptance input",
+    "license": "Internal synthetic fixture; no external market data or broker access",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-12T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v1/v1.3-us-ordered-fills-v1.0.0/aapl-out-of-order-restart.json",
+      "sha256": "7c6c81a3f7c1f7286a55f853285414a5e240e2ca2c54013e29aa87cb81bd38c0",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v13-us-ordered-fills.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V1.3-US-ORDERED-001",
+      "description": "AAPL 200-share fixed sequenced report buffers seq2, idempotently replays it 10 times, then restart recovery applies seq1 and drains seq2 to 150 shares, USD 6249.9500 cash, USD 5000.0500 reservation and MATCH."
+    }
+  ]
+}

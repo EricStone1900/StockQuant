@@ -1,0 +1,393 @@
+{
+  "evidenceVersion": "v2-stage-run-1",
+  "mode": {
+    "environmentMode": "PAPER",
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE"
+  },
+  "run": {
+    "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+    "stageId": "V1.5",
+    "scenarioId": "rejection",
+    "scenarioVersion": "1.1.0",
+    "ownerId": "acceptance-owner-1",
+    "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "assertions": [
+      {
+        "actual": [
+          {
+            "market": "CN_A",
+            "rejection": {
+              "error": "AUTO_POLICY Mandate rejected this Proposal",
+              "detail": {
+                "reasonCode": "MANDATE_INACTIVE"
+              }
+            },
+            "mandateStatus": "PAUSED",
+            "executionStatus": 403,
+            "rejectionReasonCode": "MANDATE_INACTIVE"
+          },
+          {
+            "market": "US_EQUITY",
+            "rejection": {
+              "error": "AUTO_POLICY Mandate rejected this Proposal",
+              "detail": {
+                "reasonCode": "MANDATE_INACTIVE"
+              }
+            },
+            "mandateStatus": "PAUSED",
+            "executionStatus": 403,
+            "rejectionReasonCode": "MANDATE_INACTIVE"
+          }
+        ],
+        "status": "PASS",
+        "expected": "CN and US AUTO proposals are rejected with Governance reason MANDATE_INACTIVE while their mandates are PAUSED",
+        "assertionId": "V1.5-OPS-PAUSE-001"
+      },
+      {
+        "actual": [
+          {
+            "market": "CN_A",
+            "rejection": {
+              "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+            },
+            "httpStatus": 422
+          },
+          {
+            "market": "US_EQUITY",
+            "rejection": {
+              "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+            },
+            "httpStatus": 422
+          }
+        ],
+        "status": "PASS",
+        "expected": "Governance rejects AUTO_POLICY Proposals whose market and currency do not match before persistence or Trade Execution",
+        "assertionId": "V1.5-XMK-CURRENCY-002"
+      },
+      {
+        "actual": [
+          {
+            "market": "CN_A",
+            "portfolio": {
+              "cash": {
+                "amount": "10000.0000",
+                "currency": "CNY"
+              },
+              "market": "CN_A",
+              "ownerId": "acceptance-owner-1",
+              "accountId": "7f52575a-cc13-4301-8c15-8c6308fc6300",
+              "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "positions": [],
+              "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "brokerMode": "FAKE",
+              "reservations": [],
+              "ledgerVersion": 1,
+              "positionCount": 0,
+              "environmentMode": "PAPER",
+              "ledgerEntryCount": 1,
+              "fixtureAccountRef": "v15-no-trade-CN_A-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "unsettledReceivables": []
+            },
+            "brokerSummary": {
+              "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "discrepancies": [],
+              "pending_outbox_count": 0,
+              "externalOnlyOrderCount": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          {
+            "market": "US_EQUITY",
+            "portfolio": {
+              "cash": {
+                "amount": "10000.0000",
+                "currency": "USD"
+              },
+              "market": "US_EQUITY",
+              "ownerId": "acceptance-owner-1",
+              "accountId": "42257fc4-de59-4a33-81b5-03142b902cbb",
+              "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "positions": [],
+              "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "brokerMode": "FAKE",
+              "reservations": [],
+              "ledgerVersion": 1,
+              "positionCount": 0,
+              "environmentMode": "PAPER",
+              "ledgerEntryCount": 1,
+              "fixtureAccountRef": "v15-no-trade-US_EQUITY-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "unsettledReceivables": []
+            },
+            "brokerSummary": {
+              "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+              "brokerMode": "FAKE",
+              "fill_count": 0,
+              "order_count": 0,
+              "discrepancies": [],
+              "pending_outbox_count": 0,
+              "externalOnlyOrderCount": 0,
+              "unresolved_order_count": 0
+            }
+          }
+        ],
+        "status": "PASS",
+        "expected": "No FakeBroker orders, fills, pending outbox, Portfolio position, or cash change in either market",
+        "assertionId": "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001"
+      }
+    ],
+    "evidence": {
+      "nats": "JETSTREAM_ACKED",
+      "seed": 20260907,
+      "fills": "NONE",
+      "orders": "NONE",
+      "dataMode": "FIXTURE",
+      "temporal": "COMPLETED",
+      "workflow": "TEMPORAL_COMPLETED",
+      "brokerMode": "FAKE",
+      "rejections": [
+        {
+          "market": "CN_A",
+          "mandateId": "4db8cca5-7935-51f5-b570-464999930f28",
+          "portfolio": {
+            "cash": {
+              "amount": "10000.0000",
+              "currency": "CNY"
+            },
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "7f52575a-cc13-4301-8c15-8c6308fc6300",
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "positions": [],
+            "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "reservations": [],
+            "ledgerVersion": 1,
+            "positionCount": 0,
+            "environmentMode": "PAPER",
+            "ledgerEntryCount": 1,
+            "fixtureAccountRef": "v15-no-trade-CN_A-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "unsettledReceivables": []
+          },
+          "rejection": {
+            "error": "AUTO_POLICY Mandate rejected this Proposal",
+            "detail": {
+              "reasonCode": "MANDATE_INACTIVE"
+            }
+          },
+          "proposalId": "f24718ed-c22a-4328-8461-4a41ba5c2745",
+          "brokerSummary": {
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "fill_count": 0,
+            "order_count": 0,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          },
+          "mandateStatus": "PAUSED",
+          "executionStatus": 403,
+          "crossCurrencyStatus": 422,
+          "rejectionReasonCode": "MANDATE_INACTIVE",
+          "crossCurrencyRejection": {
+            "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+          }
+        },
+        {
+          "market": "US_EQUITY",
+          "mandateId": "077de8f4-4d39-5f60-b9f6-00012b4a2299",
+          "portfolio": {
+            "cash": {
+              "amount": "10000.0000",
+              "currency": "USD"
+            },
+            "market": "US_EQUITY",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "42257fc4-de59-4a33-81b5-03142b902cbb",
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "positions": [],
+            "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "reservations": [],
+            "ledgerVersion": 1,
+            "positionCount": 0,
+            "environmentMode": "PAPER",
+            "ledgerEntryCount": 1,
+            "fixtureAccountRef": "v15-no-trade-US_EQUITY-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "unsettledReceivables": []
+          },
+          "rejection": {
+            "error": "AUTO_POLICY Mandate rejected this Proposal",
+            "detail": {
+              "reasonCode": "MANDATE_INACTIVE"
+            }
+          },
+          "proposalId": "e7a008ee-4935-4258-8878-fb4e6ec49d16",
+          "brokerSummary": {
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "fill_count": 0,
+            "order_count": 0,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          },
+          "mandateStatus": "PAUSED",
+          "executionStatus": 403,
+          "crossCurrencyStatus": 422,
+          "rejectionReasonCode": "MANDATE_INACTIVE",
+          "crossCurrencyRejection": {
+            "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+          }
+        }
+      ],
+      "evidenceScope": "TEMPORAL_PAUSED_MANDATE_REJECTION",
+      "fixtureSha256": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+      "fixtureVersion": "v1.5-no-trade-calendar-1",
+      "environmentMode": "PAPER",
+      "humanAcceptance": "NOT_RUN",
+      "businessExecution": "PAUSED_MANDATE_REJECTED",
+      "budgetReservations": "NONE",
+      "liveTradingEnabled": false
+    },
+    "createdAt": "2026-10-14T11:53:00.113Z",
+    "completedAt": "2026-10-14T11:53:05.758Z"
+  },
+  "assertions": [
+    {
+      "actual": [
+        {
+          "market": "CN_A",
+          "rejection": {
+            "error": "AUTO_POLICY Mandate rejected this Proposal",
+            "detail": {
+              "reasonCode": "MANDATE_INACTIVE"
+            }
+          },
+          "mandateStatus": "PAUSED",
+          "executionStatus": 403,
+          "rejectionReasonCode": "MANDATE_INACTIVE"
+        },
+        {
+          "market": "US_EQUITY",
+          "rejection": {
+            "error": "AUTO_POLICY Mandate rejected this Proposal",
+            "detail": {
+              "reasonCode": "MANDATE_INACTIVE"
+            }
+          },
+          "mandateStatus": "PAUSED",
+          "executionStatus": 403,
+          "rejectionReasonCode": "MANDATE_INACTIVE"
+        }
+      ],
+      "status": "PASS",
+      "expected": "CN and US AUTO proposals are rejected with Governance reason MANDATE_INACTIVE while their mandates are PAUSED",
+      "assertionId": "V1.5-OPS-PAUSE-001"
+    },
+    {
+      "actual": [
+        {
+          "market": "CN_A",
+          "rejection": {
+            "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+          },
+          "httpStatus": 422
+        },
+        {
+          "market": "US_EQUITY",
+          "rejection": {
+            "error": "proposal must be a valid PAPER/FAKE HOLD or REBALANCE with bounded expiry and legs"
+          },
+          "httpStatus": 422
+        }
+      ],
+      "status": "PASS",
+      "expected": "Governance rejects AUTO_POLICY Proposals whose market and currency do not match before persistence or Trade Execution",
+      "assertionId": "V1.5-XMK-CURRENCY-002"
+    },
+    {
+      "actual": [
+        {
+          "market": "CN_A",
+          "portfolio": {
+            "cash": {
+              "amount": "10000.0000",
+              "currency": "CNY"
+            },
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "7f52575a-cc13-4301-8c15-8c6308fc6300",
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "positions": [],
+            "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "reservations": [],
+            "ledgerVersion": 1,
+            "positionCount": 0,
+            "environmentMode": "PAPER",
+            "ledgerEntryCount": 1,
+            "fixtureAccountRef": "v15-no-trade-CN_A-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "unsettledReceivables": []
+          },
+          "brokerSummary": {
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "fill_count": 0,
+            "order_count": 0,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          }
+        },
+        {
+          "market": "US_EQUITY",
+          "portfolio": {
+            "cash": {
+              "amount": "10000.0000",
+              "currency": "USD"
+            },
+            "market": "US_EQUITY",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "42257fc4-de59-4a33-81b5-03142b902cbb",
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "positions": [],
+            "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "reservations": [],
+            "ledgerVersion": 1,
+            "positionCount": 0,
+            "environmentMode": "PAPER",
+            "ledgerEntryCount": 1,
+            "fixtureAccountRef": "v15-no-trade-US_EQUITY-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "unsettledReceivables": []
+          },
+          "brokerSummary": {
+            "namespace": "v1-5-rejection-f060fa86-0fe5-4322-9fc1-8fa6a6f30890",
+            "brokerMode": "FAKE",
+            "fill_count": 0,
+            "order_count": 0,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          }
+        }
+      ],
+      "status": "PASS",
+      "expected": "No FakeBroker orders, fills, pending outbox, Portfolio position, or cash change in either market",
+      "assertionId": "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001"
+    }
+  ],
+  "manualConclusion": "NOT_RUN",
+  "stageId": "V1.5",
+  "testRunId": "f060fa86-0fe5-4322-9fc1-8fa6a6f30890"
+}

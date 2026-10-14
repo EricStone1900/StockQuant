@@ -4,6 +4,7 @@ export interface AccountRepository {
   initialize(command: InitializeAccountCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }>;
   snapshot(accountId: string, ownerId: string): Promise<AccountSnapshot | null>;
   accountExists(accountId: string): Promise<boolean>;
+  settleDue(accountId: string, asOf: string): Promise<{ settledFillIds: string[] }>;
   recordFill(command: RecordFillCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }>;
   correctFillFee(command: CorrectFillFeeCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }>;
   reserveResource(command: ReserveResourceCommand): Promise<{ reservation: ResourceReservation; replayed: boolean }>;

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v11-acceptance-run.schema.json",
+  "title": "V11AcceptanceRun",
+  "description": "Owner-scoped V1.1 Platform acceptance view. This is a public API projection, not the shared cross-service TestRun record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "namespace", "ownerId", "status", "seed", "accountId", "createdAt", "completedAt", "error", "assertions"],
+  "properties": {
+    "testRunId": { "type": "string", "format": "uuid" },
+    "stageId": { "const": "V1.1" },
+    "scenarioId": { "enum": ["normal", "rejection", "recovery"] },
+    "scenarioVersion": { "const": "1.0.0" },
+    "namespace": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["QUEUED", "RUNNING", "WAITING", "COMPLETED", "FAILED"] },
+    "seed": { "type": "integer", "minimum": 0 },
+    "accountId": { "type": ["string", "null"], "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" },
+    "error": { "type": ["string", "null"] },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assertionId", "status", "expected", "actual", "evidence"],
+        "properties": {
+          "assertionId": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "WAITING"] },
+          "expected": {},
+          "actual": {},
+          "evidence": { "type": "object", "additionalProperties": true }
+        }
+      }
+    }
+  }
+}

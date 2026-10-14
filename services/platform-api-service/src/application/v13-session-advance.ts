@@ -1,4 +1,4 @@
-import { resolveNextV13CnSession, V13SessionClockError, type V13FixtureCalendarDay } from "./v13-session-clock.js";
+import { readV13UsSyntheticCalendarDay, resolveNextV13CnSession, resolveNextV13UsSession, V13SessionClockError, type V13FixtureCalendarDay } from "./v13-session-clock.js";
 import type { AccountSnapshot } from "../contracts/generated-types.js";
 import type { StageRunRepository, StoredStageRun, V13SessionAdvance } from "../ports/stage-run-repository.js";
 
@@ -8,6 +8,11 @@ export type V13IndependentAssets = {
   currency?: string;
   current_cash?: string;
   positions?: Array<{ security: string; quantity: number }>;
+  unsettledReceivables?: Array<{
+    fillId: string; amount: string; currency: string; tradeDate: string;
+    settlementDate: string | null; calendarVersion: string;
+    settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" | null; status: "PENDING" | "SETTLED";
+  }>;
 };
 
 export type V13ReconciliationSummary = {
@@ -28,6 +33,7 @@ export interface V13SessionAdvancePorts {
   readAccount(accountId: string, ownerId: string): Promise<AccountSnapshot>;
   readReconciliation(namespace: string): Promise<V13ReconciliationSummary>;
   readIndependentAssets(namespace: string, accountId: string): Promise<V13IndependentAssets>;
+  settleDue(namespace: string, accountId: string, asOf: string, ownerId: string, testRunId: string): Promise<void>;
   readCalendarDay(date: string): Promise<V13FixtureCalendarDay>;
 }
 
@@ -46,10 +52,11 @@ export class V13SessionAdvanceService {
       throw new V13SessionAdvanceError(404, "V1.3 TestRun or its injected Clock was not found in user scope");
     }
     if (!accountId.trim() || !expectedClock.trim()) throw new V13SessionAdvanceError(422, "accountId and expectedClock are required");
-    if (expectedClock !== run.evidence.runClockNow) {
-      const prior = (await this.ports.runs.listV13SessionAdvances(testRunId, ownerId))
-        .find((event) => Date.parse(event.fromClock) === Date.parse(expectedClock));
-      if (prior) return { event: prior, run, reconciliation: { status: "MATCH" }, replayed: true };
+    const priorReplay = expectedClock !== run.evidence.runClockNow
+      ? (await this.ports.runs.listV13SessionAdvances(testRunId, ownerId))
+        .find((event) => Date.parse(event.fromClock) === Date.parse(expectedClock))
+      : undefined;
+    if (expectedClock !== run.evidence.runClockNow && !priorReplay) {
       throw new V13SessionAdvanceError(409, "V1.3 Fixture clock changed before the requested session advance");
     }
 
@@ -59,11 +66,13 @@ export class V13SessionAdvanceService {
       if (error instanceof V13SessionAdvanceError) throw error;
       throw new V13SessionAdvanceError(503, "could not read the V1.3 Portfolio account before advancing its Fixture Clock");
     }
-    if (account.testRunId !== testRunId || account.namespace !== run.namespace || account.market !== "CN_A" || account.environmentMode !== "PAPER" || account.brokerMode !== "FAKE") {
-      throw new V13SessionAdvanceError(403, "V1.3 session advancement requires a CN_A PAPER/FAKE account in this TestRun");
+    if (account.ownerId !== ownerId || account.testRunId !== testRunId || account.namespace !== run.namespace || !["CN_A", "US_EQUITY"].includes(account.market) || account.environmentMode !== "PAPER" || account.brokerMode !== "FAKE") {
+      throw new V13SessionAdvanceError(403, "V1.3 session advancement requires a supported PAPER/FAKE account in this TestRun");
     }
-    if (!(account.positions ?? []).some((position) => position.quantity > 0)) {
-      throw new V13SessionAdvanceError(409, "V1.3 session advancement requires a persisted position");
+    const hasPosition = (account.positions ?? []).some((position) => position.quantity > 0);
+    const hasPendingReceivable = account.unsettledReceivables.some((receivable) => receivable.status === "PENDING");
+    if (!hasPosition && !hasPendingReceivable) {
+      throw new V13SessionAdvanceError(409, "V1.3 session advancement requires a persisted position or pending sell receivable");
     }
     if ((account.reservations ?? []).some((reservation) => reservation.status === "HELD")) {
       throw new V13SessionAdvanceError(409, "V1.3 session advancement is blocked while a Portfolio resource reservation is HELD");
@@ -79,6 +88,20 @@ export class V13SessionAdvanceService {
     let assets: V13IndependentAssets;
     try { assets = await this.ports.readIndependentAssets(run.namespace, accountId); }
     catch { throw new V13SessionAdvanceError(503, "V1.3 independent FakeBroker asset ledger is unavailable"); }
+    if (assets.owner_id !== ownerId || assets.test_run_id !== testRunId) {
+      throw new V13SessionAdvanceError(403, "V1.3 FakeBroker settlement account is outside the TestRun owner scope");
+    }
+    if (priorReplay) {
+      try {
+        await this.ports.settleDue(run.namespace, accountId, String(run.evidence.runClockNow), ownerId, testRunId);
+        account = await this.ports.readAccount(accountId, ownerId);
+        assets = await this.ports.readIndependentAssets(run.namespace, accountId);
+      } catch { throw new V13SessionAdvanceError(503, "V1.3 due receivables could not be settled on both independent books; retry the same session advance"); }
+      if (account.ownerId !== ownerId || account.testRunId !== testRunId || account.namespace !== run.namespace
+        || assets.owner_id !== ownerId || assets.test_run_id !== testRunId) {
+        throw new V13SessionAdvanceError(403, "V1.3 settlement retry returned assets outside the TestRun owner scope");
+      }
+    }
     const normalizeMoney = (value: string) => {
       if (!/^-?\d+(?:\.\d+)?$/u.test(value)) return null;
       const [whole, fraction = ""] = value.split(".");
@@ -90,13 +113,37 @@ export class V13SessionAdvanceService {
       && normalizeMoney(assets.current_cash) !== null && normalizeMoney(account.cash.amount) !== null
       && normalizeMoney(assets.current_cash) === normalizeMoney(account.cash.amount);
     const positionsMatch = JSON.stringify(portfolioPositions) === JSON.stringify(brokerPositions);
-    if (assets.owner_id !== ownerId || assets.test_run_id !== testRunId || !cashMatches || !positionsMatch) {
+    const normalizeReceivables = (receivables: typeof account.unsettledReceivables | undefined) => {
+      if (!Array.isArray(receivables)) return null;
+      return receivables.map((receivable) => ({
+        fillId: receivable.fillId,
+        amount: normalizeMoney(receivable.amount),
+        currency: receivable.currency,
+        tradeDate: receivable.tradeDate,
+        settlementDate: receivable.settlementDate,
+        calendarVersion: receivable.calendarVersion,
+        status: receivable.status,
+      })).sort((left, right) => left.fillId.localeCompare(right.fillId));
+    };
+    const portfolioReceivables = normalizeReceivables(account.unsettledReceivables);
+    const brokerReceivables = normalizeReceivables(assets.unsettledReceivables);
+    const receivablesMatch = portfolioReceivables !== null && brokerReceivables !== null
+      && JSON.stringify(portfolioReceivables) === JSON.stringify(brokerReceivables);
+    if (!cashMatches || !positionsMatch || !receivablesMatch) {
       throw new V13SessionAdvanceError(409, "V1.3 session advancement requires FakeBroker and Portfolio account assets to MATCH");
     }
 
+    if (priorReplay) {
+      return { event: priorReplay, run, reconciliation: { status: "MATCH", ...reconciliation }, replayed: true };
+    }
+
     try {
-      const resolved = await resolveNextV13CnSession(run.evidence.runClockNow, this.ports.readCalendarDay);
+      const resolved = account.market === "US_EQUITY"
+        ? await resolveNextV13UsSession(run.evidence.runClockNow, readV13UsSyntheticCalendarDay)
+        : await resolveNextV13CnSession(run.evidence.runClockNow, this.ports.readCalendarDay);
       const advanced = await this.ports.runs.advanceV13Session({ testRunId, ownerId, expectedClock, nextClock: resolved.clock, calendarVersion: resolved.calendarVersion });
+      try { await this.ports.settleDue(run.namespace, accountId, String(advanced.run.evidence.runClockNow), ownerId, testRunId); }
+      catch { throw new V13SessionAdvanceError(503, "V1.3 session clock advanced, but due receivables could not be settled on both books; retry the same request"); }
       return { event: advanced.event, run: advanced.run, reconciliation: { status: "MATCH", ...reconciliation }, replayed: advanced.replayed };
     } catch (error) {
       if (error instanceof V13SessionAdvanceError) throw error;

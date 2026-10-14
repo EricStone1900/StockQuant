@@ -252,7 +252,7 @@ describe("V1.5 AUTO fixture execution", () => {
     let saved: unknown;
     const marketResult = (market: "CN_A" | "US_EQUITY") => ({ market, crossCurrencyStatus: 422, crossCurrencyRejection: { error: "market/currency mismatch" }, proposalId: `proposal-${market}`, mandateId: `mandate-${market}`, mandateStatus: "PAUSED", executionStatus: 403, rejection: { error: "AUTO_POLICY Mandate rejected this Proposal" }, portfolio: {}, brokerSummary: {} });
     await completeV15PausedRejection(input, [marketResult("CN_A"), marketResult("US_EQUITY")], vi.fn(async (run) => { saved = run; return run; }));
-    expect(saved).toMatchObject({ scenarioId: "rejection", scenarioVersion: "1.1.0", assertions: [{ assertionId: "V1.5-OPS-PAUSE-001", status: "PASS" }, { assertionId: "V1.5-XMK-CURRENCY-002", status: "PASS" }, { assertionId: "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001", status: "PASS" }] });
+    expect(saved).toMatchObject({ status: "COMPLETED", scenarioId: "rejection", scenarioVersion: "1.1.0", evidence: { environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE" }, assertions: [{ assertionId: "V1.5-OPS-PAUSE-001", status: "PASS" }, { assertionId: "V1.5-XMK-CURRENCY-002", status: "PASS" }, { assertionId: "V1.5-REJECTION-ZERO-SIDE-EFFECTS-001", status: "PASS" }] });
   });
 
   it("does not report completion when Fill or its Outbox is missing", async () => {
@@ -285,7 +285,7 @@ describe("V1.5 AUTO fixture execution", () => {
         : { status: 200, body: { owner_id: command.ownerId, test_run_id: command.testRunId, currency: "USD", current_cash: "9749.90", positions: [{ security: "AAPL", quantity: 10 }] } }),
       saveRun: vi.fn(async (run) => { saved = run; return run; })
     });
-    expect(saved).toMatchObject({ status: "WAITING", assertions: [{ status: "PASS" }, { status: "PASS" }, { assertionId: "V1.5-AUTO-TERMINAL-RECON-001", status: "PASS" }, { assertionId: "V1.5-AUTO-EOD-RECON-001", status: "PASS" }, { assertionId: "V1.5-AUTO-MISSED-WINDOW-001", status: "PASS" }], evidence: { workflowCompletionReconciliation: { status: "MATCH", source: "FRESH_OWNER_AND_TESTRUN_SCOPED_PORTFOLIO_AND_FAKEBROKER_READS" }, dailyEndOfDay: { status: "MATCH", clockSource: "VERSIONED_AUTO_TRADE_FIXTURE_SESSION_CLOSE", sessionsPerMarket: 3, executedSessionsPerMarket: 2 }, missedWindowRecovery: { status: "RECOVERED" }, multiSessionObservation: "NOT_RUN", humanAcceptance: "NOT_RUN" } });
+    expect(saved).toMatchObject({ status: "COMPLETED", assertions: [{ status: "PASS" }, { status: "PASS" }, { assertionId: "V1.5-AUTO-TERMINAL-RECON-001", status: "PASS" }, { assertionId: "V1.5-AUTO-EOD-RECON-001", status: "PASS" }, { assertionId: "V1.5-AUTO-MISSED-WINDOW-001", status: "PASS" }], evidence: { environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE", workflowCompletionReconciliation: { status: "MATCH", source: "FRESH_OWNER_AND_TESTRUN_SCOPED_PORTFOLIO_AND_FAKEBROKER_READS" }, dailyEndOfDay: { status: "MATCH", clockSource: "VERSIONED_AUTO_TRADE_FIXTURE_SESSION_CLOSE", sessionsPerMarket: 3, executedSessionsPerMarket: 2 }, missedWindowRecovery: { status: "RECOVERED" }, multiSessionObservation: "NOT_RUN", humanAcceptance: "NOT_RUN" } });
   });
 
   it("records a partial FakeBroker Fill, accepted cancellation and released remainder while leaving full AUTO acceptance waiting", async () => {

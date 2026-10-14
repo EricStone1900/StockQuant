@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/v1/v13-us-ordered-fills.schema.json",
+  "title": "V13UsOrderedFillsFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixtureId",
+    "fixtureVersion",
+    "stageId",
+    "market",
+    "security",
+    "currency",
+    "account",
+    "proposal",
+    "eventSequence",
+    "expected"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "fixtureId": {
+      "const": "v1.3-us-ordered-fills"
+    },
+    "fixtureVersion": {
+      "const": "1.0.0"
+    },
+    "stageId": {
+      "const": "V1.3"
+    },
+    "market": {
+      "const": "US_EQUITY"
+    },
+    "security": {
+      "const": "AAPL"
+    },
+    "currency": {
+      "const": "USD"
+    },
+    "account": {
+      "type": "object",
+      "required": [
+        "initialCash"
+      ],
+      "properties": {
+        "initialCash": {
+          "const": "10000.0000"
+        }
+      },
+      "additionalProperties": false
+    },
+    "proposal": {
+      "type": "object",
+      "required": [
+        "approvalMode",
+        "side",
+        "quantity",
+        "price",
+        "feePerFill"
+      ],
+      "properties": {
+        "approvalMode": {
+          "const": "MANUAL_APPROVAL"
+        },
+        "side": {
+          "const": "BUY"
+        },
+        "quantity": {
+          "const": 200
+        },
+        "price": {
+          "const": "25.0000"
+        },
+        "feePerFill": {
+          "const": "0.0250"
+        }
+      },
+      "additionalProperties": false
+    },
+    "eventSequence": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object"
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": [
+        "fills",
+        "orderStatus",
+        "position",
+        "cash",
+        "reservedCash",
+        "reconciliation"
+      ],
+      "properties": {
+        "fills": {
+          "const": [
+            {
+              "sequence": 1,
+              "quantity": 100
+            },
+            {
+              "sequence": 2,
+              "quantity": 50
+            }
+          ]
+        },
+        "orderStatus": {
+          "const": "PARTIALLY_FILLED"
+        },
+        "position": {
+          "const": 150
+        },
+        "cash": {
+          "const": "6249.9500"
+        },
+        "reservedCash": {
+          "const": "5000.0500"
+        },
+        "reconciliation": {
+          "const": "MATCH"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

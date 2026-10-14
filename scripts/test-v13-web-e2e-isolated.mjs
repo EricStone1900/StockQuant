@@ -84,6 +84,7 @@ try {
     ["AUTO_POLICY execution", "POST", `/api/v1/acceptance/v1/v1.3/runs/${unauthorizedRunId}/proposals/${unauthorizedProposalId}/auto-execution/submit`, {}],
     ["proposal order read", "GET", `/api/v1/acceptance/v1/v1.3/runs/${unauthorizedRunId}/proposals/${unauthorizedProposalId}/orders/${unauthorizedOrderId}`, undefined],
     ["TestRun read", "GET", `/api/v1/acceptance/v1/v1.3/runs/${unauthorizedRunId}`, undefined],
+    ["normal scenario business verification", "POST", `/api/v1/acceptance/v1/v1.3/runs/${unauthorizedRunId}/verify-normal`, { proposalId: unauthorizedProposalId, clientOrderId: unauthorizedOrderId }],
     ["account snapshot", "GET", `/api/v1/accounts/${unauthorizedRunId}`, undefined],
   ];
   const platformSource = readFileSync("services/platform-api-service/src/bootstrap/app.module.ts", "utf8");
@@ -94,7 +95,7 @@ try {
   const controllerSource = platformSource.slice(controllerStart, controllerEnd < 0 ? undefined : controllerEnd);
   const declaredRoutes = [...controllerSource.matchAll(/@(Get|Post|Patch|Put|Delete)\("([^"]+)"\)/gu)]
     .map(([, verb, path]) => ({ method: verb.toUpperCase(), path: `/api/v1/acceptance/v1/v1.3/${path}` }));
-  assert.equal(declaredRoutes.length, 26, "update the Platform identity route inventory when V1.3 controller operations change");
+  assert.equal(declaredRoutes.length, 27, "update the Platform identity route inventory when V1.3 controller operations change");
   const routeMatches = (pattern, actual) => new RegExp(`^${pattern.split("/").map((segment) => segment.startsWith(":") ? "[^/]+" : segment.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("/")}$`, "u").test(actual);
   for (const declared of declaredRoutes) {
     const probes = apiAuthCases.filter(([label, method, route]) => method === declared.method && routeMatches(declared.path, route));

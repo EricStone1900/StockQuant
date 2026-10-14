@@ -184,6 +184,24 @@ export class PostgresStageRunRepository implements StageRunRepository, V14Backte
     }));
   }
 
+  async findV15RunByFillId(ownerId: string, externalFillId: string): Promise<StoredStageRun | null> {
+    if (!ownerId || !externalFillId || externalFillId.length > 200) throw new UnprocessableEntityException("owner and bounded externalFillId are required");
+    const result = await this.pool.query(
+      `SELECT * FROM acceptance_stage_runs r
+       WHERE r.stage_id='V1.5' AND r.owner_id=$1
+         AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(
+             CASE WHEN jsonb_typeof(r.evidence->'orders')='array' THEN r.evidence->'orders' ELSE '[]'::jsonb END
+           ) AS order_trace
+           WHERE order_trace->'fill'->>'externalFillId'=$2 OR order_trace->>'fillId'=$2
+         )
+       ORDER BY r.created_at DESC, r.test_run_id DESC LIMIT 2`,
+      [ownerId, externalFillId]
+    );
+    if ((result.rowCount ?? 0) > 1) throw new ConflictException("external Fill ID is ambiguous in this user's V1.5 runs");
+    return result.rows.length === 1 ? this.row(result.rows[0]) : null;
+  }
+
   async projectV15RunIncidents(testRunId: string, ownerId: string): Promise<V15RunIncident[]> {
     const client = await this.pool.connect();
     try {
@@ -310,7 +328,7 @@ export class PostgresStageRunRepository implements StageRunRepository, V14Backte
       if (previous.status !== "WAITING") throw new ConflictException("only a WAITING V1.3 TestRun can advance its Fixture clock");
       const currentClock = previous.evidence.runClockNow;
       if (typeof currentClock !== "string" || currentClock !== input.expectedClock) throw new ConflictException("V1.3 Fixture clock changed before the requested session advance");
-      if (!/^sse-cn-a-share-2026-1$/u.test(input.calendarVersion)) throw new ConflictException("V1.3 Fixture session calendar version is unsupported");
+      if (!/^(?:sse-cn-a-share-2026-1|v1\.3-us-synthetic-session-1)$/u.test(input.calendarVersion)) throw new ConflictException("V1.3 Fixture session calendar version is unsupported");
       const next = Date.parse(input.nextClock);
       const current = Date.parse(input.expectedClock);
       if (!Number.isFinite(next) || !Number.isFinite(current) || next <= current) throw new ConflictException("V1.3 Fixture clock must advance monotonically");

@@ -168,6 +168,47 @@ export class PostgresTestRunRepository implements TestRunRepository {
     );
   }
 
+  async transitionStatus(testRunId: string, from: TestRunStatus, to: TestRunStatus, accountId: string | null = null, error: string | null = null): Promise<boolean> {
+    if (this.storageMode === "stage") {
+      const client = await this.pool.connect();
+      try {
+        await client.query("BEGIN");
+        const legacy = await client.query(
+          `UPDATE test_runs SET status=$3, account_id=COALESCE($4,account_id), error=$5,
+             completed_at=CASE WHEN $3 IN ('COMPLETED','FAILED') THEN now() ELSE NULL END
+           WHERE test_run_id=$1 AND status=$2 RETURNING account_id`,
+          [testRunId, from, to, accountId, error]
+        );
+        if (legacy.rowCount === 0) {
+          await client.query("COMMIT");
+          return false;
+        }
+        const stage = await client.query(
+          `UPDATE acceptance_stage_runs SET status=$3,
+             evidence=evidence || jsonb_build_object('legacyAccountId',$4::text,'legacyError',$5::text),
+             completed_at=CASE WHEN $3 IN ('COMPLETED','FAILED') THEN now() ELSE NULL END
+           WHERE test_run_id=$1 AND stage_id='V1.1' AND status=$2 RETURNING test_run_id`,
+          [testRunId, from, to, legacy.rows[0].account_id, error]
+        );
+        if (stage.rowCount !== 1) throw new Error("unified V1.1 TestRun status diverged during atomic transition");
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+    const result = await this.pool.query(
+      `UPDATE test_runs SET status=$3, account_id=COALESCE($4,account_id), error=$5,
+         completed_at=CASE WHEN $3 IN ('COMPLETED','FAILED') THEN now() ELSE NULL END
+       WHERE test_run_id=$1 AND status=$2`,
+      [testRunId, from, to, accountId, error]
+    );
+    return result.rowCount === 1;
+  }
+
   async replaceAssertions(testRunId: string, assertions: TestAssertion[]): Promise<void> {
     const client = await this.pool.connect();
     try {

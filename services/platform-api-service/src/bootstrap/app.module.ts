@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { PostgresTestRunRepository } from "../adapters/postgres-test-run-repository.js";
+import type { V11AcceptanceRun } from "../contracts/generated-types.js";
 import { PostgresStageRunRepository } from "../adapters/postgres-stage-run-repository.js";
 import { V14QuantBacktestAdapter } from "../adapters/v14-quant-backtest-adapter.js";
 import { GeneratedQuantV14BacktestClient } from "../contracts/generated-quant-v14-backtest-client.js";
@@ -37,6 +38,7 @@ import { V12AcceptanceService, V12_SCENARIOS, type V12Scenario } from "../applic
 import { PersistentStageRunService } from "../application/persistent-stage-run.js";
 import { V14BacktestRunService } from "../application/v14-backtest-run.js";
 import { V13SessionAdvanceError, V13SessionAdvanceService } from "../application/v13-session-advance.js";
+import { readV13UsSyntheticCalendarDay, resolveFirstV13UsSession } from "../application/v13-session-clock.js";
 import { executeV13AutoProposal, V13AutoExecutionError } from "../application/v13-auto-execution.js";
 import { executeV13ManualProposal, V13ManualExecutionError } from "../application/v13-manual-execution.js";
 import { decideV13Proposal, V13ProposalDecisionError } from "../application/v13-proposal-decision.js";
@@ -348,7 +350,7 @@ export class PlatformController {
     @Headers("cookie") cookie: string | undefined,
     @Headers("x-stockquant-user") testHeader: string | undefined,
     @Param("testRunId") testRunId: string
-  ) {
+  ): Promise<V11AcceptanceRun> {
     const run = await this.container.repository.find(testRunId, identity(cookie, testHeader));
     if (!run) throw new NotFoundException("test run was not found in user scope");
     return { ...run, assertions: await this.container.repository.assertions(testRunId) };
@@ -458,9 +460,13 @@ export class V13AcceptanceController {
       readIndependentAssets: async (namespace, accountId) => {
         const response = await new GeneratedPlatformV13ManualTradeClient(container.tradeExecutionUrl, container.portfolioToken).readIndependentAssets(namespace, accountId);
         if (response.status !== 200 || !response.body || typeof response.body !== "object") throw new Error(`FakeBroker asset ledger read failed (${response.status})`);
-        return response.body as { owner_id?: string; test_run_id?: string; currency?: string; current_cash?: string; positions?: Array<{ security: string; quantity: number }> };
+        return response.body as { owner_id?: string; test_run_id?: string; currency?: string; current_cash?: string; positions?: Array<{ security: string; quantity: number }>; unsettledReceivables?: Array<{ fillId: string; amount: string; currency: string; tradeDate: string; settlementDate: string | null; calendarVersion: string; settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" | null; status: "PENDING" | "SETTLED" }> };
       },
       readCalendarDay: (date) => this.fixtureCalendar.getCnAShareCalendarSession(date),
+      settleDue: async (namespace, accountId, asOf, ownerId, testRunId) => {
+        const response = await new GeneratedPlatformV13ManualTradeClient(container.tradeExecutionUrl, container.portfolioToken).settleForSession({ namespace, accountId, asOf, ownerId, testRunId });
+        if (response.status !== 200) throw new Error(`V1.3 settlement failed (${response.status})`);
+      },
     });
   }
   @Get("scenarios") scenarios(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return V13_SCENARIOS; }
@@ -486,7 +492,16 @@ export class V13AcceptanceController {
       if (error instanceof PortfolioAccountClientError && error.status === 409) throw new ConflictException("V1.3 account initialization conflicts with an existing command");
       throw new ServiceUnavailableException("V1.3 isolated Portfolio account initialization failed");
     });
-    return { linkedTestRunId: testRunId, ownerId, replayed: account.replayed, account: account.snapshot, brokerMode: "FAKE", environmentMode: "PAPER" };
+    let initializedRun = run;
+    let initializationAdvance: import("../ports/stage-run-repository.js").V13SessionAdvance | null = null;
+    if (body.market === "US_EQUITY" && run.evidence.calendarVersion !== "v1.3-us-synthetic-session-1") {
+      const clock = String(run.evidence.runClockNow);
+      const firstSession = await resolveFirstV13UsSession(clock, readV13UsSyntheticCalendarDay);
+      const advanced = await this.container.stageRuns.advanceV13Session({ testRunId, ownerId, expectedClock: clock, nextClock: firstSession.clock, calendarVersion: firstSession.calendarVersion });
+      initializedRun = advanced.run;
+      initializationAdvance = advanced.event;
+    }
+    return { linkedTestRunId: testRunId, ownerId, replayed: account.replayed, account: account.snapshot, run: initializedRun, initializationAdvance, brokerMode: "FAKE", environmentMode: "PAPER" };
   }
   @Get("runs/:testRunId/clock")
   async readV13SessionClock(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string) {
@@ -844,9 +859,10 @@ export class V13AcceptanceController {
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/cancel-results/:sequence") @HttpCode(200)
   async resolveL07SequencedCancel(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string, @Param("sequence") sequenceText: string, @Body() body?: unknown) {
-    rejectUnexpectedBody(body, "sequenced cancel result");
     const ownerId = identity(cookie, testHeader);
-    try { return await resolveV13L07SequencedCancel({ ownerId, testRunId, proposalId, clientOrderId, sequence: Number(sequenceText) }, this.v13CancelPorts(cookie, testHeader)); }
+    if (body !== undefined && (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1)) rejectUnexpectedBody(body, "sequenced cancel result");
+    if (body !== undefined && !["ACCEPTED", "REJECTED"].includes((body as { outcome?: string }).outcome ?? "")) throw new UnprocessableEntityException("sequenced cancel result outcome must be ACCEPTED or REJECTED");
+    try { return await resolveV13L07SequencedCancel({ ownerId, testRunId, proposalId, clientOrderId, sequence: Number(sequenceText), outcome: (body as { outcome?: "ACCEPTED" | "REJECTED" } | undefined)?.outcome }, this.v13CancelPorts(cookie, testHeader)); }
     catch (error) { this.mapV13OrderCancelError(error); }
   }
   @Post("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId/cancel-partial-fill") @HttpCode(200)
@@ -892,7 +908,7 @@ export class V13AcceptanceController {
     }
   }
   @Get("runs/:testRunId/proposals/:proposalId/orders/:clientOrderId")
-  async readProposalOrder(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string) {
+  async readProposalOrder(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Param("proposalId") proposalId: string, @Param("clientOrderId") clientOrderId: string): Promise<Record<string, any>> {
     const ownerId = identity(cookie, testHeader);
     const run = await this.container.stageRuns.find(testRunId, ownerId);
     if (!run || run.stageId !== "V1.3") throw new NotFoundException("V1.3 TestRun was not found in user scope");
@@ -987,6 +1003,42 @@ export class V13AcceptanceController {
   private autoMandateClient() { return new GeneratedPlatformV13AutoMandateClient(this.container.governanceUrl, this.container.portfolioToken); }
   private portfolioAccountClient() { return new GeneratedPortfolioAccountClient(this.container.portfolioApiUrl, "platform-api-service", this.container.portfolioToken); }
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) { const run = await this.service.find(id, identity(cookie, testHeader)); if (!run || run.stageId !== "V1.3") throw new NotFoundException("V1.3 run was not found in user scope"); return run; }
+
+  @Post("runs/:testRunId/verify-normal") @HttpCode(200)
+  async verifyNormalRun(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body: { proposalId?: string; clientOrderId?: string }) {
+    rejectClientTradingMode(body);
+    rejectClientOwnedV13Facts(body);
+    rejectUnexpectedFields(body, ["proposalId", "clientOrderId"], "V1.3 normal scenario verification");
+    if (typeof body.proposalId !== "string" || typeof body.clientOrderId !== "string" || body.proposalId.length > 100 || body.clientOrderId.length > 200) throw new UnprocessableEntityException("proposalId and bounded clientOrderId are required");
+    const ownerId = identity(cookie, testHeader);
+    const run = await this.container.stageRuns.find(testRunId, ownerId);
+    if (!run || run.stageId !== "V1.3" || run.scenarioId !== "normal") throw new NotFoundException("V1.3 normal TestRun was not found in user scope");
+    if (run.status !== "WAITING") {
+      if (run.status === "COMPLETED" && run.evidence.businessExecution === "MANUAL_FILL_VERIFIED" && run.evidence.verifiedProposalId === body.proposalId && run.evidence.verifiedClientOrderId === body.clientOrderId) return run;
+      throw new ConflictException("only a WAITING V1.3 normal TestRun can be completed by business verification");
+    }
+    const proposalResponse = await this.v13ProposalClient().readProposal(body.proposalId, ownerId);
+    if (proposalResponse.status !== 200 || !proposalResponse.body || !("proposalId" in proposalResponse.body)) throw new NotFoundException("proposal was not found in user scope");
+    const proposal = proposalResponse.body as V13ProposalResult;
+    if (proposal.ownerId !== ownerId || proposal.testRunId !== testRunId || proposal.status !== "APPROVED_MANUAL" || proposal.market !== "CN_A" || proposal.currency !== "CNY") throw new ConflictException("normal verification requires this TestRun's manually approved CN_A Fixture proposal");
+    const facts = await this.readProposalOrder(cookie, testHeader, testRunId, body.proposalId, body.clientOrderId);
+    const filledQuantity = Number(facts.fill?.quantity);
+    const positions = facts.reconciliation?.portfolio?.positions ?? [];
+    const expectedPosition = positions.length === 1 && positions[0]?.security === "600000.SH" && positions[0]?.quantity === 100;
+    const moneyMatches = (value: unknown, expected: string) => typeof value === "string" && (() => {
+      const [whole, fraction = ""] = value.split(".");
+      try { return `${BigInt(whole)}:${fraction.padEnd(4, "0").slice(0, 4)}` === `${BigInt(expected.split(".")[0]!)}:${(expected.split(".")[1] ?? "").padEnd(4, "0").slice(0, 4)}`; }
+      catch { return false; }
+    })();
+    if (facts.order?.status !== "FILLED" || filledQuantity !== 100 || facts.reconciliation?.status !== "MATCH" || facts.independentAssets?.currency !== "CNY" || !moneyMatches(facts.independentAssets?.current_cash, "8995.00") || !moneyMatches(facts.reconciliation?.portfolio?.cash?.amount, "8995.00") || !expectedPosition || facts.authorization?.proposalId !== proposal.proposalId || facts.authorization?.ownerId !== ownerId || facts.authorization?.testRunId !== testRunId) {
+      throw new ConflictException("authoritative Governance, FakeBroker Fill, Portfolio and cash reconciliation facts do not satisfy the frozen normal Fixture");
+    }
+    const assertions = [
+      { assertionId: "V1.3-EXE-FULL-FILL-001", status: "PASS", expected: { filledQuantity: 100, settledCash: "8995.00 CNY", position: { security: "600000.SH", quantity: 100 } }, actual: { order: facts.order, fill: facts.fill, portfolio: facts.reconciliation.portfolio, fakeBroker: facts.independentAssets, reconciliation: facts.reconciliation } },
+      { assertionId: "V1.3-GOV-AUTH-001", status: "PASS", expected: "The exact owner/TestRun Governance Proposal was manually approved before its FakeBroker order", actual: { proposalId: proposal.proposalId, proposalVersion: proposal.proposalVersion, proposalStatus: proposal.status, ownerId, testRunId, authorization: facts.authorization } },
+    ];
+    return this.container.stageRuns.save({ ...run, status: "COMPLETED", assertions, evidence: { ...run.evidence, evidenceScope: "OWNER_SCOPED_GOVERNANCE_PORTFOLIO_AND_FAKEBROKER_READS", businessExecution: "MANUAL_FILL_VERIFIED", businessServicesCalled: ["decision-governance-service", "trade-execution-service", "portfolio-risk-service", "FakeBroker"], verifiedProposalId: proposal.proposalId, verifiedClientOrderId: body.clientOrderId, orderFacts: facts.order, fillFacts: facts.fill, portfolioLedgerFacts: facts.reconciliation.portfolio, reconciliation: facts.reconciliation } });
+  }
 }
 
 @Controller("api/v1/acceptance/v1/v1.4")
@@ -1041,6 +1093,11 @@ export class V15AcceptanceController {
     const parsedLimit = limit === undefined ? 20 : Number(limit);
     if (!Number.isSafeInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 50) throw new UnprocessableEntityException("limit must be an integer from 1 to 50");
     return this.container.stageRuns.listV15Runs(ownerId, parsedLimit);
+  }
+  @Get("fills/:externalFillId/trace") async fillTrace(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("externalFillId") externalFillId: string) {
+    const run = await this.container.stageRuns.findV15RunByFillId(identity(cookie, testHeader), externalFillId);
+    if (!run) throw new NotFoundException("Fill was not found in the authenticated user's V1.5 runs");
+    return run;
   }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V15Scenario; seed?: number }) {
     const ownerId = identity(cookie, testHeader);

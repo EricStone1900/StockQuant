@@ -9,8 +9,9 @@ const operation = document.paths?.["/internal/v1/v13/paper-orders/execute-manual
 const autoOperation = document.paths?.["/internal/v1/v13/paper-orders/execute-auto-proposal"]?.post;
 const readOperation = document.paths?.["/internal/v1/orders/by-client-id"]?.get;
 const assetOperation = document.paths?.["/internal/v1/v13/accounts/assets"]?.get;
+const settlementOperation = document.paths?.["/internal/v1/v13/accounts/settlements"]?.post;
 const feeCorrectionOperation = document.paths?.["/internal/v1/orders/{orderId}/fills/{externalFillId}/fee-corrections"]?.post;
-if (operation?.operationId !== "executeV13ApprovedManualProposal" || !operation.security?.some((item) => item.ServiceBearer) || !operation.requestBody?.required || autoOperation?.operationId !== "executeV13AutoPolicyProposal" || !autoOperation.security?.some((item) => item.ServiceBearer) || !autoOperation.requestBody?.required || !JSON.stringify(autoOperation.requestBody).includes("v13-auto-paper-execution-command.schema.json") || readOperation?.operationId !== "readV13FakeBrokerOrderByClientId" || !readOperation.security?.some((item) => item.ServiceBearer) || assetOperation?.operationId !== "readV13IndependentFakeBrokerAssets" || !assetOperation.security?.some((item) => item.ServiceBearer) || feeCorrectionOperation?.operationId !== "correctV13FakeBrokerFillFee" || !feeCorrectionOperation.security?.some((item) => item.ServiceBearer) || !JSON.stringify(feeCorrectionOperation.requestBody).includes("fill-fee-correction-command.schema.json")) throw new Error("V1.3 manual/AUTO Trade contract is incomplete");
+if (operation?.operationId !== "executeV13ApprovedManualProposal" || !operation.security?.some((item) => item.ServiceBearer) || !operation.requestBody?.required || autoOperation?.operationId !== "executeV13AutoPolicyProposal" || !autoOperation.security?.some((item) => item.ServiceBearer) || !autoOperation.requestBody?.required || !JSON.stringify(autoOperation.requestBody).includes("v13-auto-paper-execution-command.schema.json") || readOperation?.operationId !== "readV13FakeBrokerOrderByClientId" || !readOperation.security?.some((item) => item.ServiceBearer) || assetOperation?.operationId !== "readV13IndependentFakeBrokerAssets" || !assetOperation.security?.some((item) => item.ServiceBearer) || settlementOperation?.operationId !== "settleV13PaperReceivables" || !settlementOperation.security?.some((item) => item.ServiceBearer) || !settlementOperation.requestBody?.required || feeCorrectionOperation?.operationId !== "correctV13FakeBrokerFillFee" || !feeCorrectionOperation.security?.some((item) => item.ServiceBearer) || !JSON.stringify(feeCorrectionOperation.requestBody).includes("fill-fee-correction-command.schema.json")) throw new Error("V1.3 manual/AUTO Trade contract is incomplete");
 const expected = `// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/trade-execution-v13-manual-paper.v1.json
 import type * as Contracts from "./generated-types.js";
 
@@ -53,6 +54,10 @@ export class GeneratedPlatformV13ManualTradeClient {
   async readIndependentAssets(namespace: string, accountId: string): Promise<{ status: number; body?: unknown }> {
     const query = new URLSearchParams({ namespace, accountId });
     const response = await this.request(this.baseUrl + "/internal/v1/v13/accounts/assets?" + query, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(5000) });
+    return { status: response.status, body: await response.json().catch(() => undefined) };
+  }
+  async settleForSession(body: { namespace: string; accountId: string; ownerId: string; testRunId: string; asOf: string }): Promise<{ status: number; body?: unknown }> {
+    const response = await this.request(this.baseUrl + "/internal/v1/v13/accounts/settlements", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
     return { status: response.status, body: await response.json().catch(() => undefined) };
   }
   async correctFillFee(orderId: string, externalFillId: string, body: Contracts.FillFeeCorrectionCommand): Promise<{ status: number; body?: unknown }> {

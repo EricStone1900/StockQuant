@@ -22,6 +22,7 @@ export interface StageRunRepository {
   save(run: NewStageRun): Promise<StoredStageRun>;
   find(testRunId: string, ownerId: string): Promise<StoredStageRun | null>;
   listV15Runs(ownerId: string, limit: number): Promise<StageRunSummary[]>;
+  findV15RunByFillId(ownerId: string, externalFillId: string): Promise<StoredStageRun | null>;
   projectV15RunIncidents(testRunId: string, ownerId: string): Promise<V15RunIncident[]>;
   acknowledgeV15RunIncident(testRunId: string, ownerId: string, incidentId: string, actorId: string): Promise<V15RunIncident>;
   requestV15AutoTradeCancellation(testRunId: string, ownerId: string, requestedAt: string): Promise<StoredStageRun>;

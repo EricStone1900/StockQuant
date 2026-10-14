@@ -813,6 +813,7 @@ AccountSnapshot = TypedDict("AccountSnapshot", {
   "environmentMode": Required[Literal['PAPER', 'BACKTEST']],
   "brokerMode": Required[Literal['FAKE']],
   "cash": Required[Money],
+  "unsettledReceivables": Required[list[dict[str, object]]],
   "positionCount": Required[int],
   "ledgerEntryCount": Required[int],
   "ledgerVersion": Required[int],
@@ -957,6 +958,7 @@ ReservedFillCommand = TypedDict("ReservedFillCommand", {
   "currency": Required[str],
   "effectiveAt": Required[str],
   "side": NotRequired[Literal['BUY', 'SELL']],
+  "settlement": NotRequired[dict[str, object]],
   "reservation": NotRequired[dict[str, object]],
 })
 
@@ -1029,6 +1031,22 @@ TestRun = TypedDict("TestRun", {
   "createdAt": Required[str],
   "completedAt": NotRequired[str | None],
   "artifactRefs": NotRequired[list[ArtifactRef]],
+})
+
+V11AcceptanceRun = TypedDict("V11AcceptanceRun", {
+  "testRunId": Required[str],
+  "stageId": Required[Literal['V1.1']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery']],
+  "scenarioVersion": Required[Literal['1.0.0']],
+  "namespace": Required[str],
+  "ownerId": Required[str],
+  "status": Required[Literal['QUEUED', 'RUNNING', 'WAITING', 'COMPLETED', 'FAILED']],
+  "seed": Required[int],
+  "accountId": Required[str | None],
+  "createdAt": Required[str],
+  "completedAt": Required[str | None],
+  "error": Required[str | None],
+  "assertions": Required[list[dict[str, object]]],
 })
 
 V12StrategySnapshotCommand = TypedDict("V12StrategySnapshotCommand", {
@@ -1256,6 +1274,18 @@ V13ProposalRevisionCommand = TypedDict("V13ProposalRevisionCommand", {
   "legs": Required[list[V13ProposalLeg]],
   "reason": Required[str],
   "now": Required[str],
+})
+
+V14PaperSettlementCalendarFixture = TypedDict("V14PaperSettlementCalendarFixture", {
+  "$schema": Required[Literal['https://stockquant.local/schemas/common/v14-paper-settlement-calendar.schema.json']],
+  "schemaVersion": Required[Literal['v1.4-paper-settlement-calendar-v1', 'v1.4-paper-settlement-calendar-v2']],
+  "fixtureId": Required[Literal['v1.4-paper-settlement-calendar']],
+  "fixtureVersion": Required[Literal['v1.4-paper-settlement-calendar-1', 'v1.4-paper-settlement-calendar-2']],
+  "calendarVersion": Required[str],
+  "dataMode": Required[Literal['FIXTURE']],
+  "usageEligibility": Required[Literal['SIMULATION_ONLY']],
+  "markets": Required[dict[str, object]],
+  "unsupportedDateBehavior": Required[Literal['SETTLEMENT_CALENDAR_UNAVAILABLE; keep receivable pending; do not infer weekends, holidays, next sessions, or settlement from elapsed hours']],
 })
 
 V15RunIncident = TypedDict("V15RunIncident", {

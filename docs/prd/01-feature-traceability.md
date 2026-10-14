@@ -1,3 +1,7 @@
+> V1主要功能收尾范围调整（2026-10-13）见[所有者决定](../decisions/2026-10-13-v1-core-closeout-scope.md)：本轮只关闭明确的主要功能子范围，增强和广泛验证延期；原长期需求与历史状态保留，不能把延期或有界PASS当整行需求完成。
+
+> 2026-10-13所有者范围决定：DV-02中的Ubuntu实机部署/恢复证明在后续Ubuntu部署（既有V3.4）验收，不阻塞V1完成；V1保留Mac容器真实组件、锁定依赖、目标架构烟测及缺口登记。DV-02未验证的Ubuntu子项仍DEFERRED / NOT_RUN，不能推定全部DV-02 PASS。见[决定](../decisions/2026-10-13-v1-ubuntu-deferral.md)。
+
 # 功能、责任与测试追踪矩阵
 
 版本2.0，2026-09-06。全新项目目标需求；不引用目录外材料。详见[PRD](./00-product-requirements.md)、[架构](./02-system-architecture.md)、[契约](./03-market-rules-and-contracts.md)、[实施计划](./04-development-plan.md)、[测试](./90-test-plan.md)和[验收](./99-acceptance.md)。

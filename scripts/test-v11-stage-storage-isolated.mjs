@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 
 const project = `sq-v11-stage-${randomBytes(10).toString("hex")}`;
 const hostPort = 20000 + randomBytes(2).readUInt16BE(0) % 30000;
@@ -22,6 +24,13 @@ const databaseRoleEnvNames = [
 const isolatedDatabasePasswords = Object.fromEntries(databaseRoleEnvNames.map((name) => [name, randomBytes(32).toString("hex")]));
 const composeEnv = { ...process.env, ...isolatedDatabasePasswords, STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD: randomBytes(32).toString("hex"), COMPOSE_PROJECT_NAME: project, V11_HOST_PORT: String(hostPort), V11_WEB_HOST_PORT: String(webPort) };
 const compose = (args, env = composeEnv, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "-f", composeFile, ...args], { env: { ...env, COMPOSE_PROJECT_NAME: project }, encoding: "utf8", stdio });
+const v11AcceptanceRunSchema = JSON.parse(readFileSync("packages/contracts/schemas/common/v11-acceptance-run.schema.json", "utf8"));
+const v11AcceptanceOpenApi = JSON.parse(readFileSync("packages/contracts/openapi/platform-v11-acceptance.v1.json", "utf8"));
+const v11AcceptanceRunValidator = new Ajv2020({ allErrors: true, strict: false });
+addFormats(v11AcceptanceRunValidator);
+const validateV11AcceptanceRun = v11AcceptanceRunValidator.compile(v11AcceptanceRunSchema);
+const createV11AcceptanceRunResponseSchema = v11AcceptanceOpenApi.paths["/api/v1/acceptance/v1/v1.1/runs"].post.responses["202"].content["application/json"].schema;
+const validateCreateV11AcceptanceRunResponse = v11AcceptanceRunValidator.compile(createV11AcceptanceRunResponseSchema);
 let started = false;
 let webServer;
 let testExitCode = 1;
@@ -96,6 +105,45 @@ try {
     }
   }
   console.info(`[V1.1 Platform identity boundary] ${JSON.stringify({ routes: identityRoutes.map(({ label, method, path }) => ({ label, method, path })), anonymousRejected: identityRoutes.length, forgedOwnerRejected: identityRoutes.length, expectedStatuses: { anonymous: 401, forgedOwner: 403 } })}`);
+
+  const contractOwner = "acceptance-owner-1";
+  const acceptedResponse = await fetch(`${apiUrl}/api/v1/acceptance/v1/v1.1/runs`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-stockquant-user": contractOwner },
+    body: JSON.stringify({ scenarioId: "normal", seed: 20260907 }),
+  });
+  assert.equal(acceptedResponse.status, 202, "V1.1 TestRun creation must return HTTP 202 for asynchronous acceptance");
+  const acceptedRun = await acceptedResponse.json();
+  assert.equal(validateCreateV11AcceptanceRunResponse(acceptedRun), true, `V1.1 create response violates its OpenAPI 202 schema: ${JSON.stringify(v11AcceptanceRunValidator.errors)}`);
+  assert.equal(acceptedRun.accepted, true);
+  assert.match(acceptedRun.testRunId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu);
+
+  const readResponse = await fetch(`${apiUrl}/api/v1/acceptance/runs/${acceptedRun.testRunId}`, {
+    headers: { "x-stockquant-user": contractOwner },
+  });
+  assert.equal(readResponse.status, 200, "the created owner-scoped V1.1 TestRun must be readable");
+  const readRun = await readResponse.json();
+  assert.equal(validateV11AcceptanceRun(readRun), true, `V1.1 HTTP response violates V11AcceptanceRun schema: ${JSON.stringify(v11AcceptanceRunValidator.errors)}`);
+  assert.equal(readRun.testRunId, acceptedRun.testRunId, "the response projection must preserve the accepted TestRun ID");
+  assert.equal(readRun.ownerId, contractOwner, "the response projection must preserve the authenticated owner scope");
+  assert.equal(readRun.stageId, "V1.1");
+  console.info(`[V1.1 runtime response contract] ${JSON.stringify({ url: apiUrl, scenarioId: "normal", seed: 20260907, testRunId: readRun.testRunId, status: readRun.status, assertionCount: readRun.assertions.length, createStatus: acceptedResponse.status, createSchemaValid: true, readStatus: readResponse.status, schemaId: v11AcceptanceRunSchema.$id, schemaValid: true })}`);
+
+  const evidenceResponse = await fetch(`${apiUrl}/api/v1/acceptance/runs/${acceptedRun.testRunId}/evidence`, {
+    headers: { "x-stockquant-user": contractOwner },
+  });
+  assert.equal(evidenceResponse.status, 200, "the created owner-scoped V1.1 evidence must be readable");
+  const evidence = await evidenceResponse.json();
+  assert.equal(evidence.evidenceVersion, "v1.1-1");
+  assert.equal(evidence.run.testRunId, acceptedRun.testRunId);
+  assert.equal(evidence.run.ownerId, contractOwner);
+  assert.equal(evidence.run.stageId, "V1.1");
+  assert.deepEqual(evidence.mode, { environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE" });
+  assert.ok(Array.isArray(evidence.assertions));
+  assert.equal(evidence.manualConclusion, "NOT_RUN", "automated evidence export must not claim human acceptance");
+  const evidenceSchema = v11AcceptanceOpenApi.paths["/api/v1/acceptance/runs/{testRunId}/evidence"].get.responses["200"].content["application/json"].schema;
+  assert.deepEqual(evidenceSchema.oneOf.map(({ $ref }) => $ref), ["#/components/schemas/V11EvidenceExport", "#/components/schemas/V1StageRunEvidenceExport"]);
+  console.info(`[V1 evidence export runtime contract] ${JSON.stringify({ url: apiUrl, testRunId: evidence.run.testRunId, evidenceVersion: evidence.evidenceVersion, ownerScoped: true, manualConclusion: evidence.manualConclusion, responseStatus: evidenceResponse.status })}`);
 
   const suite = spawnSync("pnpm", ["verify:stage", "--", "--stage", "V1.1", "--suite", "code"], {
     env: { ...process.env, COMPOSE_PROJECT_NAME: project, STOCKQUANT_PLATFORM_API_URL: apiUrl },

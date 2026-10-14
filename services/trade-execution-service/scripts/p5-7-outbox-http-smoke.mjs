@@ -29,7 +29,9 @@ const tokens = { platform: token(), replay: token(), trade: token(), portfolioPl
 const baseEnv = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", NODE_ENV: "test" };
 const ownerId = `p57-owner-${randomUUID()}`;
 const namespace = `p57-outbox-http/${randomUUID()}`;
+const unknownCalendarNamespace = `${namespace}/unknown-calendar`;
 const testRunId = randomUUID();
+const unknownCalendarTestRunId = randomUUID();
 const clientOrderId = `p57-${randomUUID()}`;
 const processes = [];
 let proxy;
@@ -37,6 +39,7 @@ let portfolioServer;
 let governance;
 let tradeServer;
 let accountId;
+let unknownCalendarAccountId;
 let reservationId;
 let tradeMigrated = false;
 let portfolioMigrated = false;
@@ -384,7 +387,57 @@ try {
   const capturedReservation = await portfolioPool.query("SELECT status, captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1 AND account_id=$2", [reservationId, accountId]);
   assert.deepEqual(capturedReservation.rows[0], { status: "UNKNOWN", captured_cash_amount: "1003.0010" });
 
-  console.log(JSON.stringify({ status: "PASS", scenario: "Portfolio commits Fill, response is lost, execution service restarts and retries durable Outbox", testRunId, namespace, orderId, accountId, reservationId, firstPortfolioResponseLost: lostResponseInjected, pendingBeforeRestart: { status: pendingBeforeRestart.rows[0].status, outbox_status: pendingBeforeRestart.rows[0].outbox_status, attempts: pendingBeforeRestart.rows[0].attempts }, concurrentOutboxClaims: 1, expiredLeaseTakeover: true, staleAckFenced: true, staleFailureFenced: true, recoveredOrder: recoveredOrder.rows[0].status, outbox: outbox.rows[0].status, attempts: outbox.rows[0].attempts, portfolioFillCount: ledger.rows[0].fills, feeCorrection: { delivered: feeCorrectionDelivered, revision: 1, idempotentRetry: true, unauthorizedReplayRejected: true, originalFeePreserved: correctionFacts.rows[0].original_fee, correctedFee: correctionFacts.rows[0].fee }, fakeBrokerContract: { stableOrderId: initialOrderLookup.order.order_id === finalOrderLookup.order.order_id, initialStatus: initialOrderLookup.order.status, finalStatus: finalOrderLookup.order.status, fillCount: finalOrderLookup.fills.length }, fillDuringCancel: { cancelSequenceBufferedFirst: bufferedCancel.buffered, cancelStateWhileGapOpen: bufferedCancel.status, gapSurvivedTradeRestart: true, reservationHeldWhileGapOpen: true, fillSequenceDrainedThrough: simulatedFillResult.lastAppliedSequence, cancelReplayIdempotent: cancelReplay.replayed, simulatedCumulativeQuantity: 75, incrementalQuantity: 25, idempotentReplay: true, unauthorizedReplayRejected: true, finalOrder: raceFacts.rows[0].status, portfolioFills: raceLedger.rows[0], cashAfterBothFills: raceSnapshot.cash.amount, reservation: raceReservationLedger.rows[0] }, externalOrderReconciliation: { created: externalCreated.status, idempotentReplay: externalReplay.status, changedFactConflict: externalConflict.status, replayWriterDenied: forbiddenExternalWrite.status, externalOnlyOrderCount: externalSummary.externalOnlyOrderCount, discrepancyKind: externalSummary.discrepancies[0].kind }, reservationCapture: capturedReservation.rows[0], ledgerEntryCount: correctedSnapshot.ledgerEntryCount, cash: correctedSnapshot.cash.amount, brokerMode: "FAKE" }));
+  const unknownInitializedResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/initialize`, {
+    method: "POST", headers: headers("platform-api-service", tokens.portfolioPlatform),
+    body: JSON.stringify({ fixtureAccountRef: `p57-unknown-${unknownCalendarTestRunId}`, ownerId, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" }, namespace: unknownCalendarNamespace, testRunId: unknownCalendarTestRunId, idempotencyKey: "unknown-calendar-init" })
+  });
+  const unknownInitializedText = await unknownInitializedResponse.text();
+  assert.ok([200, 201].includes(unknownInitializedResponse.status), `unknown-calendar account initialization failed: ${unknownInitializedResponse.status} ${unknownInitializedText}`);
+  unknownCalendarAccountId = JSON.parse(unknownInitializedText).snapshot.accountId;
+  await portfolioPool.query("INSERT INTO account_positions(account_id,security,quantity) VALUES($1,'600000.SH',10)", [unknownCalendarAccountId]);
+  const unknownCalendarClientOrderId = `p57-unknown-${randomUUID()}`;
+  const unknownSellReservationResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${unknownCalendarAccountId}/reservations`, {
+    method: "POST", headers: headers("trade-execution-service", tokens.trade),
+    body: JSON.stringify({ namespace: unknownCalendarNamespace, testRunId: unknownCalendarTestRunId, ownerId, idempotencyKey: "unknown-calendar-sell", clientOrderId: unknownCalendarClientOrderId, side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 10, asOf: "2026-09-28T01:00:00.000Z" })
+  });
+  const unknownSellReservationBody = await unknownSellReservationResponse.text();
+  assert.ok([200, 201].includes(unknownSellReservationResponse.status), `unknown-calendar SELL reservation failed: ${unknownSellReservationResponse.status} ${unknownSellReservationBody}`);
+  const unknownSellReservationId = JSON.parse(unknownSellReservationBody).reservation.reservationId;
+  await tradePool.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+    VALUES($1,$2,$3,$4,'CNY',10000,10000)`, [unknownCalendarNamespace, unknownCalendarAccountId, ownerId, unknownCalendarTestRunId]);
+  await tradePool.query("INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,'600000.SH',10)", [unknownCalendarNamespace, unknownCalendarAccountId]);
+  const unknownCalendarClientOrderIdReservation = { reservationId: unknownSellReservationId, ownerId, testRunId: unknownCalendarTestRunId, clientOrderId: unknownCalendarClientOrderId };
+  const unknownCalendarExecutionResponse = await fetch(`${tradeUrl}/internal/v1/historical-orders/execute`, {
+    method: "POST", headers: headers("historical-replay-worker", tokens.replay),
+    body: JSON.stringify({ authorizationId: randomUUID(), namespace: unknownCalendarNamespace, accountId: unknownCalendarAccountId, clientOrderId: unknownCalendarClientOrderId, security: "600000.SH", requestedQuantity: 10, initialAccountCash: "10000.0000", side: "SELL", currency: "CNY", reservation: unknownCalendarClientOrderIdReservation, bar: { timestamp: "2026-09-26T01:31:00.000Z", open: "10.0000", volume: 500 } })
+  });
+  const unknownCalendarExecutionText = await unknownCalendarExecutionResponse.text();
+  assert.equal(unknownCalendarExecutionResponse.status, 200, unknownCalendarExecutionText);
+  const unknownCalendarExecution = JSON.parse(unknownCalendarExecutionText);
+  assert.equal(unknownCalendarExecution.result.status, "FILLED");
+  const unknownCalendarTradeFacts = await tradePool.query(`SELECT a.current_cash::text AS cash,r.amount::text AS receivable_amount,r.settlement_date::text AS settlement_date,r.settlement_error_code,r.status,
+      x.status AS outbox_status,x.payload->'settlement' AS outbox_settlement
+    FROM fake_broker_account_assets a JOIN fake_broker_sell_receivables r ON r.namespace=a.namespace AND r.account_id=a.account_id
+    JOIN fake_broker_outbox x ON x.order_id=$3 AND x.event_type='FILL_POST'
+    WHERE a.namespace=$1 AND a.account_id=$2`, [unknownCalendarNamespace, unknownCalendarAccountId, unknownCalendarExecution.result.orderId]);
+  assert.deepEqual(unknownCalendarTradeFacts.rows[0], { cash: "10000.0000", receivable_amount: "99.8001", settlement_date: null, settlement_error_code: "SETTLEMENT_CALENDAR_UNAVAILABLE", status: "PENDING", outbox_status: "DELIVERED", outbox_settlement: { tradeDate: "2026-09-26", settlementDate: null, calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" } });
+  const unknownCalendarSnapshotResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${unknownCalendarAccountId}/snapshot`, { headers: { ...headers("platform-api-service", tokens.portfolioPlatform, false), "x-stockquant-owner-id": ownerId } });
+  assert.equal(unknownCalendarSnapshotResponse.status, 200);
+  const unknownCalendarSnapshot = await unknownCalendarSnapshotResponse.json();
+  assert.equal(unknownCalendarSnapshot.cash.amount, "10000.0000");
+  assert.deepEqual(unknownCalendarSnapshot.unsettledReceivables, [{ fillId: unknownCalendarExecution.result.fill.externalFillId, amount: "99.8001", currency: "CNY", tradeDate: "2026-09-26", settlementDate: null, calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE", status: "PENDING" }]);
+  const unknownCalendarSettleResponse = await fetch(`${portfolioUrl}/internal/v1/accounts/${unknownCalendarAccountId}/settlements`, { method: "POST", headers: headers("trade-execution-service", tokens.trade), body: JSON.stringify({ asOf: "2026-09-30T23:59:00.000Z" }) });
+  assert.ok([200, 201].includes(unknownCalendarSettleResponse.status), await unknownCalendarSettleResponse.text());
+  const unknownCalendarBuyAttempt = await fetch(`${portfolioUrl}/internal/v1/accounts/${unknownCalendarAccountId}/reservations`, {
+    method: "POST", headers: headers("trade-execution-service", tokens.trade),
+    body: JSON.stringify({ namespace: unknownCalendarNamespace, testRunId: unknownCalendarTestRunId, ownerId, idempotencyKey: "unknown-calendar-buy-must-not-use-receivable", clientOrderId: `p57-unknown-buy-${randomUUID()}`, side: "BUY", currency: "CNY", cashAmount: "10000.0100", security: null, quantity: null, asOf: "2026-09-30T23:59:00.000Z" })
+  });
+  assert.equal(unknownCalendarBuyAttempt.status, 409, await unknownCalendarBuyAttempt.text());
+  const unknownCalendarSnapshotAfterSettle = await (await fetch(`${portfolioUrl}/internal/v1/accounts/${unknownCalendarAccountId}/snapshot`, { headers: { ...headers("platform-api-service", tokens.portfolioPlatform, false), "x-stockquant-owner-id": ownerId } })).json();
+  assert.equal(unknownCalendarSnapshotAfterSettle.cash.amount, "10000.0000");
+  assert.equal(unknownCalendarSnapshotAfterSettle.unsettledReceivables[0].status, "PENDING");
+
+  console.log(JSON.stringify({ status: "PASS", scenario: "Portfolio commits Fill, response is lost, execution service restarts and retries durable Outbox", testRunId, namespace, orderId, accountId, reservationId, firstPortfolioResponseLost: lostResponseInjected, pendingBeforeRestart: { status: pendingBeforeRestart.rows[0].status, outbox_status: pendingBeforeRestart.rows[0].outbox_status, attempts: pendingBeforeRestart.rows[0].attempts }, concurrentOutboxClaims: 1, expiredLeaseTakeover: true, staleAckFenced: true, staleFailureFenced: true, recoveredOrder: recoveredOrder.rows[0].status, outbox: outbox.rows[0].status, attempts: outbox.rows[0].attempts, portfolioFillCount: ledger.rows[0].fills, feeCorrection: { delivered: feeCorrectionDelivered, revision: 1, idempotentRetry: true, unauthorizedReplayRejected: true, originalFeePreserved: correctionFacts.rows[0].original_fee, correctedFee: correctionFacts.rows[0].fee }, fakeBrokerContract: { stableOrderId: initialOrderLookup.order.order_id === finalOrderLookup.order.order_id, initialStatus: initialOrderLookup.order.status, finalStatus: finalOrderLookup.order.status, fillCount: finalOrderLookup.fills.length }, fillDuringCancel: { cancelSequenceBufferedFirst: bufferedCancel.buffered, cancelStateWhileGapOpen: bufferedCancel.status, gapSurvivedTradeRestart: true, reservationHeldWhileGapOpen: true, fillSequenceDrainedThrough: simulatedFillResult.lastAppliedSequence, cancelReplayIdempotent: cancelReplay.replayed, simulatedCumulativeQuantity: 75, incrementalQuantity: 25, idempotentReplay: true, unauthorizedReplayRejected: true, finalOrder: raceFacts.rows[0].status, portfolioFills: raceLedger.rows[0], cashAfterBothFills: raceSnapshot.cash.amount, reservation: raceReservationLedger.rows[0] }, externalOrderReconciliation: { created: externalCreated.status, idempotentReplay: externalReplay.status, changedFactConflict: externalConflict.status, replayWriterDenied: forbiddenExternalWrite.status, externalOnlyOrderCount: externalSummary.externalOnlyOrderCount, discrepancyKind: externalSummary.discrepancies[0].kind }, unknownCalendarSellDelivery: { fillId: unknownCalendarExecution.result.fill.externalFillId, outbox: unknownCalendarTradeFacts.rows[0].outbox_status, settledCash: unknownCalendarSnapshotAfterSettle.cash.amount, receivable: unknownCalendarSnapshotAfterSettle.unsettledReceivables[0], buyReservationUsingReceivable: unknownCalendarBuyAttempt.status }, reservationCapture: capturedReservation.rows[0], ledgerEntryCount: correctedSnapshot.ledgerEntryCount, cash: correctedSnapshot.cash.amount, brokerMode: "FAKE" }));
 } finally {
   await stop(tradeServer);
   await stop(portfolioServer);
@@ -407,12 +460,34 @@ try {
     } catch (error) { await client.query("ROLLBACK"); throw error; }
     finally { client.release(); }
   }
+  if (portfolioMigrated && unknownCalendarAccountId) {
+    const client = await portfolioPool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM resource_reservations WHERE account_id=$1", [unknownCalendarAccountId]);
+      await client.query("DELETE FROM sell_settlements WHERE account_id=$1", [unknownCalendarAccountId]);
+      await client.query("DELETE FROM recorded_fills WHERE account_id=$1", [unknownCalendarAccountId]);
+      await client.query("DELETE FROM account_positions WHERE account_id=$1", [unknownCalendarAccountId]);
+      await client.query("DELETE FROM ledger_entries WHERE account_id=$1", [unknownCalendarAccountId]);
+      await client.query("DELETE FROM accounts WHERE account_id=$1 AND namespace=$2 AND test_run_id=$3 AND owner_id=$4", [unknownCalendarAccountId, unknownCalendarNamespace, unknownCalendarTestRunId, ownerId]);
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  }
   if (tradeMigrated) {
+    await tradePool.query("DELETE FROM fake_broker_sell_receivables WHERE namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_orders WHERE namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_positions WHERE namespace=$1", [unknownCalendarNamespace]);
+    await tradePool.query("DELETE FROM fake_broker_account_assets WHERE namespace=$1", [unknownCalendarNamespace]);
     await tradePool.query("DELETE FROM fake_broker_external_orders WHERE namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_simulated_reports r USING fake_broker_orders o WHERE r.order_id=o.order_id AND o.namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_fee_corrections c USING fake_broker_fills f, fake_broker_orders o WHERE c.external_fill_id=f.external_fill_id AND f.order_id=o.order_id AND o.namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
+    await tradePool.query("DELETE FROM fake_broker_sell_receivables WHERE namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1", [namespace]);
     await tradePool.query("DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1", [namespace]);

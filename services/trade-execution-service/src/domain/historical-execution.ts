@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import { calculateCnAEquityFeeCents, isValidCnAEquityFeeSchedule } from "@stockquant/cn-a-fee-rules";
+
+/** V1 USD Paper Fixture fee; synthetic and not a real-market fee/tax schedule. */
+export const US_EQUITY_SYNTHETIC_FIXTURE_FEE_CENTS = 100;
 
 export interface HistoricalExecutionCommand {
   namespace: string;
@@ -105,20 +109,18 @@ export function calculateFee(price: string, quantity: number): string {
   return `${rounded / 10000n}.${(rounded % 10000n).toString().padStart(4, "0")}`;
 }
 
-function calculateScheduledFee(price: string, quantity: number, side: "BUY" | "SELL", schedule: NonNullable<HistoricalExecutionCommand["marketFeeSchedule"]>): string {
-  const minimumCommissionRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68_700 : 54_100;
-  if (!Number.isSafeInteger(schedule.commissionRatePartsPerBillion) || schedule.commissionRatePartsPerBillion < minimumCommissionRate || schedule.commissionRatePartsPerBillion > 3_000_000 ||
-      !Number.isSafeInteger(schedule.minimumCommissionCents) || schedule.minimumCommissionCents < 0) throw new Error("INVALID_MARKET_FEE_SCHEDULE");
+function priceCentsFromTickPrice(price: string): number {
+  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(price)) throw new Error("INVALID_MARKET_PRICE");
   const [whole, fraction = ""] = price.split(".");
-  const priceCents = BigInt(`${whole}${fraction.padEnd(2, "0").slice(0, 2)}`);
-  const notionalCents = priceCents * BigInt(quantity);
-  const ceilRate = (rate: bigint) => (notionalCents * rate + 1_000_000_000n - 1n) / 1_000_000_000n;
-  const commission = [BigInt(schedule.minimumCommissionCents), ceilRate(BigInt(schedule.commissionRatePartsPerBillion))].reduce((a, b) => a > b ? a : b);
-  const transfer = ceilRate(100_000n);
-  const stampRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 1_000_000n : 500_000n;
-  const stamp = side === "SELL" ? ceilRate(stampRate) : 0n;
-  const totalCents = commission + transfer + stamp;
-  return `${totalCents / 100n}.${(totalCents % 100n).toString().padStart(2, "0")}00`;
+  if (/[1-9]/u.test(fraction.slice(2))) throw new Error("CN_A fee schedule requires a cent-aligned execution price");
+  const cents = BigInt(whole!) * 100n + BigInt(fraction.slice(0, 2).padEnd(2, "0") || "0");
+  const result = Number(cents);
+  if (!Number.isSafeInteger(result) || result <= 0) throw new Error("INVALID_MARKET_PRICE");
+  return result;
+}
+
+function moneyFromCents(cents: number): string {
+  return `${Math.floor(cents / 100)}.${(cents % 100).toString().padStart(2, "0")}00`;
 }
 
 function quantityAtParticipation(volume: number, participationRate: number): number {
@@ -160,13 +162,11 @@ export function calculateHistoricalExecution(command: HistoricalExecutionCommand
   if (command.marketFeeSchedule) {
     const schedule = command.marketFeeSchedule;
     const executionDate = command.bar.timestamp.slice(0, 10);
-    const validSchedule = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" || schedule.scheduleId === "CN_A_CASH_EQUITY_2023_08_28";
+    const validSchedule = isValidCnAEquityFeeSchedule(schedule);
     const validDate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27"
       ? executionDate >= "2022-04-29" && executionDate < "2023-08-28"
       : executionDate >= "2023-08-28";
-    const minimumCommissionRate = schedule.scheduleId === "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" ? 68_700 : 54_100;
-    const validRates = Number.isSafeInteger(schedule.commissionRatePartsPerBillion) && schedule.commissionRatePartsPerBillion >= minimumCommissionRate && schedule.commissionRatePartsPerBillion <= 3_000_000 &&
-      Number.isSafeInteger(schedule.minimumCommissionCents) && schedule.minimumCommissionCents >= 0;
+    const validRates = validSchedule;
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/u.test(command.bar.timestamp) ||
         !validSchedule || !validDate || !validRates || (command.currency ?? "CNY") !== "CNY" || !/\.(?:SH|SZ)$/u.test(command.security)) {
       return { orderId: ids.orderId, status: "REJECTED", rejectionReason: "INVALID_RULE", brokerMode: "FAKE" };
@@ -205,6 +205,10 @@ export function calculateHistoricalExecution(command: HistoricalExecutionCommand
     ? ((slippedScaled + tickScaled - 1n) / tickScaled) * 100n
     : (slippedScaled / tickScaled) * 100n;
   const price = `${scaled / 10000n}.${(scaled % 10000n).toString().padStart(4, "0")}`;
-  const fee = command.marketFeeSchedule ? calculateScheduledFee(price, quantity, side, command.marketFeeSchedule) : calculateFee(price, quantity);
+  const fee = command.marketFeeSchedule
+    ? moneyFromCents(calculateCnAEquityFeeCents(side, quantity, priceCentsFromTickPrice(price), command.marketFeeSchedule).totalCents)
+    : command.currency === "USD"
+      ? moneyFromCents(US_EQUITY_SYNTHETIC_FIXTURE_FEE_CENTS)
+    : calculateFee(price, quantity);
   return { orderId: ids.orderId, status: quantity === command.requestedQuantity ? "FILLED" : "PARTIALLY_FILLED", fill: { externalFillId: ids.externalFillId, quantity, price, fee, effectiveAt: command.bar.timestamp }, brokerMode: "FAKE" };
 }

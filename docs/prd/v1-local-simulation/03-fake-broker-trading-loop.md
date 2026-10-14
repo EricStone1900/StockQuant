@@ -1,6 +1,10 @@
+> 当前V1收尾范围（2026-10-13）：所有者要求聚焦主要功能、减少非必要验证和停止扩散；当前执行以[V1主要功能完成计划](../../plans/2026-10-08-v1-completion-plan.md)及[范围决定](../../decisions/2026-10-13-v1-core-closeout-scope.md)为准。延期增强和广泛验证不阻塞本轮，旧任务/结果/签署保留为历史；核心正确性和人工验收不缩减。
+
+> 当前范围决定（2026-10-13）：所有者已将Ubuntu实机部署/恢复/主机资源验收延期至后续Ubuntu部署验收，状态DEFERRED / NOT_RUN；它不再阻塞V1本轮开发及验收。Mac本地容器、目标架构烟测/缺口登记、其余业务/恢复和人工验收要求保留。旧记录中的Ubuntu缺口保留为历史事实，不代表当前V1阻塞。见[延期决定](../../decisions/2026-10-13-v1-ubuntu-deferral.md)。
+
 # V1.3 治理、风控与模拟券商完整交易链路
 
-状态：PARTIALLY_IMPLEMENTED（2026-09-09历史自动与用户人工验收PASS保留；2026-10-08新增冻结`v1.3-trading-loop` 1.0.0 Fixture、Web实际消费与Hash显示、完整V1.3 code suite exit 0、Web/API/CLI矩阵21/21通过及交互栈启动/精确关停复验；2026-10-09 Portfolio事务化V1 schema baseline/migration ledger并发迁移、隔离PG集成通过，Governance授权/Proposal/Mandate/策略快照迁移也完成事务化baseline并以双进程临时PG/HTTP验证；新增Trade Execution三条V1.3提案执行HTTP路由LIVE/REAL注入拒绝（422、订单/Fill/事件/outbox零副作用），V1.3完整code suite再次exit 0；2026-10-10补齐Platform AUTO Mandate激活/暂停路由客户端模式拒绝并完成Web/API/CLI隔离套件22/22通过；随后验证L08撤单客户端事实注入拒绝及Proposal创建未知字段拒绝、匿名401优先，E2E 22/22和完整V1.3 code suite均exit 0（见§8.52、§8.53）。全市场规则、锁定场景以外的订单故障边界、Replay/Quant/Market Data服务迁移/回退、目标Ubuntu交付及本轮人工验收仍未完成）。[当前Fixture与交接审计](../../../evidence/audits/2026-10-08-p3-v13-fixture-and-handoff.md)、[Session推进应用层复验](../../../evidence/audits/2026-10-07-v13-session-advance-application-e2e.md)、[报价档回归Run](../../../evidence/audits/2026-10-07-v13-tick-parity-e2e.md)、[含Portfolio迁移的当前code suite](../../../evidence/audits/2026-10-09-v13-portfolio-migration-code-suite-a01.log)、[含Governance迁移的当前code suite](../../../evidence/audits/2026-10-09-v13-governance-migration-code-suite-a02.log)、[含Portfolio/Governance/Trade迁移台账的当前code suite](../../../evidence/audits/2026-10-09-v13-migration-ledgers-code-suite-a03.log)、[三路由模式注入复验及完整V1.3 code suite](../../../evidence/audits/2026-10-09-v13-route-mode-injection-code-suite-a01.log)、[2026-10-10 Platform Mandate 模式拒绝隔离Web E2E TestRun](../../../evidence/local/V1.3/51edf948-3229-46a4-9b92-6a639321caa3/manifest.sha256)。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（2026-10-14，已批准的Mac本地V1主要功能范围；固定CN/US MANUAL/AUTO授权、预算/预留、FakeBroker成交/撤单、严格现金结算、独立账本及UNKNOWN原单恢复已有实测证据，见§8.80–8.81、§8.87、§8.91、§8.113–8.118；用户已确认精确候选整版验收通过）。固定Fixture之外的全市场规则/故障穷举、活动发布回退和Ubuntu实机延期。版本入口：[README](./README.md)。
 
 ## 1. 前置与范围
 
@@ -10,14 +14,23 @@ V1.2通过，策略已产生版本化目标；V1.1账户/账本可用。
 
 ## 2. 开发任务
 
-- [ ] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。CN_A/US_EQUITY固定MANUAL BUY/BUY、CN_A/US_EQUITY AUTO BUY/BUY、低现金/部分预留回滚和Trade重启恢复已有隔离E2E证据，见§8.57–§8.61；SELL proceeds-to-BUY结算、全市场授权/规则矩阵和阶段完整范围仍未闭合，故父项保持未勾选。
+2026-10-14当前范围收口：按[所有者决定](../../decisions/2026-10-13-v1-core-closeout-scope.md)核对本轮交付，以下既有广泛父项中的剩余扩展继续保留未勾选，不构成本轮必交。原状态与清单完整保存在[同步前快照](../../../evidence/audits/2026-10-14-v1-closeout-before-status-sync.json)；不把延期项写成PASS。
+
+- [x] 当前主要功能范围已实现并实测：固定CN/US MANUAL/AUTO授权、预算/预留、FakeBroker成交/撤单、严格现金结算、独立账本及UNKNOWN原单恢复。证据见§8.80–8.81、§8.87、§8.91、§8.113–8.118及[五阶段主要路径汇总](../../../evidence/audits/2026-10-13-v1-current-core-e2e-a01.md)。固定Fixture之外的全市场规则/故障穷举、活动发布回退和Ubuntu实机延期。
+
+- [ ] 实现治理建议、MANUAL_APPROVAL与AUTO_POLICY、Mandate、短期执行授权、次数预算与资源预留；每条交易腿和中间资金路径都检查。CN_A/US_EQUITY固定MANUAL BUY/BUY、CN_A/US_EQUITY AUTO BUY/BUY、低现金/部分预留回滚和Trade重启恢复已有隔离E2E证据，见§8.57–§8.61；OD-014 CN_A T+1 SELL双账本结算和结算后再次BUY闭环已由隔离Web/API/CLI验证，见§8.80；固定US AAPL SELL→双账本严格已结算现金闭环现已通过，见§8.81；CN_A严格现金混合SELL/BUY的MANUAL成功、AUTO拒绝与同Run CLI核验见§8.87；全市场授权/规则矩阵和阶段完整范围仍未闭合，故父项保持未勾选。共享Trade执行费用变更后的V1.3完整代码兼容复验exit 0，见§8.114；父项状态不变。
 - [x] 当前锁定V1.3 Fixture范围实现隔离FakeBroker订单/查询/撤单/成交/账户契约、稳定brokerOrderId和独立资产；完整矩阵及其同Run CLI核对通过，固定范围以外的市场/订单能力仍未声明。[矩阵日志](../../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log)
   调用合同子项增量（2026-10-10）：Trade Outbox实际使用的Portfolio Fill费用更正客户端现有逐项method/path编码/Trade身份/Bearer/body断言，完整V1.3代码套件通过，见§8.69；全调用方/发布矩阵仍开放。
 - [x] 当前锁定V1.3 Fixture范围的接受/全成/部分成交/拒绝/UNKNOWN、重复Fill幂等及序号乱序、撤单/更正Outbox固定故障路径均已由完整Web/API/CLI矩阵和隔离PostgreSQL持久化测试验证；[矩阵日志](../../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log)、[完整代码套件](../../../evidence/audits/2026-10-08-p3-v13-final-code-suite-after-security-guard.log)。未建模的市场和故障边界继续开放。
 - [x] FakeBroker确认DAY到期后事务化写入`EXPIRED`事件与Portfolio预留释放Outbox；部分成交Fill等待入账，UNKNOWN不按到期释放。隔离PostgreSQL及完整V1.3代码套件exit 0；见[到期释放审计](../../../evidence/audits/2026-10-09-v13-expiry-reservation-release-a01.md)和[套件日志](../../../evidence/audits/2026-10-09-v13-expiry-reservation-release-code-suite-a01.log)。这不覆盖错过窗口重评估或完整交易恢复。
 - [x] 当前固定V1.3场景冻结为版本化双市场Fixture，含全成、拒单、接受响应丢失、重复/乱序回报、Session推进和精确预期；每次运行保存seed/TestRun ID。[Manifest与场景输入](../../../fixtures/v1/v1.3/manifest.json)、[完整21项隔离矩阵](../../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log)。尚未覆盖的市场能力与故障竞态仍在下方记录。
-- [ ] 完成V1.1/V1.3交易写路径的服务端模式边界全量审计：Paper交易严格 PAPER + FAKE、LIVE/REAL fail-closed，页面不能直接改状态或余额；回测写路径须独立限定 BACKTEST + FAKE，不得把全平台误缩为仅PAPER。完整矩阵仍开放；已补Proposal修订/审批及Session推进的入口拒绝和状态不变，见§8.49。
+- [x] V1.3-S2-L16固定US_EQUITY/AAPL 200股MANUAL乱序恢复子场景已冻结为Fixture v1.0.0，并通过seq2缓冲/10次重放、Trade重启、seq1因果排空、同Run CLI及双账本MATCH验证，完整记录见§8.91；24种子Fill/Fill/Cancel混合事件六排列及精确到达序列、PostgreSQL账本状态、幂等重放和冲突拒绝于§8.96通过；§8.97新增一个真实Web/API/CLI同Run的seq3取消先到缓冲、seq2 Fill后到恢复场景；§8.98新增seed 20261013/20261014两条独立浏览器Run，补充seq2先缓冲及两笔Fill后撤单两种到达顺序；§8.103/§8.104新增CN_A与US_EQUITY撤单拒绝后恢复/重试；§8.112验证拒绝seq3先到、缺失seq2 Fill随后排空及同单接受重试。仍有其他撤单/故障组合和市场边界待验证。
+- [ ] 完成V1.1/V1.3交易写路径的服务端模式边界全量审计：Paper交易严格 PAPER + FAKE、LIVE/REAL fail-closed，页面不能直接改状态或余额；回测写路径须独立限定 BACKTEST + FAKE，不得把全平台误缩为仅PAPER。V1.3 Trade的13条受保护写路由现有六种客户端模式组合（PAPER/FAKE、LIVE/FAKE、PAPER/REAL、BACKTEST/FAKE、BACKTEST/REAL、LIVE/REAL）逐路由HTTP拒绝断言；隔离PostgreSQL确认无订单/成交/事件/outbox副作用，服务端派生BACKTEST/FAKE仍可进入历史执行（§8.105）。V1.1/API页面全链路无状态/余额旁路及发布/回退审计仍未完成，本父项保持未勾。
+  [x] Decision Governance AUTO Mandate创建、激活、暂停以及Trade预算授权/结算HTTP写路由六种模式字段注入均422；Mandate/预算事实保持不变，随后合法状态转换仍成功，见§8.115。只关闭该服务端写边界子项。
+  [x] Proposal审批/拒绝/修订及执行授权写路由六种模式注入均422且Proposal/授权事实不变；Historical Replay授权仅允许BACKTEST/FAKE，其余五种拒绝，合法授权签发/消费/轮换通过，见§8.116。
   Decision Governance service Bearer策略的21条已准入路由及各调用身份/方法拒绝组合现有操作级策略枚举测试，见§8.73；该单测不替代HTTP副作用、Paper/Backtest模式注入及其它服务写路由审计，父任务继续OPEN。
+  V1.4 Quant内部日线回测写路由现通过直接HTTP/隔离PostgreSQL测试：六种Paper/Backtest/Live与Fake/Real注入均422，BacktestRun/Manifest保持0，详见V1.4 §8.116。该路由子项通过不关闭本父项。
+  Trade Execution的13条V1受保护写路由现逐条覆盖错误服务身份、无身份/Bearer及正确服务名配错误Bearer，隔离HTTP/PG均403且FakeBroker业务事实为0，见§8.83/A25；合法请求响应、其他服务路由和发布回退矩阵仍开放。
 - [x] Portfolio Risk对Platform API、Trade Execution、Historical Replay三种caller要求不同的强Bearer，避免伪造caller ID配合同一密钥跨身份；请求与ready配置校验、Compose必填及V1.1/V1.3代码套件验证见V1.1 §8.30。
 - [x] Portfolio Risk七条准入路由对Platform、Trade、Replay与test-harness四caller进行28次隔离HTTP拒绝探测；错误Bearer 401、越权身份403，六类事实计数不变。策略单测与V1.1/V1.3完整代码套件通过，详见§8.76/A18。
 - [x] Decision Governance启动时强制要求Platform API、Trade Execution、Historical Replay三份独立强Bearer；缺失Platform token的配置回归及服务单测见§8.74。此项不关闭完整服务身份/模式边界及发布审计。
@@ -76,6 +89,8 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 
 - [x] 增量出站合同：Trade→Governance实际V1.3 Proposal读取/执行授权创建/授权校验三条操作已有逐字段直接测试，见§8.78；P3全接受路径和授权副作用矩阵父项仍开放。
 
+- [x] 2026-10-13当前树核心Paper E2E 40/40：CN/US正常交易、严格现金、拒绝/撤单及UNKNOWN/重启恢复，独立账本MATCH，同Run CLI/export及隔离清理通过；见[V1主功能当前树复验](../../../evidence/audits/2026-10-13-v1-current-core-e2e-a01.md)。不代替用户验收。
+
 ## 3. 同步 Web 开发
 
 正式页：V1.3已提供提案创建/修订/批准/拒绝、AUTO Mandate创建/人工激活/暂停、固定CN/US模拟执行、订单/成交与独立FakeBroker资产对账。可卖量展示、完整风险原因、完整故障时间线和L01-L10全部场景仍未齐备；验收中心需继续使用同一业务API并补齐失败/恢复场景，不得把当前部分页面描述为版本验收完成。
@@ -111,9 +126,12 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 
 ## 7. 阶段交付待办（完成后勾选）
 
+当前交付清单按2026-10-13已批准的主要功能范围核实；PASS仅覆盖本轮范围。固定Fixture之外的全市场规则/故障穷举、活动发布回退和Ubuntu实机延期。下方早期增量说明中的“未完成/待验收”是对应日期历史，当前结论以上方状态及本节2026-10-14确认记录为准。
+
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
 
 - [x] 当前V1.3契约、锁版Fixture、场景与精确预期已冻结并通过Schema/SHA校验；见[当前Fixture与交接审计](../../../evidence/audits/2026-10-08-p3-v13-fixture-and-handoff.md)。
+- [x] OD-014 schema v3变更后的双市场PAPER/FAKE Web/API/CLI兼容回归38/38通过，详细范围、运行日志及人工验收限制见§8.109。
 - [x] 增量命令契约：`seed:paper`与`verify:paper`已实现并通过当前V1.3完整code suite及22/22隔离E2E；边界与证据见§8.45。阶段其余工程交付和人工验收仍开放。
 - [x] AUTO Mandate预算验收子项：Platform独立读回Governance预算终态，Web结果与刷新后页面均显示预算快照；完整V1.3 E2E 22/22及新增owner/TestRun预算路由身份矩阵27/27通过，证据见§8.46。V1.3阶段整体仍未完成。
 - [x] Governance历史回测授权模式拒绝子项：三种LIVE/REAL注入返回422、PostgreSQL授权数不变，合法BACKTEST/FAKE保持可用；完整V1.3代码套件exit 0，见§8.47。全路由边界父任务仍未关闭。
@@ -127,6 +145,8 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 - [x] Platform/Trade AUTO Mandate生成客户端操作合同测试通过；完整V1.3 suite证据与剩余边界见§8.72。
 - [x] V1.3 Proposal创建未知字段拒绝、匿名401优先及合法请求回归通过；完整E2E 22/22和code suite exit 0，详见§8.53；P3全路由审计和人工验收仍开放。
 - [x] V1.3 AUTO Mandate创建未知字段拒绝及PAPER/FAKE合法字段集回归通过；完整E2E 22/22和code suite exit 0，详见§8.54；P3全路由审计和人工验收仍开放。
+- [x] Decision Governance AUTO Mandate服务端写路由六模式HTTP+PostgreSQL拒绝矩阵通过；创建/激活/暂停和预算授权/结算的零副作用及合法继续路径见§8.115。P3父任务仍OPEN。
+- [x] Decision Governance Proposal与Historical Replay授权服务端六模式HTTP+PostgreSQL矩阵通过，见§8.116；仅关闭对应模式字段子项，不关闭其它V1服务与Web写路径。
 - [x] V1.3 Proposal修订和审批未知字段拒绝、状态/版本/hash无副作用回归通过；完整E2E 22/22和code suite exit 0，详见§8.55；P3全路由审计和人工验收仍开放。
 - [x] Platform Proposal修订/审批、AUTO Mandate创建/激活/暂停未知字段拒绝及合法状态转换回归通过；完整E2E 22/22和code suite exit 0，详见§8.56。P3全路由矩阵仍开放。
 - [x] CN_A固定Fixture MANUAL BUY/BUY两腿批次子项通过完整V1.3 E2E 23/23和code suite；TestRun、订单/Fill、同Run CLI、浏览器刷新与资源清理证据见§8.57。仅关闭此固定BUY/BUY执行子项，不代表第2节治理/执行父项或V1.3阶段关闭。
@@ -135,7 +155,10 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 - [x] 多腿现金不足拒绝子项：现金耗尽后的MANUAL多腿跨服务提交返回409，订单404且Portfolio/对账事实未变、同Run CLI通过；定向E2E证据见§8.59。首腿已预留后次腿失败的释放路径仍只有Trade单测证据。
 - [x] 固定CN_A AUTO_POLICY BUY/BUY：单个Mandate预算覆盖两腿，Governance消费一次CNY 2210.00，Portfolio逐腿预留，FakeBroker两子订单/Fill，期末现金7790.0000，刷新后Web及同Run CLI仍核对MATCH；完整V1.3 26/26 E2E与code suite exit 0，见§8.60。SELL和其他市场AUTO多腿仍开放。
 - [x] 固定US_EQUITY AUTO_POLICY BUY/BUY：单个Mandate预算消费USD 450.10、Portfolio逐腿预留、FakeBroker两子订单/Fill，期末现金9549.9000及AAPL/MSFT持仓、刷新恢复与同Run只读CLI断言通过；完整E2E 27/27及code suite exit 0，见§8.61。SELL和更广市场规则仍开放。
-- [ ] 第2节全部后端任务完成；当前固定业务链通过，但全市场规则、锁版Fixture以外的订单故障边界和目标Ubuntu交付仍未完成，真实依赖与替身边界已说明。
+- [x] 增量交付：V1.3 Trade受保护写路由及历史执行入口六种客户端模式注入HTTP/PG拒绝矩阵通过，完整code suite exit 0（§8.105）；此子项不关闭L17父项、全版本页面/Worker/发布回退审计或人工验收。
+- [x] 增量交付：Platform固定写路径六种客户端模式注入矩阵覆盖20个操作、120次请求，另将提案拒绝动作与批准动作分开覆盖；完整V1.3 E2E 38/38、code suite exit 0，账本与FakeBroker无副作用（§8.106–§8.108）；不关闭L17父项或阶段/版本人工验收。
+- [x] 第2节当前主要功能范围完成，真实组件/Fixture边界明确；依据§8.80–8.81、§8.87、§8.91、§8.113–8.118。未勾选的广泛父项按本轮范围拆分，延期部分仍未通过。
+- [x] OD-014 CN_A固定Paper T+1 SELL与结算后再次BUY子项：Trade Outbox持久化Settlement、FakeBroker与Portfolio独立应收、Run Clock结算和同TestRun的Web/API/CLI核对通过，见V1.4 §8.86及本阶段§8.80。US SELL、P3父项和当前扩展范围人工验收仍未完成。
 - [x] 正式V1.3 Web页及21项正常/拒绝/恢复矩阵完成当前固定范围验证；完整API/浏览器日志见[本轮矩阵](../../../evidence/audits/2026-10-08-p3-v13-refresh-fix-matrix-enabled.log)。
 - [x] 当前V1.3完整E2E扩展至22项，新增Platform Proposal模式注入拒绝与同Run CLI只读核对；[完整日志](../../../evidence/audits/2026-10-09-v13-platform-mode-full-e2e-a01.log)。该交付子项通过，阶段模式边界父项及人工验收仍开放。
 - [x] Platform/Trade生成V1.3 AUTO Mandate客户端契约测试纳入当前代码树，完整V1.3 code suite exit 0；证据见§8.65。阶段整体仍未关闭。
@@ -144,7 +167,13 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 - [x] Mac ARM64隔离入口、实际随机URL/API端口、Fixture路径/SHA、环境变量名、页面按钮、超时与精确清理说明已补齐并实测。目标Ubuntu命令/镜像与主机资源明细仍未验证，见[交互栈审计](../../../evidence/audits/2026-10-08-p3-v13-fixture-and-handoff.md)。
 - [x] 开发者已执行第8节当前Mac隔离准备、完整矩阵、同Run只读CLI、证据导出及手动栈启动/探活/精确停止；保存代码门禁、矩阵和生命周期日志。自动化不代替新范围人工验收。
 - [x] 当前锁版矩阵重复/恢复路径和适用快速测试均验证；其余市场/故障组合与真实观察范围明确列为未覆盖，不把Fixture加速场景冒充实盘观察。
-- [ ] 历史用户验收只覆盖2026-09-09旧范围；当前扩展范围人工验收为NOT_RUN，等待用户实际确认，不沿用旧签署代签。
+- [x] V1.3 L16 US AAPL乱序成交/Trade重启增量的定向及完整Web/API/CLI矩阵33/33、完整代码套件exit 0；同Run CLI、现金、持仓、预留、FakeBroker对账与精确资源清理结果见§8.91及本次日志。
+- [x] 当前树完整V1.3隔离Web/API/CLI矩阵复跑36/36通过（新增§8.98的两个独立seed场景），真实券商/外部数据调用0，随机项目的容器、卷、网络精确清理通过；见§8.98。测试Run人工结论仍NOT_RUN，L16更广故障组合和阶段签收仍开放。
+- [x] L16固定撤单拒绝恢复：CN_A与US_EQUITY/AAPL分别在同一Run经Web/API注入seq=3 REJECTED，订单恢复PARTIALLY_FILLED、预留保持HELD，同Run CLI `--check-only`核对未完成事实；再次对同一订单撤单并以seq=4接受后，最终CANCELLED且预留RELEASED。定向E2E各1/1、完整V1.3 E2E 38/38、完整code suite exit 0；详见§8.103/§8.104。本子项不关闭L16/P3或阶段验收，Run人工结论仍NOT_RUN。
+- [x] L16撤单前置拒绝与乱序恢复：无成交、以及仅收到但尚未应用的seq=2 Fill时，Web/API撤单请求均返回409，订单事实/现金/持仓不变且Reservation仍HELD；随后seq=1到达并按序排空，撤单请求/seq=3接受成功，CN_A双账本MATCH、同Run CLI核验通过。定向E2E与完整当前V1.3 Web/API/CLI矩阵40/40、完整code suite均exit 0；见§8.113。首轮六个不符合业务前置的事件排列尝试和六份NOT_RUN诊断包保留，不视作订单事件排序失败。
+- [x] 共享Trade执行逻辑变更后的V1.3完整回归：`pnpm verify:stage -- --stage V1.3 --suite code`受控执行exit 0，包含Trade/Portfolio/Governance隔离PostgreSQL迁移、真实HTTP授权/模式/账本检查及应用测试；临时数据库/网络清理通过，见§8.114。此项为代码兼容复验，不关闭P3全业务规则矩阵、Ubuntu或人工验收。
+- [x] V1.4 Quant内部回测写路由模式注入拒绝子项已由真实服务/隔离PostgreSQL验证，六种组合均422且Run/Manifest无新增；详见V1.4 §8.116。此项不关闭L17全V1服务/Worker/Web矩阵。
+- [x] 用户于2026-10-14在对话确认当前候选整版V1验收通过，覆盖本阶段本轮范围；候选SHA-256 `132535fbdf2bf1d50e4260e397424b3a47ef949dedcc62e58257c0a5697bd2d4`，阶段与代表Run关联见[验收表](./99-acceptance.md)。历史单Run人工结论不倒填。
 - [x] 操作说明、限制和自动证据已更新；[本版验收表](./99-acceptance.md)已同步。第8节于2026-10-09在Mac ARM64隔离范围实际执行后更新为VERIFIED_EXECUTABLE；目标Ubuntu验证仍独立NOT_RUN。
 
 - [x] 共享Schema兼容变更后的V1.3当前树Web/API/CLI隔离回归：`pnpm test:e2e -- --stage V1.3`，Playwright 27/27；每个固定场景均检查同Run CLI及结构化导出，真实来源/券商调用0，隔离资源精确清理。证据见§8.67。此回归不关闭全市场规则、OD-014、Ubuntu或人工验收。
@@ -152,6 +181,12 @@ V1.3人工审批域规则增量（2026-10-06）：治理服务新增纯领域`de
 - [x] 增量交付：外部FakeBroker订单观察生成客户端合同及完整V1.3代码回归证据已入档（§8.77）；不代表阶段人工验收或P3父项关闭。
 
 - [x] 增量交付：Trade→Governance三操作客户端合同、完整V1.3代码回归及操作记录已完成（§8.78）；不代表阶段人工验收或P3父项通过。
+
+- [x] OD-014固定US_EQUITY Paper SELL严格现金闭环：合成纽约会话、Run Clock初始化/推进、US应收待结算现金隔离、双账本结算、同Run CLI与证据导出通过，见§8.81；日历为有界合成输入，不主张交易所准确性。
+
+- [x] Trade Execution V1写路由身份凭据拒绝子项：13条路由逐项验证缺身份、错误Bearer及越权caller拒绝，FakeBroker零副作用，见§8.83；不代表P1/A04全服务调用、授权正向合同或发布/回退矩阵关闭。
+
+- [x] 2026-10-13当前树核心Paper E2E 40/40：CN/US正常交易、严格现金、拒绝/撤单及UNKNOWN/重启恢复，独立账本MATCH，同Run CLI/export及隔离清理通过；见[V1主功能当前树复验](../../../evidence/audits/2026-10-13-v1-current-core-e2e-a01.md)。不代替用户验收。
 
 ## 8. 阶段验收操作手册
 
@@ -164,17 +199,17 @@ pnpm verify:stage -- --stage V1.3 --suite code
 pnpm test:e2e -- --stage V1.3
 ```
 
-第一条是完整代码门禁，第二条以随机隔离Platform/Portfolio/Governance/Trade/PostgreSQL/Web运行全部固定场景；E2E Harness仅在隔离项目内启用L08一次性故障开关；生产配置不启用。当前树复验：[V1.3完整代码套件](../../../evidence/audits/2026-10-09-v13-current-tree-code-suite-a01.log)、[21项Web/API/CLI/export E2E](../../../evidence/audits/2026-10-09-v13-current-tree-e2e-a02.log)、[手册入口/会话/清理日志](../../../evidence/audits/2026-10-09-v13-interactive-stack-lifecycle-a01.log)；结构化摘要及Hash见[本轮证据报告](../../../evidence/audits/2026-10-09-v13-current-worktree-evidence-a01.json)和[SHA-256](../../../evidence/audits/2026-10-09-v13-current-worktree-evidence-a01.json.sha256)。此前无Docker权限和镜像下载unexpected EOF失败均保留，矩阵Harness清理随机项目资源后才重试。通过自动门禁不代表本轮用户验收通过。
+第一条是完整代码门禁，第二条以随机隔离Platform/Portfolio/Governance/Trade/PostgreSQL/Web运行全部固定场景；E2E Harness仅在隔离项目内启用测试声明的一次性故障注入，生产配置不启用。当前树最新复验为36项Web/API/CLI/export E2E与完整代码套件，包含US AAPL乱序成交重启及L16多seed撤单到达路径；[完整矩阵](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-full-e2e-a01.log)、[完整代码套件](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-code-suite-a01.log)。历史21项日志与[手册入口/会话/清理日志](../../../evidence/audits/2026-10-09-v13-interactive-stack-lifecycle-a01.log)；结构化摘要及Hash见[本轮证据报告](../../../evidence/audits/2026-10-09-v13-current-worktree-evidence-a01.json)和[SHA-256](../../../evidence/audits/2026-10-09-v13-current-worktree-evidence-a01.json.sha256)。此前无Docker权限和镜像下载unexpected EOF失败均保留，矩阵Harness清理随机项目资源后才重试。通过自动门禁不代表本轮用户验收通过。
 
 Web 验收入口使用 `pnpm stack:up -- --stage V1.3` 当次输出的 `webUrl`（页面路径 `/acceptance/v1/v1.3`），API 使用同次输出的 `platformApiUrl`；端口每次随机生成，不复用历史端口。首个 Web 请求建立本地 `acceptance-owner-1` session cookie。不要用伪造用户请求头代替会话；只把当前浏览器会话Cookie用于下方同Run只读CLI/导出，禁止打印或保存Cookie值。
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（2026-10-09当前工作树已执行Mac ARM64隔离stack启动、Web/session探活、精确清理、完整代码套件及21项Web/API/CLI/export矩阵。该状态只表示隔离工程操作说明可复跑；目标Ubuntu、完整交易所规则和当前范围人工验收仍未完成，V1.3保持PARTIALLY_IMPLEMENTED）。
+手册状态：VERIFIED_EXECUTABLE（2026-10-14收口，限已实测的Mac本地主要功能操作；实际执行证据见§8.80–8.81、§8.87、§8.91、§8.113–8.118，当前候选整版人工验收已由用户确认）。启动时使用当次输出的动态URL和精确项目名；历史随机URL不能复用。固定Fixture之外的全市场规则/故障穷举、活动发布回退和Ubuntu实机延期。以前部分验证状态与原操作记录保留于[同步前快照](../../../evidence/audits/2026-10-14-v1-closeout-before-status-sync.json)及下方各次实测记录。
 
 前置服务：容器化Platform API/Web、Market Data、Portfolio Risk、Decision Governance、Trade Execution、隔离PostgreSQL及本阶段固定Fixture。E2E不连接真实行情来源或券商；V1.3该运行路径不依赖NATS。
 
-固定输入：合法交易时段Fixture；CN现金10000、零持仓、买100股、RAW价格10、测试费5，固定Mandate/规则；seed=20260907。
+固定输入：基础双市场Fixture `v1.3-trading-loop` v1.0.0及专用US有序成交Fixture `v1.3-us-ordered-fills` v1.0.0；常规CN样例为现金10000、零持仓、买100股、RAW价格10、测试费5；§8.91 AAPL场景为现金USD 10000、买200股、价格USD 25、每个增量Fill费用USD 0.0250；seed=20260907。
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
@@ -182,11 +217,11 @@ Web 验收入口使用 `pnpm stack:up -- --stage V1.3` 当次输出的 `webUrl`�
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node v24.1.0，pnpm 10.34.5，Docker CLI 28.0.4；V1.3 Trade/Platform运行于锁版Compose容器。Mac主机Darwin/ARM64；目标Ubuntu环境版本与资源尚未验证 |
 | Web基础URL/身份登录或会话建立方式 | 手动栈启动成功后终端输出随机 `http://127.0.0.1:<V13_WEB_HOST_PORT>`；容器Web正式页为其后缀 `/acceptance/v1/v1.3`。首个Web请求建立`acceptance-owner-1`本地会话Cookie；12小时过期，logout写入PostgreSQL撤销记录。仅限随机隔离项目，不是活动部署或生产认证证明 |
 | 本阶段Web路由 | `/acceptance/v1/v1.3`，主机只绑定`127.0.0.1`的随机端口；不固定8080 |
-| 正式页面的真实入口/跳转链接 | 页面标题“V1.3 治理、风控与模拟券商交易链路”；场景区“创建隔离 V1.3 TestRun”，账户区“初始化本 Run 模拟账户（10000）”，提案区含“创建MANUAL固定Fixture调仓提案”“创建AUTO_POLICY固定调仓建议”，命令区/结果卡展示Proposal、订单、成交、Outbox与独立FakeBroker对账；按钮名与Playwright正式页断言一致 |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | `fixtures/v1/v1.3/manifest.json`，`v1.3-trading-loop` 1.0.0；场景文件 `fixtures/v1/v1.3/trading-loop-scenarios.json` SHA-256 `24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770`。CN_A/CNY：10000.0000初始现金、600000.SH、100股×10.0000、费用5.0000，预期8995.0000/100股；US_EQUITY/USD：10000.0000、AAPL、10股×25.0000、费用0.0500，预期9749.9500/10股。T+1日历版本`sse-cn-a-share-2026-1`，9/28至9/29 Fixture Session；seed 20260907。所有订单/时段为合成值 |
+| 正式页面的真实入口/跳转链接 | 页面标题“V1.3 治理、风控与模拟券商交易链路”；场景区“创建隔离 V1.3 TestRun”，账户区“初始化本 Run 模拟账户（10000）”，提案区含“创建MANUAL固定Fixture调仓提案”“创建固定双市场200股因果成交Fixture提案”“创建AUTO_POLICY固定调仓建议”，命令区/结果卡展示Proposal、订单、成交、Outbox与独立FakeBroker对账；按钮名与Playwright正式页断言一致 |
+| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 基础：`fixtures/v1/v1.3/manifest.json`，`v1.3-trading-loop` 1.0.0，场景SHA-256 `24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770`；US乱序恢复：`fixtures/v1/v1.3-us-ordered-fills-v1.0.0/manifest.json`，`v1.3-us-ordered-fills` 1.0.0，场景SHA-256 `7c6c81a3f7c1f7286a55f853285414a5e240e2ca2c54013e29aa87cb81bd38c0`（完整语义见§8.91）。CN_A/CNY：10000.0000初始现金、600000.SH、100股×10.0000、费用5.0000，预期8995.0000/100股；US_EQUITY/USD：10000.0000、AAPL、10股×25.0000、费用0.0500，预期9749.9500/10股。T+1日历版本`sse-cn-a-share-2026-1`，9/28至9/29 Fixture Session；seed 20260907。所有订单/时段为合成值 |
 | 配置文件及必需环境变量名/非秘密测试值 | `pnpm stack:up -- --stage V1.3`自动生成随机项目、回环端口、PostgreSQL SCRAM凭据和服务token；仅`.codex/isolated-stacks/<project>.env`以0600存储，不复制或提交秘密。`STOCKQUANT_V13_TEST_FEE_CORRECTION_FAILURE_ENABLED=true`仅用于完整E2E里L08一次性Portfolio Outbox失败注入；人工交互不启用该变量 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | 不请求外部行情、券商或网络故障目标。固定错误在隔离服务内注入：原单查询暂时不可用、Trade容器重启、乱序/重复Fill、L08一次性Outbox投递失败；完整命令见8.4。使用终端输出的精确`pnpm stack:down -- --project <isolatedProject>`停止，等待`MANUAL_STACK_CLEANUP_VERIFIED` |
-| 预期耗时、轮询超时、实际观察期/预算 | API/Web启动探测各最多120次×250ms（30秒）；手动入口实际E2E矩阵21项，Playwright用时约1.5分钟，冷Docker构建另计且受镜像下载影响；单个同Run业务查询客户端超时5秒。此为加速Fixture测试，无市场实际观察窗口、模型调用或费用预算 |
+| 预期耗时、轮询超时、实际观察期/预算 | API/Web启动探测各最多120次×250ms（30秒）；当前完整E2E矩阵33项，最近实测Playwright用时约2.3分钟，冷Docker构建另计且受镜像下载影响；单个同Run业务查询客户端超时5秒。此为加速Fixture测试，无市场实际观察窗口、模型调用或费用预算 |
 
 ### 8.2 初始化与启动（Mac ARM64隔离交互入口已执行；Ubuntu发布环境待验证）
 
@@ -226,20 +261,20 @@ pnpm stack:down -- --project "$isolated_project"
 |---|---|---|---|
 | normal | MANUAL/AUTO正常提案与双市场订单 | CN：选择normal→初始化账户→“创建MANUAL固定Fixture调仓提案”→“人工批准”→“执行人工批准的固定Fixture提案”。另开新Run选择US_EQUITY并重复。AUTO另新Run：点“创建AUTO_POLICY固定调仓建议”→“创建本Run固定AUTO_POLICY Mandate”→“人工激活精确Mandate版本”→“按活动Mandate执行AUTO_POLICY建议”。 | CN为100股×CNY 10、费用5，余额8995/持仓100；US为10股×USD 25、费用0.05，余额9749.95/持仓10；两个独立FakeBroker与Portfolio结果均MATCH。AUTO精确Mandate范围生效；HOLD需显示无订单且不消费次数。 |
 | rejection | 提案拒绝、版本冲突与执行拒绝 | 新Run选rejection，初始化账户、创建MANUAL提案后点“人工拒绝”；另新Run选recovery创建提案后点“追加提案修订版本”，再用旧版本提交批准；用正式拒绝矩阵验证现金不足、跨币种/证券、暂停/过期Mandate、同日SELL和超次数。 | MANUAL状态为REJECTED_MANUAL；旧Proposal版本返回409且新版本仍待审批；每种拒绝原因明确，订单/现金/预留/预算无非法副作用。完整子场景以8.4固定矩阵和同Run事实核验。 |
-| recovery | UNKNOWN、进程恢复、乱序/重复Fill与撤单 | 浏览器正常页面使用“创建200股因果成交Fixture提案”“执行人工批准的固定Fixture提案”“发送seq2（累计150，先到）”“将同一seq2重放10次”“发送seq1（成交40股或累计100股）”；另Run用“创建L08 100股部分成交撤单Fixture提案”，执行后点“seq1部分成交后请求撤单并应用seq2成功结果”和手续费更正。注入UNKNOWN/查询故障和Trade重启用8.4自动矩阵。 | 原clientOrderId只产生一个订单；seq2先到保持缓冲，seq1后按序归约；重放不重复入账；撤单确认前余量Reservation保持HELD，成功后只释放未成交量；最终FakeBroker与Portfolio独立MATCH。 |
+| recovery | UNKNOWN、进程恢复、乱序/重复Fill与撤单 | 浏览器正常页面使用“创建固定双市场200股因果成交Fixture提案”“执行人工批准的固定Fixture提案”“发送seq2（累计150，先到）”“将同一seq2重放10次”“发送seq1（成交40股或累计100股）”；另Run用“创建L08 100股部分成交撤单Fixture提案”，执行后点“seq1部分成交后请求撤单并应用seq2成功结果”和手续费更正。注入UNKNOWN/查询故障和Trade重启用8.4自动矩阵。 | 原clientOrderId只产生一个订单；seq2先到保持缓冲，seq1后按序归约；重放不重复入账；撤单确认前余量Reservation保持HELD，成功后只释放未成交量；最终FakeBroker与Portfolio独立MATCH。 |
 
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
 
 ### 8.4 命令行复验与相同运行核对（Mac ARM64隔离环境已实测）
 
-在项目根目录执行以下命令。隔离Web矩阵调用正式业务API、为21项浏览器场景分别导出TestRun证据、以相同UUID运行CLI只读检查并验证资源清理；L08单次故障需要显式开关。代码套件检查构建、Lint、类型、单测、合同、Fixture及隔离服务集成。两者均须独立执行；浏览器矩阵不能由单测替代。
+在项目根目录执行以下命令。隔离Web矩阵调用正式业务API、为每个浏览器场景分别导出TestRun证据、以相同UUID运行CLI只读检查并验证资源清理；当前V1.3矩阵33项包含§8.91 US乱序/重启路径。代码套件检查构建、Lint、类型、单测、合同、Fixture及隔离服务集成。两者均须独立执行；浏览器矩阵不能由单测替代。
 
 ```bash
 pnpm verify:stage -- --stage V1.3 --suite code
 echo "code suite exit=$?" # 完整代码门禁应为0
 pnpm test:e2e -- --stage V1.3
-echo "browser matrix exit=$?" # 21 passed、status=PASS、realBrokerCalls=0、exactProjectResourcesRemoved=true
+echo "browser matrix exit=$?" # 33 passed、status=PASS、realBrokerCalls=0、exactProjectResourcesRemoved=true
 ```
 
 独立的`pnpm verify:stage -- --stage V1.3 --scenario normal|rejection|recovery --seed 20260907`只登记WAITING/NOT_RUN阶段Run，不执行交易，当前应返回2；业务工作流由Web/E2E正式路径执行。V1.3 Web矩阵的每个场景已从同Run CLI进行只读核对，整体阶段门禁仍可保持WAITING。`--check-only`仅查事实，不能下单/重放成交；注入事件和原业务ID必须留档。零用例或跳过必需用例不能返回成功。
@@ -688,3 +723,306 @@ V1.3对账路径实际经Platform `GeneratedPlatformPaperExecutionClient`调用T
 ### 8.78 Trade→Decision Governance V1.3授权客户端操作合同（2026-10-10）
 
 Trade Execution在MANUAL与sequenced MANUAL执行前通过`GeneratedTradeV13GovernanceClient`读取owner范围Proposal、创建执行授权并验证授权绑定。新增三个逐操作合同测试：Proposal ID路径编码/owner头与读取响应；授权创建POST路径、完整类型化命令、Trade专属Bearer身份；验证POST路径及同一授权字段绑定。三项均检查JSON类型、5秒AbortSignal与响应状态/载荷。定向测试3/3、Trade typecheck通过；完整`pnpm verify:stage -- --stage V1.3 --suite code` exit 0，隔离迁移、HTTP/PG、Web/API/CLI及基线检查通过，临时资源清理完成。完整套件日志[见此](../../../evidence/audits/2026-10-10-v13-trade-governance-client-contract-code-suite-a01.log)，exit和SHA见sidecar。此项只关闭三条出站操作合同，不关闭完整身份/副作用、所有服务路由或P3父项。
+
+### 8.79 V1.3共享StageRun证据投影与Fixture模式真实隔离验证（2026-10-11）
+
+在V1.3浏览器E2E `afterEach` 中，对每个已持久化TestRun同时核验专用结构化导出和共享`GET /api/v1/acceptance/runs/{testRunId}/evidence`投影。27个场景均从真实隔离Platform API读取HTTP 200 `v2-stage-run-1`，验证相同TestRun UUID、owner `acceptance-owner-1`、`stageId=V1.3`、`PAPER/FIXTURE/FAKE`模式、导出断言与Run断言一致，并保留`manualConclusion=NOT_RUN`。
+
+首次合同断言发现V1.3权威Run创建记录缺少`dataMode`，不是导出层默认值问题。`V13TradingEngine`现明确记录`dataMode=FIXTURE`，领域单测覆盖三类场景的`PAPER/FIXTURE/FAKE`。同时，Web容器Dockerfile补复制被运行时Schema校验直接导入的`packages/contracts/schemas/common`，使正式容器构建包含该共享合同输入。
+
+定向Platform测试327/327、Platform typecheck、Web typecheck、Web单测6/6通过。完整隔离`pnpm test:e2e:v13-isolated`退出0：Playwright 27/27，共享StageRun投影断言逐Run通过；临时容器/卷/网络/镜像精确清理通过。成功日志[a04](../../../evidence/audits/2026-10-11-v13-shared-stage-evidence-isolated-a04.log)，exit与SHA见sidecar。首轮沙箱Docker权限失败[a01]、Web镜像漏复制schema构建失败[a02]、首次合同复验发现模式缺字段[a03]均保留。此项关闭V1.3共享StageRun固定模式投影的真实运行时子项，不代表完整市场/结算矩阵、P1/A04发布回退、历史Run、阶段人工验收或V1通过。
+
+### 8.80 OD-014 CN_A结算后Paper BUY闭环（2026-10-11）
+
+交易日推进现通过Platform→Trade的受限服务路由，按TestRun注入Clock幂等调用FakeBroker与Portfolio结算；若时钟先持久化而任一账本结算失败，重放原推进请求会先重新核对账户归属、双账本与未结订单，再安全续做结算。Trade路由只接受Platform service identity，严格校验scope和时钟。合同/OpenAPI生成器、Platform客户端和应用层边界测试同步更新。
+
+定向单测：Platform全套68文件/330项（含双账本部分失败续做）通过且typecheck通过；Trade 20文件/104项通过且typecheck通过；Portfolio 4文件/12项通过且typecheck通过；合同和OpenAPI检查通过。隔离容器E2E通过：CN_A初始买入后同日卖出按T+1拒绝；次日卖出100股形成CNY 995.0000待结算，现金维持8995.0000；推进到2026-09-30后Portfolio与FakeBroker均结算为9990.0000、应收为SETTLED；其后固定Fixture再买入100股，双账本现金为8985.0000，持仓100股，差异为空，同Run CLI检查通过。TestRun `7a2beec3-d4ba-4905-a483-e56c33795ec9`，E2E证据Manifest SHA-256 `9a805ce0eb13b353f804e3143683d74189e499fdd2e3f55dad173b0d4118f8b0`；隔离Compose exit 0且容器/卷/网络/镜像精确清理。完整日志[见此](../../../evidence/audits/2026-10-11-v13-settlement-clock-buy-isolated-a01.log)，exit [见此](../../../evidence/audits/2026-10-11-v13-settlement-clock-buy-isolated-a01.exit.txt)，SHA-256 `87f8973095a0abeac640b8c68f1df94b768e93f6c939861d4800ae0bf7b6bc66`。完整`pnpm verify:stage -- --stage V1.3 --suite code`当前树复验exit 0；包含合同/Fixture/基线、服务层、隔离集成、服务身份HTTP+PG及Portfolio/Trade v2迁移矩阵，完整日志[见此](../../../evidence/audits/2026-10-11-v13-settlement-clock-buy-code-suite-a01.log)，exit [见此](../../../evidence/audits/2026-10-11-v13-settlement-clock-buy-code-suite-a01.exit.txt)，SHA-256 `283491b142ef594ae0b8eda41c13a98dc8fe410f10fea094389da1e7f40da7d2`。
+
+定向重跑首次使用的grep正则含未转义加号，没有匹配测试；该次退出失败不计为PASS。首次全套运行确实执行目标用例，但后续BUY输入超出冻结Fixture数量而失败，修正为锁版100股后本条定向实测通过。该固定CN_A子项不代表US SELL、完整市场结算规则、人工签署或P3/V1父项完成。
+
+### 8.81 OD-014 US_EQUITY严格已结算现金Paper SELL闭环（2026-10-11）
+
+新增冻结的[US合成会话Fixture Manifest](../../../fixtures/v1/v1.3-us-synthetic-session-1/manifest.json)及[明确会话表](../../../fixtures/v1/v1.3-us-synthetic-session-1/session-calendar.json)，范围为2026-09-27至2026-10-02，时区`America/New_York`。Fixture明确为合成模拟输入、不是交易所日历；运行时按Manifest SHA-256读取，未知日期fail-closed。US账户初始化会把初始注入Clock归一到该Fixture首个已列交易会话，归一事件持久化到同一TestRun Session历史。Trade精确允许的手工SELL Fixture扩展为AAPL 10股USD；AUTO SELL、其它证券及非Fixture数量继续拒绝。
+
+随机隔离Web/API/Trade/Portfolio/PostgreSQL栈定向Playwright 1/1通过，TestRun `5cb79e42-276c-48ee-9602-5fd6179fa1e0`。从初始`2026-09-28T01:31:00.000Z`归一至`2026-09-28T13:31:00.000Z`；固定AAPL买入后现金USD `9749.9500`，推进到下一合成Session后卖出10股，Portfolio/FakeBroker现金仍为`9749.9500`、USD `249.9500`列为PENDING；推进至`2026-09-30T13:31:00.000Z`后两账现金均为`9999.9000`且应收SETTLED，reconciliation无差异。同Run CLI只读检查通过并导出`manualConclusion=NOT_RUN`证据；真实行情与券商调用0，随机隔离容器、网络、卷精确清理通过。
+
+完整日志见[E2E](../../../evidence/audits/2026-10-11-v13-us-settlement-e2e-a01.log)、[报告](../../../evidence/audits/2026-10-11-v13-us-settlement-e2e-a01.md)、[TestRun导出](../../../evidence/local/V1.3/5cb79e42-276c-48ee-9602-5fd6179fa1e0/manifest.sha256)。
+切换V1.4 settlement calendar v3后重新执行完整V1.3 Web/API/CLI矩阵，Playwright 28/28通过；最新US SELL同Run为`f9d068a9-188c-4e8f-adf1-36e475ddfa28`，证据Manifest SHA-256 `aedcf2d0c711468cc88fba1dbcc29b00e71ef530ed0e8b4d2ce7cfdd051c0018`，现金仍按`9749.9500 USD`隔离待结算应收`249.9500 USD`，结算后双账本`9999.9000 USD`且MATCH；完整运行日志见[28/28 E2E](../../../evidence/audits/2026-10-11-v13-settlement-fixture-e2e-a01.log)。该更新保留旧TestRun作历史证据，不提升人工结论。定向Platform会话单测15/15、Trade固定Paper Fixture单测10/10，Platform/Trade/Web类型检查、Fixture与JSON Schema校验均通过；完整V1.3 code suite退出0，见[日志](../../../evidence/audits/2026-10-11-v13-us-settlement-code-suite-a01.log)。这关闭OD-014固定US Paper SELL现金结算子项；不表示真实美股日历/费税、V1.4 Quant/Paper全部规则对照、P3/P4阶段或V1完成。人验仍待用户实际确认。
+
+### 8.82 OD-014结算调用边生成客户端合同复验（2026-10-11）
+
+当前树生成客户端静态盘点发现两个新增生产调用尚无直接客户端合同测试：Platform→Trade `settleForSession`与Trade→Portfolio `settleAccountReceivables`。补齐测试，分别断言固定session clock/owner/TestRun载荷、精确内部路由、Platform或Trade专属Bearer身份、15秒/5秒AbortSignal，以及Portfolio拒绝状态和响应体保持不变。
+
+定向测试：Platform生成Trade客户端10/10、Trade生成Portfolio客户端5/5；`pnpm contracts:check` exit 0。Portfolio隔离HTTP/PG集成6/6，8条路由×4种身份共32个拒绝/错误凭据探测后账户、账本、Fill及应收等事实不变；Trade隔离HTTP/PG smoke对错误Replay身份的结算路由返回403且FakeBroker应收仍为0。受控完整`pnpm verify:stage -- --stage V1.3 --suite code` exit 0，日志见[套件A03](../../../evidence/audits/2026-10-11-v13-settlement-client-contract-code-suite-a03.log)，exit [记录](../../../evidence/audits/2026-10-11-v13-settlement-client-contract-code-suite-a03.exit.txt)，SHA-256 [sidecar](../../../evidence/audits/2026-10-11-v13-settlement-client-contract-code-suite-a03.log.sha256)。生成客户端静态引用盘点现为20个客户端、73个生产调用方法、无缺少客户端测试引用，见[盘点A02](../../../evidence/audits/2026-10-11-v1-generated-client-test-inventory-a02.json)。直接调用边和服务端拒绝范围见[路由矩阵A24](../../../evidence/audits/2026-10-11-v1-cross-service-route-matrix-a24.md)。隔离容器已清理，活动服务未连接；本项不改变P1总体状态、OD-014整体阶段或人工验收状态。
+
+2026-10-12当前树复验既有Trade→Portfolio结算客户端合同测试5/5通过；请求/身份语义无新缺口，未扩展 §8.82 的结论范围。[定向日志](../../../evidence/audits/2026-10-12-v1-trade-portfolio-settlement-client-contract-a01.log)、[exit](../../../evidence/audits/2026-10-12-v1-trade-portfolio-settlement-client-contract-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-trade-portfolio-settlement-client-contract-a01.log.sha256)、[语义复核A32](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a32.md)。P1/A04完整操作/兼容/发布回退矩阵仍OPEN。
+
+### 8.83 Trade Execution V1写路由缺身份/错误Bearer矩阵（2026-10-11）
+
+Trade HTTP+PostgreSQL隔离smoke将13条V1受保护写路由逐条加入缺少服务身份/Bearer、正确caller名称搭配另一服务Bearer的探测；原有错误caller+其有效token探测继续保留。三类错误请求全部403，FakeBroker订单、Fill、事件、Outbox和SELL应收计数保持0。V1.3完整code suite exit 0、随机隔离服务和PostgreSQL资源清理通过；详细路由与限制见[矩阵A25](../../../evidence/audits/2026-10-11-v1-cross-service-route-matrix-a25.md)和[完整套件日志](../../../evidence/audits/2026-10-11-v13-trade-route-credential-matrix-code-suite-a04.log)、[退出码](../../../evidence/audits/2026-10-11-v13-trade-route-credential-matrix-code-suite-a04.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v13-trade-route-credential-matrix-code-suite-a04.log.sha256)。这是V1.3 Trade拒绝授权子矩阵；合法请求的完整逐路由响应、其它服务、发布/回滚及P1/A04父项继续OPEN。
+
+### 8.84 V1.3 Trade全部受保护写路由模式注入拒绝复验（2026-10-11）
+
+在§8.83的13条V1写路由身份矩阵上，补齐此前缺少的四条正确Platform身份HTTP探测：Paper settlement、FakeBroker external order、simulated fill report及fee correction。四条均使用满足其余字段形状的请求并额外注入`environmentMode=LIVE`与`brokerMode=REAL`；均在持久化/调用Portfolio前以422拒绝。隔离PostgreSQL前后对比FakeBroker external orders、SELL receivables、simulated reports、fee corrections、fills和outbox事实，无变化。连同已有的历史BACKTEST执行、MANUAL/序列/AUTO提案执行、取消/取消结果/过期/UNKNOWN转换和outbox compensation拒绝探测，13条V1 Trade写路由均有当前树模式注入断言。
+
+受控完整`pnpm verify:stage -- --stage V1.3 --suite code` exit 0；Trade单测105/105，隔离数据库精确清理通过。完整日志[套件a05](../../../evidence/audits/2026-10-11-v13-mode-boundary-code-suite-a05.log)、[exit](../../../evidence/audits/2026-10-11-v13-mode-boundary-code-suite-a05.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v13-mode-boundary-code-suite-a05.log.sha256)。首轮测试查询费用更正表时误用了不存在的`order_id`列，保留在[失败a04](../../../evidence/audits/2026-10-11-v13-mode-boundary-code-suite-a04-failed.log)；修正为该表的`external_fill_id`关联后完整重跑通过。
+
+这只关闭V1.3 Trade的模式注入拒绝原子项；V1.1服务路径、Platform页面状态/余额旁路、允许模式语义的全部正向组合、跨服务部署与回退仍需复核，父项与V1.3阶段均保持未完成。
+
+### 8.85 Trade V1写路由服务身份策略全量单测（2026-10-12）
+
+Trade Execution身份授权单测此前仅对13条V1受保护写路由抽样断言。本次改为逐路由表驱动：历史回放执行归Replay Worker，其余12条Paper/结算/FakeBroker运维写路由归Platform；每条均断言合法身份与专属Bearer通过、另一合法服务身份被拒、身份与Bearer错配被拒、匿名请求被拒。测试枚举与A25的13条V1写路由一致。
+
+定向`service-auth.spec.ts` 7/7通过、Trade typecheck通过。完整`pnpm verify:stage -- --stage V1.3 --suite code` exit 0；Trade单测106/106，Platform 334、Governance 43、Portfolio 12、Replay 27、Quant 101、Market Data 84、Research Automation 218、Web 6均通过；服务身份HTTP+PG、三服务独立迁移CLI和隔离资源清理通过，活动服务`NOT_CONNECTED`。首次完整套件因V1.1两条Crosswalk源文本漂移而停在基线，失败日志保留；刷新精确来源锚点后完整复跑通过。通过日志[见此](../../../evidence/audits/2026-10-12-v13-trade-route-auth-scope-code-suite-a02.log)，exit [记录](../../../evidence/audits/2026-10-12-v13-trade-route-auth-scope-code-suite-a02.log.exit.txt)，SHA-256 [sidecar](../../../evidence/audits/2026-10-12-v13-trade-route-auth-scope-code-suite-a02.log.sha256)；首次失败日志[见此](../../../evidence/audits/2026-10-12-v13-trade-route-auth-scope-code-suite-a01.log)。
+
+该测试收紧Trade服务身份策略的单测覆盖，不扩大V1权限；它不证明全部合法写操作的逐路由业务响应、其它服务完整身份矩阵、部署迁移/回滚或活动运行状态，P1/A04与V1验收继续OPEN。
+
+### 8.86 OD-014严格已结算现金下MANUAL/AUTO多腿预留边界（2026-10-12）
+
+落实所有者批准的OD-014口径：固定Fixture中的MANUAL与AUTO多腿即时批次可包含受限CN `600000.SH` / US `AAPL` SELL腿；Portfolio分别预留SELL证券数量与BUY现金，Trade在任何子单提交前先完成所有腿的资源预留。批次内SELL应收不能给BUY提供资金；BUY仍由Portfolio按已结算现金独立判定。任一腿预留失败时释放此前成功预留，MANUAL不授权、AUTO同时释放Mandate预算，且不提交FakeBroker订单。
+
+Trade定向MANUAL/AUTO/固定命令测试29/29通过；完整Trade单测109/109、隔离PostgreSQL目标校验5/5、TypeScript构建通过。Portfolio完整隔离PostgreSQL集成6/6通过，其中资源预留集成验证SELL Fill形成PENDING应收后，结算前BUY仍按已结算现金拒绝，推进至明确结算时刻后才释放应收。V1.3完整code suite exit 0（含基线、构建、lint/typecheck、全仓单测、合同/Fixture与服务身份/迁移隔离验证）；临时容器/网络已清理、活动服务`NOT_CONNECTED`。Portfolio定向集成TestRun `09fc2906-7d69-474e-85ec-582ddc3db35f`。日志见[Trade单测](../../../evidence/audits/2026-10-12-v13-strict-settled-cash-multileg-trade-unit-a01.log)、[Portfolio隔离集成](../../../evidence/audits/2026-10-12-v13-strict-settled-cash-multileg-portfolio-integration-a01.log)及[完整V1.3 code suite](../../../evidence/audits/2026-10-12-v13-strict-settled-cash-multileg-code-suite-a01.log)。
+
+该服务层和Portfolio现金规则随后扩展为混合腿Web/API/CLI同Run验收，执行记录见§8.87。
+
+
+### 8.87 OD-014混合SELL/BUY多腿Web/API/CLI同Run验收（2026-10-12）
+
+冻结的新输入为[`v1.3-multileg-v1.0.4`](../../../fixtures/v1/v1.3-multileg-v1.0.4/manifest.json)，场景定义[`trading-loop-scenarios.json`](../../../fixtures/v1/v1.3-multileg-v1.0.4/trading-loop-scenarios.json)，SHA-256 `f7e8ad101279626e31bae47667f5621f61108a1b2dd40096889b9e9daafae8dd`；Manifest SHA-256 `4caf68fa5f010846041a4af98cea7da19fbb465051bb13c94cb8e16cb47f99be`。旧1.0.3输入未改写。正式入口仍是`/acceptance/v1/v1.3`，容器化Web通过隔离V1.3栈运行，业务数据只使用CN_A/CNY固定Fixture和FakeBroker。
+
+MANUAL成功场景：初始化CNY 10,000账户，用Web既有MANUAL按钮买入100股`600000.SH`（10.0000，费用5.0000），按Run Clock推进一个固定Session，然后点击“创建OD-014严格现金SELL+BUY MANUAL提案”、人工批准并执行。固定两腿分别卖出100股`600000.SH`（卖出净额995.0000，先列PENDING应收）和买入100股`000001.SZ`（含费占用1,205.0000已结算现金）。结果为已结算现金7,790.0000、应收995.0000仍PENDING、只持有100股`000001.SZ`，两腿预留CAPTURED且Portfolio/FakeBroker对账MATCH。用`pnpm verify:stage -- --stage V1.3 --run <同一testRunId> --check-only`核验同一Web TestRun；检查命令退出2表示V1.3子Run仍WAITING，这是预期，不是业务失败。
+
+AUTO拒绝场景使用Fixture锁定的8笔种子BUY（每笔100股、1,005.0000），把已结算现金降到1,960.0000并持有800股`600000.SH`；推进Session，卖出100股形成995.0000 PENDING应收，再通过Web创建并人工激活严格现金Mandate、创建混合AUTO提案并执行。预计Trade返回409 `INSUFFICIENT_AVAILABLE_CASH`；零批次订单/成交，现金及应收不变，先取得的SELL和BUY Portfolio预留均RELEASED，Mandate预算显示reserved=0、consumed=0、releasedCount=1。对相同TestRun执行`pnpm verify:stage -- --stage V1.3 --run <同一testRunId> --proposal <proposalId> --check-only`，预期仍exit 2且输出WAITING/业务拒绝证据。
+
+可重复执行的实际验收命令：`pnpm test:e2e:v13-isolated`；本次完整矩阵30/30通过，包含上述两个场景、每个Run的CLI/共享StageRun证据投影校验，并完成随机隔离容器、卷、网络、镜像精确清理。完整旧矩阵日志[30/30](../../../evidence/audits/2026-10-12-v13-od014-strict-multileg-web-e2e-a01.log)；最终v1.0.4 Schema字段校正后的定向复跑[2/2](../../../evidence/audits/2026-10-12-v13-od014-strict-multileg-web-e2e-a02.log)，Run分别为MANUAL `f80c0f25-93d3-4785-b7f5-022b75df6579`、AUTO拒绝 `dbbc69be-bc9d-4d32-a7b1-d96061a78027`，证据Manifest SHA分别为`8e7a05dbfc1795676224c67763085c4b90aeaa51841ba11c7758f785c80e375e`和`a7812291bb7bb7179c4a1ec8197ce26cfb406570d0e60a0fe53e9fc5e54e67bf`。最终完整`pnpm verify:stage -- --stage V1.3 --suite code`退出0，日志[见此](../../../evidence/audits/2026-10-12-v13-od014-strict-multileg-code-suite-a01.log)。Fixture检查`pnpm fixtures:check`、Web typecheck通过。Web成功Run结论字段仍为`manualConclusion=NOT_RUN`，自动PASS不代替所有者本轮人工验收。
+
+本次证明固定CN_A严格现金下的MANUAL混合成交、AUTO资金不足拒绝/资源释放及同Run CLI只读检查；不覆盖其它SELL证券/数量、全交易所规则、P1发布回退、Ubuntu实机、其余V1阶段或当前范围人工验收。V1.3和V1门禁保持OPEN/INCOMPLETE。
+
+### 8.88 V1.3-S2-L15当前树事件序列与重启恢复复验（2026-10-12）
+
+当前树复跑`pnpm --filter @stockquant/trade-execution-service exec vitest run tests/unit/fake-broker-event-sequencer.spec.ts`：3/3通过，覆盖乱序Fill/Cancel缓冲与按序归约、缺口不推进、同指纹重放幂等、冲突/非法/过期序列拒绝。`pnpm --filter @stockquant/trade-execution-service test:p5-7`构建通过，隔离PostgreSQL Trade→Portfolio HTTP恢复PASS：Portfolio提交Fill后响应丢失，Trade重启后持久Outbox接管；Cancel序号缺口跨Trade重启保留，前置Fill到达后依序归约，FakeBroker终态CANCELLED、Portfolio两笔Fill/金额与预留释放对账通过。Run `e2056935-7de6-40a5-84a1-0625b1c89b0a`，namespace `p57-outbox-http/c47b855c-4766-4b69-b84f-554a89c892c1`。使用固定Postgres镜像digest、随机loopback端口和隔离网络，临时容器/网络清理验证通过，活动服务未连接。详细断言见[复核A01](../../../evidence/audits/2026-10-12-v13-l15-event-sequence-current-tree-a01.md)。
+
+该复验限于事件序列器和一条Trade→Portfolio持久化故障路径；完整订单状态/路由、故障种子矩阵、V1.5 AUTO编排、Web同Run正式阶段矩阵、Ubuntu及人工验收仍未完成。V1.3-S2-L15及P3保持OPEN。
+
+### 8.89 V1.3 US_EQUITY AUTO UNKNOWN响应丢失/原单查询恢复（2026-10-12）
+
+新增固定US AAPL路径：隔离Web创建V1.3 Run、选择US_EQUITY、建立并激活Mandate、以AAPL 10股提案执行。FakeBroker实际提交后响应丢失，第一次请求503；原单查询被注入一次不可用，第二次仍503；第三次使用相同`clientOrderId`查询原单并恢复202，不重复下单。成交10股AAPL，价格USD 25.0000、费用USD 0.0500，现金USD 9,749.9500，Portfolio捕获USD 250.0500，FakeBroker/Portfolio MATCH；同Run CLI只读核验通过。Run `01d1d2ae-ad53-4260-86d7-bb096382070e`，证据Manifest Hash `d9dc42289d74cf5d973dae6d0277cad508d6dfb48b0f5a99116a43ae397feef1`。定向1/1和完整V1.3浏览器矩阵31/31、code suite exit 0均通过；审计报告、日志和Fixture导出见[A04](../../../evidence/audits/2026-10-12-v13-us-l06-unknown-recovery-a04.md)。首轮至第三轮断言修复失败保留在[A01](../../../evidence/audits/2026-10-12-v13-us-unknown-recovery-initial-failure-a01.md)、[A02](../../../evidence/audits/2026-10-12-v13-us-unknown-recovery-second-failure-a02.md)、[A03](../../../evidence/audits/2026-10-12-v13-us-unknown-recovery-third-failure-a03.md)。
+
+该子项证明固定US响应丢失与原单查询中断恢复，不代表US Trade重启/乱序Fill、多seed或全部市场/故障矩阵完成。人工验收仍NOT_RUN，V1.3-S2-L16/P3/V1保持OPEN。
+
+### 8.90 V1.3-S2-L16 US_EQUITY Trade重启后同单恢复（2026-10-12）
+
+隔离V1.3 Web/API/CLI场景在US_EQUITY/AAPL AUTO订单由FakeBroker提交、HTTP响应丢失后，精确重启本随机项目的Trade Execution容器；服务恢复健康后，使用原`clientOrderId`查询并恢复，不重新提交。结果为10股AAPL、USD 25.0000成交价、USD 0.0500费用、USD 9,749.9500现金，USD 250.0500预留CAPTURED，Outbox DELIVERED、未决订单/Outbox为0、无差异且账本MATCH；同Run CLI校验通过。TestRun `07af67c7-ed53-48a0-af35-9c8aeaca3051`，Manifest SHA-256 `01f8c5293498d128200a0abbb547db9bf35787a2ddcc861d8a8a145d0f8145e6`。定向E2E 1/1和Web typecheck通过；成功日志[见此](../../../evidence/audits/2026-10-12-v13-us-trade-restart-e2e-a02.log)，退出码[见此](../../../evidence/audits/2026-10-12-v13-us-trade-restart-e2e-a02.exit.txt)，SHA-256 [sidecar](../../../evidence/audits/2026-10-12-v13-us-trade-restart-e2e-a02.log.sha256)。首次沙箱尝试被Docker socket权限阻止，失败记录保留在[a01](../../../evidence/audits/2026-10-12-v13-us-trade-restart-e2e-a01.log)。随机隔离栈资源清理通过。
+
+该项关闭L16中的US固定Trade重启子场景；US乱序/重复Fill变体、多seed实际事件矩阵、完整路由/状态/市场规则、完整代码套件、人验及Ubuntu仍开放。L16/P3/V1不因此关闭；本Run `manualConclusion=NOT_RUN`。
+
+§8.90增量完整复验：新增场景后的完整隔离Web/API/CLI矩阵32/32通过，完整V1.3 code suite exit 0；Crosswalk与文档检查PASS。详细日志：[完整矩阵](../../../evidence/audits/2026-10-12-v13-us-trade-restart-full-e2e-a01.log)、[完整代码套件](../../../evidence/audits/2026-10-12-v13-us-trade-restart-code-suite-a01.log)、[A37复核](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a38.md)。
+
+
+### 8.91 V1.3 L16 US_EQUITY AAPL乱序成交重启恢复（2026-10-12）
+
+新增不可变Fixture `v1.3-us-ordered-fills` v1.0.0，固定US_EQUITY/AAPL 200股MANUAL BUY，USD 25.0000、每个增量Fill费用USD 0.0250。实测顺序为seq=2累计150先到并缓冲、同一seq=2重放10次、重启隔离Trade Execution、seq=1累计100后到并因果应用seq=2。最终Fill为100+50股，订单PARTIALLY_FILLED，持仓150股，现金USD 6,249.9500、预留USD 5,000.0500，FakeBroker/Portfolio MATCH；同Run CLI只读核验通过。TestRun `9d763c49-23b3-45c1-baf6-da888a7033c0`（完整矩阵内）；专用Fixture SHA-256 `7c6c81a3f7c1f7286a55f853285414a5e240e2ca2c54013e29aa87cb81bd38c0`。完整33项E2E和V1.3 code suite通过，日志及退出码见[矩阵记录](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-full-e2e-a01.log)与[代码套件](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-code-suite-a01.log)。
+
+此固定用例只关闭一条US乱序成交重启子路径；全量多seed故障矩阵、完整订单状态/路由组合、V1.5编排、Ubuntu和人验仍OPEN/NOT_RUN，V1.3与V1不因此验收完成。首次定向执行发现并保留两项诊断：既有US顺序限制与Trade adapter CN-only guard，修复后同一场景通过；首轮日志保留为失败历史。
+
+**可复跑交接（项目根目录，Mac ARM64 Docker隔离栈）：**
+
+- Fixture：`fixtures/v1/v1.3-us-ordered-fills-v1.0.0/manifest.json` 与 `aapl-out-of-order-restart.json`，版本1.0.0，场景文件SHA-256 `7c6c81a3f7c1f7286a55f853285414a5e240e2ca2c54013e29aa87cb81bd38c0`。初始现金USD 10,000.0000；AAPL BUY 200股、USD 25.0000、每个增量Fill费用USD 0.0250。
+- 定向真实Web/API/CLI执行命令：
+
+  ```bash
+  STOCKQUANT_V13_E2E_GREP='US_EQUITY L07 applies a buffered out-of-order AAPL Fill after Trade Execution restarts' pnpm test:e2e -- --stage V1.3
+  ```
+
+  隔离Harness创建随机项目，注入`STOCKQUANT_V13_TEST_COMPOSE_PROJECT`和`STOCKQUANT_V13_TRADE_URL`；测试以80次×250ms（最多20秒）等待Trade `/ready`，Playwright场景超时60秒。Harness结束时必须输出`status=PASS`、`exactProjectResourcesRemoved=true`；Playwright须为1 passed。
+- 页面步骤/控件：访问本次输出的`webUrl`下`/acceptance/v1/v1.3`；点击“创建隔离 V1.3 TestRun”，市场选择器“市场”选`US_EQUITY`，点“初始化本 Run 模拟账户（10000）”；点击`data-testid=v13-create-sequenced-proposal`，人工批准，点`v13-execute-sequenced-proposal`，点`v13-sequence-2-replay`再点`v13-sequence-2-replay-10`。测试随后只重启本次随机项目的Trade Execution，等待`/ready`，点击`v13-sequence-1`并以同一TestRun调用只读CLI `--check-only`。
+- 预期：seq2累计150先缓冲，重复10次返回幂等重放；重启后seq1累计100到达并按序排空为Fill 100+50，订单`PARTIALLY_FILLED`，AAPL持仓150、现金USD 6,249.9500、预留USD 5,000.0500、独立对账`MATCH`，CLI exit 0。失败时保留首次日志/Playwright error context与Run证据，检查注入事件和隔离服务日志；不随机换seed掩盖失败。
+- 完整验证命令：`pnpm verify:stage -- --stage V1.3 --suite code` 与 `pnpm test:e2e -- --stage V1.3`；本轮分别exit 0，完整矩阵33 passed。成功日志：[定向/完整矩阵](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-full-e2e-a01.log)、[代码套件](../../../evidence/audits/2026-10-12-v13-us-ordered-fill-code-suite-a01.log)。
+
+
+审计索引更新：本轮L16仅行语义复核见[A39](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a39.md)与[A85](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a85.json)；其它146条矩阵行沿用前版结论，仍需语义复核。
+
+### 8.92 V1.3 当前树完整隔离Web/API/CLI矩阵复跑（2026-10-12）
+
+当前树执行 `pnpm test:e2e -- --stage V1.3`，完整输出、退出码和SHA见[矩阵日志](../../../evidence/audits/2026-10-12-v13-current-tree-stage-e2e-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-current-tree-stage-e2e-a01.log.exit.txt)及[SHA-256](../../../evidence/audits/2026-10-12-v13-current-tree-stage-e2e-a01.log.sha256)。Chromium Playwright 33/33通过；每个测试用自己的隔离TestRun，经Web/API/CLI执行并校验事实；覆盖CN_A/US_EQUITY固定MANUAL/AUTO订单与成交、拒绝、取消/恢复、UNKNOWN与Trade重启、OD-014严格现金边界、US AAPL乱序Fill及结算账本。错误模式/身份请求按预期拒绝；真实券商调用0、外部来源调用0。随机项目`sq-v13-web-19c2ba04d94ef8b70a26`的Web/API及五个服务、PostgreSQL容器，卷和网络全部精确移除并核验。
+
+本次证明当前树固定矩阵自动回归PASS，不证明全部市场/订单语义、完整故障多seed、Ubuntu或本人验收。TestRun的`manualConclusion`保留`NOT_RUN`；V1.3/L16/P3/V1正式状态不变。
+
+### 8.93 Trade→Portfolio实际V1客户端逐操作超时合同（2026-10-12）
+
+当前生产源码中Trade Execution实际调用Portfolio的五个生成客户端方法为`reserveAccountResources`、`recordAccountFill`、`correctAccountFillFee`、`settleAccountReceivables`和`resolveAccountReservation`。已有直接测试覆盖路由/身份/载荷/拒绝透传，但此前只有结算调用明确断言超时。本轮新增`uses the declared bounded timeout for every V1 Trade→Portfolio operation`，逐一调用上述五个方法，断言五次请求均创建5000ms `AbortSignal.timeout`。未改生产行为或API合同。
+
+验证：`pnpm --filter @stockquant/trade-execution-service exec vitest run tests/unit/portfolio-account-client.spec.ts` 6/6通过；同服务`typecheck`退出0。[定向测试日志](../../../evidence/audits/2026-10-12-v1-trade-portfolio-timeouts-a01.log)、[typecheck日志](../../../evidence/audits/2026-10-12-v1-trade-portfolio-timeouts-typecheck-a01.log)、语义复核[A44](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a44.md)。测试源码SHA-256：`94d9e8b4deefeaa6c6c3bb74e214503038238a0ce0f8ff6a5bb501bdba8fa197`。
+
+本测试只锁定五个Trade→Portfolio调用的统一超时预算，不证明其它身份/路由/副作用、迁移发布、活动切换/回退或配对恢复完整；V1.1-S2-L14/P1、V1.3阶段及V1版本验收继续OPEN。
+
+### 8.94 V1.3 L16 PostgreSQL多种子成交事件到达序列（2026-10-12）
+
+Trade持久化集成脚本新增24个固定种子（20260907–20260930），每个种子创建独立MANUAL SEQUENCED订单并向真实隔离PostgreSQL repository注入累计成交序号1/2/3。日志逐Run记录实际注入顺序与orderId；24次覆盖六种排列。每Run核对游标推进至3、无待处理Inbox、成交数量200、3条Fill/Outbox、独立FakeBroker现金7996.2500及200股持仓；重复三条报告均为幂等，已消费序号改费率以冲突拒绝且不增加事实。
+
+验证命令`pnpm --filter @stockquant/trade-execution-service test:integration:persistence:isolated` exit 0，Trade持久化脚本SHA-256 `67e5c0ce74e3f25b97dca59383488697e68fbe096fb166525df6706a599dfde3`；PostgreSQL 16.9 Alpine镜像digest `sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2`，专属loopback容器清理完成、未连接活动服务。[完整日志](../../../evidence/audits/2026-10-12-v13-seeded-event-order-persistence-a01.log)，SHA-256 `4794104f2be978402e26594a6f8cf36ed94ddb72725cce45fb2b0bc53992c5c7`。
+
+本增量只验证PostgreSQL持久化层的三类Fill事件到达排列及重放/冲突，不覆盖随机故障组合、Web/API/CLI同Run观察、取消与Fill混合序列、服务重启或目标Ubuntu。V1.3-S2-L16/P3及V1验收继续OPEN。
+
+### 8.95 V1.3当前树多种子持久化与服务端模式边界完整代码套件（2026-10-12）
+
+更新24-seed持久化测试后，受控重跑`pnpm verify:stage -- --stage V1.3 --suite code` exit 0。完整套件含通用baseline/合同/Fixture、V1.3 Trade PostgreSQL事件/Outbox恢复与24-seed六排列矩阵、Portfolio/Trade/Governance隔离HTTP+PG模式边界、服务身份、V1迁移及V24 readiness；本次隔离容器报告`activeServices=NOT_CONNECTED`并完成清理。首轮沙箱因127.0.0.1 loopback绑定EPERM失败已保留，受控重跑相同命令通过。[完整日志](../../../evidence/audits/2026-10-12-v13-seeded-event-order-code-suite-a01.log)，SHA-256 `6d2dc653b70a0bbc9001a4c88aea7e093755e419d3547ef77feda8479564a2d2`，exit 0。
+
+此代码套件确认当前V1.3已映射范围自动通过，不关闭L16/P3全部故障/市场路径、L17全服务/Worker/页面写边界、V1.1活动切换回退、Ubuntu或人验。L17单项语义结论见[A47](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a47.md)及[A93派生矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a93.json)。
+
+### 8.96 V1.3 L16 PostgreSQL多种子Fill/取消混合事件到达序列（2026-10-12）
+
+在Trade Execution真实隔离PostgreSQL持久化集成中，新增24个固定种子`20261001–20261024`。每条独立MANUAL SEQUENCED订单在撤单请求后接收两份累计Fill（序号1/2，累计50/125股）和一个Accepted Cancel Result（序号3），由seed打乱实际事件到达；日志逐订单保存seed、orderId及`sequence/eventType`注入顺序，覆盖六种排列`123/132/213/231/312/321`。
+
+每种排列均验证序列游标到3、Inbox无未应用事件、最终状态CANCELLED、两条Fill累计125股、Fill Outbox恰两条、独立FakeBroker余额`8747.5000`及持仓125股；Fill仍待投递时Reservation Resolve为0。三类事件精确重放均幂等，同序号不同撤单事实被拒且订单、Fill和Outbox数量不变。随机隔离PostgreSQL镜像digest为`sha256:9e9764474d0c70ceff17378a6eca55b00c98d2f4d564be06a8e82f2431b3caa2`，仅loopback端口，容器/网络清理验证通过，活动服务`NOT_CONNECTED`。
+
+专项命令`pnpm --filter @stockquant/trade-execution-service test:integration:persistence:isolated`通过；完整`pnpm verify:stage -- --stage V1.3 --suite code`受控重跑exit 0（包含构建、lint、typecheck、全Stage代码/服务集成、迁移与合同）。保留普通沙箱loopback EPERM首轮失败，未把它计作通过。日志：[混合事件完整代码套件](../../../evidence/audits/2026-10-12-v13-mixed-event-current-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-mixed-event-current-code-suite-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-mixed-event-current-code-suite-a01.log.sha256)；[专项运行](../../../evidence/audits/2026-10-12-v13-seeded-mixed-event-persistence-a01.log)。
+
+本增量关闭L16的PostgreSQL多种子混合事件序列子项；不等价于把24个种子逐一通过Web/API/CLI执行，也不覆盖不同取消结果、进程/主机/多服务同时故障、Ubuntu或人工验收。L16/P3及V1仍OPEN。语义边界见[A48](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a48.md)。
+
+### 8.97 V1.3 L16 Web/API/CLI撤单结果先到的因果恢复（2026-10-12）
+
+新建同Run CN_A/200股MANUAL Paper场景：先从Web执行seq=1累计100股Fill，随后经Platform API持久化撤单请求，预留仍为HELD；再经API提交seq=3 Accepted Cancel Result，响应明确为`buffered=true`、游标仍为1、订单保持`CANCEL_REQUESTED`；最后由Web提交缺失的seq=2累计150 Fill，Trade按因果顺序应用Fill与seq=3撤单，完成订单状态CANCELLED和预留释放。最终Fill为100+50股，FakeBroker余额8495.0000 CNY、持仓150股，独立对账MATCH；同一TestRun CLI `--check-only`核验订单、现金、预留状态通过。TestRun `7946950e-cc62-421a-a647-7125ff4344a2`，自动验收`manualConclusion=NOT_RUN`。
+
+为支持该有效时序，Platform L07取消请求现在接受精确的首个100股部分Fill序列；L07取消结果收到时若Trade报告其仍在序号缺口中，则返回当前CANCEL_REQUESTED投影并保留预留，不误报取消已完成。unit新增覆盖首Fill后可请求撤单及seq3早到时继续pending；单测11/11，Web typecheck通过。`pnpm verify:stage -- --stage V1.3 --suite code`完整代码套件退出0，`pnpm test:e2e -- --stage V1.3`当前树完整浏览器矩阵34/34通过；首个普通沙箱loopback EPERM失败保留，受控隔离运行通过且随机容器/数据库卷/网络全部移除。日志见[定向Web/API/CLI E2E](../../../evidence/audits/2026-10-12-v13-l16-mixed-web-e2e-a01.log)、[此前34项E2E](../../../evidence/audits/2026-10-12-v13-l16-mixed-full-web-e2e-a01.log)、[完整代码套件](../../../evidence/audits/2026-10-12-v13-l16-mixed-full-code-suite-a01.log)。
+
+此关闭L16一个混合事件同Run Web/API/CLI恢复子项，并与§8.96多种子PostgreSQL序列互补；不表示24个种子逐一有Web/API/CLI观察，也不覆盖所有拒绝/Worker/宿主故障。L16/P3、V1.3人工签收和整体V1仍OPEN。
+
+
+### 8.98 V1.3 L16 多种子Web/API/CLI因果成交与撤单（2026-10-12）
+
+新增两个相互独立的V1.3 Web TestRun，分别明确保存seed `20261013`、`20261014`，均通过正式页面启动账户、创建/批准MANUAL提案、由页面提交成交，并由API发出撤单请求/结果；最后同Run CLI `--check-only`检查。seed `20261013`先投递seq=2并确认缓冲，再投递seq=1使两个Fill按因果顺序应用，之后请求撤单并提交seq=3；seed `20261014`依次应用seq=1、seq=2后请求撤单并提交seq=3。两个Run均断言Fill为100+50股、最终CANCELLED、FakeBroker现金`8495.0000 CNY`、持仓150股、预留RELEASED且对账MATCH。Run分别为`54d3fa63-9958-4dee-95bd-7fb0c1481225`和`4227466c-08d0-48cf-b869-8750297de068`。
+
+定向隔离Playwright 2/2通过；`pnpm verify:stage -- --stage V1.3 --suite code`受控exit 0；完整`pnpm test:e2e -- --stage V1.3`为36/36通过。完整矩阵的本轮项目为`sq-v13-web-78aa275819dbf8be51d8`，真实数据源/券商调用为0，随机容器、卷、网络精确清理通过。[定向日志](../../../evidence/audits/2026-10-12-v13-l16-multiseed-e2e-a02.log)、[完整36项日志](../../../evidence/audits/2026-10-12-v13-l16-multiseed-full-e2e-a01.log)、[完整代码套件](../../../evidence/audits/2026-10-12-v13-l16-multiseed-code-suite-a01.log)、[退出码](../../../evidence/audits/2026-10-12-v13-l16-multiseed-full-e2e-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-l16-multiseed-full-e2e-a01.log.sha256)。首轮缺少Playwright API请求上下文的`sq_session`而收到401；修正为先由浏览器完成会话Cookie建立后，定向重跑通过。失败运行日志及Harness清理信息保留于[a01](../../../evidence/audits/2026-10-12-v13-l16-multiseed-e2e-a01.log)。
+
+本增量将L16从一个同Run代表性案例扩展至三个不同seed和三个有效成交/撤单到达顺序；仍不证明24个数据库seed逐一经Web执行，也不覆盖全量拒绝/故障/市场矩阵、Ubuntu或人工验收。L16/P3及V1保持OPEN。
+
+### 8.99 P0/L17跨版本取消与事件确认模式边界增量（2026-10-12）
+
+A108将四种固定客户端模式载荷（PAPER/FAKE、LIVE/FAKE、BACKTEST/REAL、LIVE/REAL）补到V1.2 Qlib Run取消、V1.4回测Run取消、V1.5 Run Incident确认与V1.5 AUTO取消入口。所有拒绝为422，并分别核对Qlib取消意图、回测取消标记、Incident状态或既有AUTO取消事实不变；随后合法取消/确认路径仍然有效。V1.2四场景隔离Web/API/CLI E2E、V1.4完整隔离Harness、V1.5标准完整Harness及专用AUTO取消Harness均通过并精确清理随机容器/卷/网络，真实来源/券商调用0。机器语义/证据清单见[A108](../../../evidence/audits/2026-10-12-v1-l17-cancel-mode-boundaries-a108.json)。
+
+这仅增加若干Platform端点的负向原子覆盖，不等于穷尽所有V1.1–V1.5服务/Worker路由，也不证明页面所有控件和浏览器状态写入面安全。活动发布/回退仍未授权，L17/P3/P0与V1整体保持OPEN；各Run人工结论未被改变。
+
+### 8.100 P0/L17 Portfolio结算入口模式载荷拒绝（2026-10-12）
+
+扩展Portfolio隔离HTTP+PostgreSQL smoke：对`/internal/v1/accounts/:accountId/settlements`逐一提交PAPER/FAKE、LIVE/FAKE、BACKTEST/REAL、LIVE/REAL载荷。该路由只接受精确的`asOf`字段，四次均以400拒绝；逐次读取现金、ledger version、ledger entries、sell settlements和reservations，所有事实保持不变。当前完整Portfolio集成执行6/6，8条路由×4身份授权矩阵32/32通过，临时PostgreSQL容器/网络精确清理，活动服务未连接。TestRun `d3c1d860-6031-4faf-a337-cc758f767e9d`。源码Hash、日志与命令见[A109机器报告](../../../evidence/audits/2026-10-12-v1-portfolio-settlement-mode-boundary-a109.json)和[完整日志](../../../evidence/audits/2026-10-12-v1-portfolio-settlement-mode-boundary-a109.log)。
+
+这是Portfolio一个结算写路由的原子验证；不关闭L17/P0/P3，也不证明全部V1服务/Worker路由、页面控件/状态写入面、发布回退或人验。结算规则及OD-014严格已结算现金行为未更改。
+
+### 8.101 P0/L17 Portfolio结算模式拒绝保持真实到期应收（2026-10-12）
+
+在§8.100的结算请求矩阵上增加真实待结算业务事实：隔离HTTP流程先买入并卖出固定CN_A 100股，建立到期应收CNY 995.0000；在到期`asOf`时间分别提交四种模式载荷。四次请求均按精确`asOf`合同返回400，且逐次核对现金仍为8995.0000、ledger version/分录/预留不变、应收仍为PENDING。随后仅提交合法`{asOf}`请求，接口返回201，应收转为SETTLED，现金变为9990.0000。完整Portfolio集成6/6、八路由×四身份授权矩阵32/32通过，活动服务未连接，隔离数据库/网络已精确清理。首轮因误将合法POST的201状态断言为失败而退出；业务状态已正确结算，修正断言后的完整复跑通过，诊断见[首轮说明](../../../evidence/audits/2026-10-12-v1-portfolio-settlement-due-mode-boundary-a110-first-attempt.txt)。报告与完整执行输出见[A110](../../../evidence/audits/2026-10-12-v1-portfolio-settlement-due-mode-boundary-a110.json)及[成功日志](../../../evidence/audits/2026-10-12-v1-portfolio-settlement-due-mode-boundary-a110.log)。
+
+此自动检查仅证明一个固定合成日历下的Portfolio结算入口；OD-014严格已结算现金规则未改变，L17/P0/P3/V1与人工验收仍OPEN。
+
+### 8.102 A110后V1.3当前树完整代码套件复验（2026-10-12）
+
+在§8.101 Portfolio实际到期应收HTTP边界测试后运行`pnpm verify:stage -- --stage V1.3 --suite code`，受控完整套件exit 0。完整输出包括baseline、合同/Fixture、服务分层、代码测试、隔离PostgreSQL和服务身份HTTP矩阵、数据库迁移验证；A110的结算模式矩阵被实际执行，四种注入均拒绝且待结算应收保持PENDING。所有随机测试容器/网络均报告精确清理，活动服务保持`NOT_CONNECTED`。日志、退出码和SHA-256见[当前树完整套件](../../../evidence/audits/2026-10-12-v13-a110-current-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-a110-current-code-suite-a01.log.exit.txt)和[sidecar](../../../evidence/audits/2026-10-12-v13-a110-current-code-suite-a01.log.sha256)。首轮沙箱无法绑定127.0.0.1导致seed:paper两项EPERM、其余65/67通过；受控权限同命令复跑完整通过，首轮环境诊断保留于[此记录](../../../evidence/audits/2026-10-12-v13-a110-code-suite-sandbox-failure.txt)。
+
+这复核的是V1.3当前代码套件，不代表V1.3阶段人验、全V1/P0语义穷尽、目标Ubuntu或正式V1验收完成。
+
+### 8.103 P0/L16 撤单拒绝后同单恢复与重试（2026-10-12）
+
+新增固定Web/API/CLI场景，使用一个隔离V1.3 TestRun和CN_A 600000.SH 200股MANUAL订单：按序提交100股与累计150股两笔Fill后请求撤单；FakeBroker在seq=3返回`REJECTED`。Trade恢复订单为`PARTIALLY_FILLED`，Portfolio预留仍为`HELD`、金额1505.0000 CNY，Fill序列与MATCH读回一致。CLI以同一TestRun和订单`--check-only`返回未完成exit 2，并识别PARTIALLY_FILLED/HELD。随后再次请求同一订单撤单，以seq=4 `ACCEPTED`完成取消，订单为`CANCELLED`，预留只在权威接受结果后转`RELEASED`。定向E2E 1/1；V1.3完整隔离Web/API/CLI 37/37，随机项目容器/卷/网络精确清理，真实数据源/券商调用0。TestRun `9c165b97-67ba-4f4a-8c48-574c51786846`，`manualConclusion=NOT_RUN`。完整日志与退出码见[完整隔离E2E](../../../evidence/audits/2026-10-12-v13-l16-cancel-rejection-full-e2e-a02.log)、[E2E exit](../../../evidence/audits/2026-10-12-v13-l16-cancel-rejection-full-e2e-a02.exit.txt)；单场景复验TestRun `dee22c19-6d0a-4556-a23b-aaee890832ed`。
+
+可执行入口：`STOCKQUANT_V13_E2E_GREP='V1.3 L16 rejected cancel' pnpm test:e2e:v13-isolated`运行单场景；完整浏览器回归使用`pnpm test:e2e:v13-isolated`。脚本在随机项目中启动真实PostgreSQL、Platform/Trade/Portfolio服务和容器化Web，首页为`/acceptance/v1/v1.3`，固定输入由页面创建的CN_A MANUAL L07 Proposal及两笔seq=1/2成交构成；拒绝与接受通过`/api/v1/acceptance/v1/v1.3/runs/{testRunId}/proposals/{proposalId}/orders/{clientOrderId}/cancel-results/{sequence}`提交。浏览器E2E单项超时60秒。预期拒绝后读回PARTIALLY_FILLED/HELD，CLI check-only exit 2；重试接受后CANCELLED/RELEASED。脚本结束后随机容器、卷、网络精确移除；失败时保留日志并先诊断，不更换seed重试。
+
+该场景关闭的是固定CN_A订单撤单拒绝/同单重试子项；不覆盖所有撤单拒绝原因、US拒绝变体、其它Worker/宿主故障、市场规则、Ubuntu或人工验收，L16/P3及V1仍OPEN。
+
+
+### 8.104 P0/L16 US_EQUITY/AAPL 撤单拒绝后同单恢复与重试（2026-10-12）
+
+在固定US_EQUITY/AAPL 200股MANUAL订单中，经Web创建同一V1.3 TestRun，按序提交100股和累计150股Fill后请求撤单；seq=3 `REJECTED`后订单恢复`PARTIALLY_FILLED`，Portfolio预留保持`HELD`、金额USD 3750.0500，现金USD 6249.9500、持仓150股，FakeBroker与Portfolio为`MATCH`。同Run CLI `--check-only`返回2并读回工作态/预留。再次对同订单请求撤单，seq=4 `ACCEPTED`后订单`CANCELLED`、预留`RELEASED`，现金和持仓不变且仍MATCH。TestRun `4e3368c9-555c-49ca-9b62-7b3dbe95435d`；定向隔离Web/API/CLI E2E 1/1通过，随机容器/卷/网络精确清理，真实来源/券商调用0。
+
+可执行命令：`STOCKQUANT_V13_E2E_GREP='US_EQUITY L16 rejected cancel' pnpm test:e2e:v13-isolated`。运行入口`/acceptance/v1/v1.3`，固定输入为Fixture中的US_EQUITY/AAPL L07提案、两笔部分Fill、拒绝seq=3及接受seq=4；单项超时60秒。定向日志[US拒绝恢复E2E](../../../evidence/audits/2026-10-12-v13-l16-us-cancel-rejection-e2e-a01.log)，SHA-256 `494232cfd513976a74f74027fadb57389e8e01e355ee40e21542c730552806ed`。
+
+新增应用层重放边界：订单已因seq=3拒绝恢复PARTIALLY_FILLED后，允许相同seq=3结果再次到达Trade，由持久事件指纹返回幂等重放；同序号改为ACCEPTED由Trade拒绝为409，之后seq=4真实接受仍可完成撤单。Platform单测14/14、构建、Web typecheck、contracts检查通过；定向隔离E2E 1/1，完整V1.3矩阵38/38，完整代码套件exit 0。保留首次整套37/38中的CN_A撤单409失败，原场景独立重现1/1通过，第二次完整38/38通过。日志：[定向E2E](../../../evidence/audits/2026-10-12-v13-l16-us-cancel-rejection-idempotency-e2e-a02.log)、[完整E2E](../../../evidence/audits/2026-10-12-v13-l16-us-cancel-rejection-idempotency-full-e2e-a02.log)、[完整代码套件](../../../evidence/audits/2026-10-12-v13-l16-us-cancel-rejection-idempotency-code-suite-a01.log)、[首轮失败矩阵](../../../evidence/audits/2026-10-12-v13-l16-us-cancel-rejection-idempotency-full-e2e-a01.log)、[CN单场景复现](../../../evidence/audits/2026-10-12-v13-l16-cn-cancel-rejection-retry-repro-a01.log)。
+
+
+### 8.105 P0/L17 V1.3 Trade完整客户端模式注入矩阵（2026-10-12）
+
+Trade Execution隔离HTTP/PostgreSQL smoke现对13条受保护写路由逐项注入六种组合：`PAPER/FAKE`、`LIVE/FAKE`、`PAPER/REAL`、`BACKTEST/FAKE`、`BACKTEST/REAL`、`LIVE/REAL`。Paper订单提案执行、结算、外部模拟单、模拟成交回报、费用更正、订单状态转换、撤单结果和Outbox补偿均拒绝客户端模式字段（HTTP 422）；拒绝前后订单、成交、事件及Outbox事实保持不变。历史执行入口也拒绝六种客户端注入，但由服务端确定的`BACKTEST/FAKE`路径仍可到达业务校验。
+
+V1.3完整代码套件 `pnpm verify:stage -- --stage V1.3 --suite code` exit 0，隔离数据库/容器/网络清理通过；活动服务为`NOT_CONNECTED`。成功日志及退出码、SHA-256：[code suite](../../../evidence/audits/2026-10-12-v13-l17-trade-mode-matrix-code-a02.log)、[exit](../../../evidence/audits/2026-10-12-v13-l17-trade-mode-matrix-code-a02.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-l17-trade-mode-matrix-code-a02.log.sha256)。首次运行因Crosswalk精确测试名未同步而被检查器拦截，诊断保留：[a01](../../../evidence/audits/2026-10-12-v13-l17-trade-mode-matrix-code-a01.log)。
+
+此项关闭V1.3 Trade固定路由的客户端模式注入原子子项。V1.1–V1.5全服务/Worker路由穷尽、页面状态/余额写入审计、活动发布与回退、阶段验收、Ubuntu验证和用户签收仍未完成；L17/P0及V1保持OPEN。
+
+### 8.106 P0/L17 V1.3 Platform完整客户端模式注入矩阵（2026-10-12）
+
+扩展现有Platform Proposal拒绝模式注入的隔离浏览器场景，将Run创建、账户初始化、Proposal创建、外部订单观察、Proposal修订/审批、Mandate创建/激活/暂停、三种Execution提交，以及sequenced Fill报告、撤单请求和撤单结果三个bodyless写入口，统一覆盖六种客户端模式组合：`PAPER/FAKE`、`LIVE/FAKE`、`PAPER/REAL`、`BACKTEST/FAKE`、`BACKTEST/REAL`、`LIVE/REAL`。16个写操作共96次请求均返回422；合法服务端`PAPER/FAKE`仍可创建。拒绝后无FakeBroker订单或成交，Portfolio账本分录数和版本不变。真实隔离Web/API/CLI场景通过，随机容器、卷和网络精确清理，真实来源/券商调用为0。
+
+完整V1.3浏览器矩阵`pnpm test:e2e -- --stage V1.3`38/38通过，完整代码套件`pnpm verify:stage -- --stage V1.3 --suite code` exit 0。首轮完整回归37/38，失败为既有L16取消拒绝恢复场景的瞬时409；该场景独立隔离重跑1/1通过，随后完整矩阵38/38通过。失败和重跑均保留：[首轮E2E失败](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-e2e-a02.log)、[L16定向复验](../../../evidence/audits/2026-10-12-v13-l16-cancel-rejected-targeted-a01.log)、[完整E2E通过](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-e2e-a03.log)、[E2E退出码](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-e2e-a03.log.exit.txt)、[E2E SHA-256](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-e2e-a03.log.sha256)、[code suite](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-code-suite-a03.log)、[code suite退出码](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-code-suite-a03.log.exit.txt)、[code suite SHA-256](../../../evidence/audits/2026-10-12-v13-l17-platform-six-mode-code-suite-a03.log.sha256)。
+
+该原子覆盖补足V1.3 Platform固定写路径模式注入矩阵的一部分，不证明全部V1版本服务/Worker写路由和页面状态写入面均已审计。L17/P0、V1.3阶段签收、目标Ubuntu/恢复和用户验收仍开放。
+
+### 8.107 P0/L17 V1.3部分成交撤单与费用更正模式注入补齐（2026-10-12）
+
+在§8.106现有隔离V1.3 Platform模式矩阵中，增加`cancel-partial-fill`部分成交后撤单和`fee-corrections`成交费用更正两条写路由，每条分别提交六种客户端`environmentMode`/`brokerMode`组合。12次请求均返回422；模式载荷在订单/Fill读取和变更前被拒绝。总矩阵增至18个写操作、108次请求。场景最终核对Portfolio现金、持仓、账本分录数和版本与基线相同，FakeBroker订单/成交均为0，外部对账未变化；新增隔离E2E 1/1、完整浏览器E2E 38/38与V1.3 code suite均exit 0。随机容器、卷和网络精确清理；新Run人工结论仍`NOT_RUN`。[定向日志](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-e2e-a01.log)、[完整E2E](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-full-e2e-a01.log)、[code suite](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-code-suite-a01.log)。
+
+该项仅补齐两条固定Platform写路径，其他V1服务/Worker/Web写入、发布回退、Ubuntu、恢复范围及人工验收仍未闭合，L17/P0/V1继续OPEN。
+
+### 8.108 P0/L17 V1.3提案拒绝决策模式注入补齐（2026-10-12）
+
+同一隔离V1.3 Platform场景分别向提案`approve`和`reject`两个决策分支提交六种客户端交易模式组合；新增`reject`动作的6次注入均返回422，明确服务器固定交易模式校验发生在拒绝状态变更之前。总矩阵增至20个写操作、120次请求。提案状态/版本/内容Hash、Portfolio账本及FakeBroker事实均不变。定向E2E 1/1、完整V1.3 E2E 38/38及完整code suite exit 0，资源清理通过；当前Run人工结论仍`NOT_RUN`。[定向E2E](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-e2e-a02.log)、[完整E2E](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-full-e2e-a02.log)、[code suite](../../../evidence/audits/2026-10-12-v13-l17-mutation-mode-code-suite-a02.log)。
+
+本原子项只补齐提案拒绝分支；跨版本其余服务/Worker/Web写入、发布回退、Ubuntu、配对恢复及人验仍未闭合，P0/L17/V1保持OPEN。
+
+### 8.109 OD-014服务Schema变更后的V1.3 Web/API/CLI回归（2026-10-12）
+
+Portfolio/Trade schema v3及可空结算日合同更新后，`pnpm test:e2e -- --stage V1.3`隔离运行通过：Playwright 38/38，覆盖CN_A/US_EQUITY Paper交易、MANUAL/AUTO严格已结算现金与混合SELL/BUY路径、恢复/重试及同Run CLI核验。随机Compose项目、PostgreSQL卷和网络精确移除；外部数据源与真实券商调用均为0。新Run证据已结构化导出，但`manualConclusion=NOT_RUN`。
+
+[运行日志](../../../evidence/audits/2026-10-12-v13-od014-settlement-regression-e2e-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-od014-settlement-regression-e2e-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-od014-settlement-regression-e2e-a01.log.sha256)。该兼容性回归不覆盖未知日历Web场景或完整版本验收。
+
+### 8.110 V1.3-S2-L15当前树事件排序与持久恢复复核（2026-10-12）
+
+当前树序列器定向单测3/3通过；隔离PostgreSQL HTTP恢复场景exit 0，验证Portfolio响应丢失后Trade重启/Outbox租约接管、旧写入fencing、Fill/Cancel乱序跨重启缓冲与排空、幂等入账和独立FakeBroker对账。未知日历SELL应收保持PENDING、现金不释放，BUY尝试409。随机容器/网络精确移除，活动服务未连接。Run `9a65bab0-8a5f-4730-a87e-d8b09cf4482e`的最终订单CANCELLED、累计75股、现金8230.4780 CNY、Reservation RELEASED。详细范围与日志、exit和SHA见[A121](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a121.md)。该固定恢复路径不关闭L15更广故障/订单状态覆盖、P3或阶段/版本人工验收。
+
+### 8.111 V1.3-S2-L16多种子当前Schema回归复核（2026-10-12）
+
+当前Schema的V1.3完整隔离Web/API/CLI回归38/38通过，重跑覆盖§8.96–§8.98所列24-seed PostgreSQL排列之外的三条固定Web/API/CLI因果顺序；当前Run均验证Fill/Cancel终态、账本MATCH、预留释放和同Run CLI。完整回归日志与边界分析见[A122](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a122.md)及[§8.109日志](../../../evidence/audits/2026-10-12-v13-od014-settlement-regression-e2e-a01.log)。24个数据库seed未逐个通过Web执行，更广故障矩阵、Ubuntu和本人验收仍未完成；L16/P3保持OPEN。
+
+### 8.112 V1.3-S2-L16撤单拒绝先到时保留预留并同单恢复（2026-10-12）
+
+新增CN_A固定因果路径：seq=1部分Fill入账后请求撤单，seq=3 `REJECTED`在缺失seq=2 Fill时先到，服务端将撤单结果缓冲并保持`CANCEL_REQUESTED`，Portfolio Reservation继续`HELD`；随后补交seq=2，序列器按序应用两笔Fill及拒绝结果，订单恢复`PARTIALLY_FILLED`，现金CNY 8495.0000、持仓150股，FakeBroker/Portfolio对账`MATCH`。同Run CLI `--check-only`核验中间未完成状态；对同一订单重试撤单并提交seq=4 `ACCEPTED`后订单变为`CANCELLED`且预留`RELEASED`，账本仍MATCH。
+
+定向隔离E2E 1/1、V1.3完整Web/API/CLI矩阵39/39和完整code suite exit 0通过；随机项目容器、PostgreSQL卷和网络精确清理，外部来源及真实券商调用均为0。TestRun `71388ee9-fadb-4e7a-8526-e1b4f1e74323`，`manualConclusion=NOT_RUN`。首两次运行仅因测试对响应投影层级的预期不符而失败，日志保留为诊断；修正合同断言后定向测试通过。[a01](../../../evidence/audits/2026-10-12-v13-l16-early-rejected-cancel-e2e-a01.log)、[a02](../../../evidence/audits/2026-10-12-v13-l16-early-rejected-cancel-e2e-a02.log)、[定向通过a03](../../../evidence/audits/2026-10-12-v13-l16-early-rejected-cancel-e2e-a03.log)、[全量E2E](../../../evidence/audits/2026-10-12-v13-l16-early-rejected-cancel-full-e2e-a01.log)、[code suite](../../../evidence/audits/2026-10-12-v13-l16-early-rejected-cancel-code-suite-a01.log)。
+
+此证据补充一个固定拒绝事件的因果恢复组合，不证明24个种子逐一Web运行、其它拒绝原因、Worker/主机组合故障或完整市场矩阵。L16/P3、阶段与V1验收仍开放。
+
+### 8.113 V1.3-S2-L16 撤单前置拒绝无副作用与乱序恢复（2026-10-12）
+
+新增固定CN_A Web/API/CLI路径。订单已被FakeBroker接受但尚无任何Fill时请求撤单，服务端返回409；核对订单仍为ACCEPTED、Fill为空、现金CNY 10000.0000、Reservation仍HELD。随后仅提交seq=2的累计Fill，事件因缺少seq=1而缓冲；撤单请求仍返回409，Reservation继续HELD。补交seq=1后，两笔Fill以100/50股按序入账，撤单请求及seq=3接受结果成功，最终订单CANCELLED、现金8495.0000、持仓150股、Reservation RELEASED，FakeBroker与Portfolio对账MATCH。前置拒绝的中间事实和最终业务事实均经同Run CLI `--check-only`核验。
+
+定向隔离E2E 1/1、完整当前V1.3 Web/API/CLI矩阵40/40、完整V1.3 code suite exit 0；容器化Web构建通过，随机项目容器/卷/网络/镜像清理验证通过，真实数据源与券商调用0。正式回归TestRun `09d8b01c-72d5-4824-bd7b-c0e6be64e116`，人工结论`NOT_RUN`；同一目标的定向Run `e83b828f-c5a1-46a9-8b31-4c891a216809`也保持`NOT_RUN`。详细日志：[完整E2E](../../../evidence/audits/2026-10-12-v13-l16-cancel-precondition-full-e2e-a01.log)、[code suite](../../../evidence/audits/2026-10-12-v13-l16-cancel-precondition-code-suite-a01.log)、[定向TestRun证据](../../../evidence/local/V1.3/e83b828f-c5a1-46a9-8b31-4c891a216809/evidence.json)、[首次无效排列诊断](../../../evidence/audits/2026-10-12-v13-l16-invalid-event-order-diagnostic-a01.json)。
+
+首次尝试把撤单请求置于任何已应用Fill之前，六种排列均在同一业务前置检查处HTTP 409终止，相关TestRun证据包均明确为`WAITING`/`NOT_RUN`；诊断结论为Harness排列违反L07撤单请求前置条件，不作为序列器六排列失败证据。修正后的测试专门验证该拒绝无副作用及有效乱序恢复。L16仍有其它撤单结果、市场/故障组合与全域恢复未覆盖，P3、阶段和V1验收维持OPEN。
+
+### 8.114 V1.4共享Trade执行费用变更后的V1.3兼容回归（2026-10-12）
+
+V1.4 US固定Fixture的费用/滑点修复触及共享Trade历史执行模块。为避免仅凭V1.4用例推断V1.3 Paper兼容性，受控执行完整命令`pnpm verify:stage -- --stage V1.3 --suite code`，exit 0。套件完成全仓类型/应用检查、V1.3相关Trade/Portfolio/Governance隔离PostgreSQL迁移与真实HTTP/授权/模式拒绝/持久化检查；服务报告`activeServices=NOT_CONNECTED`，临时容器和网络均已移除并验证。完整日志、exit和SHA见[V1.3 code suite](../../../evidence/audits/2026-10-12-v13-post-a142-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-post-a142-code-suite-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-post-a142-code-suite-a01.log.sha256)。
+
+此项仅证明本次共享实现变更下V1.3代码/隔离集成回归通过；不证明真实券商、全规则覆盖、活动发布、Ubuntu或本轮人工验收。
+
+### 8.115 P0/L17 Decision Governance AUTO Mandate写路由六模式HTTP+PostgreSQL矩阵（2026-10-12）
+
+将Governance AUTO Mandate创建、激活、暂停，以及Trade对Mandate预算授权/结算的HTTP请求体模式注入从三种扩展为六种：`PAPER/FAKE`、`PAPER/REAL`、`BACKTEST/FAKE`、`BACKTEST/REAL`、`LIVE/FAKE`、`LIVE/REAL`。所有注入均422；拒绝后Mandate创建行数为0、激活保持PENDING、暂停保持ACTIVE且事件数不变、预算预留数不变。随后合法创建/激活/暂停仍成功。复用Governance/Replay/Quant完整隔离HTTP+PG smoke通过，随机容器/网络清理核验、活动服务`NOT_CONNECTED`。
+
+日志：[Governance/Replay/Quant隔离HTTP+PG](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a01.log)、[退出码](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a01.log.sha256)。此增量只关闭Mandate/预算上述服务端写路由模式字段子项；Proposal执行授权路由的剩余组合、其它服务/Worker/UI写路径、全量兼容和L17父项继续OPEN。
+
+### 8.116 P0/L17 Decision Governance Proposal与历史回测授权六模式HTTP+PostgreSQL矩阵（2026-10-12）
+
+Proposal审批/拒绝/修订、执行授权签发和验证五类写路由对六种客户端模式字段注入全部返回422；Proposal保持MANUAL_APPROVAL_PENDING、版本/hash不变且无Decision/Revision记录，授权保持ACTIVE且未被消费。历史回测授权入口只接受`BACKTEST/FAKE`：另五种组合422且授权行不变；合法组合创建唯一授权，按既有契约后续签发轮换authorizationId，原命令授权消费一次。Governance/Replay/Quant真实HTTP+随机隔离PostgreSQL smoke通过，容器和网络精确清理，活动服务`NOT_CONNECTED`。
+
+隔离HTTP+PG日志：[a04](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a04.log)、[exit](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a04.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-l17-governance-six-mode-http-pg-a04.log.sha256)。修改后完整V1.3 `pnpm verify:stage -- --stage V1.3 --suite code`退出0，含服务测试、模式矩阵、隔离数据库迁移及Harness资源清理：[code suite](../../../evidence/audits/2026-10-12-v13-l17-governance-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v13-l17-governance-code-suite-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v13-l17-governance-code-suite-a01.log.sha256)。此证据只关闭上述Proposal/历史授权路由字段边界；其他调用者路径及L17父项继续OPEN。
+
+### 8.117 当前候选重新验收（2026-10-13）
+
+在获准的本机Docker执行范围重新运行`pnpm test:e2e -- --stage V1.3`，浏览器固定矩阵40/40通过；覆盖CN/US FakeBroker交易、拒绝、严格已结算现金、撤单/费用更正及Trade重启/乱序Fill恢复。业务级断言、CLI核对和隔离资源清理均通过，外部数据源/真实券商调用0。详细Run导出在`evidence/local/V1.3/`；浏览器捕获示例：[US乱序Fill重启恢复](../../../evidence/audits/2026-10-08-v13-browser-captures-sq-v13-web-e26e1fe971ebb28db2d7/V1-3-US-EQUITY-L07-applies-a-buffered-out-of-order-AAPL-Fill-after-Trade-Execution-restart-2fe70207542d7f04053c-322df941e30438e3245c.png)。复验汇总见[记录](../../../evidence/audits/2026-10-13-v1-acceptance-revalidation-a01.md)。
+
+验收时同时发现TestRun投影问题：本次40个Platform StageRun导出仍为`WAITING`，对应两项StageRun断言也是`WAITING`；浏览器测试的独立业务断言通过并不能把这些Run视为COMPLETED。此生命周期/证据关联未被改写或签成PASS，V1.3正式自动验收及V1版本门禁保持OPEN；用户本次整版人工确认另见V1验收表。
+
+### 8.118 V1.3正常手工成交写入可核对的StageRun结论（2026-10-14）
+
+修正StageRun证据提取，使导出Envelope内的断言可与嵌套Run状态一起读取；新增显式`POST /api/v1/acceptance/v1/v1.3/runs/:testRunId/verify-normal`操作。此操作只在owner范围内核验已批准Proposal、FakeBroker原单/Fill、独立资产账与Portfolio账、精确100股及8995.0000 CNY现金、授权绑定和MATCH对账后，才把同一Run两项断言写为PASS并置COMPLETED；普通GET不产生状态变更。正式Web提供此操作，CLI对同一Run复核。
+
+`pnpm test:e2e -- --stage V1.3`最终复验40/40通过；正常成交Run `973b73fc-0aef-4c60-abef-15c982322c46`导出状态COMPLETED、两项断言PASS、业务执行`MANUAL_FILL_VERIFIED`，Manifest SHA-256 `90c9b5e31a3cd7f606625954e000bcea8cfaddc55e1c9453221a1a4dbfc56322`。rejection/recovery及其他固定矩阵仍按实际结果保留WAITING/NOT_RUN，不据Web独立断言代改。V1.3定向Vitest 31/31及Platform/Web typecheck通过；首次自动完成尝试造成会话推进提前拒绝、脚本状态期望过时的失败均保留为诊断历史，修正后的完整E2E通过。外部来源和真实券商调用为0，隔离Docker资源精确清理通过。自动Run仍`manualConclusion=NOT_RUN`，整版新候选待用户验收。

@@ -28,7 +28,7 @@ export class V14DailyBacktestService {
     }
     if (request.scenarioId === "historical-fees" && (request.policy.marketFeeSchedule?.scheduleId !== "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" || request.policy.sellOrder?.signalDate !== "2023-08-24" || request.policy.sellOrder.executionDate !== "2023-08-25")) throw new Error("historical-fees scenario requires its historical fee schedule and fixed 2023-08-24/25 sell fixture");
     const fixture = request.scenarioId === "historical-fees" ? this.fixturePort.loadHistoricalFees() : this.fixturePort.load();
-    const engine = new V14BacktestEngine(fixture.bars, fixture.sha256, request.policy);
+    const engine = new V14BacktestEngine(fixture.bars, fixture.sha256, request.policy, fixture.benchmark, fixture.settlementCalendar);
     const result = engine.run(request.scenarioId, request.seed);
     result.evidence.executionPolicy = request.policy;
     result.evidence.codeVersion = process.env.STOCKQUANT_CODE_VERSION ?? "UNSET";

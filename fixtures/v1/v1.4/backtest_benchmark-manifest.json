@@ -1,0 +1,16 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.4-daily-backtest-benchmark",
+  "fixtureVersion": "v1.4-daily-backtest-benchmark-1",
+  "stageId": "V1.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Synthetic single-series benchmark observations aligned to the frozen 2023 historical-fee and 2024 daily-backtest sessions; not an exchange index or market-performance claim", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-12T00:00:00Z",
+  "files": [{ "path": "fixtures/v1/v1.4/backtest_benchmark.csv", "sha256": "be3735f7d9005b76ebf6cd0cc57b0f3229b1560f42fceff2b329505ecafb64ab", "mediaType": "text/csv", "schemaRef": "v14-synthetic-benchmark-v1" }],
+  "expectedAssertions": [
+    { "assertionId": "V1.4-BT-BENCHMARK-001", "description": "All strategy sessions map one-to-one to benchmark observations" },
+    { "assertionId": "V1.4-BT-EXCESS-RETURN-002", "description": "Excess return equals strategy return minus synthetic benchmark return in basis points" }
+  ]
+}

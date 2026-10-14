@@ -14,7 +14,18 @@
     "assertions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["assertionId", "status", "expected", "actual"], "properties": {
       "assertionId": { "type": "string", "minLength": 1 }, "status": { "type": "string", "enum": ["PASS", "FAIL"] }, "expected": {}, "actual": {}
     } } },
-    "evidence": { "type": "object", "properties": {
+    "evidence": { "type": "object", "required": ["executionModel"], "properties": {
+      "executionModel": { "type": "object", "additionalProperties": false, "required": ["component", "modelId"], "properties": {
+        "component": { "const": "QUANT_BACKTEST_ENGINE" },
+        "modelId": { "type": "string", "enum": ["DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1", "SYNTHETIC_DAILY_OHLC_RESTRICTION_RULES_V1", "RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1"] }
+      } },
+      "benchmark": { "type": "object", "additionalProperties": false, "required": ["benchmarkId", "initialClose", "finalClose", "returnBasisPoints", "excessReturnBasisPoints"], "properties": {
+        "benchmarkId": { "type": "string", "minLength": 1 },
+        "initialClose": { "type": "integer", "minimum": 1 },
+        "finalClose": { "type": "integer", "minimum": 1 },
+        "returnBasisPoints": { "type": "integer" },
+        "excessReturnBasisPoints": { "type": "integer" }
+      } },
       "orderOutcomes": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["side", "signalDate", "executionDate", "requestedQuantity", "filledQuantity", "status"], "properties": {
         "side": { "type": "string", "enum": ["BUY", "SELL"] },
         "signalDate": { "type": "string", "format": "date" },
@@ -34,5 +45,10 @@
       "resultSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
       "manifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
     } }
-  }
+  },
+  "allOf": [
+    { "if": { "properties": { "scenarioId": { "const": "market-restrictions" } }, "required": ["scenarioId"] }, "then": { "properties": { "evidence": { "properties": { "executionModel": { "properties": { "modelId": { "const": "SYNTHETIC_DAILY_OHLC_RESTRICTION_RULES_V1" } }, "required": ["modelId"] } } } } } },
+    { "if": { "properties": { "scenarioId": { "const": "corporate-actions" } }, "required": ["scenarioId"] }, "then": { "properties": { "evidence": { "properties": { "executionModel": { "properties": { "modelId": { "const": "RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1" } }, "required": ["modelId"] } } } } } },
+    { "if": { "properties": { "scenarioId": { "enum": ["normal", "rejection", "recovery", "historical-fees"] } }, "required": ["scenarioId"] }, "then": { "properties": { "evidence": { "properties": { "executionModel": { "properties": { "modelId": { "const": "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1" } }, "required": ["modelId"] } } } } } }
+  ]
 }

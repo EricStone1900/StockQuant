@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateHistoricalExecution } from "../../../trade-execution-service/src/domain/historical-execution.js";
-import { V14BacktestEngine, type V14DailyBar, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
+import { loadV14RestrictionFixture } from "../../src/adapters/v14-daily-backtest-fixture.js";
+import { evaluateV14RestrictionBar, V14BacktestEngine, type V14DailyBar, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
 
 const bars: V14DailyBar[] = [
   { date: "2024-01-02", securityId: "600000.SH", closeCents: 1_000, volume: 100 },
@@ -22,6 +23,51 @@ function decimalFromCents(cents: number): string {
 }
 
 describe("V1.4 backtest versus Trade Execution deterministic fill rules", () => {
+  it.each([
+    { caseId: "suspended-buy", reason: "SUSPENDED" },
+    { caseId: "locked-upper-buy", reason: "LOCKED_AT_UPPER_LIMIT" },
+    { caseId: "locked-lower-sell", reason: "LOCKED_AT_LOWER_LIMIT" },
+    { caseId: "open-market-buy", reason: undefined },
+  ] as const)("matches FakeBroker restriction decision for $caseId", ({ caseId, reason }) => {
+    const fixture = loadV14RestrictionFixture();
+    expect(fixture.sha256).toBe("45413145031d48c74f0592dbe450a68081f4e0e22e769e8d8b4ddf2ffd57e52a");
+    const bar = fixture.bars.find((candidate) => candidate.caseId === caseId);
+    expect(bar).toBeDefined();
+    const quant = evaluateV14RestrictionBar(bar!);
+    const paper = calculateHistoricalExecution({
+      namespace: "v1.4-restriction-parity",
+      accountId: "restriction-parity-account",
+      clientOrderId: caseId,
+      security: bar!.securityId,
+      requestedQuantity: 29,
+      side: bar!.side,
+      bar: {
+        timestamp: `${bar!.date}T09:30:00+08:00`,
+        open: decimalFromCents(bar!.openCents),
+        high: decimalFromCents(bar!.highCents),
+        low: decimalFromCents(bar!.lowCents),
+        close: decimalFromCents(bar!.closeCents),
+        volume: bar!.volume,
+        tradingStatus: bar!.tradingStatus,
+        upperLimit: decimalFromCents(bar!.upperLimitCents),
+        lowerLimit: decimalFromCents(bar!.lowerLimitCents),
+      },
+      participationRate: 1,
+      slippageBps: 0,
+      currency: "CNY",
+    }, { orderId: `order-${caseId}`, externalFillId: `fill-${caseId}` });
+
+    if (reason) {
+      expect(quant).toMatchObject({ status: "REJECTED", reason });
+      expect(paper).toMatchObject({ status: "REJECTED", rejectionReason: reason });
+      expect(paper.fill).toBeUndefined();
+    } else {
+      expect(quant.status).toBe("FILLABLE");
+      expect(paper.status).toBe("FILLED");
+      expect(paper.fill).toBeDefined();
+    }
+  });
+
   it.each([
     { side: "BUY" as const, date: "2024-01-03", signalDate: "2024-01-02", slippageBasisPoints: 0 },
     { side: "BUY" as const, date: "2024-01-03", signalDate: "2024-01-02", slippageBasisPoints: 55 },
@@ -68,6 +114,30 @@ describe("V1.4 backtest versus Trade Execution deterministic fill rules", () => 
       session: date,
     });
     expect(decimalFromCents(backtestFill!.feeCents)).toBe(tradeExecutionFill.fill!.fee);
+  });
+
+  it.each([
+    { side: "BUY" as const, date: "2024-01-03", signalDate: "2024-01-02" },
+    { side: "SELL" as const, date: "2024-01-05", signalDate: "2024-01-04" },
+  ])("matches the fixed synthetic USD fixture fee and 55bps slippage for $side", ({ side, date, signalDate }) => {
+    const usBars = ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"].map((dateValue) => ({ date: dateValue, securityId: "AAPL", closeCents: 1_000, volume: 1_000 }));
+    const sellOrder = side === "SELL" ? { signalDate, executionDate: date, quantity: 100 } : undefined;
+    const report = new V14BacktestEngine(usBars, "fixture-us-parity-test", {
+      initialCashCents: 200_000, targetQuantity: 100, participationRateBasisPoints: 2_900, slippageBasisPoints: 55, fixedFeeCents: 100,
+      ...(sellOrder ? { sellOrder } : {}),
+    }).run("normal").evidence as { trades: Array<{ side: "BUY" | "SELL"; quantity: number; priceCents: number; feeCents: number; executionDate: string }> };
+    const backtestFill = report.trades.find((trade) => trade.side === side);
+    expect(backtestFill).toBeDefined();
+    const paper = calculateHistoricalExecution({
+      namespace: "v1.4-us-parity", accountId: "us-parity-account", clientOrderId: `us-${side.toLowerCase()}`,
+      security: "AAPL", requestedQuantity: 100, side,
+      bar: { timestamp: `${date}T14:30:00.000Z`, open: "10.00", volume: 1_000 },
+      participationRate: 0.29, slippageBps: 55, currency: "USD",
+    }, { orderId: `us-order-${side.toLowerCase()}`, externalFillId: `us-fill-${side.toLowerCase()}` });
+
+    expect(paper.status).toBe("FILLED");
+    expect({ quantity: backtestFill!.quantity, price: decimalFromCents(backtestFill!.priceCents), fee: decimalFromCents(backtestFill!.feeCents), session: backtestFill!.executionDate })
+      .toEqual({ quantity: paper.fill!.quantity, price: paper.fill!.price, fee: paper.fill!.fee, session: date });
   });
 
   it("matches partial BUY fills and reports a distinct partially-filled order", () => {

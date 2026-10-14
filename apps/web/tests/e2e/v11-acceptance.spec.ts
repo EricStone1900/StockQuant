@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -6,16 +6,31 @@ import { resolve } from "node:path";
 const v13FixtureRoot = resolve(process.cwd(), "../../fixtures/v1/v1.3");
 const v13TradeFixture = JSON.parse(readFileSync(resolve(v13FixtureRoot, "trading-loop-scenarios.json"), "utf8"));
 const v13TradeFixtureManifest = JSON.parse(readFileSync(resolve(v13FixtureRoot, "manifest.json"), "utf8"));
-const v13MultiLegRoot = resolve(process.cwd(), "../../fixtures/v1/v1.3-multileg-v1.0.3");
+const v13UsOrderedRoot = resolve(process.cwd(), "../../fixtures/v1/v1.3-us-ordered-fills-v1.0.0");
+const v13UsOrderedFixture = JSON.parse(readFileSync(resolve(v13UsOrderedRoot, "aapl-out-of-order-restart.json"), "utf8"));
+const v13UsOrderedManifest = JSON.parse(readFileSync(resolve(v13UsOrderedRoot, "manifest.json"), "utf8"));
+const v13MultiLegRoot = resolve(process.cwd(), "../../fixtures/v1/v1.3-multileg-v1.0.4");
 const v13MultiLegFixture = JSON.parse(readFileSync(resolve(v13MultiLegRoot, "trading-loop-scenarios.json"), "utf8"));
 const v13MultiLegManifest = JSON.parse(readFileSync(resolve(v13MultiLegRoot, "manifest.json"), "utf8"));
 const canonicalMoney = (value: string) => value.replace(/(\.\d*?[1-9])0+$|\.0+$/u, "$1");
+const v11ClientModeInjectionCases = [
+  { environmentMode: "PAPER", brokerMode: "FAKE" },
+  { environmentMode: "LIVE", brokerMode: "FAKE" },
+  { environmentMode: "PAPER", brokerMode: "REAL" },
+  { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+  { environmentMode: "BACKTEST", brokerMode: "REAL" },
+  { environmentMode: "LIVE", brokerMode: "REAL" },
+] as const;
 
 test.beforeAll(() => {
   const fixturePath = resolve(v13FixtureRoot, "trading-loop-scenarios.json");
   const fixtureHash = createHash("sha256").update(readFileSync(fixturePath)).digest("hex");
   expect(fixtureHash).toBe(v13TradeFixtureManifest.files[0].sha256);
   expect(v13TradeFixture.fixtureId).toBe(v13TradeFixtureManifest.fixtureId);
+  const usOrderedFile = resolve(v13UsOrderedRoot, "aapl-out-of-order-restart.json");
+  expect(createHash("sha256").update(readFileSync(usOrderedFile)).digest("hex")).toBe(v13UsOrderedManifest.files[0].sha256);
+  expect(v13UsOrderedFixture.fixtureVersion).toBe(v13UsOrderedManifest.fixtureVersion);
+  expect(v13UsOrderedFixture.expected).toMatchObject({ cash: "6249.9500", reservedCash: "5000.0500", position: 150, reconciliation: "MATCH" });
   const multiLegFile = resolve(v13MultiLegRoot, "trading-loop-scenarios.json");
   expect(createHash("sha256").update(readFileSync(multiLegFile)).digest("hex")).toBe(v13MultiLegManifest.files[0].sha256);
   expect(v13MultiLegFixture.fixtureVersion).toBe(v13MultiLegManifest.fixtureVersion);
@@ -23,13 +38,47 @@ test.beforeAll(() => {
 
 test.beforeEach(async ({ page }, testInfo) => {
   if (testInfo.title.includes("V1.3") || testInfo.title.includes("V1.4")) await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
+  if (testInfo.title.includes("V1.2 normal, rejection, and recovery-probe") && process.env.STOCKQUANT_V12_CAPTURE_EVIDENCE === "1") await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
 });
 
 test.afterEach(async ({ page }, testInfo) => {
+  const isV11 = testInfo.title.includes("V1.1");
   const isV13 = testInfo.title.includes("V1.3");
   const isV14 = testInfo.title.includes("V1.4");
-  if (!isV13 && !isV14) return;
+  const isV12Capture = testInfo.title.includes("V1.2 normal, rejection, and recovery-probe") && process.env.STOCKQUANT_V12_CAPTURE_EVIDENCE === "1";
+  if (!isV11 && !isV13 && !isV14 && !isV12Capture) return;
   const root = resolve(process.cwd(), "../..");
+  if (isV12Capture) {
+    const project = (process.env.STOCKQUANT_ISOLATED_V12_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+    const captureDirectory = resolve(root, `evidence/audits/${new Date().toISOString().slice(0, 10)}-v12-browser-captures-${project}`);
+    mkdirSync(captureDirectory, { recursive: true });
+    await page.context().tracing.stop({ path: resolve(captureDirectory, `v12-scenario-matrix-${testInfo.testId}.trace.zip`) });
+    console.info(`[V1.2 browser traces] ${captureDirectory}`);
+    return;
+  }
+  if (isV11) {
+    if (testInfo.title.includes("normal scenario")) return;
+    const project = (process.env.STOCKQUANT_ISOLATED_V11_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+    const captureDirectory = resolve(root, `evidence/audits/${new Date().toISOString().slice(0, 10)}-v11-browser-captures-${project}`);
+    mkdirSync(captureDirectory, { recursive: true });
+    const safeTitle = testInfo.title.replace(/[^a-zA-Z0-9-]+/gu, "-").replace(/^-|-$/gu, "").slice(0, 90);
+    if (page.isClosed()) {
+      console.warn(`[V1.1 browser capture skipped] ${JSON.stringify({ reason: "Playwright closed the page before afterEach capture" })}`);
+      return;
+    }
+    const testRunId = (await page.getByTestId("test-run-id").textContent().catch(() => null))?.trim() || "no-run";
+    const screenshotPath = resolve(captureDirectory, `${safeTitle}-${testRunId}.png`);
+    let screenshot: Buffer;
+    try {
+      screenshot = await page.screenshot({ path: screenshotPath, fullPage: true, animations: "disabled", timeout: 10_000 });
+    } catch (error) {
+      console.warn(`[V1.1 browser capture skipped] ${JSON.stringify({ testRunId, reason: error instanceof Error ? error.message : String(error) })}`);
+      return;
+    }
+    const screenshotSha256 = createHash("sha256").update(screenshot).digest("hex");
+    console.info(`[V1.1 browser capture] ${JSON.stringify({ testRunId, screenshotPath, screenshotSha256 })}`);
+    return;
+  }
   if (isV14) {
     const project = (process.env.COMPOSE_PROJECT_NAME ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
     const captureDirectory = resolve(root, `evidence/audits/2026-10-09-v14-browser-captures-${project}`);
@@ -63,6 +112,28 @@ test.afterEach(async ({ page }, testInfo) => {
   expect(result.kind).toBe("TEST_RUN_EVIDENCE");
   expect(result.outputDirectory).toContain(`evidence/local/V1.3/${runId}`);
   console.info(`[V1.3 evidence export] testRunId=${runId} ${exported.stdout.trim()}`);
+  const sessionCookie = process.env.STOCKQUANT_EVIDENCE_SESSION_COOKIE;
+  expect(sessionCookie, "the isolated V1.3 owner session must be available for shared evidence reads").toMatch(/^sq_session=[^;\s]+$/u);
+  const sharedEvidenceResponse = await fetch(`${process.env.STOCKQUANT_PLATFORM_API_URL}/api/v1/acceptance/runs/${runId}/evidence`, {
+    headers: { cookie: sessionCookie! },
+    signal: AbortSignal.timeout(10_000),
+  });
+  expect(sharedEvidenceResponse.status, await sharedEvidenceResponse.clone().text()).toBe(200);
+  const sharedEvidence = await sharedEvidenceResponse.json() as {
+    evidenceVersion?: string;
+    mode?: { environmentMode?: string; dataMode?: string; brokerMode?: string };
+    run?: { testRunId?: string; stageId?: string; ownerId?: string; assertions?: unknown[] };
+    assertions?: unknown[];
+    manualConclusion?: string;
+  };
+  expect(sharedEvidence.evidenceVersion).toBe("v2-stage-run-1");
+  expect(sharedEvidence.run?.testRunId).toBe(runId);
+  expect(sharedEvidence.run?.stageId).toBe("V1.3");
+  expect(sharedEvidence.run?.ownerId).toBeTruthy();
+  expect(sharedEvidence.mode).toEqual({ environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE" });
+  expect(sharedEvidence.assertions).toEqual(sharedEvidence.run?.assertions);
+  expect(sharedEvidence.manualConclusion).toBe("NOT_RUN");
+  console.info(`[V1.3 shared StageRun evidence] ${JSON.stringify({ testRunId: runId, ownerId: sharedEvidence.run?.ownerId, stageId: sharedEvidence.run?.stageId, evidenceVersion: sharedEvidence.evidenceVersion, mode: sharedEvidence.mode, assertionCount: sharedEvidence.assertions?.length, manualConclusion: sharedEvidence.manualConclusion, responseStatus: sharedEvidenceResponse.status })}`);
 });
 
 function verifyV11RunWithCli(testRunId: string, sessionCookie: string) {
@@ -101,6 +172,41 @@ function verifyV11RunWithCli(testRunId: string, sessionCookie: string) {
   console.info(`[V1.1 same-run evidence export] testRunId=${testRunId} outputDirectory=${result.outputDirectory} manifestHash=${result.manifestHash}`);
 }
 
+async function verifyV11RunAgainstIsolatedLedgers(testRunId: string, page: import("@playwright/test").Page) {
+  const project = process.env.STOCKQUANT_ISOLATED_V11_PROJECT;
+  expect(project, "direct ledger verification requires the disposable V1.1 stage harness").toMatch(/^sq-v11-stage-[a-f0-9]{20}$/u);
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  const runResponse = await page.request.get(`/api/v1/acceptance/runs/${testRunId}`);
+  expect(runResponse.status()).toBe(200);
+  const run = await runResponse.json() as { testRunId?: string; ownerId?: string; status?: string; assertions?: Array<{ evidence?: { accountId?: string } }> };
+  expect(run.testRunId).toBe(testRunId);
+  expect(run.status).toBe("COMPLETED");
+  expect(run.ownerId).toMatch(/^[a-zA-Z0-9_-]+$/u);
+  const accountId = run.assertions?.map((assertion) => assertion.evidence?.accountId).find((value) => typeof value === "string");
+  expect(accountId, "completed V1.1 run must expose the account ID in backend assertion evidence").toMatch(/^[0-9a-f-]{36}$/iu);
+  const root = resolve(process.cwd(), "../..");
+  const composeArgs = ["compose", "-p", project!, "-f", "infra/compose/docker-compose.v11-integration.yml", "exec", "-T", "postgres"];
+  const platformQuery = spawnSync("docker", [...composeArgs, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "platform_api", "-c", `SELECT json_build_object('testRunId',test_run_id,'ownerId',owner_id,'status',status,'accountId',account_id)::text FROM test_runs WHERE test_run_id='${testRunId}'::uuid`], { cwd: root, encoding: "utf8", timeout: 10_000 });
+  expect(platformQuery.status, platformQuery.stderr).toBe(0);
+  const platformRun = JSON.parse(platformQuery.stdout.trim()) as { testRunId: string; ownerId: string; status: string; accountId: string };
+  expect(platformRun).toEqual({ testRunId, ownerId: run.ownerId, status: "COMPLETED", accountId });
+  const portfolioQuery = spawnSync("docker", [...composeArgs, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "portfolio_risk", "-c", `SELECT json_build_object('accountId',a.account_id,'testRunId',a.test_run_id,'ownerId',a.owner_id,'market',a.market,'environmentMode',a.environment_mode,'brokerMode',a.broker_mode,'cash',a.cash_amount::text,'currency',a.currency,'ledgerCount',(SELECT count(*) FROM ledger_entries l WHERE l.account_id=a.account_id),'initialCashCount',(SELECT count(*) FROM ledger_entries l WHERE l.account_id=a.account_id AND l.entry_type='INITIAL_CASH' AND l.amount=10000 AND l.currency='CNY'),'positionCount',(SELECT count(*) FROM account_positions p WHERE p.account_id=a.account_id))::text FROM accounts a WHERE a.account_id='${accountId}'::uuid AND a.test_run_id='${testRunId}'::uuid AND a.owner_id='${run.ownerId}'`], { cwd: root, encoding: "utf8", timeout: 10_000 });
+  expect(portfolioQuery.status, portfolioQuery.stderr).toBe(0);
+  const ledger = JSON.parse(portfolioQuery.stdout.trim()) as { accountId: string; testRunId: string; ownerId: string; market: string; environmentMode: string; brokerMode: string; cash: string; currency: string; ledgerCount: number; initialCashCount: number; positionCount: number };
+  expect(ledger).toEqual({ accountId, testRunId, ownerId: run.ownerId, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", cash: "10000.0000", currency: "CNY", ledgerCount: 1, initialCashCount: 1, positionCount: 0 });
+  const accountCountQuery = spawnSync("docker", [...composeArgs, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "portfolio_risk", "-c", `SELECT json_build_object('cn',count(*) FILTER (WHERE market='CN_A'),'us',count(*) FILTER (WHERE market='US_EQUITY'))::text FROM accounts WHERE test_run_id='${testRunId}'::uuid`], { cwd: root, encoding: "utf8", timeout: 10_000 });
+  expect(accountCountQuery.status, accountCountQuery.stderr).toBe(0);
+  expect(JSON.parse(accountCountQuery.stdout.trim())).toEqual({ cn: 1, us: 0 });
+  console.info(`[V1.1 same-run domain ledger cross-check] ${JSON.stringify({ testRunId, accountId, ownerId: run.ownerId, platformRun: "COMPLETED", portfolio: "MATCH", cash: ledger.cash, currency: ledger.currency, initialCashLedgerCount: ledger.initialCashCount, positions: ledger.positionCount, queryMode: "read-only isolated PostgreSQL" })}`);
+}
+
+function readV11PersistedRunCount(project: string): number {
+  const root = resolve(process.cwd(), "../..");
+  const result = spawnSync("docker", ["compose", "-p", project, "-f", "infra/compose/docker-compose.v11-integration.yml", "exec", "-T", "postgres", "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "platform_api", "-c", "SELECT count(*) FROM test_runs WHERE stage_id='V1.1'"], { cwd: root, encoding: "utf8", timeout: 10_000 });
+  expect(result.status, result.stderr).toBe(0);
+  return Number(result.stdout.trim());
+}
+
 async function currentSessionCookie(page: import("@playwright/test").Page): Promise<string> {
   const cookie = (await page.context().cookies()).find((item) => item.name === "sq_session");
   expect(cookie?.value, "the V1.1 Web run must use its current local session").toBeTruthy();
@@ -119,19 +225,137 @@ function verifyV12RunWithCli(testRunId: string, expectedStatus: "COMPLETED" | "W
   expect(cli.stdout).toContain(`"status": "${expectedStatus}"`);
 }
 
-function verifyV13RunWithCli(testRunId: string, proposalId?: string, clientOrderId?: string, expectedCash = "8995.0000", expectedReservation = "1005.0000", expectedOrderStatus = "FILLED", expectedReservationStatus = "CAPTURED", expectedCapturedCash = expectedReservation) {
+function verifyV13RunWithCli(testRunId: string, proposalId?: string, clientOrderId?: string, expectedCash = "8995.0000", expectedReservation = "1005.0000", expectedOrderStatus = "FILLED", expectedReservationStatus = "CAPTURED", expectedCapturedCash = expectedReservation, expectedRunStatus: "WAITING" | "COMPLETED" = "WAITING") {
   console.info(`[V1.3 Web/CLI same-run] testRunId=${testRunId}`);
   const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId, ...(proposalId ? ["--proposal", proposalId] : []), ...(clientOrderId ? ["--client-order", clientOrderId] : []), "--check-only"], {
     cwd: resolve(process.cwd(), "../.."),
     encoding: "utf8",
     env: process.env
   });
-  expect(cli.status, cli.stderr).toBe(2);
+  expect(cli.status, cli.stderr).toBe(expectedRunStatus === "COMPLETED" ? 0 : 2);
   expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
-  expect(cli.stdout).toContain('"status": "WAITING"');
+  expect(cli.stdout).toContain(`"status": "${expectedRunStatus}"`);
   if (proposalId) expect(cli.stdout).toContain(`"proposalId": "${proposalId}"`);
   if (clientOrderId) { expect(cli.stdout).toContain('"clientOrderId":'); expect(cli.stdout).toContain(`"status": "${expectedOrderStatus}"`); expect(cli.stdout).toContain('"status": "MATCH"'); expect(cli.stdout).toContain(`"current_cash": "${expectedCash}"`); expect(cli.stdout).toContain(`"status": "${expectedReservationStatus}"`); expect(cli.stdout).toContain(`"capturedCashAmount": "${expectedCapturedCash}"`); }
 }
+
+async function runV13L07SeededCancelScenario(page: Page, seed: number, arrivalOrder: "seq2-first" | "seq1-then-seq2") {
+  await page.goto("/acceptance/v1/v1.3");
+  await page.evaluate(async () => {
+    const response = await fetch("/api/v1/session", { credentials: "include" });
+    if (!response.ok) throw new Error(`acceptance session failed (${response.status})`);
+  });
+  const created = await page.request.post("/api/v1/acceptance/v1/v1.3/runs", { data: { scenarioId: "normal", seed } });
+  expect(created.status()).toBe(202);
+  const { testRunId } = await created.json();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.goto(`/acceptance/v1/v1.3?runId=${encodeURIComponent(testRunId)}`);
+  await expect(page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" })).toBeVisible();
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("ACCEPTED");
+
+  if (arrivalOrder === "seq2-first") {
+    await page.getByTestId("v13-sequence-2-replay").click();
+    await expect(page.getByTestId("v13-sequenced-report")).toContainText('"buffered":true');
+    await page.getByTestId("v13-sequence-1").click();
+    await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":2');
+  } else {
+    await page.getByTestId("v13-sequence-1").click();
+    await expect(page.getByTestId("v13-order")).toContainText("PARTIALLY_FILLED");
+    await page.getByTestId("v13-sequence-2-replay").click();
+    await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":2');
+  }
+
+  const clientOrderId = `v13-${proposalId}`;
+  const cancelRequest = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-request`);
+  expect(cancelRequest.status()).toBe(202);
+  expect(await cancelRequest.json()).toMatchObject({ status: "CANCEL_REQUESTED", reservation: { status: "HELD" } });
+  const cancelResult = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-results/3`);
+  expect(cancelResult.status()).toBe(200);
+  expect((await cancelResult.json()).order.order.status).toBe("CANCELLED");
+
+  await expect(page.getByTestId("v13-reconciliation")).toHaveText("MATCH");
+  const facts = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`).then((response) => response.json());
+  expect(facts.fills.map((fill: { brokerSequence: number; quantity: number }) => [fill.brokerSequence, fill.quantity])).toEqual([[1, 100], [2, 50]]);
+  expect(facts.order.status).toBe("CANCELLED");
+  expect(facts.independentAssets.current_cash).toBe("8495.0000");
+  expect(facts.independentAssets.positions).toEqual([{ security: "600000.SH", quantity: 150 }]);
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  const account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "1505.0000" }));
+  verifyV13RunWithCli(testRunId, proposalId!, clientOrderId, "8495.0000", "2005.0000", "CANCELLED", "RELEASED", "1505.0000");
+  console.info(`[V1.3 L07 seeded Web/API/CLI cancellation recovery] ${JSON.stringify({ testRunId, seed, arrivalOrder, proposalId, clientOrderId, fills: facts.fills.map((fill: { brokerSequence: number }) => fill.brokerSequence), cash: facts.independentAssets.current_cash, reconciliation: facts.reconciliation.status, reservation: account.account.reservations.find((item: { clientOrderId: string }) => item.clientOrderId === clientOrderId)?.status })}`);
+}
+
+async function runV13L16CancelPreconditionRecovery(page: Page, seed: number) {
+  await page.goto("/acceptance/v1/v1.3");
+  await page.evaluate(async () => {
+    const response = await fetch("/api/v1/session", { credentials: "include" });
+    if (!response.ok) throw new Error(`acceptance session failed (${response.status})`);
+  });
+  const created = await page.request.post("/api/v1/acceptance/v1/v1.3/runs", { data: { scenarioId: "normal", seed } });
+  expect(created.status()).toBe(202);
+  const { testRunId } = await created.json();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.goto(`/acceptance/v1/v1.3?runId=${encodeURIComponent(testRunId)}`);
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("ACCEPTED");
+
+  const clientOrderId = `v13-${proposalId}`;
+  const orderPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`;
+  const rejectedEarlyCancel = await page.request.post(`${orderPath}/cancel-request`);
+  expect(rejectedEarlyCancel.status()).toBe(409);
+  const beforeFillFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(beforeFillFacts.order.status).toBe("ACCEPTED");
+  expect(beforeFillFacts.fills).toEqual([]);
+  expect(beforeFillFacts.independentAssets.current_cash).toBe("10000.0000");
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  const beforeFillAccount = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(beforeFillAccount.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD" }));
+  verifyV13RunWithCli(testRunId, proposalId!, clientOrderId, "10000.0000", "2005.0000", "ACCEPTED", "HELD", "0.0000");
+
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"buffered":true');
+  const bufferedCancelRequest = await page.request.post(`${orderPath}/cancel-request`);
+  expect(bufferedCancelRequest.status()).toBe(409);
+  const stillHeld = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(stillHeld.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD" }));
+
+  await page.getByTestId("v13-sequence-1").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":2');
+  const cancelRequest = await page.request.post(`${orderPath}/cancel-request`);
+  expect(cancelRequest.status()).toBe(202);
+  expect(await cancelRequest.json()).toMatchObject({ status: "CANCEL_REQUESTED", reservation: { status: "HELD" } });
+  const cancelResult = await page.request.post(`${orderPath}/cancel-results/3`);
+  expect(cancelResult.status()).toBe(200);
+  expect((await cancelResult.json()).order.order.status).toBe("CANCELLED");
+
+  const facts = await page.request.get(orderPath).then((response) => response.json());
+  expect(facts.order.status).toBe("CANCELLED");
+  expect(facts.fills.map((fill: { brokerSequence: number; quantity: number }) => [fill.brokerSequence, fill.quantity])).toEqual([[1, 100], [2, 50]]);
+  expect(facts.independentAssets.current_cash).toBe("8495.0000");
+  expect(facts.independentAssets.positions).toEqual([{ security: "600000.SH", quantity: 150 }]);
+  expect(facts.reconciliation.status).toBe("MATCH");
+  const account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "1505.0000" }));
+  verifyV13RunWithCli(testRunId, proposalId!, clientOrderId, "8495.0000", "2005.0000", "CANCELLED", "RELEASED", "1505.0000");
+  console.info(`[V1.3 L16 Web/API/CLI cancel precondition recovery] ${JSON.stringify({ testRunId, seed, rejectedWithoutFill: rejectedEarlyCancel.status(), rejectedWithBufferedFill: bufferedCancelRequest.status(), appliedArrivalSequence: [2, 1, 3], proposalId, clientOrderId, fills: facts.fills.map((fill: { brokerSequence: number }) => fill.brokerSequence), cash: facts.independentAssets.current_cash, reconciliation: facts.reconciliation.status, reservation: account.account.reservations.find((item: { clientOrderId: string }) => item.clientOrderId === clientOrderId)?.status })}`);
+}
+
+test("V1.3 L16 rejects premature cancel without side effects and recovers after an out-of-order Fill", async ({ page }) => {
+  test.setTimeout(90_000);
+  await runV13L16CancelPreconditionRecovery(page, 20261015);
+});
 
 function verifyV13MultiLegRunWithCli(testRunId: string, proposalId: string, clientOrderId: string, expectedCash: string, expectedReservations: string[]) {
   const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId, "--proposal", proposalId, "--client-order", clientOrderId, "--check-only"], {
@@ -148,6 +372,22 @@ function verifyV13MultiLegRunWithCli(testRunId: string, proposalId: string, clie
   expect(output.order.reconciliation.portfolio.reservations.map((item: any) => item.capturedCashAmount).sort()).toEqual(expectedReservations.sort());
 }
 
+function verifyV13StrictMixedRunWithCli(testRunId: string, proposalId: string, clientOrderId: string, expectedCash: string, expectedReceivable: string) {
+  console.info(`[V1.3 strict-cash MANUAL Web/CLI same-run] testRunId=${testRunId}`);
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId, "--proposal", proposalId, "--client-order", clientOrderId, "--check-only"], {
+    cwd: resolve(process.cwd(), "../.."), encoding: "utf8", env: process.env,
+  });
+  expect(cli.status, cli.stderr).toBe(2);
+  const output = JSON.parse(cli.stdout);
+  expect(output.run.testRunId).toBe(testRunId);
+  expect(output.order.authorization).toMatchObject({ proposalId, testRunId });
+  expect(output.order.orders).toHaveLength(2);
+  expect(output.order.fills).toHaveLength(2);
+  expect(output.order.reconciliation.status).toBe("MATCH");
+  expect(output.order.independentAssets.current_cash).toBe(expectedCash);
+  expect(output.order.independentAssets.unsettledReceivables).toEqual([expect.objectContaining({ amount: expectedReceivable, status: "PENDING", currency: "CNY" })]);
+}
+
 function verifyV14RunWithCli(testRunId: string) {
   console.info(`[V1.4 Web/CLI same-run] testRunId=${testRunId}`);
   const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.4", "--run", testRunId, "--check-only"], {
@@ -160,13 +400,13 @@ function verifyV14RunWithCli(testRunId: string) {
   expect(cli.stdout).toContain('"status": "COMPLETED"');
 }
 
-function verifyV15RunWithCli(testRunId: string, sessionCookie: string) {
+async function verifyV15RunWithCli(testRunId: string, sessionCookie: string, expectedRunStatus: "WAITING" | "COMPLETED" = "WAITING") {
   const root = resolve(process.cwd(), "../..");
   const env = { ...process.env, STOCKQUANT_SESSION_COOKIE: sessionCookie };
   const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.5", "--run", testRunId, "--check-only"], { cwd: root, encoding: "utf8", env, timeout: 30_000 });
-  expect(cli.status, cli.stderr).toBe(2);
+  expect(cli.status, cli.stderr).toBe(expectedRunStatus === "COMPLETED" ? 0 : 2);
   expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
-  expect(cli.stdout).toContain('"status": "WAITING"');
+  expect(cli.stdout).toContain(`"status": "${expectedRunStatus}"`);
 
   const exported = spawnSync(process.execPath, [resolve(root, "scripts/evidence-export.mjs"), "--stage", "V1.5", "--run", testRunId], {
     cwd: process.env.STOCKQUANT_EVIDENCE_EXPORT_CWD ?? root,
@@ -179,9 +419,30 @@ function verifyV15RunWithCli(testRunId: string, sessionCookie: string) {
   expect(result.stageId).toBe("V1.5");
   expect(result.kind).toBe("TEST_RUN_EVIDENCE");
   expect(result.outputDirectory).toContain(`evidence/local/V1.5/${testRunId}`);
+  const sharedEvidenceResponse = await fetch(`${process.env.STOCKQUANT_PLATFORM_API_URL}/api/v1/acceptance/runs/${testRunId}/evidence`, {
+    headers: { cookie: sessionCookie },
+    signal: AbortSignal.timeout(10_000),
+  });
+  expect(sharedEvidenceResponse.status, await sharedEvidenceResponse.clone().text()).toBe(200);
+  const sharedEvidence = await sharedEvidenceResponse.json() as {
+    evidenceVersion?: string;
+    mode?: { environmentMode?: string; dataMode?: string; brokerMode?: string };
+    run?: { testRunId?: string; stageId?: string; ownerId?: string; assertions?: unknown[] };
+    assertions?: unknown[];
+    manualConclusion?: string;
+  };
+  expect(sharedEvidence.evidenceVersion).toBe("v2-stage-run-1");
+  expect(sharedEvidence.run?.testRunId).toBe(testRunId);
+  expect(sharedEvidence.run?.stageId).toBe("V1.5");
+  expect(sharedEvidence.run?.ownerId).toBeTruthy();
+  expect(sharedEvidence.mode).toEqual({ environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE" });
+  expect(sharedEvidence.assertions).toEqual(sharedEvidence.run?.assertions);
+  expect(sharedEvidence.manualConclusion).toBe("NOT_RUN");
+  console.info(`[V1.5 shared StageRun evidence] ${JSON.stringify({ testRunId, ownerId: sharedEvidence.run?.ownerId, stageId: sharedEvidence.run?.stageId, evidenceVersion: sharedEvidence.evidenceVersion, mode: sharedEvidence.mode, assertionCount: sharedEvidence.assertions?.length, manualConclusion: sharedEvidence.manualConclusion, responseStatus: sharedEvidenceResponse.status })}`);
 }
 
 test("V1.1 normal scenario creates an isolated run with backend assertions", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.goto("/acceptance/v1/v1.1");
   await expect(page.getByRole("heading", { name: "V1.1 环境、账户初始化与 Web 验收中心" })).toBeVisible();
   await page.getByRole("button", { name: "准备隔离运行：normal" }).click();
@@ -189,18 +450,23 @@ test("V1.1 normal scenario creates an isolated run with backend assertions", asy
   await expect(page.getByTestId("run-status")).toHaveText("COMPLETED", { timeout: 10_000 });
   await expect(page.getByText("V1.1-ACCOUNT-INIT-001")).toBeVisible();
   await expect(page.getByText("PASS").first()).toBeVisible();
+  const captureProject = (process.env.STOCKQUANT_ISOLATED_V11_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+  const captureDirectory = resolve(process.cwd(), "../..", `evidence/audits/${new Date().toISOString().slice(0, 10)}-v11-browser-captures-${captureProject}`);
+  mkdirSync(captureDirectory, { recursive: true });
+  const normalScreenshot = await page.screenshot({ path: resolve(captureDirectory, "V1-1-normal-scenario.png"), fullPage: false, animations: "disabled", timeout: 10_000 });
+  console.info(`[V1.1 browser capture] ${JSON.stringify({ screenshotPath: resolve(captureDirectory, "V1-1-normal-scenario.png"), screenshotSha256: createHash("sha256").update(normalScreenshot).digest("hex") })}`);
   const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
   expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
-  for (const modes of [
-    { environmentMode: "LIVE", brokerMode: "FAKE" },
-    { environmentMode: "PAPER", brokerMode: "REAL" },
-    { environmentMode: "LIVE", brokerMode: "REAL" },
-  ]) {
+  const isolatedProject = process.env.STOCKQUANT_ISOLATED_V11_PROJECT;
+  expect(isolatedProject, "mode injection must be checked against the disposable V1.1 database").toMatch(/^sq-v11-stage-[a-f0-9]{20}$/u);
+  const persistedRunCountBeforeInjection = readV11PersistedRunCount(isolatedProject!);
+  for (const modes of v11ClientModeInjectionCases) {
     const accountMode = await page.request.post(`/api/v1/acceptance/runs/${testRunId}/accounts/us`, { data: modes });
     expect(accountMode.status(), `V1.1 account mode ${JSON.stringify(modes)}: ${await accountMode.text()}`).toBe(422);
     const runMode = await page.request.post("/api/v1/acceptance/v1/v1.1/runs", { data: { scenarioId: "normal", seed: 20260907, ...modes } });
     expect(runMode.status(), `V1.1 run mode ${JSON.stringify(modes)}: ${await runMode.text()}`).toBe(422);
   }
+  expect(readV11PersistedRunCount(isolatedProject!)).toBe(persistedRunCountBeforeInjection);
   const injectedRunFacts = await page.request.post("/api/v1/acceptance/v1/v1.1/runs", { data: { scenarioId: "normal", seed: 20260907, status: "COMPLETED", cash: { amount: "999999.00", currency: "CNY" } } });
   expect(injectedRunFacts.status(), await injectedRunFacts.text()).toBe(422);
   expect(await injectedRunFacts.text()).toContain("unsupported fields");
@@ -209,6 +475,16 @@ test("V1.1 normal scenario creates an isolated run with backend assertions", asy
   const unchangedRun = await (await page.request.get(`/api/v1/acceptance/runs/${testRunId}`)).json();
   expect(unchangedRun.status).toBe("COMPLETED");
   await verifyV11RunWithCli(testRunId!, await currentSessionCookie(page));
+  await verifyV11RunAgainstIsolatedLedgers(testRunId!, page);
+
+  await page.route(`**/api/v1/acceptance/runs/${testRunId}`, (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ...unchangedRun, unrecognizedField: "must be rejected by the browser contract" })
+  }));
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Invalid V1.1 acceptance run response");
+  await expect(page.getByRole("alert")).toContainText("must NOT have additional properties");
 });
 
 test("V1.1 rejection scenario persists denial assertions visible to the same-run CLI", async ({ page }) => {
@@ -220,6 +496,7 @@ test("V1.1 rejection scenario persists denial assertions visible to the same-run
   const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
   expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
   await verifyV11RunWithCli(testRunId!, await currentSessionCookie(page));
+  await verifyV11RunAgainstIsolatedLedgers(testRunId!, page);
 });
 
 test("V1.1 recovery resumes the same run after restarting only the verified isolated Portfolio container", async ({ page }) => {
@@ -230,6 +507,13 @@ test("V1.1 recovery resumes the same run after restarting only the verified isol
   await expect(page.getByTestId("run-status")).toHaveText("WAITING", { timeout: 10_000 });
   const testRunId = (await page.getByTestId("test-run-id").textContent())?.trim();
   expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+
+  for (const modes of v11ClientModeInjectionCases) {
+    const response = await page.request.post(`/api/v1/acceptance/runs/${testRunId}/continue-recovery`, { data: modes });
+    expect(response.status(), `V1.1 recovery mode ${JSON.stringify(modes)}: ${await response.text()}`).toBe(422);
+    const unchanged = await (await page.request.get(`/api/v1/acceptance/runs/${testRunId}`)).json();
+    expect(unchanged.status).toBe("WAITING");
+  }
 
   const expected = spawnSync("docker", ["compose", "-p", project!, "-f", "infra/compose/docker-compose.v11-integration.yml", "ps", "-q", "portfolio-risk-service"], { encoding: "utf8" });
   expect(expected.status, expected.stderr).toBe(0);
@@ -248,6 +532,7 @@ test("V1.1 recovery resumes the same run after restarting only the verified isol
   await expect(page.getByTestId("run-status")).toHaveText("COMPLETED", { timeout: 15_000 });
   await expect(page.getByText("V1.1-RECOVERY-001")).toBeVisible();
   await verifyV11RunWithCli(testRunId!, await currentSessionCookie(page));
+  await verifyV11RunAgainstIsolatedLedgers(testRunId!, page);
 });
 
 test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified by the same-run CLI", async ({ page }) => {
@@ -321,6 +606,16 @@ test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified
     }, testRunId!);
     expect(persistedRun.ok).toBe(true);
     console.log(`[V1.2 persisted readback] ${JSON.stringify(persistedRun.run)}`);
+    if (process.env.STOCKQUANT_V12_CAPTURE_EVIDENCE === "1") {
+      const root = resolve(process.cwd(), "../..");
+      const project = (process.env.STOCKQUANT_ISOLATED_V12_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+      const captureDirectory = resolve(root, `evidence/audits/${new Date().toISOString().slice(0, 10)}-v12-browser-captures-${project}`);
+      mkdirSync(captureDirectory, { recursive: true });
+      const screenshotPath = resolve(captureDirectory, `v12-${scenario}-${testRunId}.png`);
+      const screenshot = await page.screenshot({ path: screenshotPath, fullPage: true, animations: "disabled" });
+      const screenshotSha256 = createHash("sha256").update(screenshot).digest("hex");
+      console.log(`[V1.2 browser screenshot] ${JSON.stringify({ scenario, testRunId, path: screenshotPath.replace(`${root}/`, ""), sha256: screenshotSha256 })}`);
+    }
   }
 
   await page.getByLabel("V1.2 验收场景").selectOption("normal");
@@ -329,6 +624,20 @@ test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified
   const cancellationRunId = (await page.getByTestId("v12-test-run-id").textContent())?.trim();
   expect(cancellationRunId).toMatch(/^[0-9a-f-]{36}$/iu);
   const v12BeforeInjectedCancellation = await (await page.request.get(`/api/v1/acceptance/v1/v1.2/runs/${cancellationRunId}`)).json();
+  for (const modes of [
+    { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "REAL" },
+  ]) {
+    const modeCancellation = await page.request.post(`/api/v1/acceptance/v1/v1.2/runs/${cancellationRunId}/cancel`, { data: modes });
+    expect(modeCancellation.status(), `V1.2 cancellation mode ${JSON.stringify(modes)}: ${await modeCancellation.text()}`).toBe(422);
+    const unchanged = await (await page.request.get(`/api/v1/acceptance/v1/v1.2/runs/${cancellationRunId}`)).json();
+    expect(unchanged.status).toBe(v12BeforeInjectedCancellation.status);
+    expect(unchanged.evidence.qlibTask.cancelRequested).toBe(false);
+  }
   const injectedCancellation = await page.request.post(`/api/v1/acceptance/v1/v1.2/runs/${cancellationRunId}/cancel`, { data: { status: "CANCELLED", cash: { amount: "999999.00", currency: "CNY" } } });
   expect(injectedCancellation.status()).toBe(422);
   const v12AfterInjectedCancellation = await (await page.request.get(`/api/v1/acceptance/v1/v1.2/runs/${cancellationRunId}`)).json();
@@ -350,6 +659,15 @@ test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified
   }, cancellationRunId!);
   expect(persistedCancelledRun.ok).toBe(true);
   console.log(`[V1.2 cancellation readback] ${JSON.stringify(persistedCancelledRun.run)}`);
+  if (process.env.STOCKQUANT_V12_CAPTURE_EVIDENCE === "1") {
+    const root = resolve(process.cwd(), "../..");
+    const project = (process.env.STOCKQUANT_ISOLATED_V12_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+    const captureDirectory = resolve(root, `evidence/audits/${new Date().toISOString().slice(0, 10)}-v12-browser-captures-${project}`);
+    mkdirSync(captureDirectory, { recursive: true });
+    const screenshotPath = resolve(captureDirectory, `v12-cancelled-${cancellationRunId}.png`);
+    const screenshot = await page.screenshot({ path: screenshotPath, fullPage: true, animations: "disabled" });
+    console.log(`[V1.2 browser screenshot] ${JSON.stringify({ scenario: "cancelled", testRunId: cancellationRunId, path: screenshotPath.replace(`${root}/`, ""), sha256: createHash("sha256").update(screenshot).digest("hex") })}`);
+  }
 
   const isolatedProject = process.env.STOCKQUANT_ISOLATED_V12_PROJECT;
   expect(isolatedProject, "Platform restart recovery requires the isolated V1.2 harness").toMatch(/^sq-v12-e2e-[a-f0-9]{20}$/u);
@@ -382,6 +700,15 @@ test("V1.2 normal, rejection, and recovery-probe runs are persisted and verified
   expect(resumedRun.run.evidence.qlibFit.artifactId).toBeTruthy();
   verifyV12RunWithCli(restartRunId!, "COMPLETED");
   console.log(`[V1.2 Platform restart recovery] ${JSON.stringify({ testRunId: restartRunId, status: resumedRun.run.status, qlibTask: resumedRun.run.evidence.qlibTask, artifactId: resumedRun.run.evidence.qlibFit.artifactId })}`);
+  if (process.env.STOCKQUANT_V12_CAPTURE_EVIDENCE === "1") {
+    const root = resolve(process.cwd(), "../..");
+    const project = (process.env.STOCKQUANT_ISOLATED_V12_PROJECT ?? `local-${process.pid}`).replace(/[^a-zA-Z0-9-]+/gu, "-");
+    const captureDirectory = resolve(root, `evidence/audits/${new Date().toISOString().slice(0, 10)}-v12-browser-captures-${project}`);
+    mkdirSync(captureDirectory, { recursive: true });
+    const screenshotPath = resolve(captureDirectory, `v12-platform-restart-${restartRunId}.png`);
+    const screenshot = await page.screenshot({ path: screenshotPath, fullPage: true, animations: "disabled" });
+    console.log(`[V1.2 browser screenshot] ${JSON.stringify({ scenario: "platform-restart-recovery", testRunId: restartRunId, path: screenshotPath.replace(`${root}/`, ""), sha256: createHash("sha256").update(screenshot).digest("hex") })}`);
+  }
 });
 
 for (const scenario of ["normal", "rejection", "recovery"] as const) {
@@ -456,8 +783,15 @@ for (const scenario of ["normal", "rejection", "recovery"] as const) {
       await expect(page.getByTestId("v13-proposal-status")).toHaveText("MANUAL_APPROVAL_PENDING");
     }
     verifyV13RunWithCli(testRunId!, proposalId!, scenario === "normal" ? `v13-${proposalId}` : undefined);
+    if (scenario === "normal") {
+      await page.getByTestId("v13-verify-normal-run").click();
+      await expect(page.getByTestId("v13-run-status")).toHaveText("COMPLETED");
+      await expect(page.getByTestId("v13-evidence")).toContainText('"businessExecution": "MANUAL_FILL_VERIFIED"');
+      verifyV13RunWithCli(testRunId!, proposalId!, `v13-${proposalId}`, "8995.0000", "1005.0000", "FILLED", "CAPTURED", "1005.0000", "COMPLETED");
+    }
     await page.reload();
     await expect(page.getByTestId("v13-test-run-id")).toHaveText(testRunId!);
+    await expect(page.getByTestId("v13-run-status")).toHaveText(scenario === "normal" ? "COMPLETED" : "WAITING");
     await expect(page.getByTestId("v13-proposal-id")).toHaveText(proposalId!);
     await expect(page.getByTestId("v13-proposal-status")).toHaveText(scenario === "normal" ? "APPROVED_MANUAL" : scenario === "rejection" ? "REJECTED_MANUAL" : "MANUAL_APPROVAL_PENDING");
     if (scenario === "normal") {
@@ -466,7 +800,7 @@ for (const scenario of ["normal", "rejection", "recovery"] as const) {
       await expect(page.getByTestId("v13-order")).toContainText("FILLED");
       await expect(page.getByTestId("v13-order")).toContainText(`${v13TradeFixture.markets.CN_A.order.expectedCash} ${v13TradeFixture.markets.CN_A.currency}`);
       await expect(page.getByTestId("v13-reconciliation")).toHaveText("MATCH");
-      verifyV13RunWithCli(testRunId!, proposalId!, `v13-${proposalId}`);
+      verifyV13RunWithCli(testRunId!, proposalId!, `v13-${proposalId}`, "8995.0000", "1005.0000", "FILLED", "CAPTURED", "1005.0000", "COMPLETED");
     }
   });
 }
@@ -476,11 +810,7 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
   const sessionResponse = await page.request.get("/api/v1/session");
   expect(sessionResponse.status()).toBe(200);
   const sessionCookie = await currentSessionCookie(page);
-  const rejectedModes = [
-    { environmentMode: "LIVE", brokerMode: "FAKE" },
-    { environmentMode: "PAPER", brokerMode: "REAL" },
-    { environmentMode: "LIVE", brokerMode: "REAL" },
-  ];
+  const rejectedModes = [...v11ClientModeInjectionCases];
   const runCreationStatuses: number[] = [];
   for (const modes of rejectedModes) {
     const rejected = await page.request.post("/api/v1/acceptance/v1/v1.3/runs", { headers: { cookie: sessionCookie }, data: { scenarioId: "normal", seed: 20260907, ...modes } });
@@ -494,11 +824,7 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
   const runClockNow = (await page.getByTestId("v13-run-clock").textContent())?.trim();
   expect(Date.parse(runClockNow ?? "")).not.toBeNaN();
   const accountInitPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/accounts`;
-  for (const modes of [
-    { environmentMode: "LIVE", brokerMode: "FAKE" },
-    { environmentMode: "PAPER", brokerMode: "REAL" },
-    { environmentMode: "LIVE", brokerMode: "REAL" },
-  ]) {
+  for (const modes of rejectedModes) {
     const rejected = await page.request.post(accountInitPath, { data: { market: "CN_A", ...modes } });
     expect(rejected.status(), `account initialization ${JSON.stringify(modes)}: ${await rejected.text()}`).toBe(422);
   }
@@ -540,11 +866,7 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
     expect(rejected.status(), `${JSON.stringify(fact)}: ${rejectionBody}`).toBe(422);
     expect(rejectionBody).toContain("server-owned V1.3 business fact");
   }
-  for (const modes of [
-    { environmentMode: "LIVE", brokerMode: "FAKE" },
-    { environmentMode: "PAPER", brokerMode: "REAL" },
-    { environmentMode: "LIVE", brokerMode: "REAL" },
-  ]) {
+  for (const modes of rejectedModes) {
     const rejected = await page.request.post(proposalPath, { data: { ...proposal, ...modes } });
     expect(rejected.status(), JSON.stringify({ modes, body: await rejected.text() })).toBe(422);
   }
@@ -569,6 +891,28 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
     const rejected = await page.request.post(path, { data: injectedBody });
     expect(rejected.status(), `${path}: ${await rejected.text()}`).toBe(422);
     expect(await rejected.text()).toContain("does not accept client-supplied fields");
+  }
+  const bodylessModeRoutes = bodylessRoutes.slice(1).map(([path]) => path);
+  const bodylessModeStatuses: number[] = [];
+  for (const path of bodylessModeRoutes) {
+    for (const modes of rejectedModes) {
+      const rejected = await page.request.post(path, { data: modes });
+      bodylessModeStatuses.push(rejected.status());
+      expect(rejected.status(), `${path} ${JSON.stringify(modes)}: ${await rejected.text()}`).toBe(422);
+      expect(await rejected.text()).toContain("does not accept client-supplied fields");
+    }
+  }
+  const partialFillCancelPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${savedProposal.proposalId}/orders/v13-${savedProposal.proposalId}/cancel-partial-fill`;
+  const feeCorrectionPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${savedProposal.proposalId}/orders/v13-${savedProposal.proposalId}/fills/client-injected/fee-corrections`;
+  const mutationModeStatuses: Record<string, number[]> = { partialFillCancel: [], feeCorrection: [] };
+  for (const modes of rejectedModes) {
+    const partialFillCancel = await page.request.post(partialFillCancelPath, { data: { cancelSequence: 2, ...modes } });
+    mutationModeStatuses.partialFillCancel.push(partialFillCancel.status());
+    expect(partialFillCancel.status(), `partial-fill cancel ${JSON.stringify(modes)}: ${await partialFillCancel.text()}`).toBe(422);
+
+    const feeCorrection = await page.request.post(feeCorrectionPath, { data: { revision: 1, previousFee: "5.0000", correctedFee: "6.0000", ...modes } });
+    mutationModeStatuses.feeCorrection.push(feeCorrection.status());
+    expect(feeCorrection.status(), `fee correction ${JSON.stringify(modes)}: ${await feeCorrection.text()}`).toBe(422);
   }
   const externalOrderObservationPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/external-orders/observe`;
   const beforeExternalModeInjection = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/reconciliation`);
@@ -608,10 +952,17 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
     expectedContentHash: savedProposal.contentHash,
     reason: "mode injection rejection test",
   };
+  const decisionModeStatuses: Record<string, number[]> = { approve: [], reject: [] };
   for (const modes of rejectedModes) {
     const rejected = await page.request.post(decisionPath, { data: { ...decisionBody, ...modes } });
+    decisionModeStatuses.approve.push(rejected.status());
     expect(rejected.status()).toBe(422);
     expect(await rejected.text()).toContain("trading mode is fixed by the server");
+
+    const rejectedDecision = await page.request.post(`${proposalReadPath}/reject`, { data: { ...decisionBody, ...modes } });
+    decisionModeStatuses.reject.push(rejectedDecision.status());
+    expect(rejectedDecision.status(), `proposal reject ${JSON.stringify(modes)}: ${await rejectedDecision.text()}`).toBe(422);
+    expect(await rejectedDecision.text()).toContain("trading mode is fixed by the server");
   }
   const extraDecisionField = await page.request.post(decisionPath, { data: { ...decisionBody, clientApproved: true } });
   expect(extraDecisionField.status()).toBe(422);
@@ -712,7 +1063,8 @@ test("V1.3 Platform proposal route rejects LIVE and REAL mode injection without 
   expect(reconciliationResponse.status()).toBe(200);
   expect(await reconciliationResponse.json()).toMatchObject({ order_count: 0, fill_count: 0 });
   verifyV13RunWithCli(testRunId!, savedProposal.proposalId);
-  console.info(`[V1.3 Platform mode boundary] ${JSON.stringify({ testRunId, proposalId: savedProposal.proposalId, mandateId, rejectedModes: ["LIVE/FAKE", "PAPER/REAL", "LIVE/REAL"], runCreationStatuses, accountInitializationStatuses: [422, 422, 422], proposalCreateStatuses: [422, 422, 422], mandateCreateStatuses: [422, 422, 422], mandateActivationStatuses: [422, 422, 422], mandatePauseStatuses: [422, 422, 422], externalOrderObservationStatuses: [422, 422, 422], externalOrderReconciliationUnchanged: true, executionRoutes: executionRoutes.map(({ path }) => path.split("/").at(-2)), rejectedModeAttemptCount: rejectedModes.length * (9 + executionRoutes.length + 1), acceptedMode: "PAPER/FAKE", brokerOrders: 0, brokerFills: 0, initialLedgerEntryCount: initialAccount.ledgerEntryCount, finalLedgerEntryCount: finalAccount.ledgerEntryCount, ledgerVersionUnchanged: initialAccount.ledgerVersion === finalAccount.ledgerVersion })}`);
+  const modeInjectionRouteCount = 11 + executionRoutes.length + bodylessModeRoutes.length + Object.keys(mutationModeStatuses).length;
+  console.info(`[V1.3 Platform mode boundary] ${JSON.stringify({ testRunId, proposalId: savedProposal.proposalId, mandateId, rejectedModes, runCreationStatuses, accountInitializationStatuses: rejectedModes.map(() => 422), proposalCreateStatuses: rejectedModes.map(() => 422), mandateCreateStatuses: rejectedModes.map(() => 422), mandateActivationStatuses: rejectedModes.map(() => 422), mandatePauseStatuses: rejectedModes.map(() => 422), externalOrderObservationStatuses: rejectedModes.map(() => 422), decisionModeStatuses, bodylessModeRoutes: bodylessModeRoutes.map((path) => path.split("/").slice(-2).join("/")), bodylessModeStatuses, mutationModeStatuses, externalOrderReconciliationUnchanged: true, executionRoutes: executionRoutes.map(({ path }) => path.split("/").at(-2)), modeInjectionRouteCount, rejectedModeAttemptCount: rejectedModes.length * modeInjectionRouteCount, acceptedMode: "PAPER/FAKE", brokerOrders: 0, brokerFills: 0, initialLedgerEntryCount: initialAccount.ledgerEntryCount, finalLedgerEntryCount: finalAccount.ledgerEntryCount, ledgerVersionUnchanged: initialAccount.ledgerVersion === finalAccount.ledgerVersion })}`);
 });
 
 test("V1.3 L02 independent USD account executes and reconciles its frozen US Fixture", async ({ page }) => {
@@ -800,6 +1152,127 @@ test("V1.3 MANUAL US two-leg BUY batch uses frozen USD Fixture and reconciles th
   await expect(page.getByTestId("v13-order")).toContainText(":leg:01");
   await expect(page.getByTestId("v13-order")).toContainText(":leg:02");
   console.info(`[V1.3 MANUAL multi-leg US] ${JSON.stringify({ testRunId, proposalId, childClientOrderIds: [`${clientOrderId}:leg:01`, `${clientOrderId}:leg:02`], expectedOrders: 2, expectedFills: 2, fixtureVersion: v13MultiLegFixture.fixtureVersion, cash: fixture.expectedCash, currency: "USD", cliSameRunCheck: true })}`);
+});
+
+test("V1.3 MANUAL mixed SELL/BUY leaves proceeds pending and uses only settled cash", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.3");
+  await expect(page.getByTestId("v13-multileg-fixture")).toContainText("1.0.4");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  const accountId = (await page.getByTestId("v13-account-id").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(accountId).toBeTruthy();
+  await page.getByRole("button", { name: "创建MANUAL固定Fixture调仓提案" }).click();
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("FILLED");
+  await expect(page.getByTestId("v13-positions")).toContainText("600000.SH");
+  const setupAccount = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(setupAccount.account).toMatchObject({ cash: { amount: "8995.0000" }, positions: [{ security: "600000.SH", quantity: 100 }] });
+  const advanceResponse = page.waitForResponse((response) => response.url().includes(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock/advance-session`));
+  await page.getByTestId("v13-advance-session").click();
+  expect((await advanceResponse).status()).toBe(200);
+
+  await page.goto(`/acceptance/v1/v1.3?runId=${testRunId}&accountId=${accountId}`);
+  await expect(page.getByTestId("v13-account-id")).toContainText("8995.00");
+  await page.getByTestId("v13-create-multileg-strict-manual-proposal").click();
+  await expect(page.getByTestId("v13-proposal-status")).toHaveText("MANUAL_APPROVAL_PENDING");
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText(":leg:01");
+  await expect(page.getByTestId("v13-order")).toContainText(":leg:02");
+  await expect(page.getByTestId("v13-order")).toContainText("MATCH");
+
+  const result = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${encodeURIComponent(`v13-${proposalId}`)}`).then((response) => response.json());
+  expect(result.orders).toHaveLength(2);
+  expect(result.orders.map((item: any) => item.orderSide)).toEqual(["SELL", "BUY"]);
+  expect(result.independentAssets.current_cash).toBe("7790.0000");
+  expect(result.independentAssets.unsettledReceivables).toEqual([expect.objectContaining({ amount: "995.0000", currency: "CNY", status: "PENDING" })]);
+  const after = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(after.account).toMatchObject({ cash: { amount: "7790.0000" }, positions: [{ security: "000001.SZ", quantity: 100 }] });
+  expect(after.account.unsettledReceivables).toEqual([expect.objectContaining({ amount: "995.0000", currency: "CNY", status: "PENDING" })]);
+  const sellReservation = after.account.reservations.find((item: any) => item.clientOrderId === `v13-${proposalId}:leg:01`);
+  const buyReservation = after.account.reservations.find((item: any) => item.clientOrderId === `v13-${proposalId}:leg:02`);
+  expect(sellReservation).toMatchObject({ side: "SELL", status: "CAPTURED", capturedQuantity: 100 });
+  expect(buyReservation).toMatchObject({ side: "BUY", cashAmount: "1205.0000", status: "CAPTURED", capturedCashAmount: "1205.0000" });
+  verifyV13StrictMixedRunWithCli(testRunId!, proposalId!, `v13-${proposalId}`, "7790.0000", "995.0000");
+  console.info(`[V1.3 OD-014 MANUAL mixed multi-leg] ${JSON.stringify({ testRunId, proposalId, fixtureVersion: v13MultiLegFixture.fixtureVersion, settledCash: after.account.cash.amount, pendingReceivable: after.account.unsettledReceivables[0].amount, reservations: [sellReservation.status, buyReservation.status], cliSameRunCheck: true })}`);
+});
+
+test("V1.3 AUTO mixed SELL/BUY rejects a later BUY funded only by pending proceeds and releases the batch", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.selectOption("[aria-label='验收场景']", "normal");
+  await expect(page.getByTestId("v13-multileg-fixture")).toContainText("1.0.4");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  const runEvidence = JSON.parse((await page.getByTestId("v13-evidence").textContent()) ?? "{}");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  const accountId = (await page.getByTestId("v13-account-id").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(accountId).toBeTruthy();
+  const runPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}`;
+  const post = async (path: string, body: unknown) => page.evaluate(async ({ path, body }) => {
+    const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.json() };
+  }, { path, body });
+  const input = v13MultiLegFixture.scenarios.strictSettledCash.insufficientCash;
+  for (let index = 0; index < input.buyCountBeforeSell; index += 1) {
+    const proposal = await post(`${runPath}/proposals`, { idempotencyKey: `od014-spend-down-${index}-${testRunId}`, accountId, approvalMode: "MANUAL_APPROVAL", market: "CN_A", currency: "CNY", strategyVersion: "fixture-manual-test-v1", operation: "REBALANCE", expiresAt: new Date(Date.parse(runEvidence.runClockNow) + 4 * 60 * 60 * 1000).toISOString(), legs: [{ legId: input.setupBuy.legId, securityId: input.setupBuy.security, side: input.setupBuy.side, quantity: input.setupBuy.quantity }] });
+    expect(proposal.status, JSON.stringify(proposal.body)).toBe(201);
+    expect((await post(`${runPath}/proposals/${proposal.body.proposalId}/approve`, { expectedVersion: proposal.body.proposalVersion, expectedContentHash: proposal.body.contentHash, reason: "OD-014 fixture settled-cash rejection setup" })).status).toBe(201);
+    const execution = await post(`${runPath}/proposals/${proposal.body.proposalId}/execution/submit`, { clientOrderId: `od014-spend-down-${index}-${proposal.body.proposalId}` });
+    expect(execution.status, JSON.stringify(execution.body)).toBe(202);
+    expect(execution.body.order.status).toBe("FILLED");
+  }
+  const depleted = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(depleted.account).toMatchObject({ cash: { amount: input.settledCashBeforeSell }, positions: [{ security: "600000.SH", quantity: 800 }] });
+  await page.goto(`/acceptance/v1/v1.3?runId=${testRunId}&accountId=${accountId}`);
+  await expect(page.getByTestId("v13-positions")).toContainText('"quantity":800');
+  const advancePromise = page.waitForResponse((response) => response.url().includes(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock/advance-session`));
+  await page.getByTestId("v13-advance-session").click();
+  expect((await advancePromise).status()).toBe(200);
+  const currentRun = await page.request.get(runPath).then((response) => response.json());
+  const sellProposal = await post(`${runPath}/proposals`, { idempotencyKey: `od014-pending-sell-${testRunId}`, accountId, approvalMode: "MANUAL_APPROVAL", market: "CN_A", currency: "CNY", strategyVersion: "fixture-manual-test-v1", operation: "REBALANCE", expiresAt: new Date(Date.parse(currentRun.evidence.runClockNow) + 4 * 60 * 60 * 1000).toISOString(), legs: [{ legId: input.setupSell.legId, securityId: input.setupSell.security, side: input.setupSell.side, quantity: input.setupSell.quantity }] });
+  expect(sellProposal.status).toBe(201);
+  expect((await post(`${runPath}/proposals/${sellProposal.body.proposalId}/approve`, { expectedVersion: sellProposal.body.proposalVersion, expectedContentHash: sellProposal.body.contentHash, reason: "Create the manifested pending sell receivable" })).status).toBe(201);
+  const sell = await post(`${runPath}/proposals/${sellProposal.body.proposalId}/execution/submit`, { clientOrderId: `od014-pending-sell-${sellProposal.body.proposalId}` });
+  expect(sell.status, JSON.stringify(sell.body)).toBe(202);
+  const beforeBatch = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(beforeBatch.account).toMatchObject({ cash: { amount: input.settledCashBeforeSell }, unsettledReceivables: [expect.objectContaining({ amount: input.expectedPendingReceivable, status: "PENDING" })] });
+  const beforeReconciliation = await page.request.get(`${runPath}/reconciliation`).then((response) => response.json());
+
+  await page.goto(`/acceptance/v1/v1.3?runId=${testRunId}&accountId=${accountId}`);
+  await expect(page.getByTestId("v13-account-id")).toContainText(input.settledCashBeforeSell);
+  await page.getByTestId("v13-create-auto-strict-mandate").click();
+  await expect(page.getByTestId("v13-auto-mandate-state")).toContainText("PENDING");
+  await page.getByTestId("v13-activate-auto-mandate").click();
+  await expect(page.getByTestId("v13-auto-mandate-state")).toContainText("ACTIVE");
+  const mandateId = (await page.getByTestId("v13-auto-mandate-state").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(mandateId).toBeTruthy();
+  await page.getByTestId("v13-create-auto-strict-proposal").click();
+  await expect(page.getByTestId("v13-proposal-status")).toHaveText("AUTO_POLICY_PENDING");
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByTestId("v13-execute-auto-proposal").click();
+  await expect(page.getByRole("alert")).toContainText("multi-leg Portfolio resource reservation failed");
+
+  const rootClientOrderId = `v13-auto-${proposalId}`;
+  const after = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(after.account).toMatchObject({ cash: { amount: input.settledCashBeforeSell }, positions: [{ security: "600000.SH", quantity: 700 }], unsettledReceivables: [expect.objectContaining({ amount: input.expectedPendingReceivable, status: "PENDING" })] });
+  const failedReservations = after.account.reservations.filter((item: any) => item.clientOrderId.startsWith(rootClientOrderId));
+  expect(failedReservations).toHaveLength(input.expectedReleasedReservations);
+  expect(failedReservations[0]).toMatchObject({ side: "SELL", status: "RELEASED", capturedQuantity: 0 });
+  expect(failedReservations[1]).toMatchObject({ side: "BUY", status: "RELEASED", cashAmount: "1005.0000", capturedCashAmount: "0.0000" });
+  for (const suffix of ["leg:01", "leg:02", "leg:03"]) expect((await page.request.get(`${runPath}/proposals/${proposalId}/orders/${encodeURIComponent(`${rootClientOrderId}:${suffix}`)}`)).status()).toBe(404);
+  expect(await page.request.get(`${runPath}/reconciliation`).then((response) => response.json())).toEqual(beforeReconciliation);
+  const mandateBudget = await page.request.get(`${runPath}/auto-mandates/${mandateId}/versions/1/budget`).then((response) => response.json());
+  expect(mandateBudget.snapshot).toMatchObject({ reservedAmount: "0.00", consumedAmount: "0.00", reservationCount: 1, consumedCount: 0, releasedCount: 1 });
+  verifyV13RunWithCli(testRunId!, proposalId!);
+  console.info(`[V1.3 OD-014 AUTO pending-cash rejection] ${JSON.stringify({ testRunId, proposalId, mandateId, settledCash: after.account.cash.amount, pendingReceivable: input.expectedPendingReceivable, releasedReservations: failedReservations.length, batchOrders: 0, reconciliation: "UNCHANGED", cliSameRunCheck: true })}`);
 });
 
 test("V1.3 MANUAL multi-leg retry recovers the committed first child after Trade Execution restarts", async ({ page }) => {
@@ -1035,12 +1508,218 @@ test("V1.3 L07 keeps a cancel reservation through Trade restart until the sequen
   console.info(`[V1.3 L07 cancellation restart recovery] ${JSON.stringify({ testRunId, proposalId, clientOrderId, injectedEvents: ["seq=2 buffered and seq=1 applied", "cancel request persisted", "Trade Execution restarted with reservation HELD", "seq=3 accepted cancel result applied"], deliveredFillSequences: facts.fills.map((fill: { brokerSequence: number }) => fill.brokerSequence), filledQuantity: 150, releasedRemainder: 50, reservation: account.account.reservations.find((item: { clientOrderId: string }) => item.clientOrderId === clientOrderId)?.status })}`);
 });
 
+test("V1.3 L16 rejected cancel restores the working order and keeps the reservation until retry succeeds", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await page.getByTestId("v13-sequence-1").click();
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-order")).toContainText("PARTIALLY_FILLED");
+  const clientOrderId = `v13-${proposalId}`;
+  const orderPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`;
+  const cancelPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-request`;
+  const resultPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-results`;
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  const rejected = await page.request.post(`${resultPath}/3`, { data: { outcome: "REJECTED" } });
+  expect(rejected.status()).toBe(200);
+  const rejectedFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(rejectedFacts.order.status).toBe("PARTIALLY_FILLED");
+  expect(rejectedFacts.fills.map((fill: { brokerSequence: number }) => fill.brokerSequence)).toEqual([1, 2]);
+  expect(rejectedFacts.reconciliation.status).toBe("MATCH");
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  let account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD", capturedCashAmount: "1505.0000" }));
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId!, "--proposal", proposalId!, "--client-order", clientOrderId, "--check-only"], { cwd: resolve(process.cwd(), "../.."), encoding: "utf8", env: process.env });
+  expect(cli.status, cli.stderr).toBe(2);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "PARTIALLY_FILLED"');
+  expect(cli.stdout).toContain('"status": "HELD"');
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  const accepted = await page.request.post(`${resultPath}/4`);
+  expect(accepted.status()).toBe(200);
+  const finalFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(finalFacts.order.status).toBe("CANCELLED");
+  expect(finalFacts.reconciliation.status).toBe("MATCH");
+  account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "1505.0000" }));
+  console.info(`[V1.3 L16 rejected cancellation retry] ${JSON.stringify({ testRunId, proposalId, clientOrderId, rejectedSequence: 3, retryAcceptedSequence: 4, rejectedOrderStatus: rejectedFacts.order.status, retainedReservation: "HELD", finalOrderStatus: finalFacts.order.status, finalReservation: "RELEASED" })}`);
+});
+
+test("V1.3 L16 buffers an early rejected cancel behind a missing Fill and preserves the reservation through retry", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await page.getByTestId("v13-sequence-1").click();
+  await expect(page.getByTestId("v13-order")).toContainText("PARTIALLY_FILLED");
+
+  const clientOrderId = `v13-${proposalId}`;
+  const orderPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`;
+  const cancelPath = `${orderPath}/cancel-request`;
+  const resultPath = `${orderPath}/cancel-results`;
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  const earlyRejection = await page.request.post(`${resultPath}/3`, { data: { outcome: "REJECTED" } });
+  expect(earlyRejection.status()).toBe(200);
+  expect(await earlyRejection.json()).toMatchObject({ resolution: { buffered: true }, order: { order: { status: "CANCEL_REQUESTED" } } });
+
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-order")).toContainText("PARTIALLY_FILLED");
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":3');
+  const rejectedFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(rejectedFacts.order.status).toBe("PARTIALLY_FILLED");
+  expect(rejectedFacts.fills.map((fill: { brokerSequence: number }) => fill.brokerSequence)).toEqual([1, 2]);
+  expect(rejectedFacts.reconciliation.status).toBe("MATCH");
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  let account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD", capturedCashAmount: "1505.0000" }));
+
+  const cli = spawnSync(process.execPath, ["scripts/verify-stage.mjs", "--stage", "V1.3", "--run", testRunId!, "--proposal", proposalId!, "--client-order", clientOrderId, "--check-only"], { cwd: resolve(process.cwd(), "../.."), encoding: "utf8", env: process.env });
+  expect(cli.status, cli.stderr).toBe(2);
+  expect(cli.stdout).toContain(`"testRunId": "${testRunId}"`);
+  expect(cli.stdout).toContain('"status": "PARTIALLY_FILLED"');
+  expect(cli.stdout).toContain('"status": "HELD"');
+
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  expect((await page.request.post(`${resultPath}/4`, { data: { outcome: "ACCEPTED" } })).status()).toBe(200);
+  const finalFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(finalFacts.order.status).toBe("CANCELLED");
+  expect(finalFacts.reconciliation.status).toBe("MATCH");
+  account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "1505.0000" }));
+  console.info(`[V1.3 L16 early rejected cancellation recovery] ${JSON.stringify({ testRunId, proposalId, clientOrderId, injectedEvents: ["seq=1 Fill", "seq=3 REJECTED cancel buffered", "seq=2 Fill drains rejection"], rejectedOrderStatus: rejectedFacts.order.status, retainedReservation: "HELD", retryAcceptedSequence: 4, finalOrderStatus: finalFacts.order.status, finalReservation: "RELEASED", reconciliation: finalFacts.reconciliation.status })}`);
+});
+
+test("V1.3 US_EQUITY L16 rejected cancel keeps the AAPL reservation and allows same-order retry", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByLabel("市场").selectOption("US_EQUITY");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await page.getByTestId("v13-sequence-1").click();
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-order")).toContainText("6249.9500 USD");
+  const clientOrderId = `v13-${proposalId}`;
+  const orderPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`;
+  const cancelPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-request`;
+  const resultPath = `/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-results`;
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  const rejected = await page.request.post(`${resultPath}/3`, { data: { outcome: "REJECTED" } });
+  expect(rejected.status()).toBe(200);
+  const replayedRejection = await page.request.post(`${resultPath}/3`, { data: { outcome: "REJECTED" } });
+  expect(replayedRejection.status()).toBe(200);
+  expect((await replayedRejection.json()).resolution.replayed).toBe(true);
+  const conflictingResult = await page.request.post(`${resultPath}/3`, { data: { outcome: "ACCEPTED" } });
+  expect(conflictingResult.status()).toBe(409);
+  const rejectedFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(rejectedFacts.order.status).toBe("PARTIALLY_FILLED");
+  expect(rejectedFacts.fills.map((fill: { brokerSequence: number; quantity: number }) => [fill.brokerSequence, fill.quantity])).toEqual([[1, 100], [2, 50]]);
+  expect(rejectedFacts.independentAssets).toMatchObject({ current_cash: "6249.9500", currency: "USD", positions: [{ security: "AAPL", quantity: 150 }] });
+  expect(rejectedFacts.reconciliation.status).toBe("MATCH");
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  let account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD", capturedCashAmount: "3750.0500" }));
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "6249.9500", "5000.0500", "PARTIALLY_FILLED", "HELD", "3750.0500");
+  expect((await page.request.post(cancelPath)).status()).toBe(202);
+  const accepted = await page.request.post(`${resultPath}/4`);
+  expect(accepted.status()).toBe(200);
+  const finalFacts = await page.request.get(orderPath).then((response) => response.json());
+  expect(finalFacts.order.status).toBe("CANCELLED");
+  expect(finalFacts.independentAssets).toMatchObject({ current_cash: "6249.9500", currency: "USD", positions: [{ security: "AAPL", quantity: 150 }] });
+  expect(finalFacts.reconciliation.status).toBe("MATCH");
+  account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "3750.0500" }));
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "6249.9500", "5000.0500", "CANCELLED", "RELEASED", "3750.0500");
+  console.info(`[V1.3 US_EQUITY L16 rejected cancellation retry] ${JSON.stringify({ testRunId, market: "US_EQUITY", security: "AAPL", proposalId, clientOrderId, rejectedSequence: 3, retryAcceptedSequence: 4, cash: finalFacts.independentAssets.current_cash, filledQuantity: 150, rejectedOrderStatus: rejectedFacts.order.status, retainedReservation: "HELD", finalOrderStatus: finalFacts.order.status, finalReservation: "RELEASED", reconciliation: finalFacts.reconciliation.status })}`);
+});
+
+test("V1.3 L07 Web buffers seq=3 cancellation until the missing seq=2 Fill arrives", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("ACCEPTED");
+
+  // Apply seq=1, request cancellation while a 100-share partial Fill is the
+  // only accepted event, then deliver seq=3 before the missing seq=2 Fill.
+  await page.getByTestId("v13-sequence-1").click();
+  await expect(page.getByTestId("v13-order")).toContainText("PARTIALLY_FILLED");
+  const clientOrderId = `v13-${proposalId}`;
+  const cancelRequest = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-request`);
+  expect(cancelRequest.status()).toBe(202);
+  expect(await cancelRequest.json()).toMatchObject({ status: "CANCEL_REQUESTED", reservation: { status: "HELD" } });
+  const earlyCancel = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}/cancel-results/3`);
+  expect(earlyCancel.status()).toBe(200);
+  const bufferedCancel = await earlyCancel.json();
+  expect(bufferedCancel.resolution).toMatchObject({ status: "CANCEL_REQUESTED", buffered: true, lastAppliedSequence: 1 });
+  expect(bufferedCancel.order.order.status).toBe("CANCEL_REQUESTED");
+
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":3');
+  await expect(page.getByTestId("v13-order")).toContainText("CANCELLED");
+  await expect(page.getByTestId("v13-reconciliation")).toHaveText("MATCH");
+  await expect(page.getByTestId("v13-order")).toContainText("8495.0000 CNY");
+  await expect(page.getByTestId("v13-positions")).toContainText("150");
+
+  const facts = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${clientOrderId}`).then((response) => response.json());
+  expect(facts.fills.map((fill: { brokerSequence: number; quantity: number }) => [fill.brokerSequence, fill.quantity])).toEqual([[1, 100], [2, 50]]);
+  expect(facts.order.status).toBe("CANCELLED");
+  expect(facts.reconciliation.status).toBe("MATCH");
+  expect(facts.independentAssets.current_cash).toBe("8495.0000");
+  const accountId = new URL(page.url()).searchParams.get("accountId");
+  const account = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(account.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "RELEASED", capturedCashAmount: "1505.0000" }));
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "8495.0000", "2005.0000", "CANCELLED", "RELEASED", "1505.0000");
+  console.info(`[V1.3 L07 Web/CLI mixed event recovery] ${JSON.stringify({ testRunId, proposalId, clientOrderId, injectedEvents: ["seq=1 Fill applied: 100 shares", "cancel request persisted with reservation HELD", "seq=3 accepted cancellation arrived and buffered", "seq=2 Fill arrived and drained seq=3"], deliveredFills: facts.fills.map((fill: { brokerSequence: number; quantity: number }) => ({ sequence: fill.brokerSequence, quantity: fill.quantity })), cash: facts.independentAssets.current_cash, orderStatus: facts.order.status, reconciliation: facts.reconciliation.status, reservation: account.account.reservations.find((item: { clientOrderId: string }) => item.clientOrderId === clientOrderId)?.status })}`);
+});
+
+test("V1.3 L07 seed 20261013 applies a buffered seq=2 Fill before the cancel request", async ({ page }) => {
+  test.setTimeout(60_000);
+  await runV13L07SeededCancelScenario(page, 20261013, "seq2-first");
+});
+
+test("V1.3 L07 seed 20261014 accepts cancellation after both partial Fills", async ({ page }) => {
+  test.setTimeout(60_000);
+  await runV13L07SeededCancelScenario(page, 20261014, "seq1-then-seq2");
+});
+
 test("V1.4 daily backtest page shows report evidence", async ({ page }) => {
   await page.goto("/acceptance/v1/v1.4");
   await expect(page.getByRole("heading", { name: "V1.4 日线历史回测与可核对报告" })).toBeVisible();
   await page.getByRole("button", { name: "运行回测" }).click();
   await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("v14-execution-model")).toHaveText("QUANT_BACKTEST_ENGINE / DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1");
   await expect(page.getByTestId("v14-evidence")).toContainText("DAILY_BAR");
+  await expect(page.getByTestId("v14-benchmark-return")).toHaveText("150 bp");
+  await expect(page.getByTestId("v14-excess-return")).toHaveText("-150 bp");
   await expect(page.getByRole("cell", { name: "V1.4-BT-NEXT-BAR-001", exact: true })).toBeVisible();
   const sellabilityRows = page.getByTestId("v14-position-availability").locator("tbody tr");
   await expect(sellabilityRows).toHaveCount(3);
@@ -1133,7 +1812,8 @@ test("V1.4 historical fee fixture uses the pre-cut date schedule", async ({ page
   await page.getByLabel("回测场景").selectOption("historical-fees");
   await page.getByRole("button", { name: "运行回测" }).click();
   await expect(page.getByTestId("v14-run-status")).toHaveText("COMPLETED");
-  await expect(page.getByTestId("v14-evidence")).toContainText("v1.4-historical-fees-1");
+  await expect(page.getByTestId("v14-evidence")).toContainText("v1.4-historical-fees-2");
+  await expect(page.getByTestId("v14-benchmark-return")).toHaveText("80 bp");
   await expect(page.getByTestId("v14-evidence")).toContainText("2023-08-25");
   await expect(page.getByTestId("v14-evidence")).toContainText("stampDutyCents");
   await expect(page.getByRole("cell", { name: "V1.4-BT-HISTORICAL-FEE-001", exact: true })).toBeVisible();
@@ -1150,6 +1830,7 @@ test("V1.4 RAW corporate actions preserve hand-checked NAV and ignore duplicate 
   const testRunId = await page.getByTestId("v14-test-run-id").textContent();
   expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
   await expect(page.getByTestId("v14-evidence")).toContainText("v1.4-corporate-actions-1");
+  await expect(page.getByTestId("v14-execution-model")).toHaveText("QUANT_BACKTEST_ENGINE / RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1");
   await expect(page.getByRole("cell", { name: "V1.4-BT-CORPORATE-ACTION-RAW-001", exact: true })).toBeVisible();
   await expect(page.getByTestId("v14-corporate-actions")).toContainText("CA-SPLIT-2-FOR-1");
   await expect(page.getByTestId("v14-corporate-actions")).toContainText("CA-DIVIDEND-10-CENTS");
@@ -1207,6 +1888,38 @@ test("V1.4 web accepts a bounded policy and compares persisted runs", async ({ p
   verifyV14RunWithCli(feeRunId!);
 });
 
+test("V1.5 Run creation rejects all client trading mode combinations without dispatch", async ({ page }) => {
+  await page.goto("/acceptance/v1/v1.5");
+  await expect(page.getByRole("heading", { name: "V1.5 无人调度、故障恢复与 V1 验收" })).toBeVisible();
+  const sessionResponse = await page.request.get("/api/v1/session");
+  expect(sessionResponse.status()).toBe(200);
+  const runsPath = "/api/v1/acceptance/v1/v1.5/runs?limit=50";
+  const beforeResponse = await page.request.get(runsPath);
+  expect(beforeResponse.status()).toBe(200);
+  const before = await beforeResponse.json() as Array<{ testRunId: string }>;
+  const cases = [
+    { environmentMode: "PAPER", brokerMode: "FAKE" },
+    { environmentMode: "PAPER", brokerMode: "REAL" },
+    { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+    { environmentMode: "BACKTEST", brokerMode: "REAL" },
+    { environmentMode: "LIVE", brokerMode: "FAKE" },
+    { environmentMode: "LIVE", brokerMode: "REAL" },
+  ] as const;
+  const statuses = [];
+  for (const mode of cases) {
+    const response = await page.request.post("/api/v1/acceptance/v1/v1.5/runs", {
+      data: { scenarioId: "normal", seed: 20261012, ...mode },
+    });
+    statuses.push(response.status());
+    expect(response.status(), JSON.stringify(mode)).toBe(422);
+  }
+  const afterResponse = await page.request.get(runsPath);
+  expect(afterResponse.status()).toBe(200);
+  const after = await afterResponse.json() as Array<{ testRunId: string }>;
+  expect(after.map((run) => run.testRunId)).toEqual(before.map((run) => run.testRunId));
+  console.info(`[V1.5 L17 mode injection] ${JSON.stringify({ rejectedModes: cases, statuses, persistedRunCountBefore: before.length, persistedRunCountAfter: after.length, dispatches: 0 })}`);
+});
+
 test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable workflows", async ({ page: initialPage }) => {
   test.setTimeout(600_000);
   const autoCancelMode = process.env.STOCKQUANT_V15_E2E_AUTO_CANCEL === "true";
@@ -1214,6 +1927,7 @@ test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable 
   await page.goto("/acceptance/v1/v1.5");
   await expect(page.getByRole("heading", { name: "V1.5 无人调度、故障恢复与 V1 验收" })).toBeVisible();
   let previousRunId: string | null = null;
+  let autoTradeRunId: string | null = null;
   const runIds = new Set<string>();
   for (const scenario of ["normal", "auto-trade", "rejection", "recovery"]) {
     const startedAt = Date.now();
@@ -1236,6 +1950,7 @@ test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable 
     expect(runIds.has(runId!)).toBe(false);
     runIds.add(runId!);
     previousRunId = runId!;
+    if (scenario === "auto-trade") autoTradeRunId = runId!;
     if (scenario === "normal") {
       const browserContext = page.context();
       await page.close();
@@ -1294,7 +2009,7 @@ test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable 
       page = await browserContext.newPage();
       await page.goto("/acceptance/v1/v1.5");
       await expect(page.getByTestId("v15-test-run-id")).toHaveText(runId!);
-      await expect(page.getByTestId("v15-run-status")).toHaveText("WAITING");
+      await expect(page.getByTestId("v15-run-status")).toHaveText(scenario === "auto-trade" ? "COMPLETED" : "WAITING");
       if (comparisonCandidateRunId) {
         const comparisonPicker = page.getByTestId("v15-compare-run-select");
         await expect(comparisonPicker).toBeVisible({ timeout: 15_000 });
@@ -1349,6 +2064,19 @@ test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable 
           expect.objectContaining({ assertionId: "V1.5-AUTO-RECON-001", status: "PASS" })
         ]));
         const cancelUrl = new URL(`/api/v1/acceptance/v1/v1.5/runs/${runId}/cancel`, page.url()).toString();
+        for (const modes of [
+          { environmentMode: "PAPER", brokerMode: "FAKE" },
+          { environmentMode: "PAPER", brokerMode: "REAL" },
+          { environmentMode: "LIVE", brokerMode: "FAKE" },
+          { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+          { environmentMode: "BACKTEST", brokerMode: "REAL" },
+          { environmentMode: "LIVE", brokerMode: "REAL" },
+        ]) {
+          const modeCancelResponse = await page.context().request.post(cancelUrl, { data: modes, timeout: 10_000 });
+          expect(modeCancelResponse.status(), `V1.5 cancellation mode ${JSON.stringify(modes)}: ${await modeCancelResponse.text()}`).toBe(422);
+          const unchanged = await page.context().request.get(new URL(`/api/v1/acceptance/v1/v1.5/runs/${runId}`, page.url()).toString(), { timeout: 10_000 }).then((response) => response.json());
+          expect(unchanged.evidence.autoTradeCancellation).toEqual(evidence.autoTradeCancellation);
+        }
         const injectedCancelResponse = await page.context().request.post(cancelUrl, { data: { status: "CANCELLED", cash: { amount: "999999.00", currency: "CNY" } }, timeout: 10_000 });
         expect(injectedCancelResponse.status()).toBe(422);
         const afterRejectedCancel = await page.context().request.get(new URL(`/api/v1/acceptance/v1/v1.5/runs/${runId}`, page.url()).toString(), { timeout: 10_000 }).then((response) => response.json());
@@ -1475,9 +2203,40 @@ test("V1.5 normal, isolated AUTO trade and paused-mandate rejection use durable 
       ]));
     }
     console.info(`[V1.5 E2E] scenario=${scenario} starting same-run CLI/export elapsedMs=${Date.now() - startedAt}`);
-    verifyV15RunWithCli(runId!, "sq_session=" + cookie);
+    await verifyV15RunWithCli(runId!, "sq_session=" + cookie, scenario === "normal" ? "WAITING" : "COMPLETED");
     console.info(`[V1.5 E2E] scenario=${scenario} CLI/export complete elapsedMs=${Date.now() - startedAt}`);
   }
+  expect(autoTradeRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  const historicalRunResponse = await page.context().request.get(new URL(`/api/v1/acceptance/v1/v1.5/runs/${autoTradeRunId}`, page.url()).toString(), { timeout: 10_000 });
+  expect(historicalRunResponse.ok()).toBe(true);
+  const historicalRun = await historicalRunResponse.json();
+  expect(historicalRun.testRunId).toBe(autoTradeRunId);
+  expect(historicalRun.evidence?.businessExecution).toBe(autoCancelMode ? "AUTO_TRADE_CANCELLED" : "AUTO_TRADE_EXECUTED");
+  const historicalFills = historicalRun.evidence.orders.filter((item: any) => item.fill?.externalFillId);
+  expect(historicalFills).toHaveLength(autoCancelMode ? 1 : 4);
+  await page.getByTestId("v15-open-run-select").selectOption(autoTradeRunId!);
+  await expect(page.getByTestId("v15-test-run-id")).toHaveText(autoTradeRunId!);
+  await expect(page.getByTestId("v15-fill-trace-select").locator("option")).toHaveCount(historicalFills.length);
+  for (const item of historicalFills) {
+    await page.getByTestId("v15-fill-trace-select").selectOption(item.fill.externalFillId);
+    const trace = page.getByTestId("v15-selected-fill-trace");
+    await expect(trace).toContainText(item.fill.externalFillId);
+    await expect(trace).toContainText(item.proposalId);
+    await expect(trace).toContainText(item.mandate.mandateId);
+    await expect(trace).toContainText(item.order.order_id);
+    await expect(trace).toContainText(item.reconciliation.portfolio.cash.amount);
+    await expect(trace).toContainText(item.reconciliation.fakeBroker.current_cash);
+  }
+  const lookupFill = historicalFills[0];
+  await page.getByTestId("v15-fill-lookup").fill(lookupFill.fill.externalFillId);
+  await page.getByTestId("v15-find-fill").click();
+  await expect(page.getByTestId("v15-test-run-id")).toHaveText(autoTradeRunId!);
+  const lookedUpTrace = page.getByTestId("v15-selected-fill-trace");
+  await expect(lookedUpTrace).toContainText(lookupFill.fill.externalFillId);
+  await expect(lookedUpTrace).toContainText(lookupFill.proposalId);
+  await expect(lookedUpTrace).toContainText(lookupFill.order.order_id);
+  await expect(lookedUpTrace).toContainText(lookupFill.reconciliation.portfolio.cash.amount);
+  console.info(`[V1.5 E2E] reopened owner-scoped historical AUTO Run ${autoTradeRunId}; traced ${historicalFills.length} fills`);
 });
 
 test("V2.1 source, live news and 101-security rejection are visible in Web acceptance", async ({ page }) => {
@@ -2132,6 +2891,112 @@ test("V1.3 L06 recovers an AUTO_POLICY order after committed response loss and a
   console.info(`[V1.3 L06 UNKNOWN recovery] ${JSON.stringify({ testRunId, mandateId, proposalId, clientOrderId, injectedEvents: ["response lost after FakeBroker commit", "original order read unavailable once"], observedStatuses: [lostResponse.status, unavailableRead.status, recovered.status], orderId: order.body.order.order_id, fillId: order.body.fill.externalFillId, reconciliation: order.body.reconciliation })}`);
 });
 
+test("V1.3 US_EQUITY L06 recovers AAPL after committed response loss and original-order query failure", async ({ page }) => {
+  test.setTimeout(30_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByLabel("市场").selectOption("US_EQUITY");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  const accountId = (await page.getByTestId("v13-account-id").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(accountId).toBeTruthy();
+  await page.getByTestId("v13-create-auto-mandate").click();
+  await page.getByTestId("v13-activate-auto-mandate").click();
+  const mandateId = (await page.getByTestId("v13-auto-mandate-state").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(mandateId).toBeTruthy();
+  await page.getByRole("button", { name: "创建AUTO_POLICY固定调仓建议" }).click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  const clientOrderId = `v13-fault-unknown-us-${proposalId}`;
+  const submit = async () => page.evaluate(async ({ testRunId, proposalId, mandateId, clientOrderId }) => {
+    const response = await fetch(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/auto-execution/submit`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mandateId, mandateVersion: 1, clientOrderId }) });
+    return { status: response.status, body: await response.json() };
+  }, { testRunId: testRunId!, proposalId: proposalId!, mandateId: mandateId!, clientOrderId });
+  const lostResponse = await submit();
+  expect(lostResponse.status).toBe(503);
+  const afterCommit = await page.evaluate(async (accountId) => fetch(`/api/v1/accounts/${accountId}`).then((response) => response.json()), accountId!);
+  expect(afterCommit.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD", cashAmount: "250.0500" }));
+  const unavailableRead = await submit();
+  expect(unavailableRead.status).toBe(503);
+  const recovered = await submit();
+  expect([200, 202]).toContain(recovered.status);
+  expect(recovered.body.order.status).toBe("FILLED");
+  expect(recovered.body.fill.quantity).toBe(10);
+  expect(recovered.body.fill.price).toBe("25.0000");
+  expect(recovered.body.fill.fee).toBe("0.0500");
+  expect(recovered.body.outbox.status).toBe("DELIVERED");
+  expect(recovered.body.reconciliation).toMatchObject({ unresolved_order_count: 0, pending_outbox_count: 0, discrepancies: [] });
+  const order = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${encodeURIComponent(clientOrderId)}`).then(async (response) => ({ status: response.status(), body: await response.json() }));
+  expect(order.status).toBe(200);
+  expect(order.body.order.status).toBe("FILLED");
+  expect(order.body.independentAssets).toMatchObject({ current_cash: "9749.9500", currency: "USD" });
+  expect(order.body.reconciliation.status).toBe("MATCH");
+  const settled = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(settled.account.cash).toMatchObject({ amount: "9749.9500", currency: "USD" });
+  expect(settled.account.positions).toContainEqual(expect.objectContaining({ security: "AAPL", quantity: 10 }));
+  expect(settled.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "CAPTURED", capturedCashAmount: "250.0500" }));
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "9749.9500", "250.0500", "FILLED", "CAPTURED", "250.0500");
+  console.info(`[V1.3 US_EQUITY L06 UNKNOWN recovery] ${JSON.stringify({ testRunId, market: "US_EQUITY", security: "AAPL", mandateId, proposalId, clientOrderId, injectedEvents: ["FakeBroker committed original order; response lost", "original-order read unavailable once", "retry queried original clientOrderId and recovered without resending"], observedStatuses: [lostResponse.status, unavailableRead.status, recovered.status], orderId: order.body.order.order_id, fill: order.body.fill, cash: order.body.independentAssets.current_cash, reconciliation: order.body.reconciliation.status })}`);
+});
+
+test("V1.3 US_EQUITY L06 resumes the same AAPL AUTO_POLICY order after Trade Execution restarts", async ({ page }) => {
+  test.setTimeout(60_000);
+  const project = process.env.STOCKQUANT_V13_TEST_COMPOSE_PROJECT;
+  const tradeUrl = process.env.STOCKQUANT_V13_TRADE_URL;
+  expect(project, "the isolated V1.3 Compose project must be provided by its runner").toBeTruthy();
+  expect(tradeUrl, "the isolated Trade loopback URL must be provided by its runner").toBeTruthy();
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByLabel("市场").selectOption("US_EQUITY");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  const accountId = (await page.getByTestId("v13-account-id").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  await page.getByTestId("v13-create-auto-mandate").click();
+  await page.getByTestId("v13-activate-auto-mandate").click();
+  const mandateId = (await page.getByTestId("v13-auto-mandate-state").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  await page.getByRole("button", { name: "创建AUTO_POLICY固定调仓建议" }).click();
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  const clientOrderId = `v13-fault-restart-us-${proposalId}`;
+  const submit = async () => page.evaluate(async ({ testRunId, proposalId, mandateId, clientOrderId }) => {
+    const response = await fetch(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/auto-execution/submit`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mandateId, mandateVersion: 1, clientOrderId }) });
+    return { status: response.status, body: await response.json() };
+  }, { testRunId: testRunId!, proposalId: proposalId!, mandateId: mandateId!, clientOrderId });
+  const lostResponse = await submit();
+  expect(lostResponse.status).toBe(503);
+  const pending = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(pending.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "HELD", cashAmount: "250.0500" }));
+
+  const root = resolve(process.cwd(), "../..");
+  const restarted = spawnSync("docker", ["compose", "-p", project!, "-f", "infra/compose/docker-compose.v13-integration.yml", "restart", "trade-execution-service"], { cwd: root, encoding: "utf8", env: process.env, timeout: 20_000 });
+  expect(restarted.status, restarted.stderr).toBe(0);
+  let ready = false;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    try { if ((await fetch(`${tradeUrl}/ready`)).ok) { ready = true; break; } } catch { /* wait for the exact isolated Trade container */ }
+    await new Promise((resolveReady) => setTimeout(resolveReady, 250));
+  }
+  expect(ready, "Trade Execution must become ready after the isolated restart").toBe(true);
+  const recovered = await submit();
+  expect(recovered.status).toBe(202);
+  expect(recovered.body.order.status).toBe("FILLED");
+  expect(recovered.body.fill).toMatchObject({ quantity: 10, price: "25.0000", fee: "0.0500" });
+  expect(recovered.body.outbox.status).toBe("DELIVERED");
+  expect(recovered.body.reconciliation).toMatchObject({ unresolved_order_count: 0, pending_outbox_count: 0, discrepancies: [] });
+
+  const order = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${encodeURIComponent(clientOrderId)}`).then(async (response) => ({ status: response.status(), body: await response.json() }));
+  expect(order.status).toBe(200);
+  expect(order.body.order.status).toBe("FILLED");
+  expect(order.body.independentAssets).toMatchObject({ current_cash: "9749.9500", currency: "USD" });
+  expect(order.body.reconciliation.status).toBe("MATCH");
+  const settled = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(settled.account.cash).toMatchObject({ amount: "9749.9500", currency: "USD" });
+  expect(settled.account.positions).toContainEqual(expect.objectContaining({ security: "AAPL", quantity: 10 }));
+  expect(settled.account.reservations).toContainEqual(expect.objectContaining({ clientOrderId, status: "CAPTURED", capturedCashAmount: "250.0500" }));
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "9749.9500", "250.0500", "FILLED", "CAPTURED", "250.0500");
+  console.info(`[V1.3 US_EQUITY L06 Trade restart recovery] ${JSON.stringify({ testRunId, market: "US_EQUITY", security: "AAPL", mandateId, proposalId, clientOrderId, injectedEvents: ["FakeBroker committed order/fill", "HTTP response lost", "Trade Execution container restarted", "same clientOrderId queried and recovered without resending"], orderId: order.body.order.order_id, fill: order.body.fill, cash: order.body.independentAssets.current_cash, reconciliation: order.body.reconciliation.status })}`);
+});
+
 test("V1.3 L06 recovers the same AUTO_POLICY order after Trade Execution restarts", async ({ page }) => {
   test.setTimeout(60_000);
   const project = process.env.STOCKQUANT_V13_TEST_COMPOSE_PROJECT;
@@ -2233,14 +3098,66 @@ test("V1.3 L07 Web resumes a buffered out-of-order Fill after Trade Execution re
   const result = await order.json();
   expect(order.status()).toBe(200);
   expect(result.order.status).toBe("PARTIALLY_FILLED");
-  expect(result.fills.map((fill: { quantity: number; brokerSequence: number }) => [fill.brokerSequence, fill.quantity])).toEqual([[1, 100], [2, 50]]);
+  expect(result.fills.map((fill: { quantity: number; brokerSequence: number }) => [fill.brokerSequence, fill.quantity])).toEqual(v13UsOrderedFixture.expected.fills.map((fill: { sequence: number; quantity: number }) => [fill.sequence, fill.quantity]));
   expect(result.independentAssets.current_cash).toBe("8495.0000");
   expect(result.reconciliation.status).toBe("MATCH");
   verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "8495.0000", "500.0000", "PARTIALLY_FILLED", "HELD", "1505.0000");
   console.info(`[V1.3 L07 Web/CLI restart recovery] ${JSON.stringify({ testRunId, proposalId, clientOrderId, injectedEvents: ["seq=2 cumulative 150 buffered", "duplicate seq=2 replayed 10 times", "Trade Execution restarted", "seq=1 cumulative 100 delivered and buffered seq=2 causally applied"], fills: result.fills, cash: result.independentAssets.current_cash, reconciliation: result.reconciliation.status })}`);
 });
 
-test("V1.3 persisted calendar advancement unlocks a T+1 sell and keeps same-session rejection side-effect free", async ({ page }) => {
+test("V1.3 US_EQUITY L07 applies a buffered out-of-order AAPL Fill after Trade Execution restarts", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByLabel("市场").selectOption("US_EQUITY");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await page.getByTestId("v13-create-sequenced-proposal").click();
+  await expect(page.getByTestId("v13-proposal-status")).toHaveText("MANUAL_APPROVAL_PENDING");
+  const proposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  expect(proposalId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-sequenced-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("ACCEPTED");
+  await page.getByTestId("v13-sequence-2-replay").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"buffered":true');
+  await page.getByTestId("v13-sequence-2-replay-10").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"replayed":true');
+  await expect(page.getByTestId("v13-order")).toContainText("ACCEPTED");
+
+  const isolatedProject = process.env.STOCKQUANT_V13_TEST_COMPOSE_PROJECT;
+  expect(isolatedProject).toMatch(/^sq-v13-web-[a-f0-9]{20}$/u);
+  const restart = spawnSync("docker", ["compose", "-p", isolatedProject!, "-f", "infra/compose/docker-compose.v13-integration.yml", "restart", "trade-execution-service"], {
+    cwd: resolve(process.cwd(), "../.."), encoding: "utf8", env: process.env, timeout: 20_000,
+  });
+  expect(restart.status, restart.stderr).toBe(0);
+  const tradeUrl = process.env.STOCKQUANT_V13_TRADE_URL;
+  expect(tradeUrl).toBeTruthy();
+  let tradeReady = false;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    try { if ((await fetch(`${tradeUrl}/ready`)).ok) { tradeReady = true; break; } } catch { /* wait for isolated Trade Execution restart */ }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
+  }
+  expect(tradeReady, "isolated Trade Execution must become ready after restart").toBe(true);
+  await page.getByTestId("v13-sequence-1").click();
+  await expect(page.getByTestId("v13-sequenced-report")).toContainText('"lastAppliedSequence":2');
+  await expect(page.getByTestId("v13-reconciliation")).toHaveText("MATCH");
+  await expect(page.getByTestId("v13-order")).toContainText("6249.9500 USD");
+  await expect(page.getByTestId("v13-positions")).toContainText("150");
+  const clientOrderId = `v13-${proposalId}`;
+  const order = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${proposalId}/orders/${encodeURIComponent(clientOrderId)}`);
+  const result = await order.json();
+  expect(order.status()).toBe(200);
+  expect(result.order.status).toBe("PARTIALLY_FILLED");
+  expect(result.fills.map((fill: { quantity: number; brokerSequence: number }) => [fill.brokerSequence, fill.quantity])).toEqual(v13UsOrderedFixture.expected.fills.map((fill: { sequence: number; quantity: number }) => [fill.sequence, fill.quantity]));
+  expect(result.independentAssets).toMatchObject({ current_cash: "6249.9500", currency: "USD" });
+  expect(result.reconciliation.status).toBe("MATCH");
+  verifyV13RunWithCli(testRunId!, proposalId!, clientOrderId, "6249.9500", "5000.0500", "PARTIALLY_FILLED", "HELD", "3750.0500");
+  console.info(`[V1.3 US_EQUITY L07 Web/CLI restart recovery] ${JSON.stringify({ testRunId, market: "US_EQUITY", security: "AAPL", proposalId, clientOrderId, injectedEvents: ["seq=2 cumulative 150 buffered", "duplicate seq=2 replayed 10 times", "Trade Execution restarted", "seq=1 cumulative 100 delivered and buffered seq=2 causally applied"], fills: result.fills, cash: result.independentAssets.current_cash, reconciliation: result.reconciliation.status })}`);
+});
+
+test("V1.3 calendar advancement settles T+1 proceeds across both books and unlocks the next BUY", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto("/acceptance/v1/v1.3");
   await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
@@ -2311,23 +3228,111 @@ test("V1.3 persisted calendar advancement unlocks a T+1 sell and keeps same-sess
   expect(executed.reconciliation.pending_outbox_count).toBe(0);
   expect(executed.reconciliation.externalOnlyOrderCount).toBe(0);
   const afterSell = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
-  expect(afterSell.account.cash.amount).toBe("9990.0000");
+  expect(afterSell.account.cash.amount).toBe("8995.0000");
+  expect(afterSell.account.unsettledReceivables).toEqual([expect.objectContaining({ fillId: executed.fill.externalFillId, amount: "995.0000", currency: "CNY", tradeDate: "2026-09-29", settlementDate: "2026-09-30", calendarVersion: "v1.4-synthetic-settlement-3", status: "PENDING" })]);
   expect(afterSell.account.positions).toEqual([]);
   expect(afterSell.account.reservations.at(-1).status).toBe("CAPTURED");
   const persistedOrder = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${sellProposal.proposalId}/orders/${encodeURIComponent(clientOrderId)}`).then((response) => response.json());
   expect(persistedOrder.orderSide).toBe("SELL");
-  expect(persistedOrder.independentAssets.current_cash).toBe("9990.0000");
+  expect(persistedOrder.independentAssets.current_cash).toBe("8995.0000");
+  expect(persistedOrder.independentAssets.unsettledReceivables).toEqual([expect.objectContaining({ fillId: executed.fill.externalFillId, amount: "995.0000", currency: "CNY", tradeDate: "2026-09-29", settlementDate: "2026-09-30", calendarVersion: "v1.4-synthetic-settlement-3", status: "PENDING" })]);
   expect(persistedOrder.independentAssets.positions).toEqual([]);
   expect(persistedOrder.reconciliation.discrepancies).toEqual([]);
-  expect(persistedOrder.reconciliation.portfolio.cash.amount).toBe("9990.0000");
+  expect(persistedOrder.reconciliation.portfolio.cash.amount).toBe("8995.0000");
   expect(persistedOrder.reconciliation.portfolio.positions).toEqual([]);
-  expect(persistedOrder.reconciliation.fakeBroker.currentCash).toBe("9990.0000");
+  expect(persistedOrder.reconciliation.fakeBroker.currentCash).toBe("8995.0000");
   expect(persistedOrder.reconciliation.fakeBroker.positions).toEqual([]);
   expect(persistedOrder.independentAssets.current_cash).toBe(afterSell.account.cash.amount);
   expect(persistedOrder.independentAssets.positions).toEqual(afterSell.account.positions.map((position: { security: string; quantity: number }) => ({ security: position.security, quantity: position.quantity })));
-  verifyV13RunWithCli(testRunId!, sellProposal.proposalId, clientOrderId, "9990.0000", "0.0000", "FILLED", "CAPTURED", "0.0000");
-  console.info(`[V1.3 P3 T+1 sell loop] ${JSON.stringify({ testRunId, buyProposalId, rejectedSameDayProposalId: sameDayProposal.proposalId, sellProposalId: sellProposal.proposalId, clientOrderId, calendarVersion: advances[0].calendarVersion, toClock: advances[0].toClock, cash: afterSell.account.cash.amount, discrepancies: persistedOrder.reconciliation.discrepancies })}`);
+  verifyV13RunWithCli(testRunId!, sellProposal.proposalId, clientOrderId, "8995.0000", "0.0000", "FILLED", "CAPTURED", "0.0000");
+
+  const settleAdvance = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock/advance-session`, { data: { accountId, expectedClock: "2026-09-29T09:31:00+08:00" } });
+  expect(settleAdvance.status()).toBe(200);
+  expect((await settleAdvance.json()).run.evidence.runClockNow).toBe("2026-09-30T09:31:00+08:00");
+  const afterSettlement = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(afterSettlement.account.cash.amount).toBe("9990.0000");
+  expect(afterSettlement.account.unsettledReceivables).toEqual([expect.objectContaining({ amount: "995.0000", status: "SETTLED", settlementDate: "2026-09-30" })]);
+  const settledOrder = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${sellProposal.proposalId}/orders/${encodeURIComponent(clientOrderId)}`).then((response) => response.json());
+  expect(settledOrder.independentAssets.current_cash).toBe("9990.0000");
+  expect(settledOrder.independentAssets.unsettledReceivables[0].status).toBe("SETTLED");
+  expect(settledOrder.reconciliation.discrepancies).toEqual([]);
+
+  const buyResponse = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals`, { data: {
+    idempotencyKey: `v13-tplus1-settled-buy-${testRunId}`, accountId, approvalMode: "MANUAL_APPROVAL", market: "CN_A", currency: "CNY", strategyVersion: "fixture-manual-test-v1",
+    operation: "REBALANCE", expiresAt: "2026-09-30T13:31:00+08:00", legs: [{ legId: "settled-buy-leg", securityId: "600000.SH", side: "BUY", quantity: 100 }]
+  } });
+  expect(buyResponse.status()).toBe(201);
+  const settledBuyProposal = await buyResponse.json();
+  expect((await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${settledBuyProposal.proposalId}/approve`, { data: { expectedVersion: settledBuyProposal.proposalVersion, expectedContentHash: settledBuyProposal.contentHash, reason: "use only settled T+1 proceeds" } })).status()).toBe(201);
+  const settledBuyClientOrderId = `v13-tplus1-settled-buy-${settledBuyProposal.proposalId}`;
+  const settledBuySubmit = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${settledBuyProposal.proposalId}/execution/submit`, { data: { clientOrderId: settledBuyClientOrderId } });
+  const settledBuyResult = await settledBuySubmit.json();
+  expect(settledBuySubmit.status(), JSON.stringify(settledBuyResult)).toBe(202);
+  expect(settledBuyResult.order.status).toBe("FILLED");
+  const afterSettledBuy = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(afterSettledBuy.account.cash.amount).toBe("8985.0000");
+  expect(afterSettledBuy.account.positions).toEqual([{ security: "600000.SH", quantity: 100 }]);
+  expect(afterSettledBuy.account.unsettledReceivables[0].status).toBe("SETTLED");
+  verifyV13RunWithCli(testRunId!, settledBuyProposal.proposalId, settledBuyClientOrderId, "8985.0000", "1005.0000", "FILLED", "CAPTURED", "1005.0000");
+  console.info(`[V1.3 T+1 settlement loop] ${JSON.stringify({ testRunId, buyProposalId, sellProposalId: sellProposal.proposalId, settledBuyProposalId: settledBuyProposal.proposalId, settledCash: afterSettlement.account.cash.amount, finalCash: afterSettledBuy.account.cash.amount, calendarVersion: advances[0].calendarVersion, toClock: "2026-09-30T09:31:00+08:00" })}`);
 });
+
+
+test("V1.3 US_EQUITY uses the frozen New York session Fixture for strict settled-cash Paper SELL", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/acceptance/v1/v1.3");
+  await page.getByRole("button", { name: "创建隔离 V1.3 TestRun" }).click();
+  const testRunId = (await page.getByTestId("v13-test-run-id").textContent())?.trim();
+  expect(testRunId).toMatch(/^[0-9a-f-]{36}$/iu);
+  await page.getByLabel("市场").selectOption("US_EQUITY");
+  await page.getByRole("button", { name: "初始化本 Run 模拟账户（10000）" }).click();
+  await expect(page.getByTestId("v13-account-id")).toContainText("US_EQUITY");
+  await expect(page.getByTestId("v13-run-clock")).toHaveText("2026-09-28T13:31:00.000Z");
+  await expect(page.getByTestId("v13-calendar-version")).toHaveText("v1.3-us-synthetic-session-1");
+  const accountId = (await page.getByTestId("v13-account-id").textContent())?.match(/[0-9a-f-]{36}/iu)?.[0];
+  expect(accountId).toMatch(/^[0-9a-f-]{36}$/iu);
+  const clock = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock`).then((response) => response.json());
+  expect(clock.advances).toHaveLength(1);
+  expect(clock.advances[0]).toMatchObject({ fromClock: "2026-09-28T01:31:00.000Z", toClock: "2026-09-28T13:31:00.000Z", calendarVersion: "v1.3-us-synthetic-session-1" });
+
+  await page.getByRole("button", { name: "创建MANUAL固定Fixture调仓提案" }).click();
+  const buyProposalId = (await page.getByTestId("v13-proposal-id").textContent())?.trim();
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await page.getByTestId("v13-execute-proposal").click();
+  await expect(page.getByTestId("v13-order")).toContainText("FILLED");
+  const makeSell = async (key: string) => page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals`, { data: {
+    idempotencyKey: key, accountId, approvalMode: "MANUAL_APPROVAL", market: "US_EQUITY", currency: "USD", strategyVersion: "fixture-manual-test-v1",
+    operation: "REBALANCE", expiresAt: "2026-09-29T18:00:00.000Z", legs: [{ legId: "sell-leg", securityId: "AAPL", side: "SELL", quantity: 10 }],
+  } });
+  const nextClock = "2026-09-29T13:31:00.000Z";
+  const advance = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock/advance-session`, { data: { accountId, expectedClock: "2026-09-28T13:31:00.000Z" } });
+  expect(advance.status()).toBe(200);
+  expect((await advance.json()).run.evidence.runClockNow).toBe(nextClock);
+  const sellCreate = await makeSell(`us-next-session-sell-${testRunId}`);
+  expect(sellCreate.status()).toBe(201);
+  const sellProposal = await sellCreate.json();
+  expect((await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${sellProposal.proposalId}/approve`, { data: { expectedVersion: sellProposal.proposalVersion, expectedContentHash: sellProposal.contentHash, reason: "approve next synthetic NY session sale" } })).status()).toBe(201);
+  const sellClientOrderId = `us-sell-${sellProposal.proposalId}`;
+  const sellSubmit = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${sellProposal.proposalId}/execution/submit`, { data: { clientOrderId: sellClientOrderId } });
+  const sellExecution = await sellSubmit.json();
+  expect(sellSubmit.status(), JSON.stringify(sellExecution)).toBe(202);
+  expect(sellExecution.order.status).toBe("FILLED");
+  const pending = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(pending.account.cash.amount).toBe("9749.9500");
+  expect(pending.account.unsettledReceivables).toEqual([expect.objectContaining({ amount: "249.9500", currency: "USD", tradeDate: "2026-09-29", settlementDate: "2026-09-30", status: "PENDING" })]);
+  const settleAdvance = await page.request.post(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/clock/advance-session`, { data: { accountId, expectedClock: nextClock } });
+  expect(settleAdvance.status()).toBe(200);
+  expect((await settleAdvance.json()).run.evidence.runClockNow).toBe("2026-09-30T13:31:00.000Z");
+  const settled = await page.request.get(`/api/v1/accounts/${accountId}`).then((response) => response.json());
+  expect(settled.account.cash.amount).toBe("9999.9000");
+  expect(settled.account.unsettledReceivables[0].status).toBe("SETTLED");
+  const settledOrder = await page.request.get(`/api/v1/acceptance/v1/v1.3/runs/${testRunId}/proposals/${sellProposal.proposalId}/orders/${encodeURIComponent(sellClientOrderId)}`).then((response) => response.json());
+  expect(settledOrder.independentAssets.current_cash).toBe("9999.9000");
+  expect(settledOrder.reconciliation.discrepancies).toEqual([]);
+  verifyV13RunWithCli(testRunId!, sellProposal.proposalId, sellClientOrderId, "9999.9000", "0.0000", "FILLED", "CAPTURED", "0.0000");
+  console.info(`[V1.3 US strict settled-cash loop] ${JSON.stringify({ testRunId, buyProposalId, sellProposalId: sellProposal.proposalId, clockAdvances: clock.advances.length + 2, pendingCash: pending.account.cash.amount, settledCash: settled.account.cash.amount, syntheticCalendar: "v1.3-us-synthetic-session-1", calendarNotExchangeClaim: true })}`);
+});
+
 
 test("V1.5 displays explicit capability blockers without converting NOT_RUN into failure", async ({ page }) => {
   const testRunId = "d4c437bd-a1ba-4e67-b9bc-7c5fdf1d008c";

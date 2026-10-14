@@ -1,4 +1,51 @@
-2026-10-10最新正式V1门禁a626：五阶段文档与证据审计PASS（1368引用、199份Manifest、338项），V1仍INCOMPLETE/exit 2。V1.4锁跌停SELL真实持仓/预留拒绝释放子项通过，四个历史Run结构化导出、OD-013/014与旧Run处置、剩余工程及恢复/环境验证和本人验收仍开放。[a626日志](../../../evidence/audits/2026-10-10-v1-version-gate-a626.log)、[SHA-256](../../../evidence/audits/2026-10-10-v1-version-gate-a626.log.sha256)。
+> 当前正式结论（2026-10-14）：V1当前主要功能范围开发与正式验收完成，五阶段PASS、正式门禁PASS/exit 0；结果见[本次记录](../../../evidence/audits/2026-10-14-v1-core-closeout-gate-a03.log)。本文件下方旧审计/OPEN均保留对应日期的历史范围，不恢复已延期要求。
+
+> 当前V1收尾范围（2026-10-13）：所有者要求聚焦主要功能、减少非必要验证和停止扩散；当前执行以[V1主要功能完成计划](../../plans/2026-10-08-v1-completion-plan.md)及[范围决定](../../decisions/2026-10-13-v1-core-closeout-scope.md)为准。延期增强和广泛验证不阻塞本轮，旧任务/结果/签署保留为历史；核心正确性和人工验收不缩减。
+
+> 当前范围决定（2026-10-13）：所有者已将Ubuntu实机部署/恢复/主机资源验收延期至后续Ubuntu部署验收，状态DEFERRED / NOT_RUN；它不再阻塞V1本轮开发及验收。Mac本地容器、目标架构烟测/缺口登记、其余业务/恢复和人工验收要求保留。旧记录中的Ubuntu缺口保留为历史事实，不代表当前V1阻塞。见[延期决定](../../decisions/2026-10-13-v1-ubuntu-deferral.md)。
+
+最新正式V1门禁current-a83：五阶段文档与证据审计PASS（2638引用/455份Manifest/593项）；六份指定历史TestRun导出缺失，V1保持INCOMPLETE/exit 2；阶段余项、Ubuntu、完整恢复与人验仍未满足。[a83日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a83.log)。
+最新正式V1门禁current-a79：五阶段文档审计PASS、证据审计PASS（2625引用/452份Manifest/590项）；6份指定历史Run导出缺失，V1仍INCOMPLETE/exit 2；阶段余项、Ubuntu、完整恢复和人验未完成。[a79日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a79.log)。
+最新正式V1门禁current-a78：五阶段文档审计PASS、证据审计PASS（2620引用/451份Manifest/589项）；6份指定历史TestRun导出缺失，V1仍INCOMPLETE/exit 2；阶段余项、Ubuntu、完整恢复及人工验收未完成。[a78日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a78.log)。
+最新正式V1门禁current-a77：五阶段文档审计PASS、证据审计PASS（2615引用/450份Manifest/588项）；35个目标Run中6份历史结构化导出缺失，V1仍INCOMPLETE/exit 2。阶段余项、Ubuntu、全域恢复及人验未完成。[a77日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a77.log)。
+2026-10-12正式V1门禁current-a76：五阶段文档审计PASS、证据审计PASS（2613引用/450份Manifest/588项）；35个目标Run中6份历史结构化导出缺失，V1仍INCOMPLETE/exit 2。阶段余项、Ubuntu、全域恢复及人验未完成。[a76日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a76.log)。
+2026-10-12 V1.4-S2-L18语义复核A142：US固定Fixture Quant/Paper在55bps滑点下的固定合成USD费用差异已修复，定向测试与完整隔离code suite通过；仅限该场景，P4仍OPEN，完整规则/恢复矩阵、Ubuntu与人验未完成。[A142报告](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a142.md)、[矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a142.json)。
+2026-10-12正式V1门禁current-a75（纳入A141阶段追踪与Crosswalk锚点更新后）：五阶段文档审计PASS、证据审计PASS（2601引用、449份Manifest、587项）；35个目标TestRun中6个指定历史Run仍缺结构化导出，V1为INCOMPLETE/exit 2。阶段交付余项、Ubuntu实机、全域恢复及本人验收仍未完成。[a75日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a75.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a75.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a75.log.sha256) `80be301eb81ca29855c9777f7c08e64aba5db22d745c0b946fd45e26c3f72482`。
+2026-10-12 V1.4-S2-L18语义复核A141：修正§2旧摘要（后续已补固定Fixture费用/滑点/限制/结算，真实Governance/Trade/Portfolio HTTP+PG和9次账本/9次幂等对照），但全适用规则组合、完整Quant/Paper事件账本Parity、所有恢复组合、Ubuntu及当前范围人验仍缺，需求保持OPEN。[A141报告](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a141.md)、[矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a141.json)。
+2026-10-12 V1.2 §8.3自动Web操作及证据复核A132：`V1.2-S8-L100`限域PASS，五个场景/恢复TestRun截图与Trace均绑定ID，Playwright 1/1与同Run CLI核对通过，完整code suite a02 exit 0；人工结论仍NOT_RUN。[A132](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a132.md)、[§8.64](./02-small-data-and-qlib.md#864-§83-web逐步操作与证据采集复验2026-10-12)。
+2026-10-12 V1.2 §8.2操作手册复核A131：隔离栈启动就绪及随机项目精确清理行`V1.2-S8-L85` PASS；用户场景/人工验收NOT_RUN，不代表阶段或V1通过。[A131](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a131.md)、[矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a131.json)。
+2026-10-12正式V1门禁current-a34（最新）：五阶段文档审计PASS、证据审计PASS（2486引用、429份Manifest、639项）；V1仍INCOMPLETE/exit 2、`uncheckedVersionGate=true`。4个指定历史TestRun结构化导出、阶段完整交付、Ubuntu x86_64实机、全域恢复及当前范围本人验收仍未完成。[a34日志](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a34.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a34.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-current-a34.log.sha256)。
+2026-10-12 V1.2 §8.1运行准备语义复核A130：最新隔离栈启停、当前Web/API/CLI E2E和完整V1.2 code suite均通过，37项源输入清单37/37匹配；仅`V1.2-S8-L65`运行手册准备行PASS，用户验收和阶段/V1门禁仍OPEN。[A130](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a130.md)、[A130矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a130.json)、[§8.63](./02-small-data-and-qlib.md#863-共享webplatform变更后的当前树隔离e2e复验2026-10-12)、[code suite](../../../evidence/audits/2026-10-12-v12-post-shared-worktree-code-suite-a02.log)。
+
+2026-10-12正式V1门禁a853：五阶段文档审计PASS，证据审计PASS（2188引用/372份Manifest/510项）；25个指定TestRun中21个结构化导出通过，V1.2一项和V1.5三项历史导出仍缺。V1仍`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段交付、目标环境/恢复和当前范围人工验收未全部满足。[a853日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a853.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a853.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a853.log.sha256)。
+
+正式V1门禁a852（纳入L16/A50三seed Web/API/CLI证据、A106矩阵及Crosswalk后）：五阶段文档审计PASS；证据审计PASS（2182引用、371份Manifest、509项）；25个指定TestRun中21个结构化导出通过，4个历史原始导出仍缺。V1状态仍为`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段剩余工程、Ubuntu/全域恢复和人工验收未满足。[a852日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a852.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a852.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a852.log.sha256)。
+
+2026-10-12 P0/P1 A44：Trade→Portfolio五个实际V1调用逐一锁定5秒超时，定向测试6/6、Trade typecheck exit 0，详见[V1.3 §8.93](./03-fake-broker-trading-loop.md#893-trade→portfolio实际v1客户端逐操作超时合同2026-10-12)。只验证传输时限细节，不关闭P1/L14或阶段验收。
+
+2026-10-12正式V1门禁a822：五阶段文档审计PASS；证据审计PASS（2045引用、346份Manifest、522项）；4个指定历史TestRun导出仍缺，V1为INCOMPLETE/exit 2、`uncheckedVersionGate=true`。A43 Platform→Portfolio超时测试通过，但不改变阶段/版本结论。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a822.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a822.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a822.log.sha256)。
+
+2026-10-12 P0/P1 A43：Platform→Portfolio六个V1生成客户端操作逐项锁定5秒超时；定向测试4/4、Platform typecheck exit 0，证据见[V1.1 §8.63](./01-environment-and-web-center.md#863-platformportfolio账户客户端逐操作超时合同2026-10-12)。仅关闭L14的一项传输断言，阶段及V1验收仍开放；正式门禁a821尚未纳入本轮文档更新。
+
+2026-10-12正式V1门禁a821：五阶段文档审计PASS；证据审计PASS（2037引用、345份Manifest、521项）；四条指定历史TestRun结构化导出仍缺，V1整体INCOMPLETE/exit 2、`uncheckedVersionGate=true`。V1.2当前树E2E/code suite复跑与Platform→Trade超时合同直接测试通过（§8.53/§8.62），但阶段工程、历史Run导出、Ubuntu/完整恢复及当前范围人工验收未完成。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a821.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a821.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a821.log.sha256)。
+
+2026-10-12正式V1门禁a790：五阶段文档审计PASS；证据审计PASS（1851引用、308份Manifest、448项）；四条指定历史TestRun结构化导出仍缺，V1整体INCOMPLETE/exit 2、`uncheckedVersionGate=true`。A32仅复验既有Trade→Portfolio结算客户端合同，V1.1-S2-L14及P1总体保持OPEN；Artifact L20与OD-013仍未关闭。阶段剩余交付、环境恢复及当前范围人工验收未完成。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a790.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a790.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a790.log.sha256)。
+
+2026-10-12 P0语义复核A27：V1.1-S8-L211已绑定本轮三条新Run、同Run导出与隔离Portfolio账本证据；所有新增Run人工结论NOT_RUN。增量矩阵[A74](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a74.json)，复核说明[A27](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a27.md)；其它矩阵行仍未全量复核。
+
+2026-10-12最新正式V1门禁a781：五阶段文档审计PASS；证据审计PASS（1802引用、300份Manifest、440项）；21个验收TestRun中V1.1 15条结构化导出核验通过，V1.2一条及V1.5三条历史Run原始导出仍缺。V1整体`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段剩余交付、Ubuntu/完整恢复及当前范围本人验收未满足。[a781日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a781.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a781.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a781.log.sha256)。
+
+2026-10-12最新正式V1门禁a780：五阶段文档审计PASS；证据审计PASS（1798引用、299份Manifest、439项）；21个验收TestRun中V1.1 15条结构化导出核验通过，V1.2一条及V1.5三条历史Run原始导出仍缺。V1整体`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段剩余交付、Ubuntu/完整恢复及当前范围本人验收未满足。[a780日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a780.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a780.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a780.log.sha256)。
+
+2026-10-12最新正式V1门禁a779：五阶段文档审计PASS；证据审计PASS（1794引用、298份Manifest、438项）；21个验收TestRun中V1.1 15条结构化导出核验通过，V1.2一条及V1.5三条历史Run原始导出仍缺。V1整体`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段剩余交付、Ubuntu/完整恢复及当前范围本人验收未满足。[a779日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a779.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a779.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a779.log.sha256)。
+
+2026-10-12正式V1门禁a778：五阶段文档审计PASS；证据审计PASS（1791引用、297份Manifest、437项）；21个验收TestRun中V1.1 15条结构化导出核验通过，V1.2一条及V1.5三条历史Run原始导出仍缺。整体`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`；阶段剩余工程、Ubuntu/完整恢复及当前范围本人验收未满足。[a778日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a778.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a778.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a778.log.sha256)。
+
+2026-10-11最新正式V1门禁a777：五阶段文档审计PASS；证据审计PASS（1783引用、294份Manifest、434项）；18个验收TestRun中V1.1 12条结构化导出核验通过，V1.2一条与V1.5三条历史Run导出仍缺。版本仍`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`。V1.5当前树NATS/Temporal与Trade恢复隔离E2E 3/3通过（§8.46），不替代Mac睡眠/唤醒、完整V1业务恢复、Ubuntu或人工验收。[a777日志](../../../evidence/audits/2026-10-11-v1-formal-gate-a777.log)、[exit](../../../evidence/audits/2026-10-11-v1-formal-gate-a777.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a777.log.sha256)。
+
+2026-10-11最新正式V1门禁a737：五阶段文档审计PASS；证据审计PASS（1679引用、272份Manifest、411项）；14个纳入验收表的TestRun已检查，其中V1.1本轮normal/rejection/recovery三个新Run导出均PASS。V1仍`INCOMPLETE`/exit 2，`uncheckedVersionGate=true`；V1.1受控完整code suite与Web/API/CLI E2E 3/3通过。四个指定历史Run缺结构化导出，阶段剩余工程、目标环境/恢复及当前范围本人验收仍未满足。[a737日志](../../../evidence/audits/2026-10-11-v1-formal-gate-a737.log)、[退出码](../../../evidence/audits/2026-10-11-v1-formal-gate-a737.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a737.log.sha256)。
+
+历史正式门禁a680（2026-10-11）：五阶段文档审计PASS；证据审计PASS（1566引用、250份Manifest、389项）；V1仍INCOMPLETE/exit 2，`uncheckedVersionGate=true`。V1.2真实Pending Artifact对取消/发布阶段转换的双顺序行锁竞态通过，包含实际publishPending与Run引用核验；完整V1.2 code suite exit 0；四个历史Run导出、阶段剩余工程、开放决定、目标环境/恢复及本人验收仍开放。[a680日志](../../../evidence/audits/2026-10-11-v1-formal-gate-a680.log)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a680.log.sha256)。
 
 2026-10-10当前正式门禁a582：V1仍`INCOMPLETE`/exit 2，`uncheckedVersionGate=true`；五阶段文档审计PASS，证据审计PASS（1257引用、172份Manifest、311项）。V1.4浏览器正常/拒绝/刷新恢复7/7、当前完整code suite、ARM64容器Web和全仓基线均通过；仍缺4个历史Run导出、OD-013/014与旧Run决定、活动/全域恢复、Mac睡眠唤醒、Ubuntu实机及当前范围本人验收。[a582门禁](../../../evidence/audits/2026-10-10-v1-version-gate-a582.log)，[SHA-256](../../../evidence/audits/2026-10-10-v1-version-gate-a582.log.sha256)。
 2026-10-10最新正式门禁a351：五阶段结构文档审计PASS，证据审计PASS（900引用、121份Manifest、260项），V1仍INCOMPLETE/exit 2；四个历史TestRun导出、OD-013/OD-014与旧Run决定、全V1业务恢复、Ubuntu实机及人工验收仍未满足。[a351日志](../../../evidence/audits/2026-10-10-v1-version-gate-a351.log)，[SHA-256](../../../evidence/audits/2026-10-10-v1-version-gate-a351.log.sha256)。
@@ -33,11 +80,11 @@ Mac M1优先Linux ARM64容器，先验证依赖再承诺原生支持。Linux AMD
 
 | 阶段 | 交付 | 依赖 | 状态 |
 |---|---|---|---|
-| [V1.1](./01-environment-and-web-center.md) | 环境、账户初始化与 Web 验收中心 | 本文件前置条件；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（V1.1完整code suite当前树exit 0（脚本66/66、Portfolio 7单测、Platform 324单测）；隔离Web/API/CLI normal/rejection/recovery 3/3；六类核心Schema及8个服务类型副本字段/required性检查、Portfolio三Caller独立token检查通过；Platform API ARM64原生与AMD64仿真探针通过。跨服务消费者/发布矩阵、活动API切换/回退、RUNNING/WAITING旧记录处置、Ubuntu及当前范围人验仍未完成。详见[V1.1 §8.30](./01-environment-and-web-center.md#830-portfolio-risk调用身份密钥必须互异2026-10-10)及[最近code suite](../../../evidence/audits/2026-10-10-v11-portfolio-distinct-identities-code-suite-a01.log)。) |
-| [V1.2](./02-small-data-and-qlib.md) | 小样本数据、真实 Qlib 与环境探针 | V1.1；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（当前研究输入为不可变v1.2-market-data-5，显式市场会话日历与整市场缺日失败关闭见§8.41；Platform→Quant预览读合同见§8.43、Platform→Market Data research-preview消费者合同见§8.44。完整V1.2 code suite最新exit 0（Platform 324/324），锁版Qlib 0.9.6、隔离PostgreSQL/迁移、Market Data Artifact恢复与四个Web/API/CLI same-TestRun场景通过；隔离资源清理验证。历史TestRun `5dc2a5a7-28f1-4c9f-a867-3a676994f5b4`结构化导出、新增范围人工验收及Ubuntu实机复核仍未完成。详见[阶段验收与执行记录](./02-small-data-and-qlib.md#844-platformmarket-data双市场研究fixture读取合同2026-10-10)及[最新完整代码套件](../../../evidence/audits/2026-10-10-v12-market-research-preview-contract-code-suite-a01.log)。) |
-| [V1.3](./03-fake-broker-trading-loop.md) | 治理、风控与模拟券商完整交易链路 | V1.2；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（最新完整code suite exit 0；当前Platform 66文件/324测试、Governance 8文件/43测试、Portfolio 7单测、Trade 98测试；共享Schema变更后Web/API/CLI/export 27/27（§8.67）；27路由身份矩阵、模式注入拒绝、固定故障/恢复与双市场AUTO子场景有证据；Governance准入路由21项身份/method策略、83个HTTP拒绝探测及Platform caller必填、Portfolio caller token互异回归见§8.73–8.75。新增范围人工验收、完整市场/结算规则、未覆盖交易故障组合及Ubuntu交付仍开放。详见[阶段文件](./03-fake-broker-trading-loop.md)与[最近Portfolio caller回归](../../../evidence/audits/2026-10-10-v13-portfolio-distinct-identities-code-suite-a01.log)。) |
-| [V1.4](./04-daily-backtest.md) | 日线历史回测与可核对报告 | V1.3；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（当前树完整code suite、随机隔离PostgreSQL/Quant/Web/CLI持久任务及浏览器7/7通过；正式页拒绝场景显示未来成交/T+1原因、不发布报告并同Run CLI核对，刷新后恢复同一TestRun；ARM64容器化Web构建/启动与资源清理通过。T+1、结算、公司行动与AAPL持久FakeBroker BUY/SELL仅覆盖固定Fixture切片；冻结停牌/涨停BUY与锁跌停SELL经Governance授权、Trade Paper HTTP拒单和幂等重放；新双会话Fixture使锁跌停SELL绑定真实29股持仓与Portfolio Reservation，拒单释放预留且Portfolio/FakeBroker账本不变（§8.77、完整code suite a05）。全市场适用规则、Qlib/Paper逐规则账本一致性、真实费税/日历、完整恢复、当前范围人验仍未完成。详见[§8.77](./04-daily-backtest.md#877-冻结市场限制fixture贯通trade-paper拒绝路径2026-10-10)、[a05 code suite](../../../evidence/audits/2026-10-10-v14-sellable-position-locked-sell-code-suite-a05.log)、[Web兼容E2E](../../../evidence/audits/2026-10-10-v14-market-restrictions-paper-web-e2e-a01.log)。) |
-| [V1.5](./05-scheduling-and-recovery.md) | 无人逐笔操作、故障恢复与 V1 验收 | V1.4；详细依赖见阶段文件 | PARTIALLY_IMPLEMENTED（固定双市场AUTO、真实NATS/Temporal、暂停/UNKNOWN/重投/撤单及双账本对账有隔离Web/API/CLI证据；双Trade与PostgreSQL中断后原单恢复E2E 3/3及完整code suite通过。真实日历/结算、外发通知、跨阶段成交追溯、Mac睡眠/唤醒、实际V1业务产物与同点NATS/Temporal/宿主恢复、Ubuntu及当前范围人验仍未完成；当前树全服务数据库/Artifact卷合成行隔离恢复及V1.2 Qlib ArtifactRef/字节配对复验已通过§8.40–§8.41，不替代这些范围。详见[阶段§8.31](./05-scheduling-and-recovery.md#831-trade双实例与postgresql同时中断后的原单恢复2026-10-10)。) |
+| [V1.1](./01-environment-and-web-center.md) | 环境、账户初始化与 Web 验收中心 | 本文件前置条件；详细依赖见阶段文件 | PASS（2026-10-14当前主要功能范围；§8.68–8.69、§8.72–8.75实测与用户当前候选确认；延期项不计PASS） |
+| [V1.2](./02-small-data-and-qlib.md) | 小样本数据、真实 Qlib 与环境探针 | V1.1；详细依赖见阶段文件 | PASS（2026-10-14当前主要功能范围；§8.62–8.63、§8.68、§8.70实测与用户当前候选确认；延期项不计PASS） |
+| [V1.3](./03-fake-broker-trading-loop.md) | 治理、风控与模拟券商完整交易链路 | V1.2；详细依赖见阶段文件 | PASS（2026-10-14当前主要功能范围；§8.80–8.81、§8.87、§8.91、§8.113–8.118实测与用户当前候选确认；延期项不计PASS） |
+| [V1.4](./04-daily-backtest.md) | 日线历史回测与可核对报告 | V1.3；详细依赖见阶段文件 | PASS（2026-10-14当前主要功能范围；§8.104、§8.108、§8.113–8.117实测与用户当前候选确认；延期项不计PASS） |
+| [V1.5](./05-scheduling-and-recovery.md) | 无人逐笔操作、故障恢复与 V1 验收 | V1.4；详细依赖见阶段文件 | PASS（2026-10-14当前主要功能范围；§8.43、§8.48、§8.55–8.60实测与用户当前候选确认；延期项不计PASS） |
 
 以功能纵向切片交付；服务内部仍采用S0～S6生命周期。每阶段先冻结场景和预期，再同时开发后端与Web，执行自动检查后人工验收。后续独立工作可推进，但未通过的依赖不能被假成功替代。
 
@@ -67,6 +114,8 @@ W9版本门禁结构审计（2026-10-01）：当前验证还检查本版本阶�
 2026-10-10门禁a325：V1整体`INCOMPLETE`/exit 2，五阶段结构审计PASS，证据审计PASS（813引用、110份Manifest、249项）。历史Run导出及外部决定/恢复/Ubuntu/人工验收门槛仍开放。[a325日志](../../../evidence/audits/2026-10-10-v1-version-gate-a325.log)，SHA-256 `358e4cd1b73dcf7ac6539b7f28426d1b82649f232600744d9cac7cebbf87a2a4`。
 
 2026-10-10 W8 Ubuntu只读preflight：当前Mac ARM64宿主不是目标Ubuntu x86_64，容器运行时UNAVAILABLE、资源门槛和主机授权未确认；命令未连接外网或修改环境。该结果不能代替目标Ubuntu验证，详见[preflight报告](../../../evidence/audits/2026-10-10-w8-ubuntu-host-preflight-a01.log)。
+
+2026-10-11 W8本机只读复核A02：观测宿主为Darwin 25.5.0 arm64；Docker CLI 28.0.4存在，但当前沙箱不能访问Docker Desktop socket（operation not permitted），这不证明Docker Desktop或外部Ubuntu主机整体不可用。未识别/连接目标Ubuntu，未尝试SSH或网络访问，未更改容器/卷/主机；实际Ubuntu验收继续NOT_RUN。[机器结果](../../../evidence/audits/2026-10-11-w8-ubuntu-host-preflight-a02.json)、[审计说明](../../../evidence/audits/2026-10-11-w8-ubuntu-host-preflight-a02.md)。
 
 2026-10-10最新门禁a326（Ubuntu环境只读preflight已记入后）：V1 `INCOMPLETE`/exit 2；结构审计PASS，证据审计PASS（817/111/250）。历史导出、负责人决定、活动数据恢复、目标Ubuntu和人工验收未完成。[a326日志](../../../evidence/audits/2026-10-10-v1-version-gate-a326.log)，SHA-256 `29af2c8df97be36492faff208a7398a8b9a62086a1717fc7bcfb2f045749db96`。
 
@@ -153,3 +202,43 @@ W9版本门禁结构审计（2026-10-01）：当前验证还检查本版本阶�
 
 
 2026-10-10 Ubuntu验收范围澄清：本仓库所有者指令要求最终迁移验收提供实际Ubuntu证据；V1/V2目标架构烟测要求与V3 Ubuntu部署要求分别保留。amd64仿真不替代V1最终迁移验收的真实Ubuntu运行。当前Mac M1宿主无可用容器运行时，实机项NOT_RUN；见[分类补充A02](../../../evidence/audits/2026-10-10-v1-gate-classification-a02.md)及[只读preflight](../../../evidence/audits/2026-10-10-w8-ubuntu-host-preflight-a01.log)。
+
+2026-10-11正式门禁a681（纳入V1.1恢复并发领取、Crosswalk A57及当前进度后）：五阶段文档审计PASS；证据审计PASS（1572引用、252份Manifest、391项）；V1仍`INCOMPLETE`/exit 2，`uncheckedVersionGate=true`。四个历史Run结构化导出、剩余阶段工程、开放决定、活动/目标环境恢复及当前范围用户验收仍未满足。[a681门禁](../../../evidence/audits/2026-10-11-v1-formal-gate-a681.log)、[退出码](../../../evidence/audits/2026-10-11-v1-formal-gate-a681.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a681.log.sha256)。
+
+2026-10-11 V1.1恢复并发领取继续验证：legacy与stage两种TestRun存储下并发状态条件迁移均为单赢家；ScenarioRunner应用层断言只有一个请求读取Portfolio并写终态。完整隔离回归和当前V1.1 code suite均exit 0，Platform 68文件/328项通过；Crosswalk A58 PASS（147/1875/730/226/147）。见[V1.1 §8.50](./01-environment-and-web-center.md#850-v11-testrun并发恢复领取fencing2026-10-11)、[集成日志](../../../evidence/audits/2026-10-11-v11-concurrent-recovery-claim-a01.log)、[code suite](../../../evidence/audits/2026-10-11-v11-concurrent-recovery-claim-code-suite-a02.log)及[A58](../../../evidence/audits/2026-10-11-v1-crosswalk-current-a58.log)。该工程子项不改变V1.1当前范围人工验收NOT_RUN。
+
+2026-10-11正式门禁a682（纳入V1.1 §8.50并发领取、Crosswalk A58及阶段记录后）：五阶段文档审计PASS；证据审计PASS（1584引用、254份Manifest、393项）；V1仍`INCOMPLETE`/exit 2，`uncheckedVersionGate=true`。四个历史Run结构化导出、阶段剩余工程/开放决定、活动与目标环境恢复及当前范围人工验收仍未满足。[a682日志](../../../evidence/audits/2026-10-11-v1-formal-gate-a682.log)、[退出码](../../../evidence/audits/2026-10-11-v1-formal-gate-a682.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a682.log.sha256)。
+
+2026-10-11 Crosswalk A60：将V1.1-S7-L70的并发恢复应用层测试及完整V1.1 code suite证据纳入精确映射；147项要求、1875路径引用、731唯一目标、227精确测试名和147来源锚点全部PASS。该映射仅补充恢复工程子项，不改变阶段/版本人工验收状态。[A60日志](../../../evidence/audits/2026-10-11-v1-crosswalk-current-a60.log)。
+
+2026-10-11正式门禁a683（纳入V1.1恢复并发领取工程、Crosswalk A60及当前阶段文档后）：五阶段文档审计PASS；证据审计PASS（1592引用、255份Manifest、394项）；V1仍`INCOMPLETE`/exit 2，`uncheckedVersionGate=true`。四个历史TestRun结构化导出、阶段剩余工程/开放决定、活动与目标环境恢复及当前范围人工验收仍未满足。[门禁日志](../../../evidence/audits/2026-10-11-v1-formal-gate-a683.log)、[退出码](../../../evidence/audits/2026-10-11-v1-formal-gate-a683.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-11-v1-formal-gate-a683.log.sha256)。
+
+
+2026-10-12正式门禁a792：五阶段文档审计PASS；证据审计PASS（1861引用、310份Manifest、450项）；四条指定历史TestRun导出仍缺，V1整体INCOMPLETE/exit 2、`uncheckedVersionGate=true`。V1.3多腿严格现金子项的当前树完整code suite通过，但混合场景Web/API/CLI验收尚未完成。[a791日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a792.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a792.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a792.log.sha256)。
+
+2026-10-12正式门禁a794（V1.3 OD-014混合多腿Web/API/CLI验收、Fixture及阶段/追踪同步后）：五阶段文档审计PASS，证据审计PASS（1865引用、310份Manifest、450项）；`versionSummaryIncomplete=false`、`uncheckedVersionGate=true`，V1仍`INCOMPLETE`/exit 2。4个指定历史Run结构化导出、阶段正式交付、完整存储/业务恢复、Ubuntu实机及当前范围人工验收仍OPEN。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a794.log)、[exit](../../../evidence/audits/2026-10-12-v1-formal-gate-a794.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a794.log.sha256)。
+
+正式门禁a795（a794结果同步后复核）：文档结构审计PASS，证据审计PASS（1871引用、311份Manifest、451项）；V1仍`INCOMPLETE`/exit 2、`uncheckedVersionGate=true`。历史运行导出、阶段交付关闭、活动恢复/Ubuntu与本人验收仍未满足。[a795日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a795.log)。
+
+P0 A33（2026-10-12）：OD-014严格已结算现金口径已获所有者批准。V1.3-S2-L13新增固定混合多腿MANUAL/AUTO Web/API/CLI同Run证据及v1.0.4 Fixture映射；MANUAL卖出款保持待收，AUTO BUY不得使用该款。此项不关闭L13/P3或人验，保持OPEN/NOT_RUN。正式门禁a796：文档/证据审计PASS（1875引用、312 Manifest、452条目），V1仍INCOMPLETE/exit 2，四个历史Run导出、阶段关闭、恢复、Ubuntu及本人验收未完成。[A33](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a33.md)、[a796](../../../evidence/audits/2026-10-12-v1-formal-gate-a796.log)。
+
+P0 A34更新V1.3-S2-L15固定事件顺序子项后，正式门禁a800文档/证据审计PASS（1888引用、314 Manifest、454条目）；V1仍INCOMPLETE/exit 2、`uncheckedVersionGate=true`。历史Run导出、阶段工程/交付关闭、恢复/Ubuntu与人工验收继续OPEN。[A34](../../../evidence/audits/2026-10-12-v13-l15-event-sequence-current-tree-a01.md)、[a800](../../../evidence/audits/2026-10-12-v1-formal-gate-a800.log)。
+
+P0 A35/A82：V1.3-S2-L16固定CN响应丢失、乱序Fill/重启及部分Fill/Cancel有映射，仍缺US恢复变体和完整多seed事件矩阵；需求保持PARTIAL/OPEN，不能推断P3或版本通过。[A35](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a35.md)、[A82](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a82.json)。
+
+正式门禁a801：文档/证据审计PASS（1897引用、315 Manifest、455条目），V1仍INCOMPLETE/exit 2、`uncheckedVersionGate=true`；四个历史导出、阶段交付、恢复/Ubuntu及人工验收未满足。[a801](../../../evidence/audits/2026-10-12-v1-formal-gate-a801.log)。
+
+P0 A36/A83及V1.3 §8.89新增US_EQUITY/AAPL UNKNOWN响应丢失/原单读取故障恢复；完整浏览器矩阵31/31、完整code suite exit 0。L16仍OPEN，US Trade重启/乱序、多seed故障、其他版本/环境与人验仍未闭合。[A04](../../../evidence/audits/2026-10-12-v13-us-l06-unknown-recovery-a04.md)、[A83](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a83.json)。
+
+正式门禁a802：文档/证据审计PASS（1909引用、316份Manifest、456项），V1仍INCOMPLETE/exit 2、`uncheckedVersionGate=true`；历史导出、阶段收尾、恢复/Ubuntu与本人验收继续未满足。[a802](../../../evidence/audits/2026-10-12-v1-formal-gate-a802.log)。
+
+P0 A38/A84：L16新增US_EQUITY/AAPL AUTO UNKNOWN后Trade Execution重启、原clientOrderId恢复的隔离Web/API/CLI证据，定向1/1；现金USD 9,749.9500、10股、MATCH、同Run CLI及精确资源清理通过。L16/P3仍OPEN，US乱序/重复和多seed完整事件矩阵、Ubuntu及人验仍未满足。[A38](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a38.md)、[A84](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a84.json)、[E2E](../../../evidence/audits/2026-10-12-v13-us-trade-restart-e2e-a02.log)。
+
+正式门禁a803（纳入A38/A84、US Trade重启恢复及完整V1.3复验）：五阶段文档PASS，证据PASS（1924/318/458），但V1仍INCOMPLETE/exit 2、`uncheckedVersionGate=true`。V1.2一个、V1.5三个指定旧Run无结构化导出，阶段收尾、活动/配对恢复、Ubuntu及本人验收仍OPEN。[日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a803.log)。
+
+正式门禁a804：文档审计PASS（5阶段），证据审计PASS（1928/319/459）；21个指定Run有17个结构化导出通过，V1.2缺1个、V1.5缺3个历史导出。整体仍INCOMPLETE/exit 2，阶段关闭、恢复/Ubuntu与本人验收未满足。[a804](../../../evidence/audits/2026-10-12-v1-formal-gate-a804.log)。
+
+正式门禁a805：五阶段文档审计PASS；21个指定Run中17个结构化导出通过，V1.2一个与V1.5三个历史原始导出仍缺；证据审计PASS（1932/320/460），V1整体INCOMPLETE/exit 2。[a805](../../../evidence/audits/2026-10-12-v1-formal-gate-a805.log)。
+2026-10-12正式V1门禁a823：五阶段文档审计PASS，证据审计PASS（2056引用、347份Manifest、523项）；4个指定历史TestRun导出仍缺，V1整体INCOMPLETE/exit 2、`uncheckedVersionGate=true`。A44只补充Trade→Portfolio超时断言，不改变阶段/版本结论。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a823.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a823.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a823.log.sha256)。
+2026-10-12 P0/P1 A45：Historical Replay→Portfolio两个实际V1调用逐项断言5秒超时，定向测试3/3、Replay worker typecheck exit 0，见[V1.4 §8.97](./04-daily-backtest.md#897-historical-replay→portfolio实际v1客户端逐操作超时合同2026-10-12)。A43/A44/A45仅验证三个调用方的超时预算，不关闭L14/P1或阶段/版本验收。
+2026-10-12正式V1门禁a824：五阶段文档审计PASS，证据审计PASS（2067引用、348份Manifest、524项）；四个指定历史Run导出仍缺，V1整体INCOMPLETE/exit 2、`uncheckedVersionGate=true`。A43/A44/A45关闭三个Portfolio客户端调用方的13个方法超时测试子项，不改变版本结论。[门禁日志](../../../evidence/audits/2026-10-12-v1-formal-gate-a824.log)、[退出码](../../../evidence/audits/2026-10-12-v1-formal-gate-a824.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v1-formal-gate-a824.log.sha256)。

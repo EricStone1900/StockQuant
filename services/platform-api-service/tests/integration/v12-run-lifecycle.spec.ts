@@ -73,6 +73,65 @@ run("PostgreSQL V1.2 Qlib TestRun task lifecycle", () => {
     expect(completed.status).toBe("COMPLETED");
   });
 
+  it("serializes cancellation against the PUBLISHING_ARTIFACT transition in either queue order", async () => {
+    for (const firstRequest of ["cancellation", "publish-phase"] as const) {
+      const testRunId = randomUUID();
+      runIds.push(testRunId);
+      await repository.save({ testRunId, stageId: "V1.2", scenarioId: "normal", scenarioVersion: "v12-task-v1", ownerId, status: "RUNNING", seed: 7, assertions: [], evidence: { qlibTask: { phase: "FITTING_CN_A", cancelRequested: false, artifactPublished: false } } });
+      const artifactInput = { testRunId, ownerId, mediaType: "application/vnd.stockquant.qlib-fixture-model+json", payload: { schemaVersion: "v1.2-qlib-strategy-artifact-v1", fixtureVersion: "v1.2-market-data-5", predictions: firstRequest === "cancellation" ? [0.4] : [0.6] } } as const;
+      const pendingArtifact = await artifactRepository.savePending(artifactInput);
+
+      const lockHolder = await pool.connect();
+      await lockHolder.query("BEGIN");
+      await lockHolder.query("SELECT test_run_id FROM acceptance_stage_runs WHERE test_run_id=$1 AND owner_id=$2 FOR UPDATE", [testRunId, ownerId]);
+      const cancel = () => repository.requestV12Cancellation(testRunId, ownerId);
+      const enterPublishPhase = () => repository.updateV12Progress(testRunId, ownerId, { phase: "PUBLISHING_ARTIFACT" });
+      const waitForLockWaiters = async (expected: number) => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const result = await pool.query(`SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname=current_database() AND wait_event_type='Lock' AND state='active'
+              AND query LIKE '%acceptance_stage_runs%'`);
+          if ((result.rows[0]?.waiting ?? 0) >= expected) return result.rows[0].waiting as number;
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        return 0;
+      };
+
+      try {
+        const first = firstRequest === "cancellation" ? cancel() : enterPublishPhase();
+        expect(await waitForLockWaiters(1)).toBeGreaterThanOrEqual(1);
+        const second = firstRequest === "cancellation" ? enterPublishPhase() : cancel();
+        expect(await waitForLockWaiters(2)).toBeGreaterThanOrEqual(2);
+        await lockHolder.query("COMMIT");
+        const [firstResult, secondResult] = await Promise.allSettled([first, second]);
+        const cancelResult = firstRequest === "cancellation" ? firstResult : secondResult;
+        const phaseResult = firstRequest === "publish-phase" ? firstResult : secondResult;
+
+        if (cancelResult.status === "fulfilled") {
+          expect(firstRequest).toBe("cancellation");
+          expect(phaseResult).toMatchObject({ status: "fulfilled", value: false });
+          await expect(artifactRepository.find(testRunId, pendingArtifact.artifactId, ownerId)).rejects.toThrow("not found in user scope");
+          await expect(artifactRepository.findLifecycle(testRunId, pendingArtifact.artifactId, ownerId)).resolves.toEqual({ status: "PENDING" });
+          const cancelled = await repository.finishV12Run(testRunId, ownerId, "CANCELLED", [{ assertionId: "V1.2-QLIB-CANCEL-001", status: "PASS" }], { ...cancelResult.value.evidence, qlibTask: { ...(cancelResult.value.evidence.qlibTask as object), phase: "CANCELLED", artifactPublished: false } });
+          expect(cancelled.status).toBe("CANCELLED");
+          expect((await repository.find(testRunId, ownerId))?.evidence.qlibTask).toMatchObject({ cancelRequested: true, artifactPublished: false });
+        } else {
+          expect(firstRequest).toBe("publish-phase");
+          expect(String(cancelResult.reason)).toContain("fenced finalization");
+          expect(phaseResult).toMatchObject({ status: "fulfilled", value: true });
+          const published = await artifactRepository.publishPending(testRunId, pendingArtifact.artifactId, ownerId);
+          expect(published.status).toBe("PUBLISHED");
+          await expect(artifactRepository.find(testRunId, pendingArtifact.artifactId, ownerId)).resolves.toMatchObject({ artifactId: pendingArtifact.artifactId, sha256: pendingArtifact.sha256, status: "PUBLISHED" });
+          const completed = await repository.finishV12Run(testRunId, ownerId, "COMPLETED", [{ assertionId: "V1.2-QLIB-FIT-001", status: "PASS" }], { qlibTask: { phase: "COMPLETED", artifactPublished: true, artifactId: published.artifactId, artifactSha256: published.sha256 } });
+          expect(completed).toMatchObject({ status: "COMPLETED", evidence: { qlibTask: { artifactPublished: true, artifactId: pendingArtifact.artifactId, artifactSha256: pendingArtifact.sha256 } } });
+        }
+      } finally {
+        await lockHolder.query("ROLLBACK").catch(() => undefined);
+        lockHolder.release();
+      }
+    }
+  });
+
   it("scopes identical immutable Artifact hashes to separate TestRuns and keeps per-run retries idempotent", async () => {
     await pool.query("ALTER TABLE qlib_fixture_artifacts DROP CONSTRAINT qlib_fixture_artifacts_pkey, ADD CONSTRAINT qlib_fixture_artifacts_pkey PRIMARY KEY(artifact_id)");
     await artifactRepository.migrate();

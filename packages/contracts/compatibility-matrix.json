@@ -267,6 +267,42 @@
       }
     },
     {
+      "schema": "schemas/common/v11-acceptance-run.schema.json",
+      "consumer": "platform-api-service -> V1.1 owner-scoped acceptance Run read API",
+      "requiredProperties": [
+        "testRunId",
+        "stageId",
+        "scenarioId",
+        "scenarioVersion",
+        "namespace",
+        "ownerId",
+        "status",
+        "seed",
+        "accountId",
+        "createdAt",
+        "completedAt",
+        "error",
+        "assertions"
+      ],
+      "stableEnums": {
+        "stageId": [
+          "V1.1"
+        ],
+        "scenarioId": [
+          "normal",
+          "rejection",
+          "recovery"
+        ],
+        "status": [
+          "QUEUED",
+          "RUNNING",
+          "WAITING",
+          "COMPLETED",
+          "FAILED"
+        ]
+      }
+    },
+    {
       "schema": "schemas/common/artifact-ref.schema.json",
       "consumer": "shared TestRun evidence and cross-service Artifact consumers",
       "requiredProperties": [

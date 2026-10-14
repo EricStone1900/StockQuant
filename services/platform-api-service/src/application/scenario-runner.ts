@@ -27,7 +27,7 @@ export class ScenarioRunner {
   async start(testRunId: string, ownerId: string): Promise<void> {
     const run = await this.repository.find(testRunId, ownerId);
     if (!run || run.status !== "QUEUED") return;
-    await this.repository.updateStatus(run.testRunId, "RUNNING");
+    if (!await this.repository.transitionStatus(run.testRunId, "QUEUED", "RUNNING")) return;
     try {
       if (run.scenarioId === "recovery") {
         await this.prepareRecovery(run);
@@ -42,7 +42,7 @@ export class ScenarioRunner {
   async continueRecovery(testRunId: string, ownerId: string): Promise<void> {
     const run = await this.repository.find(testRunId, ownerId);
     if (!run || run.scenarioId !== "recovery" || run.status !== "WAITING" || !run.accountId) return;
-    await this.repository.updateStatus(run.testRunId, "RUNNING");
+    if (!await this.repository.transitionStatus(run.testRunId, "WAITING", "RUNNING", run.accountId)) return;
     try {
       const snapshot = await this.snapshot(run.accountId, run.ownerId);
       const assertions = [

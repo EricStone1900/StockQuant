@@ -33,6 +33,12 @@ try {
   const waiting = await unified.find(run.testRunId, ownerId);
   assert.equal(waiting?.status, "WAITING");
   assert.equal(waiting?.accountId, accountId);
+  const stageClaims = await Promise.all([
+    unified.transitionStatus(run.testRunId, "WAITING", "RUNNING", accountId),
+    unified.transitionStatus(run.testRunId, "WAITING", "RUNNING", accountId)
+  ]);
+  assert.equal(stageClaims.filter(Boolean).length, 1, "only one concurrent recovery request may claim the WAITING stage Run");
+  assert.equal((await unified.find(run.testRunId, ownerId))?.status, "RUNNING");
   const assertions = [
     { assertionId: "V1.1-DUAL-001", status: "PASS", expected: { count: 1 }, actual: { count: 1 }, evidence: { durable: true } },
     { assertionId: "V1.1-DUAL-002", status: "WAITING", expected: "restart", actual: "pending", evidence: { recovery: true } }
@@ -43,6 +49,16 @@ try {
   assert.equal((await unified.find(run.testRunId, ownerId))?.status, "COMPLETED");
   await unified.assertStorageReady();
 
+  const legacyRun = await legacy.create(ownerId, scenarios[1], 20260928);
+  created.push(legacyRun.testRunId);
+  await legacy.updateStatus(legacyRun.testRunId, "WAITING", accountId, null);
+  const legacyClaims = await Promise.all([
+    legacy.transitionStatus(legacyRun.testRunId, "WAITING", "RUNNING", accountId),
+    legacy.transitionStatus(legacyRun.testRunId, "WAITING", "RUNNING", accountId)
+  ]);
+  assert.equal(legacyClaims.filter(Boolean).length, 1, "only one concurrent recovery request may claim the WAITING legacy Run");
+  assert.equal((await legacy.find(legacyRun.testRunId, ownerId))?.status, "RUNNING");
+
   const rollbackRun = await unified.create(ownerId, scenarios[1], 20260927);
   created.push(rollbackRun.testRunId);
   await pool.query("DELETE FROM acceptance_stage_runs WHERE test_run_id=$1", [rollbackRun.testRunId]);
@@ -50,7 +66,7 @@ try {
   const rolledBack = await pool.query("SELECT status FROM test_runs WHERE test_run_id=$1", [rollbackRun.testRunId]);
   assert.equal(rolledBack.rows[0].status, "QUEUED", "legacy write rolls back atomically when the unified write fails");
   await assert.rejects(unified.assertStorageReady(), /unified TestRun store is not ready/u);
-  console.log(JSON.stringify({ status: "PASS", dualCreate: true, stageFirstOwnerScopedRead: true, statusAndAssertionDualWrite: true, fullPrecisionTimestamp: true, migrationParity: "PASS", missingTargetFailsClosed: true, partialWriteRolledBack: true }));
+  console.log(JSON.stringify({ status: "PASS", dualCreate: true, stageFirstOwnerScopedRead: true, statusAndAssertionDualWrite: true, concurrentRecoveryClaim: { legacy: "single winner", stage: "single winner" }, fullPrecisionTimestamp: true, migrationParity: "PASS", missingTargetFailsClosed: true, partialWriteRolledBack: true }));
 } finally {
   await pool.query("BEGIN");
   try {

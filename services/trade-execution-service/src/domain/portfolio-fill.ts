@@ -11,6 +11,7 @@ export type FillOutboxPayload = {
   effectiveAt: string;
   side?: "BUY" | "SELL";
   currency?: string;
+  settlement?: { tradeDate: string; settlementDate: string | null; calendarVersion: string; settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" | null };
   reservation?: HistoricalExecutionCommand["reservation"];
 };
 
@@ -26,6 +27,7 @@ export function toPortfolioFillCommand(fill: FillOutboxPayload) {
     effectiveAt: fill.effectiveAt,
     externalFillId: fill.externalFillId,
     side: fill.side ?? "BUY",
+    ...(fill.settlement ? { settlement: fill.settlement } : {}),
     ...(fill.reservation ? { reservation: fill.reservation } : {})
   };
 }

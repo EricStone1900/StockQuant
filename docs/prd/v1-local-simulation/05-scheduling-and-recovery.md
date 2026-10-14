@@ -1,6 +1,10 @@
+> 当前V1收尾范围（2026-10-13）：所有者要求聚焦主要功能、减少非必要验证和停止扩散；当前执行以[V1主要功能完成计划](../../plans/2026-10-08-v1-completion-plan.md)及[范围决定](../../decisions/2026-10-13-v1-core-closeout-scope.md)为准。延期增强和广泛验证不阻塞本轮，旧任务/结果/签署保留为历史；核心正确性和人工验收不缩减。
+
+> 当前范围决定（2026-10-13）：所有者已将Ubuntu实机部署/恢复/主机资源验收延期至后续Ubuntu部署验收，状态DEFERRED / NOT_RUN；它不再阻塞V1本轮开发及验收。Mac本地容器、目标架构烟测/缺口登记、其余业务/恢复和人工验收要求保留。旧记录中的Ubuntu缺口保留为历史事实，不代表当前V1阻塞。见[延期决定](../../decisions/2026-10-13-v1-ubuntu-deferral.md)。
+
 # V1.5 无人逐笔操作、故障恢复与 V1 验收
 
-状态：PARTIALLY_IMPLEMENTED（2026-09-09历史模拟/NATS/Temporal/Ubuntu烟测与人工签署仅对历史范围有效；2026-10-07隔离交互栈、真实JetStream去重、normal NO_TRADE→Temporal工作流、Temporal服务/NATS/Platform/网络/PG会话/进程恢复、单消费者lost-ACK同序号redelivery、Temporal调用边界瞬态错误NAK重投、Activity执行期间Platform/Temporal Worker重启、双Worker独立durable竞争/稳定Workflow启动幂等及单Platform Worker/API进程故障后的备用Worker接管均已核验（最新V1.5隔离报告见第8.17节）；PostgreSQL/NATS/Temporal三卷配对恢复后同Run的120项观察、Workflow完成态及JetStream ACK状态保留亦已通过。2026-10-09固定CN/US AUTO场景及Mandate预算、暂停时拒绝新订单/允许已授权订单完成、UNKNOWN原单查询恢复、已完成Run重复派发幂等、错过首日窗口后重评估及三日合成日历上的两次交易/逐日收盘双账本对账均通过隔离Web/API/CLI/export验证（[四场景E2E](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json)；[完整code suite](../../../evidence/audits/2026-10-09-v15-multi-session-code-suite-a01.log)）；另验证Trade在FakeBroker已提交后进程重启、Temporal按原clientOrderId恢复、第二Trade Execution实例接管已提交命令，以及Mandate暂停后既有授权订单继续入账、新订单在预留/发送前被拒绝（[备用实例接管E2E](../../../evidence/audits/2026-10-09-v15-trade-worker-failover-sq-v15-e2e-75b262d7e2b9d8fa1806.json)；[重启E2E](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9ab3f1b90438b7f715eb.json)；[暂停E2E](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-91f6525571ab14125e64.json)）。最新固定AUTO撤单场景已在FakeBroker提交/响应延迟窗口记录25/50股部分Fill、序号化权威撤单、Portfolio释放剩余预留并独立对账MATCH（第8.19.4节）；仍不证明真实市场日历、实时时钟/连续调度或结算。Trade Execution单实例和双实例提交后故障由备用实例按原单恢复已验证；双Trade与PostgreSQL同时中断的固定恢复场景也已通过第8.31节。Mac睡眠/唤醒、长时间中断及其他多故障组合仍未完成。V1.5四卷配对快照只覆盖V1.5隔离栈；另有当前树全服务数据库/Artifact卷合成行恢复见§8.40，但未覆盖实际V1.1–V1.4 Artifact/Qlib/Quant报告，也不证明宿主/异地灾难恢复或RPO/RTO。目标Ubuntu实机、当前范围人工验收未完成，第7节未验，第8节对已验证的隔离故障接管步骤可执行，整个阶段手册仍仅部分可执行。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：PASS（2026-10-14，已批准的Mac本地V1主要功能范围；真实NATS/Temporal、固定日历AUTO/日终对账、关页/Worker重启、重投幂等/UNKNOWN及实际业务本地配对恢复已有实测证据，见§8.43、§8.48、§8.55–8.60；用户已确认精确候选整版验收通过）。长期实时时钟/睡眠唤醒、增强跨阶段导航、穷举故障、宿主/异地灾备及Ubuntu实机延期；Artifact卷仅合成探针。版本入口：[README](./README.md)。
 
 2026-10-07 P5真实Temporal服务中断：独立隔离E2E先停止Temporal服务，再创建normal TestRun；确认Platform对同一Run的Temporal派发真实失败并NAK，重启同一Temporal容器/持久卷后Run完成120项权威观察。浏览器normal/rejection/recovery矩阵1/1、同Run CLI/export及随机项目资源清理通过；外部来源/真实券商调用0。详细故障时序、Run ID和源码Hash见[停机恢复审计](../../../evidence/audits/2026-10-07-v15-temporal-server-outage-e2e.md)。这是服务单次停机恢复证据，不覆盖数据库错误、网络隔离、双Worker或备份恢复。
 
@@ -20,16 +24,21 @@ V1.1～V1.4通过；真实NATS、Temporal与已验收领域服务接入。
 
 ## 2. 开发任务
 
+2026-10-14当前范围收口：按[所有者决定](../../decisions/2026-10-13-v1-core-closeout-scope.md)核对本轮交付，以下既有广泛父项中的剩余扩展继续保留未勾选，不构成本轮必交。原状态与清单完整保存在[同步前快照](../../../evidence/audits/2026-10-14-v1-closeout-before-status-sync.json)；不把延期项写成PASS。
+
+- [x] 当前主要功能范围已实现并实测：真实NATS/Temporal、固定日历AUTO/日终对账、关页/Worker重启、重投幂等/UNKNOWN及实际业务本地配对恢复。证据见§8.43、§8.48、§8.55–8.60及[五阶段主要路径汇总](../../../evidence/audits/2026-10-13-v1-current-core-e2e-a01.md)。长期实时时钟/睡眠唤醒、增强跨阶段导航、穷举故障、宿主/异地灾备及Ubuntu实机延期；Artifact卷仅合成探针。
+
 2026-10-10 P0责任核对：本阶段当前A31中第2/7/8节20条要求已人工映射服务主责、协作及外部操作职责，见[责任映射A01](../../../evidence/audits/2026-10-10-v1-v15-responsibility-a01.md)和[JSON](../../../evidence/audits/2026-10-10-v1-v15-responsibility-a01.json)。Platform当前承担Run/Workflow编排集成，Temporal/NATS为持久基础设施，领域服务分别拥有订单/授权/组合事实；睡眠/唤醒、Ubuntu与人工验收属于实际运维/所有者步骤。该映射不关闭P5。
 
 - [ ] 实现市场日历交易工作流与自动日终对账。固定AUTO由真实NATS/Temporal后台串接持久Proposal、Mandate、FakeBroker订单/Fill、Portfolio和独立预算账本；最新四场景隔离E2E覆盖首日错过、随后两次交易及逐日收盘双账本复核（[报告](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-aede7e79765691df51db.json)，详见第8.14节）。真实交易日历、多日连续调度、结算语义和完整日终运行仍未完成，本父项保持未关闭。
+  2026-10-12共享Trade费用变更后的V1.5完整代码兼容复验通过（§8.55）；这不补足真实市场日历、多日连续运行、全量结算或恢复证据。
 - [x] 固定双Trade实例+PostgreSQL同时中断组合已在FakeBroker提交后执行，恢复原库/依赖服务后由Temporal按原clientOrderId读回原单（第8.31节）；只关闭该故障子项，P5父项保持未关闭。
 - [ ] 实现完整暂停/恢复、UNKNOWN原单查询、执行中的重启恢复与错过窗口策略；已验证暂停后新订单拒绝、UNKNOWN原单查询、活动/已完成AUTO重复派发幂等及Fixture错过首日后两次重评估（第8.12/8.14节）。Trade Execution单实例故障、双实例同时中断后的固定恢复场景分别见第8.18/8.30节；真实时钟延迟调度、Trade双实例与PostgreSQL同时中断的固定组合已通过（第8.31节）；其他独立故障组合和完整跨域恢复仍未完成。AUTO取消请求时间由注入Clock记录（第8.19.3节）。固定AUTO撤单/部分Fill竞态已通过隔离E2E，见第8.19.4节；真实日历与结算仍未完成。
 - [x] Activity执行期间Platform API/Temporal Worker重启恢复：CN_A `verifyNoTradeSessions`已开始后重启随机隔离Platform容器，原Workflow完成120条权威读取（[执行中Worker重启审计](../../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.json)）；本地新复验还验证主/备用dispatch durable均收到同一Run后终止主Platform容器，由备用Worker接管、ACK并完成Run（第8.17节）。真实Temporal服务停机/同实例重启恢复另见[停机恢复审计](../../../evidence/audits/2026-10-07-v15-temporal-server-outage-e2e.md)。以上均为Platform/NO_TRADE派发恢复，不代表Trade单实例备用接管固定场景已通过第8.18节；这不代表多实例/多故障切换、在途Fill取消或备份恢复通过。
 - [x] 已完成AUTO TestRun重复派发：对同一`eventId`使用新JetStream Msg-ID发布第二条消息，观察原稳定Temporal Workflow ID已存在并确认新序号；随后通过内部身份读取CN/US FakeBroker summary、Portfolio账户及Governance预算，订单/Fill仍各2，预算仍每Mandate消费1次，现金/持仓/ledgerEntryCount/ledgerVersion不变。隔离Harness `sq-v15-e2e-9d20807a341936dceaf1` exit 0；机器证据[JSON](../../../evidence/audits/2026-10-09-v15-nats-temporal-dispatch-sq-v15-e2e-9d20807a341936dceaf1.json)。本项覆盖已完成与活动AUTO Workflow的重复派发；不覆盖撤销、在途Fill或交易Worker恢复。
 - [x] V1.5 normal NO_TRADE以PostgreSQL原子Outbox→真实JetStream→Temporal稳定Workflow ID运行，并经 owner/TestRun范围检查；坏JSON与错误owner消息实际终止，同一TestRun重复消息首次ACK丢弃后真实redelivery，恢复后原Outbox也ACK；第二个TestRun上的一次性Temporal `UNAVAILABLE`异常经真实NAK/redelivery后完成120项Workflow。独立多Worker durable consumer重复派发同一Run也通过稳定Workflow ID幂等收敛（[坏消息/丢ACK重投E2E](../../../evidence/audits/2026-10-07-v15-poison-envelope-e2e.md)，[完整派发和瞬态重试E2E](../../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.md)，[双Worker E2E](../../../evidence/audits/2026-10-07-v15-multiworker-e2e.md)）。
 - [x] 单Platform Worker/API进程故障接管子场景：主/备用独立durable收到同一Run后终止隔离主Platform容器，备用Worker启动该Run的Temporal Activity并ACK原消息；恢复主API后原Run完成120项权威读取（[故障切换E2E](../../../evidence/audits/2026-10-07-v15-worker-failover-e2e.md)）。此项只关闭NO_TRADE单Worker进程故障，不覆盖双Worker同时故障或真实交易/UNKNOWN。
-- [ ] 把已创建页面的告警、能力阻塞、验收中心证据和比较功能贯通；支持从任一成交追溯完整链路。V1.5正式验收页已将固定AUTO Run的Proposal、Mandate、FakeBroker Order/Fill、Outbox、Portfolio/FakeBroker现金、预算消费和reconciliation逐项展示；隔离E2E将页面字段与同Run后端证据逐项比对。当前TestRun每笔成交可通过“选择成交追溯”查看完整同Run事实，四笔AUTO Fill逐笔切换已通过。现已增加owner范围的最近V1.5 TestRun列表和并排比较：只返回摘要，经既有owner范围详情入口读取所选Run；Run能力阻塞状态及Incident生命周期、确认和自动生成均已有验证（见第8.21、8.22、8.24节）。跨阶段成交链及更广范围追溯仍未完成，故父项保持未关闭。
+- [ ] 把已创建页面的告警、能力阻塞、验收中心证据和比较功能贯通；支持从任一成交追溯完整链路。V1.5现可按External Fill ID在当前用户全部V1.5 Run中只读定位成交，包含近期列表之外的历史Run，并打开完整已存订单/授权/Outbox/双账本证据（见§8.50）。跨阶段成交检索、告警/能力/比较页到成交的导航贯通，以及全链路业务事实再核验仍未完成；本父项保持未关闭。
 - [x] 增量：owner范围的V1.5 TestRun历史和比较视图已实现并验证；`GET /api/v1/acceptance/v1/v1.5/runs?limit=`默认20、上限50，仅返回当前owner的Run摘要；所选历史Run通过现有owner保护详情接口读取。见第8.21节。此增量不关闭上方父项。
 - [x] 增量：V1.5验收页按当前TestRun的持久证据展示工作流派发、NATS、Temporal和领域执行状态；明确`NOT_CONNECTED`或失败状态显示为能力阻塞，`NOT_RUN`仍是未执行而非失败。单测和隔离浏览器负向断言见第8.22节。告警Incident接入/确认仍未实现，此增量不关闭上方父项。
 - [x] 增量：V1.5 Run Incident按持久化阻塞证据生成owner/TestRun范围投影，登录会话用户可幂等确认；阻塞清除后Incident解决，再次出现创建新Incident。NOT_RUN/WAITING不生成Incident。隔离PostgreSQL、HTTP身份边界及正式Web确认用例见第8.24节；自动外发通知及跨阶段追溯仍未完成。
@@ -43,6 +52,8 @@ V1.1～V1.4通过；真实NATS、Temporal与已验收领域服务接入。
 2026-10-09再次实测同一备份器路径：`pnpm test:backup:cluster-isolated`（默认沙箱因Docker socket权限退出1；在受控Docker执行上下文重跑退出0）。恢复清单含十个V1服务数据库和角色；合成Published ArtifactRef对应字节SHA一致；活动项目未触碰，随机项目资源精确清理。最新机器报告：[JSON](../../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-a9366d9c50ee4001.json)，SHA-256 `cfaff400ac5e1d5ee87969bc34b06e65778dfbe3034f455607922a26fe0c8842`。这仍是工具链/结构验证，不含真实业务Run账本，也未将NATS/Temporal与全部领域数据做同点配对恢复；全V1配对业务恢复任务保持未完成。
 
 2026-10-10对生产集群备份器的隔离业务事实场景复验：`pnpm test:backup:cluster-isolated` exit 0；随机隔离项目恢复10个服务数据库/角色及合成TestRun `e0d597cf-72b7-4a10-b12a-a5a8474842e1`、FakeBroker订单/Fill和Portfolio账本。恢复断言包括2条LedgerEntry、现金899.9000、持仓10股、业务关系均匹配，报告确认外部/真实券商调用0并精确清理随机资源。[机器报告](../../../evidence/audits/2026-10-09-v1-isolated-cluster-paired-backup-6ec18309cc38403b.json)；[复验日志](../../../evidence/audits/2026-10-10-v1-isolated-cluster-paired-business-facts-a01.log)，SHA-256 `71c9d43903873841a14edb0834aaff89a3de4b1cfcdbca626eea2650eac12c44`。这是对既有合成业务事实路径的复验，不是新的业务能力，也不覆盖Research Automation API发布产物、V1.1–V1.4真实回测/模型产物、活动备份编排、同点NATS/Temporal/Artifact完整V1数据、Ubuntu/异地及RPO/RTO；§2全V1备份恢复仍未完成。
+
+- [x] 当前树V1.5完整隔离Web/API/CLI自动阶段入口复跑通过：normal、AUTO trade、rejection、recovery三个浏览器用例完成，七条身份/owner拒绝及四种运行模式拒绝通过，三Run同Run CLI/export通过；见§8.47。睡眠/唤醒及其它多故障/目标环境仍未验证。
 
 ## 3. 同步 Web 开发
 
@@ -73,41 +84,58 @@ V1.1～V1.4通过；真实NATS、Temporal与已验收领域服务接入。
 
 退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
 
-- [x] 增量安全边界：V1.5 Platform Run创建只接受`scenarioId`、`seed`；四种客户端交易模式注入均被拒绝且不新增TestRun（见第8.28节）。此原子入口验证不关闭全V1路由/Worker模式矩阵。
+- [x] 增量安全边界：V1.5 Platform Run创建只接受`scenarioId`、`seed`；六种客户端交易模式组合均被拒绝且不新增TestRun（见第8.28、8.52节）。此原子入口验证不关闭全V1路由/Worker模式矩阵。
 - [x] 增量安全边界：V1.5取消与Incident确认命令拒绝非空客户端业务事实载荷；拒绝后Run取消状态及Incident状态不变，合法空体命令可继续执行。完整V1.5隔离E2E及代码套件均通过，见第8.29节。
 - [x] 增量恢复验证：V1.5正式Web创建的normal TestRun在关闭并重开页面后恢复同一Run；Temporal Activity运行中对Platform API主进程PID 1注入SIGKILL后，Compose `unless-stopped`自动重启，原Workflow完成120项观察且同Run CLI/export通过（§8.43）。这只关闭该隔离NO_TRADE进程崩溃子场景，不替代保留栈维护、Mac睡眠/唤醒、全域备份恢复或阶段人工验收。
 - [x] 增量恢复验证：保留栈中已完成Temporal Workflow但Platform API容器退出的normal Run，通过恢复该精确容器使API/Web重新可用；同Run `--check-only`确认仍为WAITING（系统调度断言NOT_RUN、HOLD观察PASS）。见§8.44；未修改Run状态或业务数据。
+- [x] 增量安全边界：V1.5 JetStream dispatch envelope及嵌套payload/session采用字段白名单；拒绝未知交易模式和客户端业务事实注入。19项定向单测及完整V1.5 code suite通过，见§8.56；本次注入覆盖为consumer validator单测，不宣称另行执行了坏消息JetStream端到端场景。
+- [x] 当前树主要功能验证：normal、双市场AUTO、rejection、recovery浏览器4/4通过；AUTO四笔成交可从Run追溯，四场景均完成同Run CLI/export，隔离资源清理核验通过（§8.57）。此项不替代全版回归或人工验收。
+
+- [x] 2026-10-13当前树V1.5正常/AUTO/拒绝/恢复浏览器4/4通过，AUTO 4 Fill追溯与同Run CLI/export通过；另完成PostgreSQL、JetStream、Temporal及Artifact卷同点隔离恢复，原AUTO订单/成交/账本MATCH且状态不变。见§8.57–8.58；Artifact内容为合成探针，不声称Qlib产物恢复。
 
 ## 7. 阶段交付待办（完成后勾选）
 
+当前交付清单按2026-10-13已批准的主要功能范围核实；PASS仅覆盖本轮范围。长期实时时钟/睡眠唤醒、增强跨阶段导航、穷举故障、宿主/异地灾备及Ubuntu实机延期；Artifact卷仅合成探针。下方早期增量说明中的“未完成/待验收”是对应日期历史，当前结论以上方状态及本节2026-10-14确认记录为准。
+
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
 
-- [ ] 契约、数据结构、场景定义和预期结果已冻结。
-- [ ] 第2节后端任务完成，真实依赖与替身明确。
-- [ ] 正式Web功能页及验收中心正常/异常场景完成。
-- [ ] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
-- [ ] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
+- [x] 当前范围的契约、数据结构、冻结Fixture、场景及预期已核实；证据见§8.43、§8.48、§8.55–8.60，广泛增强仍延期。
+- [x] 第2节当前主要功能范围完成，真实组件/Fixture边界明确；依据§8.43、§8.48、§8.55–8.60。未勾选的广泛父项按本轮范围拆分，延期部分仍未通过。
+- [x] 正式Web及验收中心当前范围正常/异常/恢复场景已通过容器Web/API/CLI实测，见§8.43、§8.48、§8.55–8.60；增强告警/跨阶段导航按范围延期。
+- [x] 第8节本地运行命令、动态Web URL、Fixture路径/Hash、配置、超时及恢复/停止说明已实测，见§8.43、§8.48、§8.55–8.60；Ubuntu URL/主机配置按决定延期，不以本地地址代填。
+- [x] 第8节本地主要路径已从准备运行到同Run CLI/export执行，原报告保留源码/输入Hash、退出码、截图/Trace与业务断言；见§8.43、§8.48、§8.55–8.60及[汇总](../../../evidence/audits/2026-10-13-v1-current-core-e2e-a01.md)。
 - [x] 增量安全边界：取消和Incident确认拒绝客户端业务事实载荷，完整隔离E2E/code证据见§8.29。该增量不代表阶段人工验收。
-- [ ] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
+- [x] 当前固定重复/恢复与适用观察范围已有实测，见§8.43、§8.48、§8.55–8.60；实际业务本地恢复见§8.58，长期实际日观察、睡眠/唤醒及完整故障穷举延期，不以虚拟日替代。
 - [x] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论（2026-09-09，PASS）。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步（2026-10-10：§8.1–8.4命令与证据更新，成交级链路、Trade恢复与NATS保留栈探针实测已同步；当前新增范围人工验收仍NOT_RUN）。
 - [x] AUTO取消/在途Fill竞态固定场景已由隔离Web、Trade FakeBroker与Portfolio账本完整执行；订单取消、部分Fill和剩余预留释放有单测、E2E及同Run CLI/export证据（仅关闭该固定场景；见§8.19.4）。
 - [x] Platform API四条V1.5场景/Run/TestRun/取消入口身份矩阵在完整隔离E2E中通过：匿名401、伪造owner 403各4/4，路由清单与控制器匹配（见§8.20）。
-- [x] 增量交付：V1.5 Run创建拒绝PAPER/FAKE、LIVE/FAKE、BACKTEST/REAL、LIVE/REAL模式注入，HTTP 422且PostgreSQL TestRun数量不变；改后完整V1.5 Web/API/CLI E2E通过，见§8.28。此子项不表示全服务/Worker模式矩阵关闭。
+- [x] 增量交付：V1.5 Run创建拒绝全部六种环境/券商模式组合注入，HTTP 422且PostgreSQL TestRun数量不变；完整V1.5 Web/API/CLI E2E通过，见§8.28、§8.52。此子项不表示全服务/Worker模式矩阵关闭。
+- [x] 增量交付：Incident确认及AUTO取消入口六种客户端模式组合均返回422且无业务状态变化；完整阶段、专用AUTO取消Web/API/CLI E2E及当前code suite见§8.53。此切片不表示全服务/Worker矩阵或阶段验收完成。
 - [x] 增量交付：owner范围V1.5历史Run摘要列表、历史详情读取及并排比较已通过代码和浏览器验证（见§8.21）；告警/能力阻塞、跨阶段追溯和人工验收仍开放。
 - [x] 增量交付：V1.5 Run能力状态与明确阻塞在正式验收页可见，`NOT_RUN`不误标失败；单元测试、负向浏览器用例、完整代码套件及四场景E2E通过（见§8.22）。告警Incident集成、跨阶段追溯和人工验收仍开放。
 - [x] 增量交付：Run Incident持久投影、会话身份确认、恢复解决/再次发生及owner隔离已由PostgreSQL集成和隔离HTTP/Web验证（见§8.24）；自动外发通知、跨阶段追溯和人工验收仍开放。
 - [x] 增量交付：隔离栈故障演练命令、预期结果、已存证据及停止/清理要求已整理为可查Runbook（见§8.25）；Mac睡眠/唤醒和人工完整操作仍未验证，其他多故障组合也未覆盖。Trade双实例中断见§8.30，双Trade与PostgreSQL组合见§8.31；不代表全域同时故障验收。
 - [x] 增量交付：FakeBroker订单/Fill已持久提交、Trade HTTP响应未返回时，实际同时终止两个Trade Execution实例1.5秒，再重启一个实例；Temporal按原`clientOrderId`读回原单，完整AUTO四笔Fill与双账本仍MATCH（见§8.30）。双Trade与PostgreSQL同时中断后的依赖服务恢复及原单读回也通过（§8.31）。Mac睡眠/唤醒、其他故障组合、真实时钟与人工演练仍开放。
 - [x] 增量交付：保留隔离栈NATS JetStream readiness探针已应用；原JetStream卷/消息和consumer状态、TestRun及Web/API经重建后复验（见§8.39）。该交付不改变人工验收未完成状态。
+- [x] 增量交付：从owner范围近期运行摘要只读打开历史V1.5 Run，并逐笔追溯该Run的四个AUTO Fill已通过隔离E2E（§8.49）；跨阶段查询、近期列表之外检索及本人验收仍开放。
+- [x] 增量交付：按External Fill ID从owner范围完整V1.5 Run集合定位近期列表之外的历史成交，隔离PostgreSQL集成、完整V1.5 code suite与Web/API/CLI E2E通过（§8.50）；跨阶段追溯、关联事实复核、告警/能力/比较导航及当前范围人验仍未完成，故父项未勾选。
 - [x] 增量交付：正常TestRun页面刷新恢复及Platform API主进程崩溃自动重启均在随机隔离栈实际执行；四场景E2E、同Run CLI/export与隔离资源清理通过（§8.43）。不勾选整阶段重复/恢复或本人验收项。
 - [x] 增量交付：保留交互栈Platform API容器恢复及同Run只读CLI核查已执行（§8.44）；Run仍WAITING，因此不勾选阶段恢复观察、阶段通过或本轮人工验收。
+- [x] 当前树完整V1.5隔离Web/API/CLI运行已通过，normal/AUTO/rejection/recovery同Run事实核验、工作流恢复及精确容器/四状态卷/网络清理见§8.47；新Run自动结论仍NOT_RUN人工验收。
+- [x] 2026-10-12当前树V1.5完整代码套件`pnpm verify:stage -- --stage V1.5 --suite code`退出0；基线67/67、Market Data集成28/28、Python适配器69/69、四服务迁移、Outbox原子性5/5和Run Incident 3/3检查通过，隔离资源清理通过。原始日志、退出码与SHA-256见§8.48。此项不关闭完整睡眠/唤醒恢复、Ubuntu或人工验收。
+- [x] V1.4共享Trade费用实现变更后的V1.5完整代码/隔离集成复验exit 0；受控PostgreSQL迁移、服务构建、Market Data/Platform集成及资源清理通过，见§8.55。此项不关闭V1.5完整业务恢复、Ubuntu或人工验收。
+- [x] 2026-10-13 V1.5 dispatch envelope字段白名单及业务事实注入单测19/19，完整code suite exit 0（§8.56）；当前树主要场景Web/API/CLI/export 4/4及四笔AUTO Fill追溯通过（§8.57）。不表示阶段人验或V1验收完成。
+
+- [x] 2026-10-13当前树V1.5正常/AUTO/拒绝/恢复浏览器4/4通过，AUTO 4 Fill追溯与同Run CLI/export通过；另完成PostgreSQL、JetStream、Temporal及Artifact卷同点隔离恢复，原AUTO订单/成交/账本MATCH且状态不变。见§8.57–8.58；Artifact内容为合成探针，不声称Qlib产物恢复。
+
+- [x] 用户于2026-10-14在对话确认当前候选整版V1验收通过，覆盖本阶段本轮范围；候选SHA-256 `132535fbdf2bf1d50e4260e397424b3a47ef949dedcc62e58257c0a5697bd2d4`，代表Run及签署日期见[验收表](./99-acceptance.md)。历史单Run人工结论不倒填。
 
 ## 8. 阶段验收操作手册
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：PARTIALLY_VERIFIED_EXECUTABLE（2026-10-09：V1.5 code suite与隔离Web/API/NATS/Temporal E2E已实测；覆盖normal、首个合成窗口错过后两次交易/逐日收盘复核、暂停Mandate拒绝新单、CN_A FakeBroker提交后响应丢失且原单首次查询不可用、同Run原单恢复及CLI/export。PostgreSQL进程中断、网络隔离、Temporal服务中断、Platform/Trade Worker接管、双Worker竞争及四卷配对备份恢复均有各自隔离报告（见§8.25）；Mac睡眠/唤醒、连续实时日观察、宿主/异地灾备、完整V1恢复和当前范围人工验收仍未完成。Trade主实例提交后由备用实例按原clientOrderId恢复已在§8.18验证）。本节只对已实际运行的操作写入证据；未验证业务命令和路径仍明确标出，不推断为通过。
+手册状态：VERIFIED_EXECUTABLE（2026-10-14收口，限已实测的Mac本地主要功能操作；实际执行证据见§8.43、§8.48、§8.55–8.60，当前候选整版人工验收已由用户确认）。启动时使用当次输出的动态URL和精确项目名；历史随机URL不能复用。长期实时时钟/睡眠唤醒、增强跨阶段导航、穷举故障、宿主/异地灾备及Ubuntu实机延期；Artifact卷仅合成探针。以前部分验证状态与原操作记录保留于[同步前快照](../../../evidence/audits/2026-10-14-v1-closeout-before-status-sync.json)及下方各次实测记录。
 
 前置服务：V1核心服务、真实NATS/Temporal、Gateway/FakeBroker、备份恢复工具与外部故障执行器。
 
@@ -122,7 +150,7 @@ V1.1～V1.4通过；真实NATS、Temporal与已验收领域服务接入。
 | 正式页面的真实入口/跳转链接 | 启动时打印随机loopback URL；2026-10-07最终复验 `http://127.0.0.1:50143/acceptance/v1/v1.5` |
 | Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | AUTO日历 `fixtures/v1/v1.5/auto-trade-calendar-2.json`，版本`v1.5-auto-trade-calendar-2`，SHA-256 `793e573513c39431f4ba5019d35cec8d5c9d73f4b7c4c53777b3c71472893afc`；Manifest `fixtures/v1/v1.5/auto-trade-calendar-2-manifest.json` SHA-256 `d8a7e2adf550c67404cf874551b5aa2f2587c00952b479ef2829b8866fcf6b01`；两市场合成日均为2026-01-05、06、07；第1日错过，第2、3日成交并收盘对账。NO_TRADE Fixture SHA-256 `540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463` |
 | 配置文件及必需环境变量名/非秘密测试值 | 隔离Harness自动生成随机配置；FAKE broker、模拟账户、LIVE写入关闭；不需手填凭证 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | E2E只操作随机Compose项目并自动清理；交互栈停止仅使用当次启动输出的 `stopCommand`。PostgreSQL/备份故障步骤尚未验证，保持NOT_RUN |
+| 外部故障目标及可执行命令、恢复/隔离清理入口 | E2E只操作随机Compose项目并自动清理；交互栈停止仅使用当次启动输出的 `stopCommand`。当前范围PostgreSQL/NATS/Temporal与实际AUTO业务配对恢复已实测，见§8.58；Artifact仅合成探针，宿主/异地灾备延期 |
 | 预期耗时、轮询超时、实际观察期/预算 | 最近V1.5 E2E约2分钟；健康检查最多30秒；有界等待超时即失败。合成日历不是实际市场观察 |
 
 ### 8.2 初始化与启动（隔离交互栈已实测；业务验收待执行）
@@ -646,3 +674,81 @@ V1.4记录由Harness直接插入，是数据库结构与配对校验的合成覆
 只读预检确认精确项目`sq-v15-stack-bd6742505479a4cd8f94`的Platform API容器因OOM退出（exit 137），而唯一normal TestRun的持久状态为`WAITING`、Workflow/Temporal均`COMPLETED`、业务执行为`NO_TRADE_SESSIONS_EXECUTED`。随后仅将该精确API容器的restart policy设为`unless-stopped`并启动该容器；未执行SQL写入、其他容器重启、卷操作、迁移、行情源或券商调用。容器现为running/healthy，API `/live`与Web页面均HTTP 200。恢复快照[JSON](../../../evidence/audits/2026-10-10-v15-platform-api-recovered-live-stack-a01.json)，SHA-256见[sidecar](../../../evidence/audits/2026-10-10-v15-platform-api-recovered-live-stack-a01.json.sha256)。
 
 对既有TestRun `1f9b8fd0-9a51-45eb-803d-b613bbd8d126`执行`pnpm verify:stage -- --stage V1.5 --run 1f9b8fd0-9a51-45eb-803d-b613bbd8d126 --check-only`，请求为只读GET，退出码2。断言`V1.5-SYS-SCHEDULE-001`仍WAITING/`NOT_RUN`；`V1.5-HOLD-002`为PASS，包含120项权威观察、0订单/Fill、账户余额和持仓不变。该退出码表示必要观察尚未执行，保留为INCOMPLETE而非失败；不据此更改历史Run或签署人工验收。CLI日志、退出码及摘要见[核查日志](../../../evidence/audits/2026-10-10-v15-retained-normal-run-checkonly-a01.log)、[摘要](../../../evidence/audits/2026-10-10-v15-retained-normal-run-checkonly-a01.json)。
+
+### 8.45 V1.5共享StageRun证据投影与四场景模式核对（2026-10-11）
+
+修复V1.5权威Run证据生成路径，使normal、AUTO、rejection及UNKNOWN recovery均记录`environmentMode=PAPER`和`dataMode=FIXTURE`；导出API不再推断缺失模式。平台单测31/31及类型检查通过。`pnpm test:e2e -- --stage V1.5`在隔离项目`sq-v15-e2e-982b64e3e0bad66da7bd`中3/3 Playwright通过；四个同Run共享证据响应均为HTTP 200，UUID、owner、stage一致，模式为PAPER/FIXTURE/FAKE，断言数量分别为2/5/3/2，人工结论为NOT_RUN。四个TestRun：normal `81ec613d-005b-4bb4-a66d-9848bb65f9e9`、AUTO `c0a00708-faa8-46e6-ba60-275240923a24`、rejection `adab4e9a-1f9c-48b7-bf56-f7fed70402f1`、recovery `a47e3e50-ae7c-4260-b73d-a7b263107113`。真实来源/券商调用均为0，隔离容器、卷、网络精确删除。E2E完整日志[ a02 ](../../../evidence/audits/2026-10-11-v15-shared-stage-evidence-isolated-a02.log)，SHA-256 `af4f7144a621fd1f7a7af8412d34699c373f355774ad57f884c9a8f6a22567d7`；机器报告[JSON](../../../evidence/audits/2026-10-11-v15-nats-temporal-dispatch-sq-v15-e2e-982b64e3e0bad66da7bd.json)，SHA-256 `c36484e1009edda10896d2de3771b597e1d3910c01876d935617b5e2adf43d1f`。V1.5完整代码套件exit 0，见[code suite a01](../../../evidence/audits/2026-10-11-v15-shared-stage-code-suite-a01.log)，SHA-256 `5e9229bc074c9c188d3cb29e110b8f1b7bfa9f92d663e582512ef3975823c81d`。首次缺模式的E2E失败保留于[ a01 ](../../../evidence/audits/2026-10-11-v15-shared-stage-evidence-isolated-a01.log)。本子项不签署人工验收，也不关闭V1.5整体恢复及正式V1门禁。
+
+### 8.46 V1.5当前树NATS/Temporal与Trade中断恢复E2E（2026-10-11）
+
+受控隔离执行`pnpm test:e2e -- --stage V1.5`，浏览器3/3通过，当前树报告记录46个来源文件且SHA-256全匹配。normal、AUTO、rejection、recovery四个TestRun分别为`8c4fc990-bdc2-4774-b8fb-4a2bf7600cf8`、`c414dd42-6d88-488e-83fc-c9249dc68b17`、`b2208cc0-c1be-470a-8654-eda686bd96f3`、`aae355a9-0e59-4fba-9cc7-d991576f31c5`；覆盖NATS停止恢复、Platform API和Temporal Worker重启、毒消息/错owner ACK隔离与JetStream重投、AUTO活动重复派发抑制、Mandate暂停阻止后续订单、Trade提交后断联、Temporal重试并查询原单、UNKNOWN按原`clientOrderId`恢复，以及短暂Temporal不可用后的重投。四场景同Run证据出口核对PAPER/FIXTURE/FAKE；无真实行情源或券商调用，报告确认精确隔离资源清理。机器报告[JSON](../../../evidence/audits/2026-10-11-v15-nats-temporal-dispatch-sq-v15-e2e-dec42825cd8376398a70.json)，SHA-256 `2a7e28080e3a25ff5ba30d160d8be7164017454838053e57805968d7cc0422cd`；执行日志[日志](../../../evidence/audits/2026-10-11-v15-current-tree-recovery-e2e-a03.log)，exit 0，SHA-256见[sidecar](../../../evidence/audits/2026-10-11-v15-current-tree-recovery-e2e-a03.log.sha256)。这是固定隔离恢复覆盖，不代表Mac睡眠/唤醒、完整V1业务备份恢复、Ubuntu或阶段人工验收通过；本轮TestRun的人工结论仍NOT_RUN。
+
+### 8.47 V1.5 当前树完整隔离阶段入口复跑（2026-10-12）
+
+执行`pnpm test:e2e -- --stage V1.5`，完整日志/exit/SHA见[复跑日志](../../../evidence/audits/2026-10-12-v15-current-tree-stage-e2e-a01.log)、[退出码](../../../evidence/audits/2026-10-12-v15-current-tree-stage-e2e-a01.log.exit.txt)及[SHA-256](../../../evidence/audits/2026-10-12-v15-current-tree-stage-e2e-a01.log.sha256)，受控exit 0。真实NATS JetStream/Temporal/PostgreSQL与领域容器启动；三项Chromium用例通过，其中主用例执行normal NO_TRADE、AUTO交易、暂停Mandate拒绝及recovery；每个场景经同Run CLI/export，另有能力阻塞和Incident身份用例。Platform 7条路由匿名/伪造owner拒绝矩阵及4种运行模式注入拒绝通过。normal/AUTO/recovery TestRun分别为`2c4be751-34fc-4b19-8bcc-f6f8ff67b8c9`、`f19348cc-ad7d-437f-9390-e6d53920dd45`、`4622a913-28ae-4b8d-8f76-6ed9e9042f73`。Harness核实随机项目`sq-v15-e2e-004ec1c10490dcebd6a7`的容器、PostgreSQL/NATS/Temporal/Artifact四卷和网络均按精确名称移除；外部行情源及真实券商调用0。
+
+本次只验证固定Fixture自动路径。各Run`manualConclusion=NOT_RUN`；Mac睡眠/唤醒、其它多故障Worker组合、真实市场日历/结算、完整V1.1–V1.4活动配对恢复、Ubuntu与当前范围本人验收仍未满足，不能据此关闭V1.5/P5。
+
+### 8.48 V1.5 当前树完整代码套件复跑（2026-10-12）
+
+`pnpm verify:stage -- --stage V1.5 --suite code`在受控本机回环/容器环境退出0。基线67/67、工作区build/lint/typecheck及服务单测通过；Market Data隔离HTTP/PG集成28/28、Python适配器69/69通过；Platform、Governance、Trade、Portfolio四服务独立数据库迁移通过，Platform Outbox原子性5/5、Run Incident 3/3通过，linux/arm64 Trade readiness通过。隔离PostgreSQL容器/网络均清理并核验，活动服务`NOT_CONNECTED`。完整日志、退出码与SHA-256见[code suite日志](../../../evidence/audits/2026-10-12-v15-current-tree-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v15-current-tree-code-suite-a01.log.exit.txt)和[SHA-256](../../../evidence/audits/2026-10-12-v15-current-tree-code-suite-a01.log.sha256)。这不验证Mac睡眠/唤醒、全域配对恢复、Ubuntu实机或当前范围人工验收。
+
+### 8.49 owner范围历史Run成交追溯（2026-10-12）
+
+正式Web新增“打开历史运行（只读）”入口，选项来自当前用户近期V1.5 Run摘要；切换时清空旧成交选择，通过既有owner保护详情和Incident API读取所选Run，不创建或修改业务事实。`pnpm test:e2e -- --stage V1.5`退出0，normal、AUTO、rejection、recovery及能力阻塞/Incident用例3/3通过。主流程创建AUTO Run `de0e683f-02fa-4ef2-a158-1b7b4137103d`，后续完成rejection与recovery，再从近期历史列表重开该AUTO Run；Web显示同一TestRun ID，并可选择四笔Fill逐项核对Proposal、Mandate、FakeBroker Order、Portfolio现金与FakeBroker现金，均与owner认证详情API证据一致。四场景各自的CLI同Run检查及证据导出通过，人工结论均为`NOT_RUN`。完整代码门禁`pnpm verify:stage -- --stage V1.5 --suite code`也退出0。运行日志、退出码及SHA-256见[E2E日志](../../../evidence/audits/2026-10-12-v15-historical-run-fill-trace-e2e-a02.log)、[E2E exit](../../../evidence/audits/2026-10-12-v15-historical-run-fill-trace-e2e-a01.exit.txt)、[E2E SHA-256](../../../evidence/audits/2026-10-12-v15-historical-run-fill-trace-e2e-a02.log.sha256)和[code suite日志](../../../evidence/audits/2026-10-12-v15-historical-run-fill-trace-code-a04.log)。隔离项目容器、卷和网络由Harness精确清理；真实行情/券商调用0。
+
+本实现仅覆盖owner近期列表内的V1.5 Run；不提供跨阶段或列表之外的任意Fill检索，也未贯通告警/能力/比较页到成交的导航。V1.5-S2-L19/P5保持`OPEN`；睡眠/唤醒、Ubuntu和当前范围本人验收未由本次执行覆盖。
+
+### 8.50 按External Fill ID检索V1.5历史成交链路（2026-10-12）
+
+V1.5验收页新增External Fill ID搜索；Platform API `GET /api/v1/acceptance/v1/v1.5/fills/{externalFillId}/trace`按当前会话owner和`stage_id=V1.5`在完整历史Run证据中精确查找，不受近期Run列表20条限制。不存在或其他用户的Fill均返回404；同一用户多个Run出现相同Fill ID时返回409，不猜测目标。页面只读打开命中Run并选中该Fill，展示其已持久化Proposal、Mandate、FakeBroker Order/Fill、Outbox和Portfolio/FakeBroker对账。
+
+PostgreSQL集成测试将目标Run设为90天前并确认其不在`listV15Runs(owner, 1)`结果内，仍可按Fill ID找回；另一owner持有相同ID不泄漏，缺失ID返回空，当前owner出现重复ID时失败关闭。完整`pnpm verify:stage -- --stage V1.5 --suite code`退出0，日志[code suite a03](../../../evidence/audits/2026-10-12-v15-fill-id-trace-code-suite-a03.log)、[exit](../../../evidence/audits/2026-10-12-v15-fill-id-trace-code-suite-a03.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v15-fill-id-trace-code-suite-a03.log.sha256)。当前树`pnpm test:e2e -- --stage V1.5`隔离浏览器3/3通过，normal/AUTO/rejection/recovery的同Run CLI/export、历史AUTO四笔成交及按Fill ID搜索核对通过；随机容器、卷、网络已清理，外部行情/真实券商调用0。见[E2E日志](../../../evidence/audits/2026-10-12-v15-fill-id-trace-e2e-a01.log)、[exit](../../../evidence/audits/2026-10-12-v15-fill-id-trace-e2e-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v15-fill-id-trace-e2e-a01.log.sha256)和[隔离Run报告](../../../evidence/audits/2026-10-11-v15-nats-temporal-dispatch-sq-v15-e2e-fb8424b59c5a689bc260.json)。本项只关闭近期列表范围之外的V1.5 Fill定位子项；跨阶段追溯、关联事实重新核验、告警/能力/比较导航和人工验收仍未完成，V1.5-S2-L19/P5继续OPEN。
+
+### 8.51 V1.5 Incident与AUTO取消路由拒绝模式注入（2026-10-12）
+
+隔离V1.5完整Web/API/CLI Harness在Run Incident确认路由提交四种交易模式，均422且Incident保持OPEN；随后合法确认和幂等重放通过。专用AUTO取消Harness同样对四种模式拒绝并核对取消事实不变；正式Web在FakeBroker提交部分成交后取消原Run，最终仅1笔25股Fill、订单CANCELLED、剩余预约RELEASED、无后续订单、FakeBroker/Portfolio `MATCH`，同Run CLI/export通过。正常V1.5阶段Harness浏览器3/3、模式创建边界和Incident确认通过；专用AUTO取消重跑浏览器3/3、精确容器/卷/网络清理通过。证据汇总见[A108](../../../evidence/audits/2026-10-12-v1-l17-cancel-mode-boundaries-a108.json)，标准Run报告[见此](../../../evidence/audits/2026-10-11-v15-nats-temporal-dispatch-sq-v15-e2e-f1969e9b3ae6011602c8.json)，AUTO取消报告[见此](../../../evidence/audits/2026-10-11-v15-auto-trade-cancellation-sq-v15-e2e-ca6df78b79cb538c5b78.json)。首次AUTO取消Run因历史回查断言固定要求4笔Fill而失败；修正为按取消结果期待1笔后复验通过，原失败报告保留于[此处](../../../evidence/audits/2026-10-11-v15-auto-trade-cancellation-sq-v15-e2e-ad2e3ecb1205cc60367a.json)。
+
+上述证据只覆盖V1.5两个Platform端点的固定拒绝/幂等场景，V1.5所有服务/Worker写路由、活动发布回退、全域恢复、Ubuntu与人验仍未关闭。
+
+### 8.53 V1.5 Incident确认与AUTO取消六种模式矩阵（2026-10-12）
+
+将V1.5 Run Incident确认及AUTO Run取消的客户端交易模式拒绝检查扩展至完整`PAPER/BACKTEST/LIVE × FAKE/REAL`六组合。标准隔离Harness在Incident确认入口逐项发送六种组合，每次均422且Incident保持OPEN；后续合法确认/幂等重放仍通过。专用AUTO取消场景在FakeBroker已提交部分成交后发起同Run取消，六种注入均422且取消事实不变；订单最终CANCELLED、25股部分成交、剩余量取消、Reservation RELEASED、无后续Session订单，FakeBroker/Portfolio对账MATCH，同Run CLI/export通过。标准阶段浏览器4/4、专用AUTO取消浏览器4/4；完整V1.5 code suite exit 0，真实券商/外部来源调用0，隔离资源精确清理。
+
+证据：[标准阶段E2E](../../../evidence/audits/2026-10-12-v15-l17-six-mode-e2e-a01.log)、[AUTO取消E2E](../../../evidence/audits/2026-10-12-v15-l17-six-mode-auto-cancel-e2e-a01.log)、[完整code suite](../../../evidence/audits/2026-10-12-v15-l17-six-mode-code-suite-a01.log)，各自附有exit与SHA sidecar。此项仅覆盖两个V1.5 Platform入口，不关闭其他服务/Worker写路由、阶段缺项、Ubuntu、完整恢复或人工验收。
+
+### 8.52 V1.5 Run创建完整客户端模式注入矩阵（2026-10-12）
+
+在V1.5正式验收页建立本地会话后，读取owner范围Run列表作为持久化基线，依次向`POST /api/v1/acceptance/v1/v1.5/runs`提交`PAPER/FAKE`、`PAPER/REAL`、`BACKTEST/FAKE`、`BACKTEST/REAL`、`LIVE/FAKE`、`LIVE/REAL`六种客户端模式组合。六项均在派发前返回422；前后TestRun ID列表均为空，没有新增Run或Workflow派发。随后既有V1.5 normal、AUTO、rejection、recovery Web场景及同Run CLI/evidence export完整通过；AUTO Run四笔成交可从owner历史记录读回。真实券商/行情源调用0，隔离项目容器、PostgreSQL/NATS/Temporal/Artifact卷和网络精确清理。
+
+完整V1.5隔离E2E日志、退出码与SHA-256见[日志](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-e2e-a01.log)、[exit](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-e2e-a01.log.exit.txt)及[SHA-256](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-e2e-a01.log.sha256)。后续完整`pnpm verify:stage -- --stage V1.5 --suite code`在受控本机回环环境exit 0，基线、Crosswalk、合同/Fixture、全仓lint/typecheck/unit、Trade隔离故障、Market Data HTTP/PG及四服务迁移检查通过；隔离数据库、容器和网络清理验证通过，见[code suite日志](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-code-suite-a01.log.exit.txt)及[SHA-256](../../../evidence/audits/2026-10-12-v15-l17-mode-injection-code-suite-a01.log.sha256)。本项只扩展V1.5 Platform Run创建入口的拒绝矩阵；其他服务/Worker入口、完整运行时故障恢复、Ubuntu和当前范围本人验收仍未完成，L17/P5/V1保持开放。
+
+### 8.54 V1.5-S2-L17 strict-cash evidence semantic refresh (2026-10-12)
+
+A137只复核`V1.5-S2-L17`一条：OD-014获批准后，共享Portfolio/Trade Paper当前树定向测试通过，V1.4完整隔离code suite报告9组跨域账本对账/9次FakeBroker幂等资产重放，V1.4容器化Web/API/CLI E2E 7/7并完成同Run CLI检查。该证据补足共享严格现金实现的当前证据，但没有证明V1.5 AUTO全链路结算Parity。V1.5仍是三会话合成日历、两次执行；真实时钟/权威日历/一般化多日调度/完整日终、Worker恢复和人验仍OPEN/NOT_RUN，因此P5不关闭。[A137语义复核](../../../evidence/audits/2026-10-12-v1-gap-matrix-semantic-review-a137.md)、[A137矩阵](../../../evidence/audits/2026-10-12-v1-current-gap-matrix-a137.json)、[strict-cash code suite](../../../evidence/audits/2026-10-12-v14-full-code-suite-strict-cash-a01.log)、[Web/API/CLI E2E](../../../evidence/audits/2026-10-12-v14-strict-cash-web-e2e-a01.log)。
+
+### 8.55 V1.4共享Trade执行费用变更后的V1.5兼容回归（2026-10-12）
+
+V1.4 US固定Fixture费用/滑点修复后，受控执行`pnpm verify:stage -- --stage V1.5 --suite code`，完整套件exit 0。套件覆盖全仓基线、Trade构建与隔离安全探针、V1.5 Platform/PostgreSQL迁移、Market Data隔离HTTP/PG、Platform Run Incident集成及当前树V1.5代码检查；临时数据库/网络均报告PASS并移除，服务`NOT_CONNECTED`，未连接真实数据源或券商。日志、exit及SHA见[V1.5 code suite](../../../evidence/audits/2026-10-12-v15-post-a142-code-suite-a01.log)、[exit](../../../evidence/audits/2026-10-12-v15-post-a142-code-suite-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-12-v15-post-a142-code-suite-a01.log.sha256)。
+
+这是共享依赖变更后的当前树兼容复验，不等同完整AUTO业务恢复/实时时钟/日历验收；Ubuntu和本轮人工验收仍NOT_RUN，P5继续OPEN。
+
+### 8.56 V1.5 JetStream dispatch envelope字段白名单（2026-10-13）
+
+`validateV15DispatchEnvelope`现对envelope、payload及嵌套session字段执行白名单校验，未知字段、六种客户端环境/券商模式及status/cash/ledger/order业务事实注入均由consumer validator拒绝。定向Vitest 19/19通过；完整`pnpm verify:stage -- --stage V1.5 --suite code` exit 0，隔离PostgreSQL与精确资源清理通过。[执行日志](../../../evidence/audits/2026-10-13-v15-l17-dispatch-envelope-mode-http-unit-a01.log)、[退出码](../../../evidence/audits/2026-10-13-v15-l17-dispatch-envelope-mode-http-unit-a01.log.exit.txt)、[SHA-256](../../../evidence/audits/2026-10-13-v15-l17-dispatch-envelope-mode-http-unit-a01.log.sha256)。本次注入证据为validator单测；没有单独声称坏消息JetStream端到端测试。本项不关闭V1.5业务恢复、Ubuntu或人工验收。
+
+### 8.57 当前树 V1.5 四场景主要功能复验（2026-10-13）
+
+执行 `pnpm test:e2e -- --stage V1.5`，隔离真实PostgreSQL、NATS JetStream、Temporal、Platform/Trade/Portfolio/Governance及Web环境。浏览器4/4通过：normal、双市场AUTO、rejection、recovery；AUTO Run `7a7b15ba-a02a-4b62-ba99-f9e3bdef5b7a`查询并追溯4笔Fill，四个Run均通过同Run CLI/证据导出。报告保留`manualConclusion=NOT_RUN`；外部来源/真实券商调用为0，随机项目容器、持久卷、网络清理通过。[机器报告](../../../evidence/audits/2026-10-13-v15-nats-temporal-dispatch-sq-v15-e2e-7a86df3dcd7b56648bef.json)，SHA-256 `5106c93b15dbeed3ec67af3d0322435941635afbb874416ed1d1ca00276a0fa8`。本次确认V1.5固定场景当前树可用，不替代完整V1 code/E2E回归或人验；日历仍是合成Fixture，不代表实时市场观察。
+
+### 8.58 V1.5 AUTO实际业务事实本地配对恢复（2026-10-13）
+
+`STOCKQUANT_V15_E2E_BACKUP_RESTORE=true pnpm test:e2e -- --stage V1.5` exit 0。固定AUTO Run `c37b5b88-4a7b-4fd4-928c-b3fde11e42bd`在PostgreSQL/NATS JetStream/Temporal/Artifact四卷存档后恢复至新卷；原Run仍`AUTO_TRADE_EXECUTED`，4订单/4 Fill，组合及Mandate预算读回、业务状态和账本MATCH。normal/rejection/recovery同Run CLI/export和隔离资源清理通过。完整报告及四卷归档Hash见[机器报告](../../../evidence/audits/2026-10-13-v15-paired-backup-restore-sq-v15-e2e-e946ae2d2ce051439c03.json)，报告SHA-256 `9262b3b4751f68945264921b3de64e076ca944159c4f62b7a96d75132411a2f2`。Artifact内容是为精确测试Run写入的合成内容寻址探针，不是Qlib真实模型Artifact；恢复证明限于V1.5隔离栈和其业务Run，不证明异地/宿主灾备、生产RPO/RTO或Qlib Artifact跨阶段恢复。人工验收NOT_RUN。
+
+### 8.59 当前候选重新验收（2026-10-13）
+
+重新执行标准`pnpm test:e2e -- --stage V1.5`及配对恢复环境`STOCKQUANT_V15_E2E_BACKUP_RESTORE=true pnpm test:e2e -- --stage V1.5`，两者exit 0。标准浏览器4/4，AUTO四笔Fill追溯、四场景同Run CLI/export通过；配对恢复后原AUTO订单/成交/组合账本保持MATCH。报告分别见[标准E2E](../../../evidence/audits/2026-10-13-v15-nats-temporal-dispatch-sq-v15-e2e-b9bfad6c14160fc11f15.json)与[配对恢复](../../../evidence/audits/2026-10-13-v15-paired-backup-restore-sq-v15-e2e-082ede02bbf443ef315f.json)。外部数据源/真实券商调用0，隔离资源清理通过；Artifact仅以合成探针验证卷恢复，真实Qlib Artifact恢复未验证。生成Run的`manualConclusion`不由自动测试或文档代签。
+
+### 8.60 V1.5完成态与当前TestRun Bundle复验（2026-10-14）
+
+修正AUTO成交、paused-mandate拒绝和原单恢复业务断言全部通过后，StageRun状态仍为WAITING的问题：三种已完成的业务工作流现在持久化COMPLETED，NO_TRADE观察Run仍保留WAITING；浏览器和同Run CLI依照各自真实完成态核对，未降低业务断言。执行环境选项 STOCKQUANT_V15_PRESERVE_RUN_EXPORTS=true 下运行 pnpm test:e2e -- --stage V1.5，退出0，4/4通过：normal进行了120次Fixture观察且无订单；AUTO双市场执行并追溯4笔Fill；paused-mandate拒单；恢复场景通过。四Run均完成同Run CLI与Evidence Export并保留Bundle：normal 0142b7ca-43ca-4f79-bf55-d36eed38b813（WAITING，两断言PASS）；AUTO baf7dfea-2a62-48a3-879b-9ece98b5ae0f（COMPLETED，5项PASS）；rejection f060fa86-0fe5-4322-9fc1-8fa6a6f30890（COMPLETED，3项PASS）；recovery dce571d9-51d7-4d2b-a5e4-a933ce384594（COMPLETED，2项PASS）。Manifest SHA依次为69e66bc7c8c1442619a504138f139516e734ebf7bff58b9cde8e292463577541、299baa8152f17f501f6bdd6feb8a437be779ccf98b0988b980ef71fbc293386f、7428d402104c8ce94a8bdcce988e339816d587fe556dbb0baa60d8c9216cb24d、976a2dd8c04b3f59e09eb5898d7b28cd3dce25d203b3ead636c805206531a9af。报告[JSON](../../../evidence/audits/2026-10-14-v15-nats-temporal-dispatch-sq-v15-e2e-b3092c429344ecbdf32a.json)，报告SHA-256 4c0ad1bea5740136baa9598c847f2071a02fdc58c9effbc1b09f3f335ddfde6c。真实来源/券商调用0；隔离项目及精确资源清理通过。Run内人工结论仍NOT_RUN；本次状态结论不延伸到未运行的日终或实时时钟观察。

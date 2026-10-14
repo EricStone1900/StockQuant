@@ -42,11 +42,19 @@
         }
       }
     },
+    "/internal/v1/accounts/{accountId}/settlements": {
+      "post": {
+        "operationId": "settleAccountReceivables",
+        "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["asOf"], "properties": { "asOf": { "type": "string", "format": "date-time" } } } } } },
+        "responses": { "200": { "description": "Due receivables settled idempotently", "content": { "application/json": { "schema": { "type": "object", "required": ["settledFillIds"], "properties": { "settledFillIds": { "type": "array", "items": { "type": "string", "format": "uuid" } } } } } } }, "400": { "description": "Invalid run clock" }, "403": { "description": "Caller or account mode rejected" }, "404": { "description": "Account not found" } }
+      }
+    },
     "/internal/v1/accounts/{accountId}/snapshot": {
       "get": {
         "operationId": "getAccountSnapshot",
         "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "responses": { "200": { "description": "Account snapshot", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" } } } }, "403": { "description": "Owner scope rejected" }, "404": { "description": "Account not found" } }
+        "responses": { "200": { "description": "Account snapshot includes settled cash and outstanding/settled sale receivables", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/account-snapshot.schema.json" } } } }, "403": { "description": "Owner scope rejected" }, "404": { "description": "Account not found" } }
       }
     },
     "/internal/v1/accounts/{accountId}/reservations": {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { loadV14CorporateActionFixture, loadV14DailyBacktestFixture, loadV14RestrictionFixture } from "../../src/adapters/v14-daily-backtest-fixture.js";
-import { evaluateV14RestrictionBar, runV14CorporateActionScenario, V14BacktestEngine, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
+import { evaluateV14RestrictionBar, runV14CorporateActionScenario, runV14RestrictionScenario, V14BacktestEngine, type V14ExecutionPolicy } from "../../src/domain/v14-daily-backtest.js";
 
 describe("V1.4 fixture-backed daily backtest", () => {
   it("uses frozen synthetic restriction cases to reject suspension and locked limits by side", () => {
@@ -13,6 +13,8 @@ describe("V1.4 fixture-backed daily backtest", () => {
       { caseId: "locked-lower-sell", side: "SELL", status: "REJECTED", reason: "LOCKED_AT_LOWER_LIMIT" },
       { caseId: "open-market-buy", side: "BUY", status: "FILLABLE" }
     ]);
+    const run = runV14RestrictionScenario(restrictions.bars, restrictions.sha256, 20260907);
+    expect(run.evidence.executionModel).toEqual({ component: "QUANT_BACKTEST_ENGINE", modelId: "SYNTHETIC_DAILY_OHLC_RESTRICTION_RULES_V1" });
   });
 
   it("does not infer a locked limit from a bar whose daily range includes other prices", () => {
@@ -28,6 +30,12 @@ describe("V1.4 fixture-backed daily backtest", () => {
       : { ...original, amountPerShareCents: original.amountPerShareCents! + 1 };
     expect(() => runV14CorporateActionScenario(fixture.bars, [...fixture.actions, conflicting], fixture.sha256, 20260907))
       .toThrow(`V1.4 conflicting corporate action replay: ${original.actionId}`);
+  });
+
+  it("labels the corporate-action ledger execution model separately from Qlib research", () => {
+    const fixture = loadV14CorporateActionFixture();
+    const run = runV14CorporateActionScenario(fixture.bars, fixture.actions, fixture.sha256, 20260907);
+    expect(run.evidence.executionModel).toEqual({ component: "QUANT_BACKTEST_ENGINE", modelId: "RAW_DAILY_BAR_CORPORATE_ACTION_LEDGER_V1" });
   });
 
   it("rejects fractional-share splits and dividend payments outside the frozen calendar", () => {
@@ -50,6 +58,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
     const run = engine.run("normal");
     expect(run.status).toBe("COMPLETED");
     expect(run.evidence.fixtureSha256).toBe(fixture.sha256);
+    expect(run.evidence.executionModel).toEqual({ component: "QUANT_BACKTEST_ENGINE", modelId: "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1" });
     expect(run.evidence.trades).toEqual([{ side: "BUY", quantity: 100, priceCents: 1010, feeCents: 500, signalDate: "2024-01-02", executionDate: "2024-01-03" }]);
     expect(run.evidence.positionAvailability).toEqual([
       { date: "2024-01-03", securityId: "600000.SH", heldQuantity: 100, sellableQuantity: 0, unsettledQuantity: 100 },
@@ -63,6 +72,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
   it("rejects an execution timestamp earlier than the signal visibility timestamp", () => {
     const run = engine.run("rejection");
     expect(run.status).toBe("COMPLETED");
+    expect(run.evidence.executionModel).toEqual({ component: "QUANT_BACKTEST_ENGINE", modelId: "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1" });
     expect(run.evidence.rejections).toEqual(["FUTURE_SIGNAL_SAME_DAY", "T_PLUS_1_UNAVAILABLE"]);
     expect(run.assertions.find((assertion) => assertion.assertionId === "V1.4-BT-PIT-001")?.actual).toBe(true);
   });
@@ -70,6 +80,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
   it("cancels before publishing, then reruns the same input into the same full report", () => {
     const run = engine.run("recovery");
     expect(run.status).toBe("COMPLETED");
+    expect(run.evidence.executionModel).toEqual({ component: "QUANT_BACKTEST_ENGINE", modelId: "DAILY_BAR_CLOSE_NEXT_SESSION_PARTICIPATION_V1" });
     expect(run.evidence.cancellation).toMatchObject({ status: "CANCELLED", reportPublished: false, report: null, cancelledAfter: "SIGNAL_QUEUED" });
     expect(run.evidence.reportPublished).toBe(true);
     expect(run.evidence.replay).toMatchObject({ sameResult: true });
@@ -85,7 +96,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
 
   it("applies adverse buy slippage and limits fills to affordable whole shares", () => {
     const policy: V14ExecutionPolicy = { initialCashCents: 102_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 100, fixedFeeCents: 500 };
-    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy).run("normal");
+    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy, fixture.benchmark, fixture.settlementCalendar).run("normal");
     const evidence = run.evidence as { trades: Array<{ quantity: number; priceCents: number; feeCents: number }>; metrics: { finalCashCents: number; unfilledQuantity: number; fillRateBasisPoints: number; maxDrawdownBasisPoints: number } };
     expect(run.status).toBe("COMPLETED");
     expect(evidence.trades).toEqual([{ side: "BUY", quantity: 99, priceCents: 1021, feeCents: 500, signalDate: "2024-01-02", executionDate: "2024-01-03" }]);
@@ -100,13 +111,13 @@ describe("V1.4 fixture-backed daily backtest", () => {
       marketFeeSchedule: { scheduleId: "CN_A_CASH_EQUITY_2023_08_28", commissionRatePartsPerBillion: 2_000_000, minimumCommissionCents: 500 },
       sellOrder: { signalDate: "2024-01-03", executionDate: "2024-01-04", quantity: 100 }
     };
-    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy).run("normal");
+    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy, fixture.benchmark, fixture.settlementCalendar).run("normal");
     const evidence = run.evidence as { trades: Array<{ side: string; feeCents: number; feeBreakdown?: unknown }>; settlements: Array<{ proceedsCents: number }>; metrics: { feesCents: number } };
     expect(evidence.trades).toEqual([
       { side: "BUY", quantity: 100, priceCents: 1010, feeCents: 511, feeBreakdown: { commissionCents: 500, transferFeeCents: 11, stampDutyCents: 0, totalCents: 511 }, signalDate: "2024-01-02", executionDate: "2024-01-03" },
       { side: "SELL", quantity: 100, priceCents: 1020, feeCents: 562, feeBreakdown: { commissionCents: 500, transferFeeCents: 11, stampDutyCents: 51, totalCents: 562 }, signalDate: "2024-01-03", executionDate: "2024-01-04" }
     ]);
-    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-04", settlementDate: "2024-01-05", proceedsCents: 101_438, status: "SETTLED" }]);
+    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-04", settlementDate: "2024-01-05", settlementErrorCode: null, calendarVersion: fixture.settlementCalendar.calendarVersion, proceedsCents: 101_438, status: "SETTLED" }]);
     expect(evidence.metrics.feesCents).toBe(1_073);
     expect(run.assertions.every((assertion) => assertion.status === "PASS")).toBe(true);
   });
@@ -136,7 +147,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
       marketFeeSchedule: { scheduleId: "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27", commissionRatePartsPerBillion: 2_000_000, minimumCommissionCents: 500 },
       sellOrder: { signalDate: "2023-08-24", executionDate: "2023-08-25", quantity: 100 }
     };
-    const run = new V14BacktestEngine(historicalBars, fixture.sha256, policy).run("normal");
+    const run = new V14BacktestEngine(historicalBars, fixture.sha256, policy, undefined, fixture.settlementCalendar).run("normal");
     const evidence = run.evidence as { trades: Array<{ feeBreakdown: { stampDutyCents: number; transferFeeCents: number } }> };
     expect(evidence.trades.map((trade) => trade.feeBreakdown)).toEqual([
       { commissionCents: 500, transferFeeCents: 11, stampDutyCents: 0, totalCents: 511 },
@@ -166,13 +177,13 @@ describe("V1.4 fixture-backed daily backtest", () => {
       ...{ initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500 },
       sellOrder: { signalDate: "2024-01-03", executionDate: "2024-01-04", quantity: 100 }
     };
-    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy).run("normal");
-    const evidence = run.evidence as { trades: Array<{ side: string; quantity: number; priceCents: number; feeCents: number }>; settlements: Array<{ tradeDate: string; settlementDate: string | null; proceedsCents: number; status: string }>; cashLedger: Array<{ date: string; settledCashCents: number; unsettledSaleProceedsCents: number }>; positionAvailability: Array<{ date: string; heldQuantity: number }>; metrics: { finalCashCents: number; finalNavCents: number; feesCents: number } };
+    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy, fixture.benchmark, fixture.settlementCalendar).run("normal");
+    const evidence = run.evidence as { trades: Array<{ side: string; quantity: number; priceCents: number; feeCents: number }>; settlements: Array<{ tradeDate: string; settlementDate: string | null; settlementErrorCode: string | null; calendarVersion: string; proceedsCents: number; status: string }>; cashLedger: Array<{ date: string; settledCashCents: number; unsettledSaleProceedsCents: number }>; positionAvailability: Array<{ date: string; heldQuantity: number }>; metrics: { finalCashCents: number; finalNavCents: number; feesCents: number } };
     expect(evidence.trades).toEqual([
       { side: "BUY", quantity: 100, priceCents: 1010, feeCents: 500, signalDate: "2024-01-02", executionDate: "2024-01-03" },
       { side: "SELL", quantity: 100, priceCents: 1020, feeCents: 500, signalDate: "2024-01-03", executionDate: "2024-01-04" }
     ]);
-    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-04", settlementDate: "2024-01-05", proceedsCents: 101_500, status: "SETTLED" }]);
+    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-04", settlementDate: "2024-01-05", settlementErrorCode: null, calendarVersion: fixture.settlementCalendar.calendarVersion, proceedsCents: 101_500, status: "SETTLED" }]);
     expect(evidence.cashLedger).toEqual([
       { date: "2024-01-03", settledCashCents: 898_500, unsettledSaleProceedsCents: 0 },
       { date: "2024-01-04", settledCashCents: 898_500, unsettledSaleProceedsCents: 101_500 },
@@ -194,7 +205,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
       initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500,
       sellOrder: { signalDate: "2024-01-04", executionDate: "2024-01-05", quantity: 100 }
     };
-    const run = new V14BacktestEngine(bars, variantSha256, policy).run("normal");
+    const run = new V14BacktestEngine(bars, variantSha256, policy, fixture.benchmark, fixture.settlementCalendar).run("normal");
     const evidence = run.evidence as {
       trades: Array<{ side: string; quantity: number }>;
       orderOutcomes: Array<{ status: string; reason?: string; filledQuantity: number }>;
@@ -207,9 +218,23 @@ describe("V1.4 fixture-backed daily backtest", () => {
       { side: "BUY", signalDate: "2024-01-02", executionDate: "2024-01-03", requestedQuantity: 100, filledQuantity: 100, status: "FILLED" },
       { side: "SELL", signalDate: "2024-01-04", executionDate: "2024-01-05", requestedQuantity: 100, filledQuantity: 50, status: "PARTIALLY_FILLED", reason: "PARTICIPATION_LIMIT" }
     ]);
-    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-05", settlementDate: null, proceedsCents: 50_250, status: "UNSETTLED_AT_END" }]);
+    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-05", settlementDate: "2024-01-08", settlementErrorCode: null, calendarVersion: fixture.settlementCalendar.calendarVersion, proceedsCents: 50_250, status: "UNSETTLED_AT_END" }]);
     expect(evidence.cashLedger.at(-1)).toEqual({ date: "2024-01-05", settledCashCents: 898_500, unsettledSaleProceedsCents: 50_250 });
     expect(evidence.metrics).toMatchObject({ finalCashCents: 898_500, unsettledSaleProceedsCents: 50_250, finalNavCents: 999_500 });
+    expect(run.assertions.every((assertion) => assertion.status === "PASS")).toBe(true);
+  });
+
+  it("keeps sale proceeds pending when the frozen settlement calendar has no mapping", () => {
+    const policy: V14ExecutionPolicy = {
+      initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500,
+      sellOrder: { signalDate: "2024-01-03", executionDate: "2024-01-04", quantity: 100 }
+    };
+    const unknownCalendar = { ...fixture.settlementCalendar, sessions: fixture.settlementCalendar.sessions.filter((session) => session.sessionDate !== "2024-01-04") };
+    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy, fixture.benchmark, unknownCalendar).run("normal");
+    const evidence = run.evidence as { settlements: Array<{ tradeDate: string; settlementDate: string | null; settlementErrorCode: string | null; calendarVersion: string; status: string }>; cashLedger: Array<{ date: string; settledCashCents: number; unsettledSaleProceedsCents: number }>; metrics: { finalCashCents: number; unsettledSaleProceedsCents: number } };
+    expect(evidence.settlements).toEqual([{ tradeDate: "2024-01-04", settlementDate: null, settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE", calendarVersion: fixture.settlementCalendar.calendarVersion, proceedsCents: 101_500, status: "UNSETTLED_AT_END" }]);
+    expect(evidence.cashLedger.at(-1)).toEqual({ date: "2024-01-05", settledCashCents: 898_500, unsettledSaleProceedsCents: 101_500 });
+    expect(evidence.metrics).toMatchObject({ finalCashCents: 898_500, unsettledSaleProceedsCents: 101_500 });
     expect(run.assertions.every((assertion) => assertion.status === "PASS")).toBe(true);
   });
 
@@ -218,7 +243,7 @@ describe("V1.4 fixture-backed daily backtest", () => {
       initialCashCents: 1_000_000, targetQuantity: 100, participationRateBasisPoints: 100, slippageBasisPoints: 0, fixedFeeCents: 500,
       sellOrder: { signalDate: "2024-01-02", executionDate: "2024-01-03", quantity: 100 }
     };
-    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy).run("normal");
+    const run = new V14BacktestEngine(fixture.bars, fixture.sha256, policy, fixture.benchmark, fixture.settlementCalendar).run("normal");
     const evidence = run.evidence as { trades: Array<{ side: string }>; orderOutcomes: Array<{ status: string; reason?: string; filledQuantity: number }> };
     expect(evidence.trades.map((trade) => trade.side)).toEqual(["BUY"]);
     expect(evidence.orderOutcomes).toEqual([

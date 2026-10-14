@@ -21,6 +21,18 @@ function rejectClientTradingMode(body: unknown): void {
   }
 }
 
+function settlementClock(body: unknown): string {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new BadRequestException("settlement request must contain exactly an asOf timestamp");
+  }
+  const record = body as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length !== 1 || keys[0] !== "asOf" || typeof record.asOf !== "string") {
+    throw new BadRequestException("settlement request must contain exactly an asOf timestamp");
+  }
+  return record.asOf;
+}
+
 @Injectable()
 export class PortfolioContainer {
   readonly pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL });
@@ -94,8 +106,8 @@ export class AccountController {
     catch (error) {
       if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found in namespace");
       if (error instanceof Error && ["FILL_RESERVATION_SCOPE_MISMATCH", "PAPER_FILL_REQUIRES_RESERVATION"].includes(error.message)) throw new ForbiddenException(error.message);
-      if (error instanceof Error && ["FILL_EXCEEDS_RESERVED_CASH", "FILL_EXCEEDS_RESERVED_QUANTITY", "FILL_EXCEEDS_AVAILABLE_POSITION", "FILL_IDEMPOTENCY_CONFLICT"].includes(error.message)) throw new ConflictException(error.message);
-      if (error instanceof Error && (error.message.startsWith("invalid fill") || error.message.startsWith("FILL_CURRENCY") || error.message === "INVALID_FILL_SIDE")) throw new BadRequestException(error.message);
+      if (error instanceof Error && ["FILL_EXCEEDS_RESERVED_CASH", "FILL_EXCEEDS_RESERVED_QUANTITY", "FILL_EXCEEDS_AVAILABLE_POSITION", "FILL_IDEMPOTENCY_CONFLICT", "SETTLEMENT_CALENDAR_UNAVAILABLE"].includes(error.message)) throw new ConflictException(error.message);
+      if (error instanceof Error && (error.message.startsWith("invalid fill") || error.message.startsWith("INVALID_SELL") || error.message.startsWith("SETTLEMENT_") || error.message.startsWith("FILL_CURRENCY") || error.message === "INVALID_FILL_SIDE")) throw new BadRequestException(error.message);
       throw error;
     }
   }
@@ -136,6 +148,19 @@ export class AccountController {
       if (error instanceof Error && error.message.startsWith("INVALID_")) throw new BadRequestException(error.message);
       if (error instanceof Error && ["ACCOUNT_SCOPE_MISMATCH", "RESERVATION_REQUIRES_PAPER_FAKE", "RESERVATION_CURRENCY_MISMATCH"].includes(error.message)) throw new ForbiddenException(error.message);
       if (error instanceof Error && ["INSUFFICIENT_AVAILABLE_CASH", "INSUFFICIENT_SELLABLE_QUANTITY", "T_PLUS_ONE_UNSETTLED_QUANTITY", "SELL_RESERVATION_REQUIRES_RUN_CLOCK", "RESERVATION_IDEMPOTENCY_CONFLICT"].includes(error.message)) throw new ConflictException(error.message);
+      throw error;
+    }
+  }
+
+  @Post(":accountId/settlements")
+  async settleDue(@Headers("x-stockquant-service-id") serviceId: string | undefined, @Headers("authorization") authorization: string | undefined, @Param("accountId") accountId: string, @Body() body: unknown) {
+    assertService(serviceId, authorization, "POST", `/internal/v1/accounts/${accountId}/settlements`);
+    const asOf = settlementClock(body);
+    try { return await this.container.accounts.settleDue(accountId, asOf); }
+    catch (error) {
+      if (error instanceof Error && error.message === "ACCOUNT_NOT_FOUND") throw new NotFoundException("account was not found");
+      if (error instanceof Error && error.message.startsWith("INVALID_")) throw new BadRequestException(error.message);
+      if (error instanceof Error && error.message === "SETTLEMENT_REQUIRES_PAPER_FAKE") throw new ForbiddenException(error.message);
       throw error;
     }
   }

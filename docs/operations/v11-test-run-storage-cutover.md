@@ -59,3 +59,9 @@ PLATFORM_API_LEGACY_MIGRATION_DATABASE_URL="$PLATFORM_API_MIGRATION_DSN" \
 任何门禁失败、写入错误、owner读取差异或健康检查不通过：停止新写入，保留日志/数据库与Artifact，恢复原Platform镜像及 `STOCKQUANT_V11_RUN_STORAGE=legacy`，重启单一旧版服务。stage模式正常双写 legacy 表，预期可回退读取；若parity或schema无法确认，则保持API停止并人工核查，禁止删除影子表或历史证据。恢复后重复健康与同ID只读检查，并归档迁移前后证据。不得通过删行、重置账本或覆盖备份修复差异。
 
 当前维护窗口、备份恢复、活动切换、回退和新增范围人工验收都尚未执行；现有 isolated code suite 和本地快照演练不代替这些门禁。
+
+## 2026-10-11 活动运行时只读复核 A04
+
+在项目维护批准之外，本轮仅执行只读 `docker ps` 与精确容器 `docker inspect`，不读取数据库内容、Artifact目录或TestRun正文。`stockquant-v12-platform-api-service-1`、`stockquant-v12-postgres-1`、`stockquant-v12-research-automation-service-1`均为running/healthy；Platform API实际`STOCKQUANT_V11_RUN_STORAGE=legacy`且没有任何挂载，未设置`STOCKQUANT_ARTIFACT_CONTENT_ROOT`。PostgreSQL仍挂载`stockquant-v12_postgres-v11`，Research Automation将`/var/lib/stockquant/research-artifacts`挂到`stockquant-v12_research-artifacts-v1`。仓库`infra/compose/docker-compose.yml`则同时为Platform API和Research Automation声明该Artifact卷，因此活动Platform API与当前Compose存在持久化挂载漂移。精确容器状态、所选非秘密配置、挂载和SHA见[机器报告A04](../../evidence/audits/2026-10-11-v1-active-runtime-preflight-a04.json)、[SHA-256](../../evidence/audits/2026-10-11-v1-active-runtime-preflight-a04.json.sha256)。
+
+该复核强化了`NOT_READY / NOT_AUTHORIZED / NOT_DEPLOYED`判定：没有因容器健康而推定Artifact路径或PostgreSQL业务数据安全。未读取字节和数据库引用，也没有导出备份、重启/停止容器、改挂载、写入迁移或处理非终态Run。维护负责人仍需确认目标实例、核对实际Artifact文件与数据库引用、逐项处置旧非终态Run并提供窗口/回退批准；这些前置未齐前不进行活动切换或清理。

@@ -30,12 +30,15 @@ function buildFixedPaperOrder(input: { proposal: V13ProposalResult; namespace: s
   if (!/^[a-f0-9]{64}$/u.test(proposal.contentHash) || proposal.proposalVersion < 1 || proposal.legs.length !== 1) throw new Error("V13_PROPOSAL_SHAPE_INVALID");
   const leg = proposal.legs[0];
   const baseFixture = fixtures[leg.securityId as keyof typeof fixtures];
-  const fixture = baseFixture && (
-    (input.executionMode === "SEQUENCED" && !auto && leg.securityId === "600000.SH" && [100, 200].includes(leg.quantity))
-    || (input.executionMode === "SEQUENCED" && auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
-    || (auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
-  ) ? { ...baseFixture, quantity: leg.quantity } : baseFixture;
-  if (!fixture || (leg.side !== "BUY" && leg.side !== "SELL") || (leg.side === "SELL" && (auto || fixture.currency !== "CNY" || leg.securityId !== "600000.SH")) || leg.quantity !== fixture.quantity || (input.executionMode === "SEQUENCED" && (leg.side !== "BUY" || (!auto && leg.securityId !== "600000.SH")))) throw new Error("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
+  const sequencedManualFixture = input.executionMode === "SEQUENCED" && !auto;
+  const fixture = !baseFixture ? undefined : sequencedManualFixture
+    ? ((leg.securityId === "600000.SH" && [100, 200].includes(leg.quantity)) || (leg.securityId === "AAPL" && leg.quantity === 200)
+      ? { ...baseFixture, quantity: leg.quantity } : undefined)
+    : ((input.executionMode === "SEQUENCED" && auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
+      || (auto && ((leg.securityId === "600000.SH" && [50, 100].includes(leg.quantity)) || (leg.securityId === "AAPL" && [5, 10].includes(leg.quantity))))
+      ? { ...baseFixture, quantity: leg.quantity } : baseFixture);
+  const allowedSell = fixture && ((fixture.currency === "CNY" && leg.securityId === "600000.SH") || (fixture.currency === "USD" && leg.securityId === "AAPL"));
+  if (!fixture || (leg.side !== "BUY" && leg.side !== "SELL") || (leg.side === "SELL" && !allowedSell) || leg.quantity !== fixture.quantity || (input.executionMode === "SEQUENCED" && (leg.side !== "BUY" || (!auto && !["600000.SH", "AAPL"].includes(leg.securityId))))) throw new Error("V13_PROPOSAL_OUTSIDE_FIXED_FIXTURE");
   const notionalMinor = BigInt(fixture.price.replace(".", "")) * BigInt(fixture.quantity);
   const notional = `${notionalMinor / 100n}.${(notionalMinor % 100n).toString().padStart(2, "0")}`;
   const reservedCash = addMoney(notional, fixture.fee);

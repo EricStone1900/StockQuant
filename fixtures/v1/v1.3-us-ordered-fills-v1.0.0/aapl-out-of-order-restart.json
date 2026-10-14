@@ -1,0 +1,18 @@
+{
+  "$schema": "../../manifests/v13-us-ordered-fills.schema.json",
+  "fixtureId": "v1.3-us-ordered-fills",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V1.3",
+  "market": "US_EQUITY",
+  "security": "AAPL",
+  "currency": "USD",
+  "account": { "initialCash": "10000.0000" },
+  "proposal": { "approvalMode": "MANUAL_APPROVAL", "side": "BUY", "quantity": 200, "price": "25.0000", "feePerFill": "0.0250" },
+  "eventSequence": [
+    { "sequence": 2, "cumulativeQuantity": 150, "action": "buffer" },
+    { "sequence": 2, "replays": 10, "action": "idempotent-replay" },
+    { "action": "restart", "service": "trade-execution-service" },
+    { "sequence": 1, "cumulativeQuantity": 100, "action": "apply-and-drain-buffer" }
+  ],
+  "expected": { "fills": [{ "sequence": 1, "quantity": 100 }, { "sequence": 2, "quantity": 50 }], "orderStatus": "PARTIALLY_FILLED", "position": 150, "cash": "6249.9500", "reservedCash": "5000.0500", "reconciliation": "MATCH" }
+}

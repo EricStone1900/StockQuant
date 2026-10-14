@@ -15,6 +15,7 @@
     "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
     "effectiveAt": { "type": "string", "format": "date-time" },
     "side": { "enum": ["BUY", "SELL"], "default": "BUY" },
+    "settlement": { "type": "object", "additionalProperties": false, "required": ["tradeDate", "settlementDate", "calendarVersion", "settlementErrorCode"], "properties": { "tradeDate": { "type": "string", "format": "date" }, "settlementDate": { "type": ["string", "null"], "format": "date" }, "calendarVersion": { "type": "string", "minLength": 1, "maxLength": 128 }, "settlementErrorCode": { "enum": ["SETTLEMENT_CALENDAR_UNAVAILABLE", null] } } },
     "reservation": {
       "type": "object",
       "additionalProperties": false,

@@ -2,6 +2,8 @@
 
 状态：迁移入口已实现并通过隔离 PostgreSQL 验证；活动数据库迁移、完整配对备份恢复和逐服务旧版回退尚未执行或验收。本文件不授权操作活动数据库。
 
+运行时服务依赖顺序与数据库逐库迁移顺序是不同门禁；V1各阶段提供者API、调用方、Web与后台消费的准备顺序见[服务发布顺序与回退准备](./v1-service-release-order.md)。
+
 ## 适用范围
 
 入口 `pnpm db:migrate:v1` 对一个服务数据库执行检查或应用。支持 `portfolio-risk`、`platform-api`、`decision-governance`、`trade-execution`、`historical-replay`、`quant-research`、`market-data`。每次调用只使用 `STOCKQUANT_DATABASE_URL` 指向的所选服务数据库，并核对数据库名与服务角色。检查模式为默认行为，不修改Schema；`--apply` 才执行该服务现有迁移函数。

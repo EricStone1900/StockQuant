@@ -12,6 +12,9 @@ RUN pnpm --filter @stockquant/portfolio-risk-service build
 FROM node:24.1.0-alpine@sha256:91aa1bb6b5f57ec5109155332f4af2aa5d73ff7b4512c8e5dfce5dc88dbbae0e
 WORKDIR /workspace
 ENV NODE_ENV=production
+COPY fixtures/v1/v1.4-settlement-v1.0.0 ./fixtures/v1/v1.4-settlement-v1.0.0
+COPY fixtures/v1/v1.4-settlement-v1.1.0 ./fixtures/v1/v1.4-settlement-v1.1.0
+COPY fixtures/v1/v1.4-settlement-v1.2.0 ./fixtures/v1/v1.4-settlement-v1.2.0
 COPY --from=build /workspace/node_modules ./node_modules
 COPY --from=build /workspace/services/portfolio-risk-service/node_modules ./services/portfolio-risk-service/node_modules
 COPY --from=build /workspace/services/portfolio-risk-service/dist ./services/portfolio-risk-service/dist

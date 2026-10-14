@@ -2,6 +2,8 @@
 
 服务：`platform-api-service`。日期：2026-09-07。状态：设计草案；实现/运行/验收均NOT_RUN。技术基线：TypeScript / NestJS BFF + 持久任务协调。
 
+2026-10-12 V1.1-S2-L14客户端响应边界：Platform→Trade生成客户端将HTTP状态与可解析响应体原样交给调用应用层，包括409结构化冲突响应；十个V1操作均有拒绝传递回归，Platform API typecheck和完整V1.3 code suite通过。客户端测试与证据见[V1.1阶段§8.70](../../docs/prd/v1-local-simulation/01-environment-and-web-center.md#870-platformtrade-v1操作拒绝响应传递2026-10-12)。该约束不取代服务端授权/领域副作用矩阵或发布验收。
+
 共同约束见[整体架构](../01-system-architecture.md)、[契约与数据](../02-contracts-and-data.md)、[部署](../03-deployment-and-operations.md)。本文是服务S0设计输入；逻辑表与扩展端口需在对应阶段冻结Schema/迁移，不表示已有实现。
 
 ## 1. 范围与交付
@@ -28,6 +30,8 @@ domain：测试场景/运行/人工签署、访问范围；application：BFF聚�
 
 2026-10-10 V1.3 AUTO_POLICY Mandate预算读回：成功的Platform AUTO执行协调按请求中的owner、TestRun、Mandate ID/版本读取Governance独立预算账本，并在结果中返回`VERIFIED`/`NOT_VERIFIED`及快照；预算读回暂时失败不反转已提交交易响应，避免调用方将已成交订单当作失败重试。Web通过owner/TestRun范围的Mandate版本预算GET路由在刷新后恢复该证据；路由先重读Mandate身份和版本。完整隔离V1.3 E2E 22/22及27条平台身份探针（匿名401、伪造owner403）通过，L04核对CNY consumed 1005.00、reserved 0.00及单次消费。证据：[执行日志](../../evidence/audits/2026-10-10-v13-mandate-budget-readback-web-e2e-a01.log)。这是验收投影，预算事实仍由Governance拥有，不改变领域账本所有权。
 
+2026-10-14 V1.3显式正常Fill验收写入：`POST /api/v1/acceptance/v1/v1.3/runs/:testRunId/verify-normal`在可信owner/TestRun范围内读取已人工批准Proposal、FakeBroker权威订单与Fill、独立资产账、Portfolio账及授权绑定；仅当100股、8995.0000 CNY、100股持仓和MATCH对账均成立后，才持久化该Run的两项验收断言为PASS并标记COMPLETED。重复请求返回已保存结果；普通GET保持只读，不触发完成副作用。Web的显式按钮与同Run CLI共同验证该生命周期。订单/成交/资产/Portfolio领域事实仍由对应领域服务拥有，Platform只记录验收Run与证据。
+
 2026-10-07 V1.5受限持久派发实现：仅normal NO_TRADE由Platform事务写入owner/TestRun范围的`v15_workflow_dispatch_outbox`，Relay通过真实JetStream发布，durable Consumer校验持久TestRun再调用稳定Temporal Workflow ID；业务账户、订单、Fill与账本仍归Portfolio/Trade。此为V1受限能力切片，尚非独立Workflow Orchestration Service。真实隔离E2E验证NATS短停、派发前Platform API重启、坏JSON/错误owner终止、同Run重复消息首次ACK丢弃后的真实redelivery，以及原Outbox恢复；Temporal调用边界一次性UNAVAILABLE经NAK/redelivery恢复以及NO_TRADE Activity执行中重启承载Worker的Platform API后恢复已有隔离E2E；数据库瞬态重试、真实Temporal服务进程重启、多Consumer竞争、交易/日终流程仍未验证。完整E2E和代码Hash见[派发审计](../../evidence/audits/2026-10-07-v15-nats-temporal-dispatch-e2e.md)。
 
 ## 3. 数据与一致性
@@ -35,6 +39,8 @@ domain：测试场景/运行/人工签署、访问范围；application：BFF聚�
 逻辑持久化：identities/sessions、preferences、platform_audits、notification_projections、test_scenarios、test_runs、test_assertions、acceptance_records、job_dispatch_records。
 
 V1.5 Run Incident由Platform按owner/TestRun持久证据派生并持久化到`v15_run_incidents`投影；当前会话负责确认身份，恢复的阻塞会解决Incident，复发创建新记录。该投影服务于Run告警与验收状态，不拥有交易订单/成交/账本事实，也不表示已配置外发通知渠道。具体触发状态与HTTP路径见[V1.5阶段手册§8.24](../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md#824-v15-run-incident生命周期与确认2026-10-09)。
+
+V1.5另提供owner-scoped External Fill ID检索：Platform只在该owner的V1.5 StageRun持久证据中搜索，并返回命中的Run投影供Web只读查看；摘要列表分页不会限制检索。不存在/异主记录不可区分地返回404，同owner重复Fill ID返回409。该投影不改变Trade Execution对Fill的权威所有权，也尚未提供跨阶段索引或重新查询所有下游账本。接口和行为证据见[V1.5阶段手册§8.50](../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md#850-按external-fill-id检索v15历史成交链路2026-10-12)。
 
 事务/幂等：TestRun创建与持久派发记录同事务，后台恢复不会重复创建业务运行；stage/scenario/version唯一；人工结论追加、绑定代码/run，不能覆盖原失败。
 
@@ -129,7 +135,7 @@ W7 V3.3 budget-summary proxy update (2026-10-01): the owner-scoped proxy now acc
 
 W1 V2.3 Artifact lifecycle increment (2026-10-01): `qlib_fixture_artifacts` persists PUBLISHED/RETAINED/EXPIRED and an optional immutable `expires_at`; legacy rows migrate as PUBLISHED without an invented retention deadline. PostgreSQL enforces allowed lifecycle transitions and expiry timing, TestRun projection reads current repository status, and EXPIRED artifacts remain auditable but are no longer downloadable. Dedicated `platform_api_test` lifecycle integration passed, including early expiry rejection and terminal no-revival. The Qlib-specific PostgreSQL table continues to own Qlib Artifact metadata; starting with the 2026-10-01 shared-content increment, new payload bytes are content-addressed on the same `research-artifacts-v1` volume used by Research Automation. Existing JSONB rows remain readable, and the active Compose stack has not been changed. See [lifecycle audit](../../evidence/audits/2026-10-01-w1-v23-qlib-artifact-lifecycle.md) and [SHA-256](../../evidence/audits/2026-10-01-w1-v23-qlib-artifact-lifecycle.sha256).
 
-W1 shared Artifact bytes (2026-10-01): Platform's Qlib adapter now uses `@stockquant/artifact-content-store` and stores only reference metadata for new files in PostgreSQL; the shared immutable volume stores bytes under `research/{testRunId}/qlib-fixture/{sha256}/{artifactId}`. The Qlib owner-scoped API and exporter continue to verify the DB reference and content hash. Existing rows with inline JSONB payloads remain readable for migration. Compose source mounts the named volume into Platform API as well as Research Automation, but no active container was restarted or redeployed. See [shared content audit](../../evidence/audits/2026-10-01-w1-common-artifact-content-store.md).
+W1 shared Artifact bytes (2026-10-01): Platform's Qlib adapter now uses `@stockquant/artifact-content-store` and stores only reference metadata for new files in PostgreSQL; the shared immutable volume stores bytes under `research/{testRunId}/qlib-fixture/{sha256}/{artifactId}`. The Qlib owner-scoped API and exporter continue to verify the DB reference and content hash. Existing rows with inline JSONB payloads remain readable for migration. Compose source mounts the named volume into Platform API as well as Research Automation, but no active container was restarted or redeployed. As of 2026-10-12 the shared content package also fsyncs parent-directory entries after atomic publication and verified removal; the V1.1 full code suite passes (stage §8.65), and the package tests pass in a network-disabled Linux ARM64 Node container at the recorded image digest; no active Artifact volume was touched or redeployed. See [shared content audit](../../evidence/audits/2026-10-01-w1-common-artifact-content-store.md).
 
 W1 legacy Qlib JSONB backfill (2026-10-01): `backfillLegacyPayloads` validates bounded PUBLISHED/RETAINED batches against both SHA fields, publishes and reads back immutable shared bytes, then clears JSONB with an identity/hash/payload/status compare-and-set. Dry-run is default; the CLI is restricted to dedicated `platform_api_test` and an explicit temporary content root. Unit tests (9/9) and dedicated PostgreSQL lifecycle/backfill integration (2/2) pass, including rerun and continued owner-scoped reads. The complete V2.3 code suite also passed with locked synthetic Qlib and removed isolated resources. No active business database, application container, or runtime Artifact volume was read or migrated. Production migration remains behind W8 authorization and backup gates.
 

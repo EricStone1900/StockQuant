@@ -25,7 +25,7 @@
         "1.0.1",
         "1.0.2",
         "1.0.3",
-        "1.0.3"
+        "1.0.4"
       ]
     },
     "stageId": {
@@ -131,6 +131,15 @@
             "expectedReconciliation": {
               "const": "MATCH"
             }
+          }
+        },
+        "strictSettledCash": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["success", "insufficientCash"],
+          "properties": {
+            "success": { "$ref": "#/$defs/strictCashSuccess" },
+            "insufficientCash": { "$ref": "#/$defs/strictCashInsufficient" }
           }
         }
       }
@@ -238,6 +247,53 @@
         "US_EQUITY": {
           "$ref": "#/$defs/marketCases"
         }
+      }
+    },
+    "strictCashLeg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["legId", "security", "side", "quantity", "price", "fee", "reservedCash"],
+      "properties": {
+        "legId": { "type": "string", "minLength": 1 },
+        "security": { "enum": ["600000.SH", "000001.SZ"] },
+        "side": { "enum": ["BUY", "SELL"] },
+        "quantity": { "const": 100 },
+        "price": { "$ref": "#/$defs/money4" },
+        "fee": { "$ref": "#/$defs/money4" },
+        "reservedCash": { "$ref": "#/$defs/money4" }
+      }
+    },
+    "strictCashSuccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["market", "currency", "setupBuy", "legs", "expectedSettledCash", "expectedPendingReceivable", "expectedPositions"],
+      "properties": {
+        "market": { "const": "CN_A" },
+        "currency": { "const": "CNY" },
+        "setupBuy": { "$ref": "#/$defs/strictCashLeg" },
+        "legs": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/strictCashLeg" } },
+        "expectedSettledCash": { "$ref": "#/$defs/money4" },
+        "expectedPendingReceivable": { "$ref": "#/$defs/money4" },
+        "expectedPositions": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 } }
+      }
+    },
+    "strictCashInsufficient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["market", "currency", "buyCountBeforeSell", "settledCashBeforeSell", "setupBuy", "setupSell", "legs", "expectedPendingReceivable", "expectedStatus", "expectedOrderCount", "expectedFillCount", "expectedReleasedReservations"],
+      "properties": {
+        "market": { "const": "CN_A" },
+        "currency": { "const": "CNY" },
+        "buyCountBeforeSell": { "const": 8 },
+        "settledCashBeforeSell": { "$ref": "#/$defs/money4" },
+        "setupBuy": { "$ref": "#/$defs/strictCashLeg" },
+        "setupSell": { "$ref": "#/$defs/strictCashLeg" },
+        "legs": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/strictCashLeg" } },
+        "expectedPendingReceivable": { "$ref": "#/$defs/money4" },
+        "expectedStatus": { "const": 409 },
+        "expectedOrderCount": { "const": 0 },
+        "expectedFillCount": { "const": 0 },
+        "expectedReleasedReservations": { "const": 2 }
       }
     }
   }

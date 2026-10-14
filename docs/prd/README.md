@@ -14,7 +14,7 @@
 
 ## 当前仓库与新项目复用
 
-当前仓库已有实现、锁文件、脚本和阶段证据，V1尚未完成。当前状态以[V1版本计划](./v1-local-simulation/00-version-plan.md)和[V1验收清单](./v1-local-simulation/99-acceptance.md)为准；优先收尾V1，非必要不扩展V2/V3。以下步骤仅供将本包用于空项目时参考，不是当前仓库重建指令。
+当前仓库已有实现、锁文件、脚本和阶段证据；2026-10-14已批准的Mac本地V1主要功能范围开发/用户验收/正式门禁均完成。当前状态以[V1版本计划](./v1-local-simulation/00-version-plan.md)和[V1验收清单](./v1-local-simulation/99-acceptance.md)为准；优先收尾V1，非必要不扩展V2/V3。以下步骤仅供将本包用于空项目时参考，不是当前仓库重建指令。
 
 1. 把整个`product-rebuild`目录复制到一个空项目，例如放到`docs/product-rebuild/`，无需携带其他项目文件。
 2. 阅读[产品PRD](./00-product-requirements.md)，确认默认证券范围和第10章中的券商、部署、资金、数据等参数。

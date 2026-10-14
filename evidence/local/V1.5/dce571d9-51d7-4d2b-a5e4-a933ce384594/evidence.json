@@ -1,0 +1,609 @@
+{
+  "evidenceVersion": "v2-stage-run-1",
+  "mode": {
+    "environmentMode": "PAPER",
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE"
+  },
+  "run": {
+    "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+    "stageId": "V1.5",
+    "scenarioId": "recovery",
+    "scenarioVersion": "1.2.0",
+    "ownerId": "acceptance-owner-1",
+    "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "assertions": [
+      {
+        "actual": {
+          "originalOrderQueried": true,
+          "replayedOriginalPerMarket": [
+            {
+              "market": "CN_A",
+              "replayed": true
+            },
+            {
+              "market": "US_EQUITY",
+              "replayed": false
+            }
+          ],
+          "responseLostAfterFakeBrokerCommit": true
+        },
+        "status": "PASS",
+        "expected": "After the CN accepted response is lost, the same clientOrderId queries and reuses its original order; the US control order executes once",
+        "assertionId": "V1.5-RECOVERY-001"
+      },
+      {
+        "actual": {
+          "orders": [
+            {
+              "fillId": "2c598d02-6136-4075-ad67-373da1ca9204",
+              "market": "CN_A",
+              "orderId": "149b1348-d8d8-4c4d-ab13-068441de6cdd",
+              "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "reconciliation": {
+                "status": "MATCH",
+                "portfolio": {
+                  "cash": {
+                    "amount": "8995.0000",
+                    "currency": "CNY"
+                  },
+                  "market": "CN_A",
+                  "ownerId": "acceptance-owner-1",
+                  "accountId": "4efecdfd-cd44-490e-af83-fdeac1ca1160",
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "positions": [
+                    {
+                      "quantity": 100,
+                      "security": "600000.SH"
+                    }
+                  ],
+                  "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "brokerMode": "FAKE",
+                  "reservations": [
+                    {
+                      "side": "BUY",
+                      "status": "CAPTURED",
+                      "cashAmount": "1005.0000",
+                      "evidenceRef": "fakebroker-outbox:d23b994e-e76a-44df-b0ca-ddf6f8b77567",
+                      "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                      "reservationId": "8b275cc4-1110-4839-b686-08b8bf460365",
+                      "capturedQuantity": 0,
+                      "capturedCashAmount": "1005.0000"
+                    }
+                  ],
+                  "ledgerVersion": 2,
+                  "positionCount": 1,
+                  "environmentMode": "PAPER",
+                  "ledgerEntryCount": 2,
+                  "fixtureAccountRef": "v15-no-trade-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "unsettledReceivables": []
+                },
+                "fakeBroker": {
+                  "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+                  "currency": "CNY",
+                  "owner_id": "acceptance-owner-1",
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "positions": [
+                    {
+                      "quantity": 100,
+                      "security": "600000.SH"
+                    }
+                  ],
+                  "brokerMode": "FAKE",
+                  "updated_at": "2026-10-14T11:53:12.273Z",
+                  "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "current_cash": "8995.0000",
+                  "initial_cash": "10000.0000",
+                  "fill_event_count": 1,
+                  "unsettledReceivables": []
+                },
+                "brokerSummary": {
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "brokerMode": "FAKE",
+                  "fill_count": 1,
+                  "order_count": 1,
+                  "discrepancies": [],
+                  "pending_outbox_count": 0,
+                  "externalOnlyOrderCount": 0,
+                  "unresolved_order_count": 0
+                }
+              },
+              "replayedOriginal": true
+            },
+            {
+              "fillId": "42ffffed-1256-4e19-b474-15e6920fef96",
+              "market": "US_EQUITY",
+              "orderId": "4c4b0957-d79f-4c31-92ae-f634a04e102a",
+              "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "reconciliation": {
+                "status": "MATCH",
+                "portfolio": {
+                  "cash": {
+                    "amount": "9749.9500",
+                    "currency": "USD"
+                  },
+                  "market": "US_EQUITY",
+                  "ownerId": "acceptance-owner-1",
+                  "accountId": "f10185ee-cab0-4a00-a41d-b5617df80f75",
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "positions": [
+                    {
+                      "quantity": 10,
+                      "security": "AAPL"
+                    }
+                  ],
+                  "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "brokerMode": "FAKE",
+                  "reservations": [
+                    {
+                      "side": "BUY",
+                      "status": "CAPTURED",
+                      "cashAmount": "250.0500",
+                      "evidenceRef": "fakebroker-outbox:cef2402a-d774-4ab3-ba00-7d5367f119e0",
+                      "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                      "reservationId": "85e42e43-a4c4-4819-879d-d9be78987910",
+                      "capturedQuantity": 0,
+                      "capturedCashAmount": "250.0500"
+                    }
+                  ],
+                  "ledgerVersion": 2,
+                  "positionCount": 1,
+                  "environmentMode": "PAPER",
+                  "ledgerEntryCount": 2,
+                  "fixtureAccountRef": "v15-no-trade-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "unsettledReceivables": []
+                },
+                "fakeBroker": {
+                  "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+                  "currency": "USD",
+                  "owner_id": "acceptance-owner-1",
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "positions": [
+                    {
+                      "quantity": 10,
+                      "security": "AAPL"
+                    }
+                  ],
+                  "brokerMode": "FAKE",
+                  "updated_at": "2026-10-14T11:53:16.911Z",
+                  "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "current_cash": "9749.9500",
+                  "initial_cash": "10000.0000",
+                  "fill_event_count": 1,
+                  "unsettledReceivables": []
+                },
+                "brokerSummary": {
+                  "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "brokerMode": "FAKE",
+                  "fill_count": 2,
+                  "order_count": 2,
+                  "discrepancies": [],
+                  "pending_outbox_count": 0,
+                  "externalOnlyOrderCount": 0,
+                  "unresolved_order_count": 0
+                }
+              },
+              "replayedOriginal": false
+            }
+          ],
+          "reconciliation": {
+            "status": "MATCH",
+            "fakeBroker": {
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "brokerMode": "FAKE",
+              "fill_count": 2,
+              "order_count": 2,
+              "discrepancies": [],
+              "pending_outbox_count": 0,
+              "externalOnlyOrderCount": 0,
+              "unresolved_order_count": 0
+            }
+          }
+        },
+        "status": "PASS",
+        "expected": "Exactly two original FakeBroker orders/fills, delivered outboxes, matched ledgers, and zero unresolved/pending facts",
+        "assertionId": "V1.5-RECOVERY-002"
+      }
+    ],
+    "evidence": {
+      "nats": "JETSTREAM_ACKED",
+      "seed": 20260907,
+      "orders": [
+        {
+          "fillId": "2c598d02-6136-4075-ad67-373da1ca9204",
+          "market": "CN_A",
+          "orderId": "149b1348-d8d8-4c4d-ab13-068441de6cdd",
+          "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+          "reconciliation": {
+            "status": "MATCH",
+            "portfolio": {
+              "cash": {
+                "amount": "8995.0000",
+                "currency": "CNY"
+              },
+              "market": "CN_A",
+              "ownerId": "acceptance-owner-1",
+              "accountId": "4efecdfd-cd44-490e-af83-fdeac1ca1160",
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "positions": [
+                {
+                  "quantity": 100,
+                  "security": "600000.SH"
+                }
+              ],
+              "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "brokerMode": "FAKE",
+              "reservations": [
+                {
+                  "side": "BUY",
+                  "status": "CAPTURED",
+                  "cashAmount": "1005.0000",
+                  "evidenceRef": "fakebroker-outbox:d23b994e-e76a-44df-b0ca-ddf6f8b77567",
+                  "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "reservationId": "8b275cc4-1110-4839-b686-08b8bf460365",
+                  "capturedQuantity": 0,
+                  "capturedCashAmount": "1005.0000"
+                }
+              ],
+              "ledgerVersion": 2,
+              "positionCount": 1,
+              "environmentMode": "PAPER",
+              "ledgerEntryCount": 2,
+              "fixtureAccountRef": "v15-no-trade-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "unsettledReceivables": []
+            },
+            "fakeBroker": {
+              "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+              "currency": "CNY",
+              "owner_id": "acceptance-owner-1",
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "positions": [
+                {
+                  "quantity": 100,
+                  "security": "600000.SH"
+                }
+              ],
+              "brokerMode": "FAKE",
+              "updated_at": "2026-10-14T11:53:12.273Z",
+              "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "current_cash": "8995.0000",
+              "initial_cash": "10000.0000",
+              "fill_event_count": 1,
+              "unsettledReceivables": []
+            },
+            "brokerSummary": {
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "brokerMode": "FAKE",
+              "fill_count": 1,
+              "order_count": 1,
+              "discrepancies": [],
+              "pending_outbox_count": 0,
+              "externalOnlyOrderCount": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          "replayedOriginal": true
+        },
+        {
+          "fillId": "42ffffed-1256-4e19-b474-15e6920fef96",
+          "market": "US_EQUITY",
+          "orderId": "4c4b0957-d79f-4c31-92ae-f634a04e102a",
+          "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+          "reconciliation": {
+            "status": "MATCH",
+            "portfolio": {
+              "cash": {
+                "amount": "9749.9500",
+                "currency": "USD"
+              },
+              "market": "US_EQUITY",
+              "ownerId": "acceptance-owner-1",
+              "accountId": "f10185ee-cab0-4a00-a41d-b5617df80f75",
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "positions": [
+                {
+                  "quantity": 10,
+                  "security": "AAPL"
+                }
+              ],
+              "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "brokerMode": "FAKE",
+              "reservations": [
+                {
+                  "side": "BUY",
+                  "status": "CAPTURED",
+                  "cashAmount": "250.0500",
+                  "evidenceRef": "fakebroker-outbox:cef2402a-d774-4ab3-ba00-7d5367f119e0",
+                  "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                  "reservationId": "85e42e43-a4c4-4819-879d-d9be78987910",
+                  "capturedQuantity": 0,
+                  "capturedCashAmount": "250.0500"
+                }
+              ],
+              "ledgerVersion": 2,
+              "positionCount": 1,
+              "environmentMode": "PAPER",
+              "ledgerEntryCount": 2,
+              "fixtureAccountRef": "v15-no-trade-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "unsettledReceivables": []
+            },
+            "fakeBroker": {
+              "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+              "currency": "USD",
+              "owner_id": "acceptance-owner-1",
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "positions": [
+                {
+                  "quantity": 10,
+                  "security": "AAPL"
+                }
+              ],
+              "brokerMode": "FAKE",
+              "updated_at": "2026-10-14T11:53:16.911Z",
+              "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "current_cash": "9749.9500",
+              "initial_cash": "10000.0000",
+              "fill_event_count": 1,
+              "unsettledReceivables": []
+            },
+            "brokerSummary": {
+              "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+              "brokerMode": "FAKE",
+              "fill_count": 2,
+              "order_count": 2,
+              "discrepancies": [],
+              "pending_outbox_count": 0,
+              "externalOnlyOrderCount": 0,
+              "unresolved_order_count": 0
+            }
+          },
+          "replayedOriginal": false
+        }
+      ],
+      "dataMode": "FIXTURE",
+      "recovery": {
+        "originalOrderQueried": true,
+        "replayedOriginalPerMarket": [
+          {
+            "market": "CN_A",
+            "replayed": true
+          },
+          {
+            "market": "US_EQUITY",
+            "replayed": false
+          }
+        ],
+        "responseLostAfterFakeBrokerCommit": true
+      },
+      "temporal": "COMPLETED",
+      "workflow": "TEMPORAL_COMPLETED",
+      "accountIds": {
+        "CN_A": "4efecdfd-cd44-490e-af83-fdeac1ca1160",
+        "US_EQUITY": "f10185ee-cab0-4a00-a41d-b5617df80f75"
+      },
+      "brokerMode": "FAKE",
+      "backupRestore": "NOT_RUN",
+      "dailyEndOfDay": "NOT_RUN",
+      "evidenceScope": "TEMPORAL_AUTO_TRADE_UNKNOWN_RECOVERY",
+      "fixtureSha256": "540e28f2f70b61d16c5430901224682e1b57f137d0807e7318cea8d0c61be463",
+      "fixtureVersion": "v1.5-no-trade-calendar-1",
+      "reconciliation": {
+        "status": "MATCH",
+        "fakeBroker": {
+          "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+          "brokerMode": "FAKE",
+          "fill_count": 2,
+          "order_count": 2,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        }
+      },
+      "environmentMode": "PAPER",
+      "humanAcceptance": "NOT_RUN",
+      "businessExecution": "AUTO_TRADE_RECOVERED",
+      "liveTradingEnabled": false
+    },
+    "createdAt": "2026-10-14T11:53:06.410Z",
+    "completedAt": "2026-10-14T11:53:16.964Z"
+  },
+  "assertions": [
+    {
+      "actual": {
+        "originalOrderQueried": true,
+        "replayedOriginalPerMarket": [
+          {
+            "market": "CN_A",
+            "replayed": true
+          },
+          {
+            "market": "US_EQUITY",
+            "replayed": false
+          }
+        ],
+        "responseLostAfterFakeBrokerCommit": true
+      },
+      "status": "PASS",
+      "expected": "After the CN accepted response is lost, the same clientOrderId queries and reuses its original order; the US control order executes once",
+      "assertionId": "V1.5-RECOVERY-001"
+    },
+    {
+      "actual": {
+        "orders": [
+          {
+            "fillId": "2c598d02-6136-4075-ad67-373da1ca9204",
+            "market": "CN_A",
+            "orderId": "149b1348-d8d8-4c4d-ab13-068441de6cdd",
+            "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+            "reconciliation": {
+              "status": "MATCH",
+              "portfolio": {
+                "cash": {
+                  "amount": "8995.0000",
+                  "currency": "CNY"
+                },
+                "market": "CN_A",
+                "ownerId": "acceptance-owner-1",
+                "accountId": "4efecdfd-cd44-490e-af83-fdeac1ca1160",
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "positions": [
+                  {
+                    "quantity": 100,
+                    "security": "600000.SH"
+                  }
+                ],
+                "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "brokerMode": "FAKE",
+                "reservations": [
+                  {
+                    "side": "BUY",
+                    "status": "CAPTURED",
+                    "cashAmount": "1005.0000",
+                    "evidenceRef": "fakebroker-outbox:d23b994e-e76a-44df-b0ca-ddf6f8b77567",
+                    "clientOrderId": "v13-fault-unknown-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                    "reservationId": "8b275cc4-1110-4839-b686-08b8bf460365",
+                    "capturedQuantity": 0,
+                    "capturedCashAmount": "1005.0000"
+                  }
+                ],
+                "ledgerVersion": 2,
+                "positionCount": 1,
+                "environmentMode": "PAPER",
+                "ledgerEntryCount": 2,
+                "fixtureAccountRef": "v15-no-trade-CN_A-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "unsettledReceivables": []
+              },
+              "fakeBroker": {
+                "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+                "currency": "CNY",
+                "owner_id": "acceptance-owner-1",
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "positions": [
+                  {
+                    "quantity": 100,
+                    "security": "600000.SH"
+                  }
+                ],
+                "brokerMode": "FAKE",
+                "updated_at": "2026-10-14T11:53:12.273Z",
+                "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "current_cash": "8995.0000",
+                "initial_cash": "10000.0000",
+                "fill_event_count": 1,
+                "unsettledReceivables": []
+              },
+              "brokerSummary": {
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "brokerMode": "FAKE",
+                "fill_count": 1,
+                "order_count": 1,
+                "discrepancies": [],
+                "pending_outbox_count": 0,
+                "externalOnlyOrderCount": 0,
+                "unresolved_order_count": 0
+              }
+            },
+            "replayedOriginal": true
+          },
+          {
+            "fillId": "42ffffed-1256-4e19-b474-15e6920fef96",
+            "market": "US_EQUITY",
+            "orderId": "4c4b0957-d79f-4c31-92ae-f634a04e102a",
+            "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+            "reconciliation": {
+              "status": "MATCH",
+              "portfolio": {
+                "cash": {
+                  "amount": "9749.9500",
+                  "currency": "USD"
+                },
+                "market": "US_EQUITY",
+                "ownerId": "acceptance-owner-1",
+                "accountId": "f10185ee-cab0-4a00-a41d-b5617df80f75",
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "positions": [
+                  {
+                    "quantity": 10,
+                    "security": "AAPL"
+                  }
+                ],
+                "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "brokerMode": "FAKE",
+                "reservations": [
+                  {
+                    "side": "BUY",
+                    "status": "CAPTURED",
+                    "cashAmount": "250.0500",
+                    "evidenceRef": "fakebroker-outbox:cef2402a-d774-4ab3-ba00-7d5367f119e0",
+                    "clientOrderId": "v15-auto-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                    "reservationId": "85e42e43-a4c4-4819-879d-d9be78987910",
+                    "capturedQuantity": 0,
+                    "capturedCashAmount": "250.0500"
+                  }
+                ],
+                "ledgerVersion": 2,
+                "positionCount": 1,
+                "environmentMode": "PAPER",
+                "ledgerEntryCount": 2,
+                "fixtureAccountRef": "v15-no-trade-US_EQUITY-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "unsettledReceivables": []
+              },
+              "fakeBroker": {
+                "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+                "currency": "USD",
+                "owner_id": "acceptance-owner-1",
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "positions": [
+                  {
+                    "quantity": 10,
+                    "security": "AAPL"
+                  }
+                ],
+                "brokerMode": "FAKE",
+                "updated_at": "2026-10-14T11:53:16.911Z",
+                "test_run_id": "dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "current_cash": "9749.9500",
+                "initial_cash": "10000.0000",
+                "fill_event_count": 1,
+                "unsettledReceivables": []
+              },
+              "brokerSummary": {
+                "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+                "brokerMode": "FAKE",
+                "fill_count": 2,
+                "order_count": 2,
+                "discrepancies": [],
+                "pending_outbox_count": 0,
+                "externalOnlyOrderCount": 0,
+                "unresolved_order_count": 0
+              }
+            },
+            "replayedOriginal": false
+          }
+        ],
+        "reconciliation": {
+          "status": "MATCH",
+          "fakeBroker": {
+            "namespace": "v1-5-recovery-dce571d9-51d7-4d2b-a5e4-a933ce384594",
+            "brokerMode": "FAKE",
+            "fill_count": 2,
+            "order_count": 2,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          }
+        }
+      },
+      "status": "PASS",
+      "expected": "Exactly two original FakeBroker orders/fills, delivered outboxes, matched ledgers, and zero unresolved/pending facts",
+      "assertionId": "V1.5-RECOVERY-002"
+    }
+  ],
+  "manualConclusion": "NOT_RUN",
+  "stageId": "V1.5",
+  "testRunId": "dce571d9-51d7-4d2b-a5e4-a933ce384594"
+}

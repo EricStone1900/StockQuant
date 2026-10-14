@@ -52,6 +52,8 @@ export class V15OrchestrationEngine {
         businessExecution: "NOT_RUN",
         businessServicesCalled: [],
         scenarioExpectation: scenario?.expected ?? "unknown scenario",
+        environmentMode: "PAPER",
+        dataMode: "FIXTURE",
         brokerMode: "FAKE",
         liveTradingEnabled: false,
         fixtureVersion: "v1.5-orchestration-1",

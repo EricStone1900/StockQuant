@@ -24,6 +24,19 @@ test("publishes immutable namespaced bytes and verifies each read", async () => 
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("concurrent identical publishes expose one complete immutable file and all callers succeed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "stockquant-artifact-store-concurrent-"));
+  try {
+    const stores = Array.from({ length: 16 }, () => new LocalArtifactContentStore(root));
+    const bytes = Buffer.from("complete immutable content published concurrently".repeat(4096));
+    const address = { namespace: "research/run-concurrent/outputs", artifactId: "artifact-concurrent", sha256: sha(bytes) };
+    await Promise.all(stores.map((store) => store.publish(address, bytes)));
+    for (const store of stores) assert.deepEqual(Buffer.from(await store.read(address)), bytes);
+    const siblings = await import("node:fs/promises").then(({ readdir }) => readdir(join(root, "research", "run-concurrent", "outputs", address.sha256)));
+    assert.deepEqual(siblings, [address.artifactId]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("rejects path traversal and symlinked namespace components", async () => {
   const root = await mkdtemp(join(tmpdir(), "stockquant-artifact-store-"));
   const outside = await mkdtemp(join(tmpdir(), "stockquant-artifact-outside-"));

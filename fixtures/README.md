@@ -50,6 +50,10 @@ Manifest 必须记录来源种类、说明、许可/授权和采集时间。`REC
 
 [`v1/v1.3/manifest.json`](./v1/v1.3/manifest.json) 冻结 [`v1.3-trading-loop` 1.0.0 场景输入](./v1/v1.3/trading-loop-scenarios.json)，包含 CN_A/CNY 与 US_EQUITY/USD 的合成订单输入、精确现金/持仓预期、CN Fixture Session 推进、UNKNOWN 查询恢复与成交序号故障顺序。输入文件 SHA-256 为 `24d7494e5f4562561a387d176a76eae9134c9f6065bddf7eb69467c29ccc1770`。V1.3 Web从该文件读取seed、市场证券、订单数量/币种及AUTO Mandate预算；E2E以Manifest Hash核对并从同一 Fixture 读取预期断言。此Fixture为纯模拟输入，不代表真实行情、市场日历完整性、真实费用或券商行为；更改输入必须升新版本并更新Manifest。
 
+## V1.3 US AAPL乱序成交与重启
+
+[`v1.3-us-ordered-fills` v1.0.0](./v1/v1.3-us-ordered-fills-v1.0.0/manifest.json) 冻结AAPL 200股MANUAL Paper BUY、seq2先到及重复10次、Trade Execution重启、seq1后到后因果排空的固定输入；断言为100+50股Fill、USD 6,249.9500现金、USD 5,000.0500预留及MATCH。内容SHA-256为`7c6c81a3f7c1f7286a55f853285414a5e240e2ca2c54013e29aa87cb81bd38c0`。该数据为合成验收输入，不代表真实AAPL报价、费用或市场行为。
+
 ## V1.5 双市场 NO_TRADE 日历
 
 `v1/v1.5/no-trade-calendar-manifest.json` 冻结 `v1.5-no-trade-calendar-1`：CN_A 与 US_EQUITY 各60个按市场本地时区排序的日期型虚拟交易日；日程排除冻结的2026交易所假日规则，不含开收市时刻、Security、OHLCV、成交或真实行情。V1.5 Temporal E2E 对每个日期分别读取持久 Portfolio 账户与独立 FakeBroker 对账事实；NO_TRADE 执行完成后继续断言零订单/Fill、资金/持仓不变。该小样本仅满足本轮虚拟HOLD场景，不代表交易所完整日历、真实观察窗口、行情覆盖或生产调度。更新日历必须创建新 Fixture 版本。
@@ -84,6 +88,10 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 
 `v1/v1.4/corporate-actions-manifest.json` 冻结`v1.4-corporate-actions-1`，包含五个`600000.SH` RAW close及拆股/现金分红事件文件。账务用例先以200000分买100股×1000分；2024-01-04按2:1拆股变为200股且不产生现金；2024-01-05每股10分分红按200股确认2000分应收，RAW价格从500分到490分；2024-01-08支付后应收转现金。每个交易日NAV应为200000分。分红事件重复投递同一actionId，必须只记一次。价格文件绝不回填复权价，本Fixture为合成会计断言，不代表真实公司行动、除权规则或税务处理。
 
+## V1.4 双市场 Paper 结算日历（业务接线未完成）
+
+[`v1.4-paper-settlement-calendar-1`](./v1/v1.4-settlement-v1.0.0/manifest.json) 是2026-10-11为OD-014决策新建的不可变合成Fixture版本。CN_A/CNY与US_EQUITY/USD各自显式列出2024-01-02至2024-01-09的session→settlement映射；星期五2024-01-05映射到清单明确列出的2024-01-08，末尾session不提供settlementDate。它只用于模拟验收，不代表任何交易所完整日历。`contracts:check`校验JSON Schema，`fixtures:check`核对Manifest SHA、市场/币种隔离、顺序、映射目标、周末映射和未知日期失败关闭。这是Fixture v1冻结时的历史状态说明；后续Paper应收保存、Run Clock释放及结算后BUY已在§8.86–§8.89完成固定隔离验证，Fixture检查本身仍不能替代这些业务验收。
+
 ## V2.3 锁版 Qlib 拟合输入
 
 `v2/v2.3/qlib-fit/manifest.json` 冻结了 `qlib-fit-input.json`（120行、5个合成特征、合成标签与逐行时间可用性，训练/验证/测试切分为 `[0,72)`/`[72,96)`/`[96,120)`）。Platform TestRun 直接读取该文件并在使用前重算 Manifest SHA-256。该 Fixture 只用于验证锁版 Qlib 训练、预测及时间切分拒绝路径；不是行情/收益数据、真实市场 PIT 证据或独立模型验证。
@@ -91,3 +99,14 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 ## V1.3 合成多腿 Paper 输入（执行验证待进行）
 
 [`v1/v1.3-multileg/manifest.json`](./v1/v1.3-multileg/manifest.json) 冻结1.0.0原始开发输入；保留其初始资金3000的场景而不覆盖。由于V1.3 Web固定账户初始资金为10000，另冻结[`v1/v1.3-multileg-v1.0.1/manifest.json`](./v1/v1.3-multileg-v1.0.1/manifest.json) 1.0.1，正常场景按Web实际资金核算：CN_A两个BUY预留2210、期末现金7790；US_EQUITY预留450.10、期末现金9549.90。1.0.2增加CN_A AUTO_POLICY批次语义，1.0.3在保留旧版本字节的基础上明确CN_A与US_EQUITY双市场AUTO两腿BUY验收断言。所有版本均为内部合成输入，不含外部行情或券商来源；SELL proceeds-to-BUY结算路径仍待OD-014，阶段父项和人工验收仍开放。
+
+### V1.3 US session clock Fixture
+
+`v1/v1.3-us-synthetic-session-1/session-calendar.json` is a small, explicit US_EQUITY simulation schedule for V1.3 Run Clock normalization and session advancement. Its dates and 09:30–16:00 `America/New_York` sessions are synthetic acceptance inputs, not an exchange calendar and not evidence of real US market hours or holidays. The backend pins `v1.3-us-synthetic-session-1`; dates outside the listed schedule are UNKNOWN and fail closed. The file's SHA-256 is recorded in its manifest.
+
+
+[`v1.4-paper-settlement-calendar-3`](./v1/v1.4-settlement-v1.2.0/manifest.json) 是不可变的第三版合成结算输入（数据文件SHA-256 `1e6bc9704387c92ae30154bc49734b03d602749ad3133c897ed13ba3442e68c9`）。它保留2024与V1.3 2026会话，并为CN_A/US_EQUITY各增加2023-08-23至2023-08-31的显式测试Session，以覆盖历史费率Paper回放和未结算卖出应收分账；星期五2023-08-25映射到显式星期一2023-08-28，2023-08-30映射到2023-08-31。新增日期仅是有限合成输入，不代表交易所日历或现实结算承诺。三个版本均保留、未知日期继续失败关闭；服务运行时只使用v3日历并记录其版本。
+
+## V1.4 合成日回测基准
+
+`v1/v1.4/backtest_benchmark-manifest.json` 冻结版本化合成基准序列，用于与V1.4正常日线回测和历史费率场景逐Session对齐。该序列覆盖策略Fixture的2024-01-02至2024-01-05，以及历史费率Fixture的2023-08-23至2023-08-28；其SHA-256为`be3735f7d9005b76ebf6cd0cc57b0f3229b1560f42fceff2b329505ecafb64ab`。它是内部合成指标，不代表指数、真实市场行情或收益。修改输入须创建新Fixture版本和Manifest；原冻结策略数据不变。

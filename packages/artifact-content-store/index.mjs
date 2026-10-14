@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, mkdir, open, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { link, lstat, mkdir, open, unlink } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 
 const HASH = /^[a-f0-9]{64}$/u;
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
@@ -21,6 +21,13 @@ async function readRegularFileNoFollow(path) {
   } finally {
     await handle?.close();
   }
+}
+
+async function syncParentDirectory(path) {
+  const flags = constants.O_RDONLY | (constants.O_DIRECTORY ?? 0) | (constants.O_NOFOLLOW ?? 0);
+  const directory = await open(dirname(path), flags);
+  try { await directory.sync(); }
+  finally { await directory.close(); }
 }
 
 /** Shared immutable content layer. Domain services retain their own owner/run metadata and authorization. */
@@ -68,12 +75,27 @@ export class LocalArtifactContentStore {
     if (hash(bytes) !== address.sha256) throw new Error("artifact content sha256 does not match its immutable address");
     const path = this.pathFor(address);
     await this.ensureSafeParent(path);
+    const temporaryPath = join(dirname(path), `.${address.artifactId}.tmp-${randomBytes(16).toString("hex")}`);
+    let handle;
     try {
-      const { bytes: existing } = await readRegularFileNoFollow(path);
-      if (hash(existing) !== address.sha256) throw new Error("artifact path already contains different content");
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-      await writeFile(path, bytes, { flag: "wx", mode: 0o640 });
+      handle = await open(temporaryPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o640);
+      await handle.writeFile(bytes);
+      await handle.sync();
+      await handle.close();
+      handle = undefined;
+      try {
+        await link(temporaryPath, path);
+      } catch (error) {
+        if (error?.code !== "EEXIST") throw error;
+        const { bytes: existing } = await readRegularFileNoFollow(path);
+        if (hash(existing) !== address.sha256) throw new Error("artifact path already contains different content");
+      }
+      // Persist the final directory entry as well as the bytes before reporting success.
+      await syncParentDirectory(path);
+    } finally {
+      await handle?.close();
+      await unlink(temporaryPath).catch((error) => { if (error?.code !== "ENOENT") throw error; });
+      await syncParentDirectory(path);
     }
   }
 
@@ -102,5 +124,6 @@ export class LocalArtifactContentStore {
     const current = await lstat(path);
     if (!current.isFile() || current.isSymbolicLink() || current.dev !== info.dev || current.ino !== info.ino) throw new Error("artifact path changed during removal");
     await unlink(path);
+    await syncParentDirectory(path);
   }
 }

@@ -22,6 +22,7 @@ const tokens = {
   runner: randomBytes(48).toString("base64url"),
   trade: randomBytes(48).toString("base64url")
 };
+let historicalReplayModeReport = null;
 const appEnv = {
   PATH: process.env.PATH ?? "/usr/bin:/bin",
   HOME: "/tmp",
@@ -188,7 +189,7 @@ try {
     const mandateId = randomUUID();
     const mandatePath = "/internal/v1/auto-mandates";
     const mandateCommand = { mandateId, mandateVersion: 1, testRunId: mandateRun, accountId: randomUUID(), strategyVersion: "fixture-auto-policy-test-v1", market: "CN_A", currency: "CNY", securityScope: ["600000.SH"], maxOrderAmount: "1000.00", maxTotalAmount: "2000.00", maxOrderCount: 2, validFrom: "2026-09-25T01:00:00.000Z", expiresAt: "2026-09-25T07:00:00.000Z", reason: "isolated mode-boundary smoke", now: "2026-09-25T01:00:00.000Z" };
-    const injectedModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    const injectedModes = [["PAPER", "FAKE"], ["PAPER", "REAL"], ["BACKTEST", "FAKE"], ["BACKTEST", "REAL"], ["LIVE", "FAKE"], ["LIVE", "REAL"]];
     for (const [environmentMode, brokerMode] of injectedModes) {
       const rejected = await request(mandatePath, { method: "POST", caller: "platform-api-service", bearer: tokens.platform, owner: mandateOwner, actor: mandateOwner, body: JSON.stringify({ ...mandateCommand, environmentMode, brokerMode }) });
       assert.equal(rejected.status, 422, `AUTO Mandate create must reject injected ${environmentMode}/${brokerMode}`);
@@ -266,7 +267,7 @@ try {
     assert.equal(proposalCreate.status, 201, "Platform may create an isolated PAPER/FAKE Proposal for the TestRun");
     const proposal = await proposalCreate.json();
     const platformActor = `approver-${randomUUID()}`;
-    const proposalModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    const proposalModes = injectedModes;
     const proposalRevision = { expectedVersion: proposal.proposalVersion, expectedContentHash: proposal.contentHash, operation: "REBALANCE", expiresAt: proposalExpiry, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "BUY", quantity: 100 }], reason: "mode-boundary smoke", now: proposalNow };
     const proposalMutationModeResults = [];
     for (const [environmentMode, brokerMode] of proposalModes) {
@@ -299,7 +300,7 @@ try {
     assert.equal(approvedResponse.status, 200, "Platform approval must persist before Trade can request execution authorization");
     assert.equal((await approvedResponse.json()).status, "APPROVED_MANUAL");
     const proposalCommand = { proposalVersion: proposal.proposalVersion, contentHash: proposal.contentHash, ownerId: proposalOwner, testRunId: proposalRun, accountId: proposalAccount, clientOrderId: `client-${randomUUID()}`, commandHash: "d".repeat(64), now: proposalNow };
-    const rejectedProposalModes = [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]];
+    const rejectedProposalModes = proposalModes;
     for (const [scope, changedScope] of [
       ["owner", { ownerId: `wrong-owner-${randomUUID()}` }],
       ["TestRun", { testRunId: randomUUID() }],
@@ -356,16 +357,21 @@ try {
     const command = { namespace: `auth-smoke-${randomUUID()}`, accountId: randomUUID(), clientOrderId: `order-${randomUUID()}`, security: "600000.SH", requestedQuantity: 100, bar: { timestamp: "2026-09-25T01:32:00.000Z", open: "10.0000", volume: 1000 } };
     const replayAuthorizationRowsBeforeInjection = (await testDb.query("SELECT count(*)::text AS count FROM execution_authorizations")).rows[0].count;
     const replayModeResults = [];
-    for (const [environmentMode, brokerMode] of [["LIVE", "FAKE"], ["PAPER", "REAL"], ["LIVE", "REAL"]]) {
+    let injectedBacktestAuthorizationId;
+    for (const [environmentMode, brokerMode] of injectedModes) {
       const rejected = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command, environmentMode, brokerMode }) });
-      assert.equal(rejected.status, 422, `historical replay authorization must reject injected ${environmentMode}/${brokerMode}`);
-      replayModeResults.push({ environmentMode, brokerMode, status: rejected.status });
+      const isAllowedReplayMode = environmentMode === "BACKTEST" && brokerMode === "FAKE";
+      assert.equal(rejected.status, isAllowedReplayMode ? 200 : 422, `historical replay authorization mode ${environmentMode}/${brokerMode} has the wrong boundary result`);
+      const result = isAllowedReplayMode ? await rejected.json() : undefined;
+      if (isAllowedReplayMode) injectedBacktestAuthorizationId = result.authorizationId;
+      replayModeResults.push({ environmentMode, brokerMode, status: rejected.status, authorizationId: result?.authorizationId });
     }
     const replayAuthorizationRowsAfterInjection = (await testDb.query("SELECT count(*)::text AS count FROM execution_authorizations")).rows[0].count;
-    assert.equal(replayAuthorizationRowsAfterInjection, replayAuthorizationRowsBeforeInjection, "mode-injected replay grants must not persist authorization rows");
+    assert.equal(replayAuthorizationRowsAfterInjection, String(Number(replayAuthorizationRowsBeforeInjection) + 1), "only the valid BACKTEST/FAKE request may persist one replay authorization");
     const issuedResponse = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command, environmentMode: "BACKTEST", brokerMode: "FAKE" }) });
     assert.equal(issuedResponse.status, 200, "valid replay command should receive a scoped one-time authorization");
     const { authorizationId } = await issuedResponse.json();
+    assert.notEqual(authorizationId, injectedBacktestAuthorizationId, "a second valid BACKTEST/FAKE grant in the same namespace must rotate the authorization ID");
     const tampered = await request("/internal/v1/authorizations/validate", { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify({ authorizationId, accountId: command.accountId, command: { ...command, requestedQuantity: 101 } }) });
     assert.equal(tampered.status, 403, "changed command must not consume or validate the authorization");
     const replayedValidations = await Promise.all([1, 2].map(() => request("/internal/v1/authorizations/validate", { method: "POST", caller: "trade-execution-service", bearer: tokens.trade, body: JSON.stringify({ authorizationId, accountId: command.accountId, command }) })));
@@ -375,7 +381,7 @@ try {
     assert.equal(replayedResults.filter((result) => result.body.replayed === true).length, 1, "the other concurrent validation must be identified as an idempotent replay");
     const authorizationState = await testDb.query("SELECT status FROM execution_authorizations WHERE authorization_id=$1", [authorizationId]);
     assert.equal(authorizationState.rows[0]?.status, "CONSUMED", "concurrent validation must leave the authorization consumed exactly once");
-    console.info(`[V1.3 historical replay mode boundary HTTP+PG] ${JSON.stringify({ status: "PASS", rejectedModes: replayModeResults, authorizationRowsBeforeInjection: replayAuthorizationRowsBeforeInjection, authorizationRowsAfterInjection: replayAuthorizationRowsAfterInjection, authorizationRowsUnchanged: replayAuthorizationRowsBeforeInjection === replayAuthorizationRowsAfterInjection, acceptedMode: "BACKTEST/FAKE", consumedOnce: authorizationState.rows[0]?.status === "CONSUMED" })}`);
+    console.info(`[V1.3 historical replay mode boundary HTTP+PG] ${JSON.stringify({ status: "PASS", modeResults: replayModeResults, authorizationRowsBeforeInjection: replayAuthorizationRowsBeforeInjection, authorizationRowsAfterInjection: replayAuthorizationRowsAfterInjection, onlyValidBacktestFakePersisted: Number(replayAuthorizationRowsAfterInjection) === Number(replayAuthorizationRowsBeforeInjection) + 1, acceptedMode: "BACKTEST/FAKE", subsequentValidGrantRotatedAuthorization: authorizationId !== injectedBacktestAuthorizationId, consumedOnce: authorizationState.rows[0]?.status === "CONSUMED" })}`);
 
     const renewedCommand = { ...command, clientOrderId: `order-${randomUUID()}`, requestedQuantity: 50 };
     const renewedResponse = await request("/internal/v1/authorizations", { method: "POST", caller: "historical-replay-worker", bearer: tokens.replay, body: JSON.stringify({ namespace: command.namespace, accountId: command.accountId, command: renewedCommand, environmentMode: "BACKTEST", brokerMode: "FAKE" }) });
@@ -437,6 +443,10 @@ try {
       request(`${path}/recover-unknown`, { caller: "platform-api-service", bearer: tokens.platform, method: "POST", body: JSON.stringify({ status: "FILLED", orderId: "forged-order" }) })
     ]);
     assert.deepEqual(bodyInjectionResults.map((response) => response.status), [422, 422, 422, 422], "bodyless lifecycle/recovery commands must reject client-supplied service facts");
+    const replayClientModes = [["PAPER", "FAKE"], ["PAPER", "REAL"], ["BACKTEST", "FAKE"], ["BACKTEST", "REAL"], ["LIVE", "FAKE"], ["LIVE", "REAL"]];
+    const lifecycleModeResults = await Promise.all(["pause", "resume", "cancel", "recover-unknown"].flatMap((action) => replayClientModes.map(([environmentMode, brokerMode]) => request(`${path}/${action}`, { caller: "platform-api-service", bearer: tokens.platform, method: "POST", body: JSON.stringify({ environmentMode, brokerMode }) }))));
+    assert.equal(lifecycleModeResults.length, 24);
+    assert(lifecycleModeResults.every((response) => response.status === 422), "all six client mode pairs must be rejected by each bodyless Replay lifecycle/recovery route");
     const unchangedAfterBodyInjection = await replayDb.query("SELECT status,result FROM replay_worker_runs WHERE test_run_id=$1", [runId]);
     assert.equal(unchangedAfterBodyInjection.rows[0].status, "COMPLETED");
     assert.deepEqual(unchangedAfterBodyInjection.rows[0].result, {}, "rejected lifecycle/recovery payloads must not mutate persisted replay state");
@@ -466,6 +476,31 @@ try {
     const multiMalformed = await request("/internal/v1/replays/multi", { ...platform, method: "POST", body: "{}" });
     const asyncMalformed = await request("/internal/v1/replays/multi?async=true", { ...platform, method: "POST", body: "{}" });
     assert.deepEqual([singleMalformed.status, multiMalformed.status, asyncMalformed.status], [422, 422, 422], "authorized malformed submits must stop at input validation and create no run");
+    const replaySubmission = { testRunId: randomUUID(), namespace: `mode-injection-${randomUUID()}`, ownerId: "service-auth-smoke", scenarioId: "normal", seed: 20260907, bar: { timestamp: "2024-01-02T09:31:00+08:00", open: "10.0000", volume: 1000 } };
+    const { bar: replayBar, ...multiReplayBase } = replaySubmission;
+    const submitRoutes = [
+      { label: "single", path: "/internal/v1/replays", body: replaySubmission },
+      { label: "multi", path: "/internal/v1/replays/multi", body: { ...multiReplayBase, bars: [replayBar] } },
+      { label: "async-multi", path: "/internal/v1/replays/multi?async=true", body: { ...multiReplayBase, bars: [replayBar] } }
+    ];
+    const replayRunCountBeforeModes = Number((await replayDb.query("SELECT count(*)::int AS count FROM replay_worker_runs")).rows[0].count);
+    const replaySubmissionModeResults = [];
+    for (const route of submitRoutes) {
+      for (const [environmentMode, brokerMode] of replayClientModes) {
+        const rejected = await request(route.path, { ...platform, method: "POST", body: JSON.stringify({ ...route.body, environmentMode, brokerMode }) });
+        assert.equal(rejected.status, 422, `${route.label} Replay submission must reject injected ${environmentMode}/${brokerMode}`);
+        replaySubmissionModeResults.push({ route: route.label, environmentMode, brokerMode, status: rejected.status });
+      }
+    }
+    const replayRunCountAfterModes = Number((await replayDb.query("SELECT count(*)::int AS count FROM replay_worker_runs")).rows[0].count);
+    assert.equal(replayRunCountAfterModes, replayRunCountBeforeModes, "mode-injected synchronous and asynchronous submissions must not persist or dispatch replay runs");
+    historicalReplayModeReport = {
+      lifecycleModeStatuses: lifecycleModeResults.map((response) => response.status),
+      submissionModeResults: replaySubmissionModeResults,
+      persistedRunCountBeforeModeInjection: replayRunCountBeforeModes,
+      persistedRunCountAfterModeInjection: replayRunCountAfterModes
+    };
+    console.info(`[V1.4 Historical Replay Worker mode-injection HTTP+PG] ${JSON.stringify({ status: "PASS", lifecycleModeAttempts: lifecycleModeResults.length, submissionModeAttempts: replaySubmissionModeResults.length, persistedRunCountBeforeModeInjection: replayRunCountBeforeModes, persistedRunCountAfterModeInjection: replayRunCountAfterModes, existingRunStateUnchanged: unchangedAfterBodyInjection.rows[0].status === "COMPLETED" })}`);
     const lifecycleMissing = await Promise.all(["pause", "resume", "cancel"].map((action) => request(`${missingPath}/${action}`, { ...platform, method: "POST" })));
     assert.deepEqual(lifecycleMissing.map((response) => response.status), [404, 404, 404], "authorized lifecycle operations on the isolated absent run must not create state");
     const recoveryMissing = await request(`${missingPath}/recover-unknown`, { ...platform, method: "POST" });
@@ -477,6 +512,9 @@ try {
   });
 
   await runService("quant-research-service", async (request) => {
+    const testDb = new Client({ connectionString: databaseUrl.toString() });
+    await testDb.connect();
+    try {
     const wrongToken = await request("/v1/qlib/probe", { caller: "platform-api-service", bearer: tokens.replay });
     const replayOutOfScope = await request("/v1/qlib/probe", { caller: "historical-replay-worker", bearer: tokens.replay });
     const allowedPlatformProbe = await request("/v1/qlib/probe", { caller: "platform-api-service", bearer: tokens.platform });
@@ -489,9 +527,42 @@ try {
     assert.equal(tokenDerivedPlatformProbe.status, 200, "valid Bearer identity must work without the legacy service header");
     assert.equal(forgedPlatformClaim.status, 403, "an optional service header must agree with the Bearer identity");
     assert.equal(allowedPlatformInvalidCandidate.status, 422, "authorized request must reach input validation before any insert");
+    const backtestRows = async () => testDb.query(`SELECT
+      (SELECT count(*)::text FROM research_backtest_runs) AS runs,
+      (SELECT count(*)::text FROM research_backtest_manifests) AS manifests`);
+    const beforeModeInjection = await backtestRows();
+    const injectedModes = [
+      { environmentMode: "PAPER", brokerMode: "FAKE" },
+      { environmentMode: "PAPER", brokerMode: "REAL" },
+      { environmentMode: "BACKTEST", brokerMode: "FAKE" },
+      { environmentMode: "BACKTEST", brokerMode: "REAL" },
+      { environmentMode: "LIVE", brokerMode: "FAKE" },
+      { environmentMode: "LIVE", brokerMode: "REAL" },
+    ];
+    const modeResults = [];
+    for (const modes of injectedModes) {
+      const response = await request("/v1/research/backtests/daily-fixture", {
+        method: "POST", caller: "platform-api-service", bearer: tokens.platform,
+        body: JSON.stringify({
+          scenarioId: "normal", seed: 20260907, testRunId: randomUUID(),
+          policy: { initialCashCents: 100_000, targetQuantity: 100, participationRateBasisPoints: 10_000, slippageBasisPoints: 0, fixedFeeCents: 100 },
+          ...modes,
+        }),
+      });
+      const payload = await response.json();
+      assert.equal(response.status, 422, `Quant V1.4 route must reject injected ${modes.environmentMode}/${modes.brokerMode}`);
+      assert.equal(payload.reason, "V1.4 request contains missing or unknown fields", "mode fields must be rejected by the Quant route contract");
+      modeResults.push({ ...modes, status: response.status });
+    }
+    const afterModeInjection = await backtestRows();
+    assert.deepEqual(afterModeInjection.rows, beforeModeInjection.rows, "rejected Quant V1.4 mode injection must not persist a BacktestRun or Manifest");
+    console.info(`[V1.4 Quant backtest mode-injection HTTP+PG] ${JSON.stringify({ status: "PASS", attempts: modeResults, backtestRunsBefore: beforeModeInjection.rows[0].runs, backtestRunsAfter: afterModeInjection.rows[0].runs, manifestsBefore: beforeModeInjection.rows[0].manifests, manifestsAfter: afterModeInjection.rows[0].manifests, persistedSideEffects: 0 })}`);
+    } finally {
+      await testDb.end().catch(() => undefined);
+    }
   });
 
-  console.log(JSON.stringify({ status: "PASS", database: "temporary isolated database", services: ["decision-governance-service", "historical-replay-worker", "quant-research-service"], historicalReplayRoutes: { unauthorizedRouteProbes: 14, unauthorizedServiceIdentities: ["runner-host", "platform-api-service with replay-worker Bearer"], malformedAuthorizedSubmissions: 3, bodyInjectionLifecycleRecovery: [422, 422, 422, 422], stateUnchangedAfterBodyInjection: true, missingRunLifecycleActions: 3, missingRunRecovery: 1 }, governanceAuthorization: { commandBinding: "PASS", concurrentSingleUse: "PASS", namespaceRenewalRotatesId: "PASS", expiredAuthorization: "REJECTED", environmentMode: "BACKTEST", brokerMode: "FAKE" } }));
+  console.log(JSON.stringify({ status: "PASS", database: "temporary isolated database", services: ["decision-governance-service", "historical-replay-worker", "quant-research-service"], historicalReplayRoutes: { unauthorizedRouteProbes: 14, unauthorizedServiceIdentities: ["runner-host", "platform-api-service with replay-worker Bearer"], malformedAuthorizedSubmissions: 3, ...historicalReplayModeReport, stateUnchangedAfterBodyInjection: true, missingRunLifecycleActions: 3, missingRunRecovery: 1 }, governanceAuthorization: { commandBinding: "PASS", concurrentSingleUse: "PASS", namespaceRenewalRotatesId: "PASS", expiredAuthorization: "REJECTED", environmentMode: "BACKTEST", brokerMode: "FAKE" } }));
 } finally {
   if (created) {
     await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);

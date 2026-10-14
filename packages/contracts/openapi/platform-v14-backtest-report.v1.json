@@ -1,15 +1,41 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "StockQuant Platform V1.4 Backtest Report API", "version": "1.0.0" },
+  "info": { "title": "StockQuant Platform V1.4 Backtest Acceptance & Report API", "version": "1.0.0" },
   "servers": [{ "url": "http://platform-api-service:3000" }],
   "components": {
     "securitySchemes": { "localSession": { "type": "apiKey", "in": "cookie", "name": "sq_session" } },
     "schemas": {
       "ArtifactRef": { "$ref": "https://stockquant.local/schemas/common/artifact-ref.schema.json" },
-      "V14DailyBacktestResult": { "$ref": "https://stockquant.local/schemas/research/v14-daily-backtest-result.schema.json" }
+      "V14DailyBacktestResult": { "$ref": "https://stockquant.local/schemas/research/v14-daily-backtest-result.schema.json" },
+      "V14Scenario": { "type": "object", "required": ["scenarioId", "version", "title", "expected"], "properties": { "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees", "corporate-actions"] }, "version": { "type": "string" }, "title": { "type": "string" }, "expected": { "type": "string" } }, "additionalProperties": false },
+      "V14MarketFeeSchedule": { "oneOf": [
+        { "type": "object", "required": ["scheduleId", "commissionRatePartsPerBillion", "minimumCommissionCents"], "properties": { "scheduleId": { "const": "CN_A_CASH_EQUITY_2022_04_29_TO_2023_08_27" }, "commissionRatePartsPerBillion": { "type": "integer", "minimum": 68700, "maximum": 3000000 }, "minimumCommissionCents": { "type": "integer", "minimum": 0 } }, "additionalProperties": false },
+        { "type": "object", "required": ["scheduleId", "commissionRatePartsPerBillion", "minimumCommissionCents"], "properties": { "scheduleId": { "const": "CN_A_CASH_EQUITY_2023_08_28" }, "commissionRatePartsPerBillion": { "type": "integer", "minimum": 54100, "maximum": 3000000 }, "minimumCommissionCents": { "type": "integer", "minimum": 0 } }, "additionalProperties": false }
+      ] },
+      "V14ExecutionPolicy": { "type": "object", "required": ["initialCashCents", "targetQuantity", "participationRateBasisPoints", "slippageBasisPoints", "fixedFeeCents"], "properties": { "initialCashCents": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }, "targetQuantity": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }, "participationRateBasisPoints": { "type": "integer", "minimum": 1, "maximum": 10000 }, "slippageBasisPoints": { "type": "integer", "minimum": 0, "maximum": 10000 }, "fixedFeeCents": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }, "marketFeeSchedule": { "$ref": "#/components/schemas/V14MarketFeeSchedule" }, "sellOrder": { "type": "object", "required": ["signalDate", "executionDate", "quantity"], "properties": { "signalDate": { "type": "string", "format": "date", "pattern": "^\\d{4}-\\d\\d-\\d\\d$" }, "executionDate": { "type": "string", "format": "date", "pattern": "^\\d{4}-\\d\\d-\\d\\d$" }, "quantity": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 } }, "additionalProperties": false, "description": "signalDate must precede executionDate." } }, "additionalProperties": false },
+      "V14RunRequest": { "type": "object", "required": ["scenarioId"], "properties": { "scenarioId": { "type": "string", "enum": ["normal", "rejection", "recovery", "market-restrictions", "historical-fees", "corporate-actions"] }, "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647, "default": 20260907 }, "policy": { "$ref": "#/components/schemas/V14ExecutionPolicy" } }, "allOf": [{ "if": { "properties": { "scenarioId": { "const": "corporate-actions" } }, "required": ["scenarioId"] }, "then": { "not": { "required": ["policy"] } } }], "additionalProperties": false },
+      "V14AcceptedRun": { "type": "object", "required": ["accepted", "testRunId", "status"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "const": "RUNNING" } }, "additionalProperties": true },
+      "V14CancelResult": { "type": "object", "required": ["accepted", "testRunId", "status", "cancelRequested"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "type": "string" }, "cancelRequested": { "const": true } }, "additionalProperties": false }
     }
   },
   "paths": {
+    "/api/v1/acceptance/v1/v1.4/scenarios": {
+      "get": {
+        "operationId": "listV14BacktestScenarios",
+        "summary": "List the fixed V1.4 daily backtest scenarios",
+        "security": [{ "localSession": [] }],
+        "responses": { "200": { "description": "Available fixed scenarios", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/V14Scenario" } } } } }, "401": { "description": "A local user session is required" } }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.4/runs": {
+      "post": {
+        "operationId": "createV14BacktestTestRun",
+        "summary": "Create a persistent owner-scoped V1.4 daily backtest TestRun",
+        "security": [{ "localSession": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/V14RunRequest" } } } },
+        "responses": { "202": { "description": "Run accepted for execution", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/V14AcceptedRun" } } } }, "401": { "description": "A local user session is required" }, "403": { "description": "Scenario is unavailable" }, "422": { "description": "Request or execution policy is invalid" } }
+      }
+    },
     "/api/v1/acceptance/v1/v1.4/runs/{testRunId}": {
       "get": {
         "operationId": "readV14BacktestTestRun",
@@ -33,10 +59,20 @@
           { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
         ],
         "responses": {
-          "200": { "description": "The exact persisted report content and its shared ArtifactRef", "content": { "application/json": { "schema": { "type": "object", "required": ["artifactRef", "content"], "properties": { "artifactRef": { "$ref": "#/components/schemas/ArtifactRef" }, "content": { "type": "object", "required": ["testRunId", "stageId", "scenarioId", "seed", "status", "assertions", "evidence"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "stageId": { "const": "V1.4" }, "scenarioId": { "type": "string" }, "seed": { "type": "integer" }, "status": { "const": "COMPLETED" }, "assertions": { "type": "array" }, "evidence": { "type": "object" } }, "additionalProperties": false } }, "additionalProperties": false } } } },
+          "200": { "description": "The exact persisted report content and its shared ArtifactRef", "content": { "application/json": { "schema": { "type": "object", "required": ["artifactRef", "content"], "properties": { "artifactRef": { "$ref": "#/components/schemas/ArtifactRef" }, "content": { "$ref": "#/components/schemas/V14DailyBacktestResult" } }, "additionalProperties": false } } } },
           "401": { "description": "A local user session is required" },
           "404": { "description": "Artifact does not belong to the requested owner and TestRun or failed its content hash check" }
         }
+      }
+    },
+    "/api/v1/acceptance/v1/v1.4/runs/{testRunId}/cancel": {
+      "post": {
+        "operationId": "cancelV14BacktestTestRun",
+        "summary": "Request cooperative cancellation of an owner-scoped V1.4 TestRun",
+        "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": false, "description": "Omit the body or send an empty JSON object; non-empty cancellation bodies are rejected.", "content": { "application/json": { "schema": { "type": "object", "maxProperties": 0, "additionalProperties": false } } } },
+        "responses": { "202": { "description": "Cancellation request accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/V14CancelResult" } } } }, "401": { "description": "A local user session is required" }, "404": { "description": "TestRun does not belong to the requesting owner" }, "409": { "description": "TestRun cannot be cancelled in its current state" }, "422": { "description": "Cancellation request body must be empty" } }
       }
     }
   }

@@ -10,6 +10,9 @@ describe("V1.3 trading acceptance engine", () => {
     expect(run.assertions.length).toBeGreaterThan(0);
     expect(run.assertions.every((item) => item.status === "WAITING" && item.actual === "NOT_RUN")).toBe(true);
     expect(run.evidence.evidenceScope).toBe("PLATFORM_WAITING_DECLARATION");
+    expect(run.evidence.environmentMode).toBe("PAPER");
+    expect(run.evidence.dataMode).toBe("FIXTURE");
+    expect(run.evidence.brokerMode).toBe("FAKE");
     expect(run.evidence.businessExecution).toBe("NOT_RUN");
     expect(run.evidence.businessServicesCalled).toEqual([]);
     expect(run.evidence.orderFacts).toBe("NOT_CREATED");

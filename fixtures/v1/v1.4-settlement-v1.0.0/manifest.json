@@ -1,0 +1,39 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v1.4-paper-settlement-calendar",
+  "fixtureVersion": "v1.4-paper-settlement-calendar-1",
+  "stageId": "V1.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Explicit synthetic CN_A and US_EQUITY settlement-session mappings for bounded V1.4 Paper accounting acceptance",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-11T00:00:00Z",
+  "semantics": {
+    "markets": ["CN_A", "US_EQUITY"],
+    "currencies": ["CNY", "USD"],
+    "timezone": "Market-local session dates; release occurs only at each listed settlement session start using the injected Run Clock",
+    "prices": "Not a price dataset; settlement dates are explicit synthetic fixture facts",
+    "sessions": { "count": 6, "start": "2024-01-02", "end": "2024-01-09", "calendar": "Synthetic per-market session and settlement mapping; not an exchange calendar" },
+    "securities": { "CN_A": 0, "US_EQUITY": 0 },
+    "qualityCases": ["market-specific settlement mapping", "weekend-spanning explicit settlement date", "fixture-tail pending receivable", "unknown dates fail closed", "same calendar version asserted per settlement"]
+  },
+  "files": [
+    {
+      "path": "fixtures/v1/v1.4-settlement-v1.0.0/settlement-calendar.json",
+      "sha256": "573fbac61989a195c26ebe850308efbd6da8258aa276bcc337d039cd6a840cfd",
+      "mediaType": "application/json",
+      "schemaRef": "https://stockquant.local/schemas/common/v14-paper-settlement-calendar.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V1.4-SETTLEMENT-CALENDAR-001", "description": "CN_A and US_EQUITY have independent explicit session mappings and currency identity" },
+    { "assertionId": "V1.4-SETTLEMENT-WEEKEND-002", "description": "A Friday settlement maps only to the explicitly listed Monday fixture session" },
+    { "assertionId": "V1.4-SETTLEMENT-TAIL-003", "description": "A fixture-tail session without a settlement date retains a pending receivable" },
+    { "assertionId": "V1.4-SETTLEMENT-UNKNOWN-004", "description": "Dates outside the frozen fixture fail with SETTLEMENT_CALENDAR_UNAVAILABLE rather than deriving a date" }
+  ]
+}

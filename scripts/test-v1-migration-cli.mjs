@@ -16,6 +16,7 @@ const migrationLedgers = {
   "quant-research": "quant_research_schema_migrations",
   "market-data": "market_data_schema_migrations",
 };
+const migrationVersions = { "portfolio-risk": 3, "trade-execution": 3 };
 
 function invoke(...args) {
   const result = spawnSync(process.execPath, [cli, "--service", service, ...args], { cwd: root, encoding: "utf8", env: process.env, timeout: 120_000 });
@@ -34,7 +35,7 @@ const applied = invoke("--apply");
 assert.equal(applied.exitCode, 0, JSON.stringify(applied.report));
 assert.equal(applied.report.status, "READY");
 assert.ok(applied.report.requiredRelations.every((relation) => relation.exists), "every required relation must exist after migration");
-if (applied.report.migrationVersion !== null) assert.equal(applied.report.migrationVersion, 1);
+if (applied.report.migrationVersion !== null) assert.equal(applied.report.migrationVersion, migrationVersions[service] ?? 1);
 
 const checked = invoke();
 assert.equal(checked.exitCode, 0);
@@ -54,11 +55,11 @@ if (migrationLedgers[service]) {
   const { Pool } = requireService("pg");
   const pool = new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL, max: 1 });
   try {
-    await pool.query(`INSERT INTO ${migrationLedgers[service]}(version, description) VALUES (2, 'unsupported version probe')`);
+    await pool.query(`INSERT INTO ${migrationLedgers[service]}(version, description) VALUES (2147483647, 'unsupported version probe')`);
     const unsupported = invoke();
     assert.equal(unsupported.exitCode, 1, "unknown migration versions must fail closed during preflight");
     assert.equal(unsupported.report.status, "UNSUPPORTED_SCHEMA_VERSION");
-    await pool.query(`DELETE FROM ${migrationLedgers[service]} WHERE version=2`);
+    await pool.query(`DELETE FROM ${migrationLedgers[service]} WHERE version=2147483647`);
   } finally {
     await pool.end();
   }

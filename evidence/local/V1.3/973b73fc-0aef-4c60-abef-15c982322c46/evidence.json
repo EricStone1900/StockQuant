@@ -1,0 +1,392 @@
+{
+  "evidenceVersion": "v2-stage-run-1",
+  "mode": {
+    "environmentMode": "PAPER",
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE"
+  },
+  "run": {
+    "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46",
+    "stageId": "V1.3",
+    "scenarioId": "normal",
+    "scenarioVersion": "1.0.0",
+    "ownerId": "acceptance-owner-1",
+    "namespace": "v1-3-normal-973b73fc-0aef-4c60-abef-15c982322c46",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "assertions": [
+      {
+        "actual": {
+          "fill": {
+            "fee": "5.0000",
+            "price": "10.0000",
+            "quantity": 100,
+            "effectiveAt": "2026-09-28T13:31:00.000Z",
+            "externalFillId": "c2bbadf2-dcb0-4ec6-8fd7-26831ba5a571"
+          },
+          "order": {
+            "status": "FILLED",
+            "order_id": "646e8cfe-50f5-4139-90f0-31d8065fa868",
+            "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+            "rejection_reason": null
+          },
+          "portfolio": {
+            "cash": {
+              "amount": "8995.0000",
+              "currency": "CNY"
+            },
+            "positions": [
+              {
+                "quantity": 100,
+                "security": "600000.SH"
+              }
+            ],
+            "reservations": [
+              {
+                "side": "BUY",
+                "status": "CAPTURED",
+                "cashAmount": "1005.0000",
+                "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+                "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+                "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+                "capturedQuantity": 0,
+                "capturedCashAmount": "1005.0000"
+              }
+            ]
+          },
+          "fakeBroker": {
+            "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+            "currency": "CNY",
+            "owner_id": "acceptance-owner-1",
+            "namespace": "v1-3-normal-973b73fc-0aef-4c60-abef-15c982322c46",
+            "positions": [
+              {
+                "quantity": 100,
+                "security": "600000.SH"
+              }
+            ],
+            "brokerMode": "FAKE",
+            "updated_at": "2026-10-14T11:35:44.313Z",
+            "test_run_id": "973b73fc-0aef-4c60-abef-15c982322c46",
+            "current_cash": "8995.0000",
+            "initial_cash": "10000.0000",
+            "fill_event_count": 1,
+            "unsettledReceivables": []
+          },
+          "reconciliation": {
+            "status": "MATCH",
+            "portfolio": {
+              "cash": {
+                "amount": "8995.0000",
+                "currency": "CNY"
+              },
+              "positions": [
+                {
+                  "quantity": 100,
+                  "security": "600000.SH"
+                }
+              ],
+              "reservations": [
+                {
+                  "side": "BUY",
+                  "status": "CAPTURED",
+                  "cashAmount": "1005.0000",
+                  "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+                  "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+                  "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+                  "capturedQuantity": 0,
+                  "capturedCashAmount": "1005.0000"
+                }
+              ]
+            },
+            "fakeBroker": {
+              "currency": "CNY",
+              "positions": [
+                {
+                  "quantity": 100,
+                  "security": "600000.SH"
+                }
+              ],
+              "currentCash": "8995.0000"
+            },
+            "discrepancies": []
+          }
+        },
+        "status": "PASS",
+        "expected": {
+          "position": {
+            "quantity": 100,
+            "security": "600000.SH"
+          },
+          "settledCash": "8995.00 CNY",
+          "filledQuantity": 100
+        },
+        "assertionId": "V1.3-EXE-FULL-FILL-001"
+      },
+      {
+        "actual": {
+          "ownerId": "acceptance-owner-1",
+          "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46",
+          "proposalId": "0127a0b8-7996-4109-85b0-405d4a27c006",
+          "authorization": {
+            "status": "AUTHORIZED",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "ed066eaa-24f7-45e9-9c93-36bca8eee9fd",
+            "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46",
+            "proposalId": "0127a0b8-7996-4109-85b0-405d4a27c006",
+            "commandHash": "9ad90d53c800f3ff283ebdab736aee4f1d639eb4603ba8752c9dcd5f10d63067",
+            "contentHash": "233fb8bceec095f75ad31e30d2346649e3c48befe77b32625839ff7e6037fbb3",
+            "proposalVersion": 1,
+            "strategyVersion": "fixture-manual-test-v1"
+          },
+          "proposalStatus": "APPROVED_MANUAL",
+          "proposalVersion": 1
+        },
+        "status": "PASS",
+        "expected": "The exact owner/TestRun Governance Proposal was manually approved before its FakeBroker order",
+        "assertionId": "V1.3-GOV-AUTH-001"
+      }
+    ],
+    "evidence": {
+      "seed": 20260907,
+      "dataMode": "FIXTURE",
+      "fillFacts": {
+        "fee": "5.0000",
+        "price": "10.0000",
+        "quantity": 100,
+        "effectiveAt": "2026-09-28T13:31:00.000Z",
+        "externalFillId": "c2bbadf2-dcb0-4ec6-8fd7-26831ba5a571"
+      },
+      "brokerMode": "FAKE",
+      "orderFacts": {
+        "status": "FILLED",
+        "order_id": "646e8cfe-50f5-4139-90f0-31d8065fa868",
+        "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+        "rejection_reason": null
+      },
+      "runClockNow": "2026-09-28T13:31:00.000Z",
+      "evidenceScope": "OWNER_SCOPED_GOVERNANCE_PORTFOLIO_AND_FAKEBROKER_READS",
+      "reconciliation": {
+        "status": "MATCH",
+        "portfolio": {
+          "cash": {
+            "amount": "8995.0000",
+            "currency": "CNY"
+          },
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1005.0000",
+              "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+              "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+              "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1005.0000"
+            }
+          ]
+        },
+        "fakeBroker": {
+          "currency": "CNY",
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "currentCash": "8995.0000"
+        },
+        "discrepancies": []
+      },
+      "calendarVersion": "v1.3-us-synthetic-session-1",
+      "environmentMode": "PAPER",
+      "strategyVersion": "fixture-manual-test-v1",
+      "businessExecution": "MANUAL_FILL_VERIFIED",
+      "liveTradingEnabled": false,
+      "verifiedProposalId": "0127a0b8-7996-4109-85b0-405d4a27c006",
+      "scenarioExpectation": "买入100股，现金8995、持仓100，唯一成交",
+      "portfolioLedgerFacts": {
+        "cash": {
+          "amount": "8995.0000",
+          "currency": "CNY"
+        },
+        "positions": [
+          {
+            "quantity": 100,
+            "security": "600000.SH"
+          }
+        ],
+        "reservations": [
+          {
+            "side": "BUY",
+            "status": "CAPTURED",
+            "cashAmount": "1005.0000",
+            "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+            "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+            "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+            "capturedQuantity": 0,
+            "capturedCashAmount": "1005.0000"
+          }
+        ]
+      },
+      "verifiedClientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+      "businessServicesCalled": [
+        "decision-governance-service",
+        "trade-execution-service",
+        "portfolio-risk-service",
+        "FakeBroker"
+      ],
+      "sessionAdvanceSequence": 1,
+      "requiredBusinessServices": [
+        "decision-governance-service",
+        "trade-execution-service",
+        "portfolio-risk-service",
+        "FakeBroker"
+      ]
+    },
+    "createdAt": "2026-10-14T11:35:43.789Z",
+    "completedAt": "2026-10-14T11:35:44.536Z"
+  },
+  "assertions": [
+    {
+      "actual": {
+        "fill": {
+          "fee": "5.0000",
+          "price": "10.0000",
+          "quantity": 100,
+          "effectiveAt": "2026-09-28T13:31:00.000Z",
+          "externalFillId": "c2bbadf2-dcb0-4ec6-8fd7-26831ba5a571"
+        },
+        "order": {
+          "status": "FILLED",
+          "order_id": "646e8cfe-50f5-4139-90f0-31d8065fa868",
+          "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+          "rejection_reason": null
+        },
+        "portfolio": {
+          "cash": {
+            "amount": "8995.0000",
+            "currency": "CNY"
+          },
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1005.0000",
+              "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+              "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+              "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1005.0000"
+            }
+          ]
+        },
+        "fakeBroker": {
+          "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+          "currency": "CNY",
+          "owner_id": "acceptance-owner-1",
+          "namespace": "v1-3-normal-973b73fc-0aef-4c60-abef-15c982322c46",
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "brokerMode": "FAKE",
+          "updated_at": "2026-10-14T11:35:44.313Z",
+          "test_run_id": "973b73fc-0aef-4c60-abef-15c982322c46",
+          "current_cash": "8995.0000",
+          "initial_cash": "10000.0000",
+          "fill_event_count": 1,
+          "unsettledReceivables": []
+        },
+        "reconciliation": {
+          "status": "MATCH",
+          "portfolio": {
+            "cash": {
+              "amount": "8995.0000",
+              "currency": "CNY"
+            },
+            "positions": [
+              {
+                "quantity": 100,
+                "security": "600000.SH"
+              }
+            ],
+            "reservations": [
+              {
+                "side": "BUY",
+                "status": "CAPTURED",
+                "cashAmount": "1005.0000",
+                "evidenceRef": "fakebroker-outbox:06e96158-e8f2-4e10-9fc8-94cb4e57bcf4",
+                "clientOrderId": "v13-0127a0b8-7996-4109-85b0-405d4a27c006",
+                "reservationId": "e0898a32-fb63-46c8-a806-d02df9fdcf8c",
+                "capturedQuantity": 0,
+                "capturedCashAmount": "1005.0000"
+              }
+            ]
+          },
+          "fakeBroker": {
+            "currency": "CNY",
+            "positions": [
+              {
+                "quantity": 100,
+                "security": "600000.SH"
+              }
+            ],
+            "currentCash": "8995.0000"
+          },
+          "discrepancies": []
+        }
+      },
+      "status": "PASS",
+      "expected": {
+        "position": {
+          "quantity": 100,
+          "security": "600000.SH"
+        },
+        "settledCash": "8995.00 CNY",
+        "filledQuantity": 100
+      },
+      "assertionId": "V1.3-EXE-FULL-FILL-001"
+    },
+    {
+      "actual": {
+        "ownerId": "acceptance-owner-1",
+        "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46",
+        "proposalId": "0127a0b8-7996-4109-85b0-405d4a27c006",
+        "authorization": {
+          "status": "AUTHORIZED",
+          "ownerId": "acceptance-owner-1",
+          "accountId": "ed066eaa-24f7-45e9-9c93-36bca8eee9fd",
+          "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46",
+          "proposalId": "0127a0b8-7996-4109-85b0-405d4a27c006",
+          "commandHash": "9ad90d53c800f3ff283ebdab736aee4f1d639eb4603ba8752c9dcd5f10d63067",
+          "contentHash": "233fb8bceec095f75ad31e30d2346649e3c48befe77b32625839ff7e6037fbb3",
+          "proposalVersion": 1,
+          "strategyVersion": "fixture-manual-test-v1"
+        },
+        "proposalStatus": "APPROVED_MANUAL",
+        "proposalVersion": 1
+      },
+      "status": "PASS",
+      "expected": "The exact owner/TestRun Governance Proposal was manually approved before its FakeBroker order",
+      "assertionId": "V1.3-GOV-AUTH-001"
+    }
+  ],
+  "manualConclusion": "NOT_RUN",
+  "stageId": "V1.3",
+  "testRunId": "973b73fc-0aef-4c60-abef-15c982322c46"
+}

@@ -9,6 +9,7 @@ const services = {
   "portfolio-risk": {
     package: "services/portfolio-risk-service",
     role: "portfolio_risk",
+    schemaVersion: 3,
     markers: ["portfolio_risk_schema_migrations", "accounts", "ledger_entries", "resource_reservations"],
     ledger: "portfolio_risk_schema_migrations",
     async migrate(pool, base) {
@@ -27,6 +28,7 @@ const services = {
   "trade-execution": {
     package: "services/trade-execution-service",
     role: "trade_execution",
+    schemaVersion: 3,
     markers: ["trade_execution_schema_migrations", "fake_broker_orders", "fake_broker_fills", "fake_broker_outbox"],
     ledger: "trade_execution_schema_migrations",
     migrationModule: "dist/adapters/postgres-schema-migrations.js",
@@ -133,8 +135,9 @@ async function main() {
       const ledger = await pool.query(`SELECT max(version)::int AS version FROM ${descriptor.ledger}`);
       migrationVersion = ledger.rows[0]?.version ?? 0;
     }
-    const unsupportedVersion = migrationVersion !== null && migrationVersion > 1;
-    const ledgerIncomplete = Boolean(descriptor.ledger) && migrationVersion !== 1;
+    const expectedSchemaVersion = descriptor.schemaVersion ?? 1;
+    const unsupportedVersion = migrationVersion !== null && migrationVersion > expectedSchemaVersion;
+    const ledgerIncomplete = Boolean(descriptor.ledger) && migrationVersion !== expectedSchemaVersion;
     const status = unsupportedVersion ? "UNSUPPORTED_SCHEMA_VERSION"
       : missing.length === 0 && !ledgerIncomplete ? "READY"
         : apply ? "INCOMPLETE" : "MIGRATION_REQUIRED";

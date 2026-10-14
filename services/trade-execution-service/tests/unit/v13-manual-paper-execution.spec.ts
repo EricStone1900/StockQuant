@@ -11,6 +11,7 @@ function harness(status: V13ProposalResult["status"] = "APPROVED_MANUAL", value:
   const reservations = new Map<string, string>();
   let reservationCount = 0;
   const broker = {
+    settlePaperReceivables: vi.fn(async () => { steps.push("FakeBroker.settle"); return { settledFillIds: [] }; }),
     executeV13ManualPaper: vi.fn(async (input: any) => {
       steps.push("FakeBroker.place");
       const orderId = `broker:${input.clientOrderId}`;
@@ -23,6 +24,7 @@ function harness(status: V13ProposalResult["status"] = "APPROVED_MANUAL", value:
     find: vi.fn(async (id: string) => orders.get(id) ?? null), findByNamespaceClientOrderId: vi.fn(async (_namespace: string, id: string) => [...orders.values()].find((row) => row.client_order_id === id) ?? null), pendingFill: vi.fn(async (id: string) => ({ event_id: `event:${id}` })), outboxStatus: vi.fn(async () => ({ status: "DELIVERED" })), independentAssetSnapshot: vi.fn(async () => ({ current_cash: "8995.0000" })), reconciliationSummary: vi.fn(async () => ({ namespace: "run-1" })),
   };
   const portfolio = {
+    settleAccountReceivables: vi.fn(async () => { steps.push("Portfolio.settle"); return { settledFillIds: [] }; }),
     reserveAccountResources: vi.fn(async (_accountId: string, input: any) => { steps.push("Portfolio.reserve"); let reservationId = reservations.get(input.clientOrderId); const replayed = Boolean(reservationId); if (!reservationId) { reservationCount += 1; reservationId = `reservation-${reservationCount}`; reservations.set(input.clientOrderId, reservationId); } return { replayed, reservation: { reservationId } }; }),
     resolveAccountReservation: vi.fn(async (_accountId: string, _reservationId: string, _body: unknown) => { steps.push("Portfolio.release"); return { reservationId: _reservationId, status: "RELEASED" }; }),
   };
@@ -40,7 +42,7 @@ describe("V1.3 manual execution application coordinator", () => {
   it("sequences scope read, portfolio reserve, short grant, single-use consume, FakeBroker and Portfolio posting", async () => {
     const h = harness();
     const result = await h.service.execute(command);
-    expect(h.steps).toEqual(["Governance.read", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill"]);
+    expect(h.steps).toEqual(["Governance.read", "FakeBroker.settle", "Portfolio.settle", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill"]);
     expect(result.fill).toMatchObject({ quantity: 100, price: "10.0000", fee: "5.0000" });
     expect(h.broker.executeV13ManualPaper).toHaveBeenCalledWith(expect.objectContaining({ reservedCash: "1005.00", reservation: { reservationId: "reservation-1", ownerId: command.ownerId, testRunId: command.testRunId, clientOrderId: command.clientOrderId } }));
   });
@@ -55,12 +57,33 @@ describe("V1.3 manual execution application coordinator", () => {
     const multiLeg = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "000001.SZ", side: "BUY" as const, quantity: 100 }] };
     const h = harness("APPROVED_MANUAL", multiLeg);
     const result = await h.service.execute(command);
-    expect(h.steps).toEqual(["Governance.read", "Portfolio.reserve", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill", "FakeBroker.place", "Portfolio.postFill"]);
+    expect(h.steps).toEqual(["Governance.read", "FakeBroker.settle", "Portfolio.settle", "Portfolio.reserve", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill", "FakeBroker.place", "Portfolio.postFill"]);
     expect(result.orders).toHaveLength(2);
     expect(result.fills).toHaveLength(2);
     expect(h.portfolio.reserveAccountResources).toHaveBeenNthCalledWith(2, command.accountId, expect.objectContaining({ clientOrderId: `${command.clientOrderId}:leg:02`, cashAmount: "1205.00" }));
     expect(h.broker.executeV13ManualPaper).toHaveBeenNthCalledWith(1, expect.objectContaining({ security: "600000.SH", reservation: expect.objectContaining({ reservationId: "reservation-1" }) }));
     expect(h.broker.executeV13ManualPaper).toHaveBeenNthCalledWith(2, expect.objectContaining({ security: "000001.SZ", reservation: expect.objectContaining({ reservationId: "reservation-2" }) }));
+  });
+  it("reserves SELL shares and BUY settled cash separately before any mixed batch order is submitted", async () => {
+    const mixed = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "600000.SH", side: "SELL" as const, quantity: 100 }] };
+    const h = harness("APPROVED_MANUAL", mixed);
+    await h.service.execute(command);
+    expect(h.portfolio.reserveAccountResources).toHaveBeenNthCalledWith(1, command.accountId, expect.objectContaining({ side: "BUY", cashAmount: "1005.00", security: null, quantity: null }));
+    expect(h.portfolio.reserveAccountResources).toHaveBeenNthCalledWith(2, command.accountId, expect.objectContaining({ side: "SELL", cashAmount: null, security: "600000.SH", quantity: 100, asOf: command.now }));
+    expect(h.steps.indexOf("Governance.authorize")).toBeGreaterThan(h.steps.lastIndexOf("Portfolio.reserve"));
+    expect(h.steps.indexOf("FakeBroker.place")).toBeGreaterThan(h.steps.lastIndexOf("Portfolio.reserve"));
+  });
+  it("releases earlier SELL resources and submits no orders when settled cash cannot fund a later BUY leg", async () => {
+    const mixed = { ...proposal, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "SELL" as const, quantity: 100 }, { legId: "leg-2", securityId: "600000.SH", side: "BUY" as const, quantity: 100 }] };
+    const h = harness("APPROVED_MANUAL", mixed);
+    h.portfolio.reserveAccountResources.mockReset();
+    h.portfolio.reserveAccountResources.mockImplementationOnce(async () => ({ replayed: false, reservation: { reservationId: "sell-reservation" } }) as never)
+      .mockRejectedValueOnce(new PortfolioAccountClientError(409, { error: "INSUFFICIENT_AVAILABLE_CASH" }));
+    await expect(h.service.execute(command)).rejects.toMatchObject({ statusCode: 409 });
+    expect(h.portfolio.reserveAccountResources).toHaveBeenNthCalledWith(2, command.accountId, expect.objectContaining({ side: "BUY", cashAmount: "1005.00", security: null, quantity: null }));
+    expect(h.portfolio.resolveAccountReservation).toHaveBeenCalledWith(command.accountId, "sell-reservation", expect.objectContaining({ outcome: "REJECTED" }));
+    expect(h.governance.authorizeExecution).not.toHaveBeenCalled();
+    expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();
   });
   it("releases prior resource reservations and creates no authorization or orders when aggregate cash is insufficient", async () => {
     const multiLeg = { ...proposal, legs: [...proposal.legs, { legId: "leg-2", securityId: "000001.SZ", side: "BUY" as const, quantity: 100 }] };
@@ -97,7 +120,7 @@ describe("V1.3 manual execution application coordinator", () => {
     const sellProposal: V13ProposalResult = { ...proposal, legs: [{ legId: "leg-1", securityId: "600000.SH", side: "SELL", quantity: 100 }] };
     const h = harness("APPROVED_MANUAL", sellProposal);
     const result = await h.service.execute({ ...command, now: "2026-09-29T09:31:00+08:00", clientOrderId: "order-v13-sell-1" });
-    expect(h.steps).toEqual(["Governance.read", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill"]);
+    expect(h.steps).toEqual(["Governance.read", "FakeBroker.settle", "Portfolio.settle", "Portfolio.reserve", "Governance.authorize", "Governance.consume", "FakeBroker.place", "Portfolio.postFill"]);
     expect(result.fill).toMatchObject({ quantity: 100, price: "10.0000", fee: "5.0000" });
     expect(h.portfolio.reserveAccountResources).toHaveBeenCalledWith(command.accountId, expect.objectContaining({ side: "SELL", security: "600000.SH", quantity: 100, asOf: "2026-09-29T09:31:00+08:00" }));
     expect(h.broker.executeV13ManualPaper).toHaveBeenCalledWith(expect.objectContaining({ side: "SELL", reservation: { reservationId: "reservation-1", ownerId: command.ownerId, testRunId: command.testRunId, clientOrderId: "order-v13-sell-1" } }));
@@ -106,7 +129,7 @@ describe("V1.3 manual execution application coordinator", () => {
     const h = harness();
     h.portfolio.reserveAccountResources.mockRejectedValueOnce(new PortfolioAccountClientError(409, { error: "INSUFFICIENT_CASH" }));
     await expect(h.service.execute(command)).rejects.toMatchObject({ statusCode: 409, message: "V1.3 Portfolio risk/resource reservation failed" });
-    expect(h.steps).toEqual(["Governance.read"]);
+    expect(h.steps).toEqual(["Governance.read", "FakeBroker.settle", "Portfolio.settle"]);
     expect(h.portfolio.reserveAccountResources).toHaveBeenCalledOnce();
     expect(h.governance.authorizeExecution).not.toHaveBeenCalled();
     expect(h.broker.executeV13ManualPaper).not.toHaveBeenCalled();

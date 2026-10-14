@@ -11,7 +11,7 @@ const run: StoredStageRun = {
 const account: AccountSnapshot = {
   accountId: "account-1", namespace: run.namespace, testRunId: run.testRunId, ownerId: run.ownerId,
   fixtureAccountRef: "fixture-1", market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE",
-  cash: { amount: "8995.0000", currency: "CNY" }, positionCount: 1, ledgerEntryCount: 2, ledgerVersion: 2,
+  cash: { amount: "8995.0000", currency: "CNY" }, unsettledReceivables: [], positionCount: 1, ledgerEntryCount: 2, ledgerVersion: 2,
   positions: [{ security: "600000.SH", quantity: 100 }], reservations: [],
 };
 const event: V13SessionAdvance = {
@@ -29,14 +29,30 @@ function subject(overrides: Partial<V13SessionAdvancePorts> = {}) {
     runs,
     readAccount: vi.fn().mockResolvedValue(account),
     readReconciliation: vi.fn().mockResolvedValue({ unresolved_order_count: 0, pending_outbox_count: 0, externalOnlyOrderCount: 0 }),
-    readIndependentAssets: vi.fn().mockResolvedValue({ owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8995.0000", positions: [{ security: "600000.SH", quantity: 100 }] }),
+    readIndependentAssets: vi.fn().mockResolvedValue({ owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8995.0000", positions: [{ security: "600000.SH", quantity: 100 }], unsettledReceivables: [] }),
     readCalendarDay: vi.fn(async (date: string) => ({ date, status: "TRADING" as const, calendarVersion: "sse-cn-a-share-2026-1", sessions: [{ start: "09:30", end: "15:00" }] })),
+    settleDue: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   return { service: new V13SessionAdvanceService(ports), ports, runs };
 }
 
 describe("V1.3 session-advance application service", () => {
+  it("advances a scoped US_EQUITY PAPER/FAKE account on the explicit New York Fixture schedule", async () => {
+    const usRun = { ...run, evidence: { runClockNow: "2026-09-28T13:31:00.000Z", calendarVersion: "v1.3-us-synthetic-session-1" } };
+    const usAccount = { ...account, market: "US_EQUITY" as const, cash: { amount: "8995.0000", currency: "USD" } };
+    const usEvent = { ...event, fromClock: "2026-09-28T13:31:00.000Z", toClock: "2026-09-29T13:31:00.000Z", calendarVersion: "v1.3-us-synthetic-session-1" };
+    const { service, ports } = subject({
+      runs: { find: vi.fn().mockResolvedValue(usRun), listV13SessionAdvances: vi.fn().mockResolvedValue([]), advanceV13Session: vi.fn().mockResolvedValue({ run: { ...usRun, evidence: { ...usRun.evidence, runClockNow: usEvent.toClock } }, event: usEvent, replayed: false }) },
+      readAccount: vi.fn().mockResolvedValue(usAccount),
+      readIndependentAssets: vi.fn().mockResolvedValue({ owner_id: run.ownerId, test_run_id: run.testRunId, currency: "USD", current_cash: "8995.0000", positions: [{ security: "600000.SH", quantity: 100 }], unsettledReceivables: [] }),
+    });
+    const result = await service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: usEvent.fromClock });
+    expect(result.event.toClock).toBe(usEvent.toClock);
+    expect(result.event.calendarVersion).toBe("v1.3-us-synthetic-session-1");
+    expect(ports.runs.advanceV13Session).toHaveBeenCalledWith(expect.objectContaining({ nextClock: usEvent.toClock, calendarVersion: usEvent.calendarVersion }));
+    expect(ports.settleDue).toHaveBeenCalled();
+  });
   it("requires settled positions and no held reservation before advancing", async () => {
     const heldAccount = { ...account, reservations: [{ reservationId: "r1", clientOrderId: "o1", side: "BUY" as const, cashAmount: "1000", capturedCashAmount: "0", capturedQuantity: 0, status: "HELD" as const, evidenceRef: null }] };
     const { service, ports } = subject({ readAccount: vi.fn().mockResolvedValue(heldAccount) });
@@ -46,22 +62,46 @@ describe("V1.3 session-advance application service", () => {
   });
 
   it("requires independent FakeBroker cash and positions to match before advancing the persisted run clock", async () => {
-    const { service, ports, runs } = subject({ readIndependentAssets: vi.fn().mockResolvedValue({ owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8994.9999", positions: [{ security: "600000.SH", quantity: 100 }] }) });
+    const { service, ports, runs } = subject({ readIndependentAssets: vi.fn().mockResolvedValue({ owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8994.9999", positions: [{ security: "600000.SH", quantity: 100 }], unsettledReceivables: [] }) });
     await expect(service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) }))
       .rejects.toMatchObject({ status: 409, message: expect.stringContaining("assets to MATCH") });
     expect(runs.advanceV13Session).not.toHaveBeenCalled();
     expect(ports.readCalendarDay).not.toHaveBeenCalled();
   });
 
+  it("allows a pending SELL receivable to advance without positions only when the independent ledgers agree", async () => {
+    const receivable = { fillId: "fill-1", amount: "995.0000", currency: "CNY", tradeDate: "2026-09-29", settlementDate: "2026-09-30", calendarVersion: "v1.4-synthetic-settlement-2", status: "PENDING" as const };
+    const emptyPositionAccount = { ...account, positions: [], positionCount: 0, unsettledReceivables: [receivable] };
+    const matchingBrokerAssets = { owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8995.0000", positions: [], unsettledReceivables: [receivable] };
+    const { service, ports, runs } = subject({
+      readAccount: vi.fn().mockResolvedValue(emptyPositionAccount),
+      readIndependentAssets: vi.fn().mockResolvedValue(matchingBrokerAssets),
+    });
+    const result = await service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) });
+    expect(result.event).toEqual(event);
+    expect(runs.advanceV13Session).toHaveBeenCalledTimes(1);
+    expect(ports.readCalendarDay).toHaveBeenCalledTimes(2);
+
+    const { service: mismatchedService, runs: mismatchedRuns } = subject({
+      readAccount: vi.fn().mockResolvedValue(emptyPositionAccount),
+      readIndependentAssets: vi.fn().mockResolvedValue({ ...matchingBrokerAssets, unsettledReceivables: [] }),
+    });
+    await expect(mismatchedService.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) }))
+      .rejects.toMatchObject({ status: 409, message: expect.stringContaining("assets to MATCH") });
+    expect(mismatchedRuns.advanceV13Session).not.toHaveBeenCalled();
+  });
+
   it("resolves the next verified calendar session and persists using the expected-clock fence", async () => {
     const { service, ports, runs } = subject();
     const result = await service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) });
     expect(result).toMatchObject({ event, run: { testRunId: run.testRunId, evidence: { runClockNow: event.toClock } }, reconciliation: { status: "MATCH" }, replayed: false });
-    expect(runs.advanceV13Session).toHaveBeenCalledWith({ testRunId: run.testRunId, ownerId: run.ownerId, expectedClock: event.fromClock, nextClock: event.toClock, calendarVersion: event.calendarVersion });
+    expect(ports.runs.advanceV13Session).toHaveBeenCalledWith({ testRunId: run.testRunId, ownerId: run.ownerId, expectedClock: event.fromClock, nextClock: event.toClock, calendarVersion: event.calendarVersion });
+    expect(ports.readAccount).toHaveBeenCalled();
+    expect(ports.settleDue).toHaveBeenCalledWith(run.namespace, account.accountId, event.toClock, run.ownerId, run.testRunId);
     expect(ports.readCalendarDay).toHaveBeenCalledTimes(2);
   });
 
-  it("returns the original advance for an idempotent stale-clock retry without reading or mutating business state", async () => {
+  it("returns the original advance for a stale-clock retry after verifying scope and resuming settlement", async () => {
     const { service, ports, runs } = subject({ runs: {
       find: vi.fn().mockResolvedValue({ ...run, evidence: { ...run.evidence, runClockNow: event.toClock } }),
       listV13SessionAdvances: vi.fn().mockResolvedValue([event]),
@@ -69,8 +109,39 @@ describe("V1.3 session-advance application service", () => {
     } });
     const result = await service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: event.fromClock });
     expect(result).toMatchObject({ event, replayed: true, reconciliation: { status: "MATCH" } });
-    expect(ports.readAccount).not.toHaveBeenCalled();
+    expect(ports.readAccount).toHaveBeenCalled();
+    expect(ports.settleDue).toHaveBeenCalledWith(run.namespace, account.accountId, event.toClock, run.ownerId, run.testRunId);
     expect(runs.advanceV13Session).not.toHaveBeenCalled();
+  });
+
+  it("resumes settlement after the clock was persisted and only the independent FakeBroker book committed", async () => {
+    const pending = { fillId: "fill-1", amount: "995.0000", currency: "CNY", tradeDate: "2026-09-29", settlementDate: "2026-09-30", calendarVersion: "v1.4-synthetic-settlement-2", status: "PENDING" as const };
+    const settled = { ...pending, status: "SETTLED" as const };
+    const noPositionPending = { ...account, positions: [], positionCount: 0, unsettledReceivables: [pending] };
+    const noPositionSettled = { ...noPositionPending, cash: { amount: "9990.0000", currency: "CNY" }, unsettledReceivables: [settled] };
+    const pendingAssets = { owner_id: run.ownerId, test_run_id: run.testRunId, currency: "CNY", current_cash: "8995.0000", positions: [], unsettledReceivables: [pending] };
+    const settledAssets = { ...pendingAssets, current_cash: "9990.0000", unsettledReceivables: [settled] };
+    const advancedRun = { ...run, evidence: { ...run.evidence, runClockNow: event.toClock } };
+    const runs: V13SessionAdvancePorts["runs"] = {
+      find: vi.fn().mockResolvedValueOnce(run).mockResolvedValueOnce(advancedRun),
+      listV13SessionAdvances: vi.fn().mockResolvedValue([event]),
+      advanceV13Session: vi.fn().mockResolvedValue({ run: advancedRun, event, replayed: false }),
+    };
+    const settleDue = vi.fn().mockRejectedValueOnce(new Error("Portfolio unavailable after FakeBroker commit")).mockResolvedValueOnce(undefined);
+    const ports: V13SessionAdvancePorts = {
+      runs,
+      readAccount: vi.fn().mockResolvedValueOnce(noPositionPending).mockResolvedValueOnce(noPositionPending).mockResolvedValueOnce(noPositionSettled),
+      readReconciliation: vi.fn().mockResolvedValue({ unresolved_order_count: 0, pending_outbox_count: 0, externalOnlyOrderCount: 0 }),
+      readIndependentAssets: vi.fn().mockResolvedValueOnce(pendingAssets).mockResolvedValueOnce(settledAssets).mockResolvedValueOnce(settledAssets),
+      readCalendarDay: vi.fn(async (date: string) => ({ date, status: "TRADING" as const, calendarVersion: "sse-cn-a-share-2026-1", sessions: [{ start: "09:30", end: "15:00" }] })),
+      settleDue,
+    };
+    const service = new V13SessionAdvanceService(ports);
+    await expect(service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) }))
+      .rejects.toMatchObject({ status: 503, message: expect.stringContaining("clock advanced") });
+    const recovered = await service.advance({ testRunId: run.testRunId, ownerId: run.ownerId, accountId: account.accountId, expectedClock: String(run.evidence.runClockNow) });
+    expect(recovered).toMatchObject({ event, replayed: true, reconciliation: { status: "MATCH" } });
+    expect(settleDue).toHaveBeenNthCalledWith(2, run.namespace, account.accountId, event.toClock, run.ownerId, run.testRunId);
   });
 
   it("fails closed on unknown or cross-stage runs", async () => {

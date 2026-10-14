@@ -53,7 +53,7 @@ describe("V1.5 Temporal NO_TRADE domain activities", () => {
       expect.objectContaining({ assertionId: "V1.5-SYS-SCHEDULE-001", status: "WAITING" }),
       expect.objectContaining({ assertionId: "V1.5-HOLD-002", status: "PASS" }),
     ]);
-    expect((saved as { evidence: Record<string, unknown> }).evidence).toMatchObject({ temporal: "COMPLETED", localSessions: { CN_A: 60, US_EQUITY: 60, authoritativeObservations: 120 }, automaticTrading: "NOT_RUN" });
+    expect((saved as { evidence: Record<string, unknown> }).evidence).toMatchObject({ environmentMode: "PAPER", dataMode: "FIXTURE", brokerMode: "FAKE", temporal: "COMPLETED", localSessions: { CN_A: 60, US_EQUITY: 60, authoritativeObservations: 120 }, automaticTrading: "NOT_RUN" });
   });
 
   it("fails closed if a daily read shows an order or any ledger cash/position change", async () => {

@@ -33,6 +33,7 @@ run("persistent account resource reservations", () => {
     if (accountId) {
       await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [accountId]);
       await pool.query("DELETE FROM fill_fee_corrections c USING recorded_fills f WHERE c.external_fill_id=f.external_fill_id AND f.account_id=$1", [accountId]);
+      await pool.query("DELETE FROM sell_settlements WHERE account_id=$1", [accountId]);
       await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [accountId]);
       await pool.query("DELETE FROM account_positions WHERE account_id=$1", [accountId]);
       await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [accountId]);
@@ -51,15 +52,41 @@ run("persistent account resource reservations", () => {
   it("records the V1 schema baseline once across concurrent startup migrations", async () => {
     const result = await pool.query<{ version: number; description: string; count: string }>(`
       SELECT version, description, (SELECT count(*)::text FROM portfolio_risk_schema_migrations) AS count
-        FROM portfolio_risk_schema_migrations
-       WHERE version = 1
+        FROM portfolio_risk_schema_migrations ORDER BY version
     `);
-    expect(result.rows).toEqual([{
-      version: 1,
-      description: "V1 account, ledger, fills, and resource reservations",
-      count: "1"
-    }]);
-    console.info(`[Portfolio schema migration] ${JSON.stringify({ version: 1, count: result.rows[0].count, concurrentStartup: "serialized", existingSchema: "baseline adopted transactionally" })}`);
+    expect(result.rows).toEqual([
+      { version: 1, description: "V1 account, ledger, fills, and resource reservations", count: "3" },
+      { version: 2, description: "Strict settled cash and pending sell receivables", count: "3" },
+      { version: 3, description: "Persist unmapped Paper SELL receivables without releasing cash", count: "3" }
+    ]);
+    console.info(`[Portfolio schema migration] ${JSON.stringify({ versions: result.rows.map((row) => row.version), count: result.rows[0].count, concurrentStartup: "serialized", existingSchema: "baseline adopted transactionally" })}`);
+  });
+
+  it("persists an unmapped SELL as a pending receivable without releasing cash", async () => {
+    const isolatedRunId = randomUUID();
+    const isolatedNamespace = `unmapped-settlement-test/${isolatedRunId}`;
+    const isolatedOwner = `owner-${isolatedRunId}`;
+    const initialized = await repository.initialize({ fixtureAccountRef: `unmapped-${isolatedRunId}`, ownerId: isolatedOwner, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" }, namespace: isolatedNamespace, testRunId: isolatedRunId, idempotencyKey: "initialize" });
+    const isolatedAccountId = initialized.snapshot.accountId;
+    const fillId = randomUUID();
+    try {
+      await pool.query("INSERT INTO account_positions(account_id,security,quantity) VALUES($1,'600000.SH',10)", [isolatedAccountId]);
+      const sell = await repository.reserveResource({ accountId: isolatedAccountId, namespace: isolatedNamespace, testRunId: isolatedRunId, ownerId: isolatedOwner, idempotencyKey: "unknown-calendar-sell", clientOrderId: "unknown-calendar-sell", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 10, asOf: "2026-09-28T01:00:00.000Z" });
+      const command = { accountId: isolatedAccountId, namespace: isolatedNamespace, externalFillId: fillId, security: "600000.SH", quantity: 10, price: "100.0000", fee: "1.0000", currency: "CNY", effectiveAt: "2026-09-26T01:00:00.000Z", side: "SELL" as const, settlement: { tradeDate: "2026-09-26", settlementDate: null, calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" as const }, reservation: { reservationId: sell.reservation.reservationId, ownerId: isolatedOwner, testRunId: isolatedRunId, clientOrderId: "unknown-calendar-sell" } };
+      const posted = await repository.recordFill(command);
+      expect(posted).toMatchObject({ replayed: false, snapshot: { cash: { amount: "10000.0000" }, unsettledReceivables: [{ fillId, amount: "999.0000", tradeDate: "2026-09-26", settlementDate: null, calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE", status: "PENDING" }], ledgerEntryCount: 2 } });
+      await expect(repository.settleDue(isolatedAccountId, "2031-01-01T00:00:00.000Z")).resolves.toEqual({ settledFillIds: [] });
+      await expect(repository.snapshot(isolatedAccountId, isolatedOwner)).resolves.toMatchObject({ cash: { amount: "10000.0000" }, unsettledReceivables: [{ fillId, settlementDate: null, status: "PENDING", settlementErrorCode: "SETTLEMENT_CALENDAR_UNAVAILABLE" }], ledgerEntryCount: 2 });
+      await expect(repository.reserveResource({ accountId: isolatedAccountId, namespace: isolatedNamespace, testRunId: isolatedRunId, ownerId: isolatedOwner, idempotencyKey: "buy-cannot-use-receivable", clientOrderId: "buy-cannot-use-receivable", side: "BUY", currency: "CNY", cashAmount: "10001.0000", security: null, quantity: null })).rejects.toThrow("INSUFFICIENT_AVAILABLE_CASH");
+      await expect(repository.recordFill(command)).resolves.toMatchObject({ replayed: true, snapshot: { cash: { amount: "10000.0000" }, ledgerEntryCount: 2 } });
+    } finally {
+      await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM sell_settlements WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM account_positions WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM accounts WHERE account_id=$1", [isolatedAccountId]);
+    }
   });
 
   it("persists separate CN and US cash ledgers with original currencies and conflict-safe initialization replay", async () => {
@@ -76,6 +103,14 @@ run("persistent account resource reservations", () => {
       expect(new Set(accountIds).size).toBe(2);
       expect(cn.snapshot).toMatchObject({ market: "CN_A", cash: { amount: "10000.0000", currency: "CNY" } });
       expect(us.snapshot).toMatchObject({ market: "US_EQUITY", cash: { amount: "10000.0000", currency: "USD" } });
+      expect(cn.snapshot.positionCount).toBe(0);
+      expect(us.snapshot.positionCount).toBe(0);
+
+      const initialPositions = await pool.query<{ account_id: string }>(
+        "SELECT account_id FROM account_positions WHERE account_id = ANY($1::uuid[]) ORDER BY account_id",
+        [accountIds]
+      );
+      expect(initialPositions.rows).toEqual([]);
 
       await expect(repository.initialize(cnCommand)).resolves.toMatchObject({ replayed: true, snapshot: { accountId: cn.snapshot.accountId } });
       await expect(repository.initialize({ ...cnCommand, initialCash: { amount: "9999.0000", currency: "CNY" } })).rejects.toThrow("IDEMPOTENCY_CONFLICT");
@@ -163,6 +198,7 @@ run("persistent account resource reservations", () => {
       console.info(`[Portfolio CN T+1] ${JSON.stringify({ testRunId: isolatedRunId, accountId: isolatedAccountId, sameDay: "REJECTED/T_PLUS_ONE_UNSETTLED_QUANTITY", nextShanghaiDate: "HELD" })}`);
     } finally {
       await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [isolatedAccountId]);
+      await pool.query("DELETE FROM sell_settlements WHERE account_id=$1", [isolatedAccountId]);
       await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [isolatedAccountId]);
       await pool.query("DELETE FROM account_positions WHERE account_id=$1", [isolatedAccountId]);
       await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [isolatedAccountId]);
@@ -177,6 +213,7 @@ run("persistent account resource reservations", () => {
       console.info(`[Portfolio US same-day sell] ${JSON.stringify({ testRunId: usRunId, accountId: usAccount.snapshot.accountId, sameDay: "HELD" })}`);
     } finally {
       await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [usAccount.snapshot.accountId]);
+      await pool.query("DELETE FROM sell_settlements WHERE account_id=$1", [usAccount.snapshot.accountId]);
       await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [usAccount.snapshot.accountId]);
       await pool.query("DELETE FROM account_positions WHERE account_id=$1", [usAccount.snapshot.accountId]);
       await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [usAccount.snapshot.accountId]);
@@ -220,13 +257,21 @@ run("persistent account resource reservations", () => {
     expect(afterPartialCancel.reservation.status).toBe("HELD");
     await repository.resolveReservation({ accountId, reservationId: afterPartialCancel.reservation.reservationId, namespace, testRunId, ownerId, outcome: "CANCELLED", evidenceRef: "cleanup:partial-cancel-after" });
 
-    const sell = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell", clientOrderId: "capture-sell-order", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 50, asOf: "2026-09-25T01:00:00.000Z" });
-    const sellFill = { accountId, namespace, externalFillId: randomUUID(), security: "600000.SH", quantity: 20, price: "100.0000", fee: "10.0000", currency: "CNY", effectiveAt: "2026-09-25T01:01:00.000Z", side: "SELL" as const, reservation: { reservationId: sell.reservation.reservationId, ownerId, testRunId, clientOrderId: "capture-sell-order" } };
-    await expect(repository.recordFill(sellFill)).resolves.toMatchObject({ replayed: false, snapshot: { cash: { amount: "7969.0000" } } });
+    const sell = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell", clientOrderId: "capture-sell-order", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 50, asOf: "2024-01-05T01:00:00.000Z" });
+    const sellFill = { accountId, namespace, externalFillId: randomUUID(), security: "600000.SH", quantity: 20, price: "100.0000", fee: "10.0000", currency: "CNY", effectiveAt: "2024-01-05T01:01:00.000Z", side: "SELL" as const, settlement: { tradeDate: "2024-01-05", settlementDate: "2024-01-08", calendarVersion: "v1.4-synthetic-settlement-1", settlementErrorCode: null }, reservation: { reservationId: sell.reservation.reservationId, ownerId, testRunId, clientOrderId: "capture-sell-order" } };
+    await expect(repository.recordFill(sellFill)).resolves.toMatchObject({ replayed: false, snapshot: { cash: { amount: "5979.0000" }, unsettledReceivables: [{ fillId: sellFill.externalFillId, amount: "1990.0000", status: "PENDING" }] } });
+    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "buy-before-settlement", clientOrderId: "buy-before-settlement", side: "BUY", currency: "CNY", cashAmount: "6000.0000", security: null, quantity: null })).rejects.toThrow("INSUFFICIENT_AVAILABLE_CASH");
+    await expect(repository.settleDue(accountId, "2024-01-08T01:29:59.999Z")).resolves.toEqual({ settledFillIds: [] });
+    await expect(repository.settleDue(accountId, "2024-01-08T01:30:00.000Z")).resolves.toEqual({ settledFillIds: [sellFill.externalFillId] });
+    await expect(repository.snapshot(accountId, ownerId)).resolves.toMatchObject({ cash: { amount: "7969.0000" }, unsettledReceivables: [{ fillId: sellFill.externalFillId, status: "SETTLED" }] });
+    const buyAfterSettlement = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "buy-after-settlement", clientOrderId: "buy-after-settlement", side: "BUY", currency: "CNY", cashAmount: "6000.0000", security: null, quantity: null });
+    expect(buyAfterSettlement.reservation.status).toBe("HELD");
+    await repository.resolveReservation({ accountId, reservationId: buyAfterSettlement.reservation.reservationId, namespace, testRunId, ownerId, outcome: "CANCELLED", evidenceRef: "cleanup:buy-after-settlement" });
+    await expect(repository.settleDue(accountId, "2024-01-09T00:00:00.000Z")).resolves.toEqual({ settledFillIds: [] });
     await expect(repository.recordFill({ ...sellFill, externalFillId: randomUUID(), quantity: 31 })).rejects.toThrow("FILL_EXCEEDS_RESERVED_QUANTITY");
     await expect(repository.recordFill({ ...sellFill, externalFillId: randomUUID(), quantity: 1, reservation: { ...sellFill.reservation, ownerId: "foreign" } })).rejects.toThrow("FILL_RESERVATION_SCOPE_MISMATCH");
-    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-over", clientOrderId: "capture-sell-over", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 51, asOf: "2026-09-25T01:00:00.000Z" })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
+    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-over", clientOrderId: "capture-sell-over", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 51, asOf: "2024-01-05T01:00:00.000Z" })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
     await repository.resolveReservation({ accountId, reservationId: sell.reservation.reservationId, namespace, testRunId, ownerId, outcome: "FILLED", evidenceRef: `fill:${sellFill.externalFillId}` });
-    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-after", clientOrderId: "capture-sell-after", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80, asOf: "2026-09-25T01:00:00.000Z" })).resolves.toMatchObject({ replayed: false });
+    await expect(repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-sell-after", clientOrderId: "capture-sell-after", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 80, asOf: "2024-01-05T01:00:00.000Z" })).resolves.toMatchObject({ replayed: false });
   });
 });

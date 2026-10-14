@@ -14,7 +14,7 @@ async function fixtureRoot(t) {
   return root;
 }
 
-async function publishBundle(root, { testRunId = runId, stageId = "V2.5", exportStageId = stageId, exportRunId = testRunId, flat = false } = {}) {
+async function publishBundle(root, { testRunId = runId, stageId = "V2.5", exportStageId = stageId, exportRunId = testRunId, flat = false, nestedStatusTopAssertions = false } = {}) {
   const directory = join(root, "evidence", "local", stageId, testRunId);
   await mkdir(directory, { recursive: true });
   const evidence = {
@@ -27,6 +27,10 @@ async function publishBundle(root, { testRunId = runId, stageId = "V2.5", export
     evidence.status = evidence.run.status;
     evidence.assertions = evidence.run.assertions;
     delete evidence.run;
+  }
+  if (nestedStatusTopAssertions) {
+    evidence.assertions = evidence.run.assertions;
+    evidence.run = { stageId: exportStageId, testRunId: exportRunId, status: "COMPLETED" };
   }
   const bytes = `${JSON.stringify(evidence, null, 2)}\n`;
   await writeFile(join(directory, "evidence.json"), bytes);
@@ -81,11 +85,34 @@ test("canonical evidence-export v2 flat TestRun responses support PASS verificat
   assert.deepEqual(audit.unresolvedAssociations, []);
 });
 
+test("legacy wrapped TestRun status with envelope-level assertions supports PASS verification", async (t) => {
+  const root = await fixtureRoot(t);
+  await publishBundle(root, { nestedStatusTopAssertions: true });
+  const audit = await auditTestRunEvidence(root, [row()], [{ stageId: "V2.5", status: "PASS" }]);
+  assert.equal(audit.status, "PASS");
+  assert.deepEqual(audit.unresolvedAssociations, []);
+});
+
 test("a missing structured export remains INCOMPLETE and cannot be inferred from a UUID alone", async (t) => {
   const root = await fixtureRoot(t);
   const audit = await auditTestRunEvidence(root, [row()], [{ stageId: "V2.5", status: "PARTIALLY_IMPLEMENTED" }]);
   assert.equal(audit.status, "INCOMPLETE");
   assert.match(audit.unresolvedAssociations[0].failures.join(" "), /structured run export is missing/u);
+});
+
+test("account UUIDs adjacent to TestRun evidence are not treated as TestRun exports", async (t) => {
+  const root = await fixtureRoot(t);
+  const accountId = "223e4567-e89b-42d3-a456-426614174001";
+  await publishBundle(root);
+  const audit = await auditTestRunEvidence(
+    root,
+    [row({ evidence: `normal TestRun ${runId} / \x60account ${accountId}\x60 / Manifest hash verified` })],
+    [{ stageId: "V2.5", status: "PARTIALLY_IMPLEMENTED" }],
+  );
+  assert.equal(audit.status, "PASS");
+  assert.equal(audit.testRunIdsChecked, 1);
+  assert.deepEqual(audit.results[0].testRunIds, [runId]);
+  assert.deepEqual(audit.unresolvedAssociations, []);
 });
 
 test("stage or run identity mismatch and manifest tampering fail the association audit", async (t) => {

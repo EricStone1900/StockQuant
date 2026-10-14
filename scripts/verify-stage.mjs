@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { codeSuiteCommands } from "./code-suite-plan.mjs";
 import { platformMarketDataHeaders } from "./market-data-service-identity.mjs";
 
@@ -10,6 +13,9 @@ const scenario = value("--scenario");
 const runId = value("--run");
 const baseUrl = process.env.STOCKQUANT_PLATFORM_API_URL ?? "http://127.0.0.1:3000";
 const headers = { "content-type": "application/json", "x-stockquant-user": "acceptance-owner-1", ...(process.env.STOCKQUANT_SESSION_COOKIE ? { cookie: process.env.STOCKQUANT_SESSION_COOKIE } : {}) };
+const v11RunValidator = new Ajv2020({ allErrors: true, strict: false });
+addFormats(v11RunValidator);
+const validateV11Run = v11RunValidator.compile(JSON.parse(readFileSync("packages/contracts/schemas/common/v11-acceptance-run.schema.json", "utf8")));
 
 const implementedStages = ['V1.1', 'V1.2', 'V1.3', 'V1.4', 'V1.5', 'V2.1', 'V2.2', 'V2.3', 'V2.4', 'V2.5', 'V3.1', 'V3.2', 'V3.3', 'V3.4'];
 if (!implementedStages.includes(stage)) {
@@ -61,10 +67,17 @@ function runV34Preflight() {
 async function waitForRun(id) {
   for (let attempt = 0; attempt < 240; attempt += 1) {
     const run = await request(`/api/v1/acceptance/runs/${id}`, { signal: AbortSignal.timeout(5000) });
+    assertV11Run(run);
     if (["COMPLETED", "FAILED", "WAITING"].includes(run.status)) return run;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(`timed out waiting 120s for ${id}`);
+}
+
+function assertV11Run(run) {
+  if (!validateV11Run(run)) {
+    throw new Error(`V1.1 acceptance response violates V11AcceptanceRun: ${JSON.stringify(v11RunValidator.errors)}`);
+  }
 }
 
 async function waitForV14Run(id) {
@@ -394,6 +407,7 @@ async function main() {
   }
   if (runId && has("--check-only")) {
     const run = await request(`/api/v1/acceptance/runs/${runId}`);
+    assertV11Run(run);
     console.log(JSON.stringify({ checkOnly: true, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
     process.exit(runExitCode(run));
   }

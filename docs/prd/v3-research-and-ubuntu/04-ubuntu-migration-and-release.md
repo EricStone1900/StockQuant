@@ -1,3 +1,5 @@
+> 延期交接（2026-10-13）：V1所有者将Ubuntu实机部署/恢复及主机资源验证延期到本阶段既有验收范围，状态DEFERRED / NOT_RUN；不构成开始V3开发的授权。见[决定](../../decisions/2026-10-13-v1-ubuntu-deferral.md)。
+
 # V3.4 Ubuntu 迁移、全阶段 Web 回归与最终交付
 
 状态：NOT_RUN。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。

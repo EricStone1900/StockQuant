@@ -106,6 +106,24 @@ describe("Generated V1.3 Platform→Trade client", () => {
     expect(request.mock.calls[0]?.[1]).not.toHaveProperty("body");
   });
 
+  it("settles the requested Paper account at the supplied session clock with Platform identity", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const settlementResult = { status: "SETTLED", asOf: "2026-10-12T13:30:00.000Z" };
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(settlementResult), { status: 200 }));
+    const body = { namespace: "owner-a/run-a", accountId: "account-a", ownerId: "owner-a", testRunId: "run-a", asOf: "2026-10-12T13:30:00.000Z" };
+
+    await expect(api(request).settleForSession(body)).resolves.toEqual({ status: 200, body: settlementResult });
+
+    expect(request).toHaveBeenCalledWith("http://trade.local/internal/v1/v13/accounts/settlements", expect.objectContaining({
+      method: "POST",
+      headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: expect.any(AbortSignal),
+    }));
+    expect(timeout).toHaveBeenCalledWith(15000);
+    timeout.mockRestore();
+  });
+
   it("corrects a Fill fee using both encoded path IDs and the exact command", async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(response());
     const body: Contracts.FillFeeCorrectionCommand = { revision: 2, previousFee: "0.2500", correctedFee: "0.3000", effectiveAt: "2026-10-10T09:02:00Z", evidenceRef: "fixture/fee-correction" };
@@ -115,5 +133,62 @@ describe("Generated V1.3 Platform→Trade client", () => {
     expect(request).toHaveBeenCalledWith("http://trade.local/internal/v1/orders/order%2Fa/fills/fill%2F1/fee-corrections", expect.objectContaining({
       method: "POST", headers: expect.objectContaining({ "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${token}` }), body: JSON.stringify(body), signal: expect.any(AbortSignal),
     }));
+  });
+
+  it("uses the declared bounded timeout for every V1 Trade operation", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const request = vi.fn<typeof fetch>().mockResolvedValue(response());
+    const client = api(request);
+    const fillReport = { externalFillId: "fill-1", sequence: 2, cumulativeQuantity: 20, price: "12.3400", fee: "0.2500", effectiveAt: "2026-10-10T09:01:00Z", evidenceRef: "fixture/fill-1" };
+    const cancelResult = { outcome: "ACCEPTED" as const, reason: "fixed cancel result", sequence: 3 };
+    const settlement = { namespace: "owner-a/run-a", accountId: "account-a", ownerId: "owner-a", testRunId: "run-a", asOf: "2026-10-12T13:30:00.000Z" };
+    const feeCorrection: Contracts.FillFeeCorrectionCommand = { revision: 2, previousFee: "0.2500", correctedFee: "0.3000", effectiveAt: "2026-10-10T09:02:00Z", evidenceRef: "fixture/fee-correction" };
+
+    try {
+      await client.executeApprovedManualProposal(manualCommand);
+      await client.executeSequencedManualProposal(manualCommand);
+      await client.executeAutoPolicyProposal(autoCommand);
+      await client.recordSequencedFillReport("order-1", fillReport);
+      await client.requestFakeBrokerCancel("order-1");
+      await client.resolveFakeBrokerCancel("order-1", cancelResult);
+      await client.readOrderByClientId("namespace-1", "order-1");
+      await client.readIndependentAssets("namespace-1", "account-1");
+      await client.settleForSession(settlement);
+      await client.correctFillFee("order-1", "fill-1", feeCorrection);
+
+      expect(timeout.mock.calls.map(([milliseconds]) => milliseconds)).toEqual([
+        15000, 15000, 15000, 15000, 15000, 15000, 5000, 5000, 15000, 15000,
+      ]);
+      expect(request).toHaveBeenCalledTimes(10);
+    } finally {
+      timeout.mockRestore();
+    }
+  });
+
+  it("preserves Trade HTTP rejection status and response body for every V1 operation", async () => {
+    const rejection = { code: "IDEMPOTENCY_CONFLICT", message: "the original command differs" };
+    const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify(rejection), { status: 409 }));
+    const client = api(request);
+    const fillReport = { externalFillId: "fill-1", sequence: 2, cumulativeQuantity: 20, price: "12.3400", fee: "0.2500", effectiveAt: "2026-10-10T09:01:00Z", evidenceRef: "fixture/fill-1" };
+    const cancelResult = { outcome: "ACCEPTED" as const, reason: "fixed cancel result", sequence: 3 };
+    const settlement = { namespace: "owner-a/run-a", accountId: "account-a", ownerId: "owner-a", testRunId: "run-a", asOf: "2026-10-12T13:30:00.000Z" };
+    const feeCorrection: Contracts.FillFeeCorrectionCommand = { revision: 2, previousFee: "0.2500", correctedFee: "0.3000", effectiveAt: "2026-10-10T09:02:00Z", evidenceRef: "fixture/fee-correction" };
+    const operations = [
+      () => client.executeApprovedManualProposal(manualCommand),
+      () => client.executeSequencedManualProposal(manualCommand),
+      () => client.executeAutoPolicyProposal(autoCommand),
+      () => client.recordSequencedFillReport("order-1", fillReport),
+      () => client.requestFakeBrokerCancel("order-1"),
+      () => client.resolveFakeBrokerCancel("order-1", cancelResult),
+      () => client.readOrderByClientId("namespace-1", "order-1"),
+      () => client.readIndependentAssets("namespace-1", "account-1"),
+      () => client.settleForSession(settlement),
+      () => client.correctFillFee("order-1", "fill-1", feeCorrection),
+    ];
+
+    for (const operation of operations) {
+      await expect(operation()).resolves.toEqual({ status: 409, body: rejection });
+    }
+    expect(request).toHaveBeenCalledTimes(operations.length);
   });
 });

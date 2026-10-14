@@ -19,6 +19,8 @@ export class AccountService {
     return this.repository.accountExists(accountId);
   }
 
+  settleDue(accountId: string, asOf: string) { return this.repository.settleDue(accountId, asOf); }
+
   recordFill(command: RecordFillCommand) {
     if (this.fillFailuresRemaining > 0) { this.fillFailuresRemaining -= 1; throw new Error("INJECTED_LEDGER_UNAVAILABLE"); }
     return this.repository.recordFill(command);
