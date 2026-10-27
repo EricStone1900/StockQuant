@@ -32,7 +32,8 @@ test("early valid rows are not unexpected while their window is still waiting", 
   const [, barStart] = futureKey.split("|");
   const result = summarizeCoverage({ expectedKeys: requiredKeys, validKeys, rows: [{ securityId: "600000.SH", barStart }], statuses: [], openGaps: 0, pendingOutbox: 0, calendarDays: days });
   assert.equal(result.unexpectedBars, 0);
-  assert.equal(result.missingBars, 2);
+  assert.equal(result.missingBars, 0);
+  assert.equal(result.unknownBars, 2);
 });
 
 test("coverage rejects missing, duplicate and unexpected bars", () => {
@@ -41,7 +42,8 @@ test("coverage rejects missing, duplicate and unexpected bars", () => {
   rows.push(rows[0], { securityId: "600519.SH", barStart: rows[0].barStart });
   const result = summarizeCoverage({ expectedKeys, rows, statuses: [{ status: "COMPLETED", count: 1 }], openGaps: 0, pendingOutbox: 0, calendarDays: days });
   assert.equal(result.status, "INCOMPLETE");
-  assert.equal(result.missingBars, 1);
+  assert.equal(result.missingBars, 0);
+  assert.equal(result.unknownBars, 1);
   assert.equal(result.duplicateBars, 1);
   assert.equal(result.unexpectedBars, 1);
 });
@@ -51,7 +53,8 @@ test("coverage compares equivalent offset and UTC bar timestamps as the same ins
   const result = summarizeCoverage({ expectedKeys, rows: [{ securityId: "600000.SH", barStart: "2026-09-14T09:30:00+08:00" }], statuses: [{ status: "COMPLETED", count: 1 }], openGaps: 0, pendingOutbox: 0, calendarDays: days });
   assert.equal(result.actualUniqueBars, 1);
   assert.equal(result.unexpectedBars, 0);
-  assert.equal(result.missingBars, expectedKeys.length - 1);
+  assert.equal(result.missingBars, 0);
+  assert.equal(result.unknownBars, expectedKeys.length - 1);
 });
 
 test("unknown calendar remains waiting dependency", () => {
@@ -59,9 +62,14 @@ test("unknown calendar remains waiting dependency", () => {
   assert.equal(result.status, "WAITING_DEPENDENCY");
 });
 
-test("coverage produces durable gap records without fabricating bars", () => {
+test("coverage does not turn unknown bars into actionable gap records", () => {
   const report = { subscriptionId: "sub", missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], duplicateKeys: [] };
-  assert.deepEqual(buildGapPayload(report), [{ gapId: "gap:600000.SH|2026-09-14T01:30:00.000Z", securityId: "600000.SH", barStart: "2026-09-14T01:30:00.000Z", barEnd: "2026-09-14T01:35:00.000Z", reason: "MISSING", priority: "P1" }]);
+  assert.deepEqual(buildGapPayload(report), []);
+});
+
+test("only independently confirmed missing bars become backfill records", () => {
+  const report = { subscriptionId: "sub", missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], missingEvidence: { "600000.SH|2026-09-14T01:30:00.000Z": "status-record:1" }, duplicateKeys: [] };
+  assert.deepEqual(buildGapPayload(report), [{ gapId: "gap:600000.SH|2026-09-14T01:30:00.000Z", securityId: "600000.SH", barStart: "2026-09-14T01:30:00.000Z", barEnd: "2026-09-14T01:35:00.000Z", reason: "MISSING", priority: "P1", evidenceReference: "status-record:1" }]);
 });
 
 test("gap reconciliation writes use the dedicated collection-control token", async () => {
@@ -71,7 +79,7 @@ test("gap reconciliation writes use the dedicated collection-control token", asy
   let captured;
   globalThis.fetch = async (url, options) => { captured = { url, options }; return new Response(JSON.stringify({ opened: 1, closed: 0 }), { status: 200 }); };
   try {
-    await persistGaps("http://localhost:3002", { subscriptionId: "test", fromDate: "2026-09-14", toDate: "2026-09-14", securityIds: ["600000.SH"], missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], duplicateKeys: [] });
+    await persistGaps("http://localhost:3002", { subscriptionId: "test", fromDate: "2026-09-14", toDate: "2026-09-14", securityIds: ["600000.SH"], missingKeys: ["600000.SH|2026-09-14T01:30:00.000Z"], missingEvidence: { "600000.SH|2026-09-14T01:30:00.000Z": "status-record:1" }, duplicateKeys: [] });
     assert.equal(captured.url, "http://localhost:3002/v2/minute/gaps");
     assert.equal(captured.options.headers["x-stockquant-control-token"], "test-collection-control-token");
   } finally {

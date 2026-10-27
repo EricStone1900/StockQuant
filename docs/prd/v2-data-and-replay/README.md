@@ -6,7 +6,7 @@
 
 ## 阅读与执行
 
-先读[三版共同规则](../05-three-version-delivery.md)、[总体架构](../02-system-architecture.md)和[市场契约](../03-market-rules-and-contracts.md)，再读[本版计划](./00-version-plan.md)。这些文件夹是同一PRD包的组成部分，单独复制某一文件夹不能替代完整PRD。
+先读[三版共同规则](../05-three-version-delivery.md)、[总体架构](../02-system-architecture.md)和[市场契约](../03-market-rules-and-contracts.md)，再读[本版计划](./00-version-plan.md)。**当前唯一执行队列为[第7节V2完成与收口计划](./00-version-plan.md#7-v2完成与收口执行计划2026-10-17)**；V2.1当前C1/C2工程就绪，C2自动检查与手册已实测，C1/C2当前本地学习范围已于2026-10-21人工验收PASS；C3/V2.2已于2026-10-24按[本地学习范围](../../decisions/2026-10-24-v22-c3-local-learning-closeout-scope.md)完成，当前C4/V2.3输入与缺口核对已完成；依据[C4审计](../../../evidence/audits/2026-10-24-v23-c4-input-gap-review.md)等待范围决定或合格研究输入，真实研究条件独立把关。这些文件夹是同一PRD包的组成部分，单独复制某一文件夹不能替代完整PRD。
 
 - [V2.1 免费行情、新闻聚合与在线股票池](./01-free-data-and-news.md)
 - [V2.2 历史分钟数据导入与校验](./02-minute-data-import.md)
@@ -14,6 +14,6 @@
 - [V2.4 真实时钟下持续模拟交易](./04-continuous-paper-trading.md)
 - [V2.5 历史数据扩容与 V2 验收](./05-data-scale-and-v2-acceptance.md)
 
-最后执行[测试计划](./90-test-plan.md)，填写[版本验收](./99-acceptance.md)。完成状态以最新测试证据为准。
+最后执行[测试计划](./90-test-plan.md)，填写[版本验收](./99-acceptance.md)。2026-10-24 C4 Fixture本地学习范围已通过自动与人工验收；当前转入C5/V2.4接续缺口核对。真实市场研究仍NOT_RUN，完成状态以最新测试证据为准。
 
 2026-09-12新增规划：[共享数据采集开发计划](./06-shared-data-collection-plan.md)、[对应测试与恢复手册](./07-data-collection-tests.md)、[进度与接续记录](./08-data-collection-progress.md)。支持多项目、交易时段定时采集、主备来源与60交易日积累；当前为计划，未改变上述阶段验收结果。

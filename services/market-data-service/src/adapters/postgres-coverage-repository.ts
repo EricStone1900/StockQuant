@@ -6,11 +6,15 @@ import type { CoveragePort } from "../ports/coverage.js";
 export type { BackfillTask, PersistedGap } from "../domain/coverage.js";
 export { BackfillConflict } from "../domain/coverage.js";
 
-type GapRow = QueryResultRow & { gap_id: string; subscription_id: string; security_id: string; bar_start: Date; bar_end: Date; reason: GapRecord["reason"]; priority: GapRecord["priority"]; status: PersistedGap["status"] };
+type GapRow = QueryResultRow & { gap_id: string; subscription_id: string; security_id: string; bar_start: Date; bar_end: Date; reason: GapRecord["reason"]; priority: GapRecord["priority"]; status: PersistedGap["status"]; evidence_reference: string | null };
 type TaskRow = QueryResultRow & { task_id: string; subscription_id: string; from_date: string | Date; to_date: string | Date; idempotency_key: string; status: BackfillTask["status"] };
 
 export class CoverageRepository implements CoveragePort {
   constructor(private readonly pool: Pool) {}
+
+  private assertGapEvidence(gaps: GapRecord[]): void {
+    if (gaps.some((gap) => gap.reason === "MISSING" && !gap.evidenceReference?.trim())) throw new Error("missing gap evidence reference required");
+  }
 
   async migrate(queryable: Pick<Pool, "query"> = this.pool): Promise<void> {
     await queryable.query(`
@@ -28,6 +32,7 @@ export class CoverageRepository implements CoveragePort {
         UNIQUE (subscription_id, security_id, bar_start, reason)
       );
       CREATE INDEX IF NOT EXISTS market_data_gap_records_open_idx ON market_data_gap_records(subscription_id, status, priority, bar_end);
+      ALTER TABLE market_data_gap_records ADD COLUMN IF NOT EXISTS evidence_reference TEXT;
       CREATE TABLE IF NOT EXISTS market_data_backfill_tasks (
         task_id UUID PRIMARY KEY,
         subscription_id TEXT NOT NULL,
@@ -41,26 +46,28 @@ export class CoverageRepository implements CoveragePort {
   }
 
   async upsertGaps(subscriptionId: string, gaps: GapRecord[]): Promise<number> {
+    this.assertGapEvidence(gaps);
     for (const gap of gaps) {
       await this.pool.query(`
-        INSERT INTO market_data_gap_records (gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
-        ON CONFLICT (subscription_id, security_id, bar_start, reason) DO UPDATE SET gap_id=EXCLUDED.gap_id, priority=EXCLUDED.priority, status='OPEN', last_seen_at=now()
-      `, [gap.gapId, subscriptionId, gap.securityId, gap.barStart, gap.barEnd, gap.reason, gap.priority]);
+        INSERT INTO market_data_gap_records (gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority, evidence_reference)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT (subscription_id, security_id, bar_start, reason) DO UPDATE SET gap_id=EXCLUDED.gap_id, priority=EXCLUDED.priority, evidence_reference=EXCLUDED.evidence_reference, status='OPEN', last_seen_at=now()
+      `, [gap.gapId, subscriptionId, gap.securityId, gap.barStart, gap.barEnd, gap.reason, gap.priority, gap.evidenceReference ?? null]);
     }
     return gaps.length;
   }
 
   async reconcileGaps(subscriptionId: string, fromDate: string, toDate: string, securityIds: string[], gaps: GapRecord[]): Promise<{ opened: number; closed: number }> {
+    this.assertGapEvidence(gaps);
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
       for (const gap of gaps) {
         await client.query(`
-          INSERT INTO market_data_gap_records (gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority)
-          VALUES ($1,$2,$3,$4,$5,$6,$7)
-          ON CONFLICT (subscription_id, security_id, bar_start, reason) DO UPDATE SET gap_id=EXCLUDED.gap_id, priority=EXCLUDED.priority, status='OPEN', last_seen_at=now()
-        `, [gap.gapId, subscriptionId, gap.securityId, gap.barStart, gap.barEnd, gap.reason, gap.priority]);
+          INSERT INTO market_data_gap_records (gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority, evidence_reference)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+          ON CONFLICT (subscription_id, security_id, bar_start, reason) DO UPDATE SET gap_id=EXCLUDED.gap_id, priority=EXCLUDED.priority, evidence_reference=EXCLUDED.evidence_reference, status='OPEN', last_seen_at=now()
+        `, [gap.gapId, subscriptionId, gap.securityId, gap.barStart, gap.barEnd, gap.reason, gap.priority, gap.evidenceReference ?? null]);
       }
       const result = await client.query(`
         UPDATE market_data_gap_records
@@ -86,8 +93,8 @@ export class CoverageRepository implements CoveragePort {
   }
 
   async open(subscriptionId: string): Promise<PersistedGap[]> {
-    const result = await this.pool.query<GapRow>("SELECT gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority, status FROM market_data_gap_records WHERE subscription_id=$1 AND status='OPEN' ORDER BY priority, bar_end", [subscriptionId]);
-    return result.rows.map((row) => ({ gapId: row.gap_id, subscriptionId: row.subscription_id, securityId: row.security_id, barStart: row.bar_start.toISOString(), barEnd: row.bar_end.toISOString(), reason: row.reason, priority: row.priority, status: row.status }));
+    const result = await this.pool.query<GapRow>("SELECT gap_id, subscription_id, security_id, bar_start, bar_end, reason, priority, status, evidence_reference FROM market_data_gap_records WHERE subscription_id=$1 AND status='OPEN' ORDER BY priority, bar_end", [subscriptionId]);
+    return result.rows.map((row) => ({ gapId: row.gap_id, subscriptionId: row.subscription_id, securityId: row.security_id, barStart: row.bar_start.toISOString(), barEnd: row.bar_end.toISOString(), reason: row.reason, priority: row.priority, status: row.status, ...(row.evidence_reference ? { evidenceReference: row.evidence_reference } : {}) }));
   }
 
   async close(gapId: string, status: "CLOSED" | "UNRECOVERABLE" = "CLOSED"): Promise<void> {

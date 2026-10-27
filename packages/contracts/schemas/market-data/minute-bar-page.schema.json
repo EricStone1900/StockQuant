@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/minute-bar-page-v1.schema.json",
+  "title": "MinuteBarPage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "items", "nextCursor"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "items": { "type": "array", "items": { "$ref": "https://stockquant.local/contracts/market-data/minute-bar.schema.json" } },
+    "nextCursor": { "type": ["string", "null"] }
+  }
+}

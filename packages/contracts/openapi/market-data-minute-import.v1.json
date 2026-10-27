@@ -703,6 +703,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "fromBarStart",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "toBarStart",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" }
           }
         ],
         "responses": {
@@ -711,7 +723,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "https://stockquant.local/contracts/market-data/minute-bar-page-v1.schema.json"
                 }
               }
             }
@@ -725,6 +737,65 @@
           "422": {
             "description": "Page request rejected"
           }
+        }
+      }
+    },
+    "/v2/minute/imports/{version}/daily-aggregate-check": {
+      "post": {
+        "operationId": "checkMarketDataMinuteDailyAggregate",
+        "summary": "Compare imported RAW minute bars with an operator-supplied daily reference",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "type": "string", "const": "platform-api-service" } },
+          { "name": "version", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["securityId", "tradingDate", "frequency", "reference", "referenceSource", "sourceReference"], "properties": {
+            "securityId": { "type": "string", "minLength": 1, "maxLength": 64 },
+            "tradingDate": { "type": "string", "format": "date" },
+            "frequency": { "type": "string", "enum": ["1m", "5m"] },
+            "reference": { "type": "object", "required": ["open", "high", "low", "close", "volume", "amount"], "properties": { "open": { "type": "number", "minimum": 0 }, "high": { "type": "number", "minimum": 0 }, "low": { "type": "number", "minimum": 0 }, "close": { "type": "number", "minimum": 0 }, "volume": { "type": "number", "minimum": 0 }, "amount": { "type": "number", "minimum": 0 } } },
+            "referenceSource": { "type": "string", "minLength": 1 },
+            "sourceReference": { "type": "string", "minLength": 1 }
+          } } } }
+        },
+        "responses": { "200": { "description": "Aggregate comparison with explicit operator-provided provenance and independent completeness status" }, "401": { "description": "Service identity required" }, "404": { "description": "Import not found" }, "422": { "description": "Request or import semantics rejected" } }
+      }
+    },
+    "/v2/minute/coverage": {
+      "post": {
+        "operationId": "calculateMarketDataMinuteCoverage",
+        "summary": "Calculate per-bar coverage and data quality for an imported range",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{
+          "name": "x-stockquant-service-id",
+          "in": "header",
+          "required": true,
+          "schema": { "type": "string", "const": "platform-api-service" }
+        }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["securityIds", "fromDate", "toDate", "windowMinutes", "bars"],
+                "properties": {
+                  "securityIds": { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 1 },
+                  "fromDate": { "type": "string", "format": "date" },
+                  "toDate": { "type": "string", "format": "date" },
+                  "windowMinutes": { "type": "integer", "enum": [1, 5] },
+                  "bars": { "type": "array", "items": { "type": "object" }, "maxItems": 5000 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Coverage is complete" },
+          "422": { "description": "Coverage is incomplete or input is invalid" }
         }
       }
     },
@@ -880,6 +951,33 @@
           }
         }
       ]
+    },
+    "/v2/minute/imports/{version}/replay-readiness": {
+      "get": {
+        "operationId": "checkMarketDataMinuteImportReplayReadiness",
+        "summary": "Resolve immutable historical context versions and validate replay scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "type": "string", "const": "platform-api-service" } },
+          { "name": "version", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "References pass structural checks; owner attestation and source facts are not independently verified", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "evidenceAssurance", "reasons", "resolved", "from", "to", "securities"], "properties": { "status": { "enum": ["READY", "BLOCKED"] }, "evidenceAssurance": { "const": "STRUCTURAL_CHECK_ONLY_OWNER_ATTESTATION" }, "reasons": { "type": "array", "items": { "type": "string" } }, "resolved": { "type": "array", "items": { "type": "object", "required": ["kind", "version", "sha256", "validFrom", "validTo"], "properties": { "kind": { "enum": ["SECURITY_UNIVERSE", "MARKET_RULE_SET", "CORPORATE_ACTIONS"] }, "version": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "validFrom": { "type": "string", "format": "date-time" }, "validTo": { "type": "string", "format": "date-time" } } } }, "from": { "type": ["string", "null"] }, "to": { "type": ["string", "null"] }, "securities": { "type": "array", "items": { "type": "string" } } } } } } },
+          "401": { "description": "Service identity required" },
+          "404": { "description": "Import not found" },
+          "409": { "description": "Replay is blocked by unresolved structural context or research permission", "content": { "application/json": { "schema": { "type": "object", "required": ["status", "evidenceAssurance", "reasons", "resolved", "from", "to", "securities"], "properties": { "status": { "enum": ["READY", "BLOCKED"] }, "evidenceAssurance": { "const": "STRUCTURAL_CHECK_ONLY_OWNER_ATTESTATION" }, "reasons": { "type": "array", "items": { "type": "string" } }, "resolved": { "type": "array", "items": { "type": "object" } }, "from": { "type": ["string", "null"] }, "to": { "type": ["string", "null"] }, "securities": { "type": "array", "items": { "type": "string" } } } } } } }
+        }
+      }
+    },
+    "/v2/historical-context/versions": {
+      "post": {
+        "operationId": "registerMarketDataHistoricalContextVersion",
+        "summary": "Register an immutable, owner-attested historical context version",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "type": "string", "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["kind", "version", "content", "sha256", "validFrom", "validTo", "sourceReference", "attestedBy"], "properties": { "kind": { "enum": ["SECURITY_UNIVERSE", "MARKET_RULE_SET", "CORPORATE_ACTIONS"] }, "version": { "type": "string", "minLength": 1, "maxLength": 120 }, "content": { "type": "object" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "validFrom": { "type": "string", "format": "date-time" }, "validTo": { "type": "string", "format": "date-time" }, "sourceReference": { "type": "string", "minLength": 1 }, "attestedBy": { "type": "string", "minLength": 1 } } } } } },
+        "responses": { "201": { "description": "Immutable version created or identical retry returned" }, "401": { "description": "Service identity required" }, "422": { "description": "Invalid or conflicting version" } }
+      }
     },
     "/v1/artifacts/tasks/{taskId}/artifact": {
       "get": {

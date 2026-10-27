@@ -53,6 +53,12 @@ export function codeSuiteCommands(stage) {
   if (stage === "V2.2") {
     commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--admin-env", "STOCKQUANT_V22_UPLOAD_ADMIN_DATABASE_URL", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "v22:upload-web-http-smoke"]]);
   }
+  if (stage === "V2.1") {
+    commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "MARKET_DATA_DATABASE_URL:market_data_test:market_data_test", "--url-env", "MARKET_MONITOR_DATABASE_URL:monitor_test:monitor_test", "--", "pnpm", "--filter", "@stockquant/market-data-service", "exec", "node", "scripts/c2-source-pipeline-smoke.mjs"]]);
+    for (const script of ["sampling-crash-recovery-smoke.mjs", "news-collection-persistence-smoke.mjs"]) {
+      commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "MARKET_DATA_DATABASE_URL:market_data_test:market_data_test", "--", "pnpm", "--filter", "@stockquant/market-data-service", "exec", "node", `scripts/${script}`]]);
+    }
+  }
   if (stage === "V2.4") {
     commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "PLATFORM_API_TEST_DATABASE_URL:platform_api_test:platform_api_test", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "test:v24-observation-persistence"]]);
     commands.push([process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--admin-env", "V24_PAPER_SMOKE_ADMIN_DATABASE_URL", "--", "pnpm", "--filter", "@stockquant/platform-api-service", "v24:paper-http-smoke"]]);

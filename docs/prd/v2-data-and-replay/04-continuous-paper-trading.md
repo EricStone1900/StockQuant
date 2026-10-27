@@ -19,19 +19,36 @@ V2.1实际来源通过、V1.5调度恢复通过；历史分钟回放结果不等
 
 ## 2. 开发任务
 
+- [x] 2026-10-24候选A参数确认后，新增`v24-daily-direction-1`与不可变PostgreSQL Fixture目标；同Run日线计算目标驱动原治理/执行/账本，重复评估不改输入，跨账户替换拒绝，恢复先重读目标匹配原命令；HOLD/PAUSED不生成订单身份。Web时间线展示目标，场景2.2.0四API/四Chromium与同Run CLI通过；真实PG测试4/4、纯规则/门禁31/31、14条实际返回契约校验通过。源码/输入指纹和结果见[执行记录](../../../evidence/audits/2026-10-24-v24-c5-entry-gap-review.md#候选a确认后的日频目标切片2026-10-24)。
+- [x] 2026-10-26候选绑定场景2.5.0增加Mandate到期边界：在批准有效期`expiresAt`恰好到达时，日频目标返回`PAUSED/MANDATE_INACTIVE`且数量为0；同Run断言`V2.4-C5-MANDATE-EXPIRY-001`通过，不生成订单。账户无独立有效期是项目所有者已确认的规则；执行有效期由绑定Mandate控制，见[账户有效期决定](../../decisions/2026-10-26-c5-account-validity.md)。
+- [x] 2026-10-26将`candidate-binding`加入正式V2.4 Web与Chromium流程；浏览器核对到期/陈旧/未知/错过窗口原因、`PENDING` Mandate、零预算/订单/成交及`STOPPED`调度，并以同Run CLI `--check-only`复核。之后新增可见“Candidate A 暂停门禁”摘要，浏览器逐字段断言实际显示原因及副作用计数。6个Chromium TestRun全部通过；最终隔离报告：[API/Web/CLI](../../../evidence/audits/2026-10-26-v24-paper-smoke-d9122fc3a66a4e1da9e815f4a8761037.json)；[六场景浏览器明细](../../../evidence/audits/2026-10-26-v24-paper-web-e2e-2613b0d9-c2a0-4467-8a00-09ae948f4bf8.json)。账户本体不设置独立有效期，已按所有者决定记录。
+- [x] 2026-10-24补齐隔离 Fixture 的 SELL 命令语义：治理验证、快照风险门和执行端资源预留依据同一`signal.action`选择 BUY 现金或 SELL 可卖数量；FakeBroker Fill 事件保留实际方向。该变更只打通单笔 SELL 命令语义，尚未形成跨日持仓/结算验收链。
+- [x] 2026-10-24新增同一`v24-paper-v2-{TestRunId}`范围的真实账本跨日场景：前日BUY 100股、下一上海交易日SELL 100股、卖出款在冻结结算日前不能作为BUY现金、结算日09:30后才可使用。该验证使用独立临时PostgreSQL并清理资源；尚未把该持仓Fixture接入V2.4 HTTP/Web/FakeBroker同Run对账。
+- [x] 2026-10-24快照执行补齐FakeBroker独立资产账本：BUY扣除独立现金并增加持仓；SELL减少持仓、写入待结算应收款，结算后才增加独立现金。V2.4完整隔离Smoke的normal、recovery和external-reconciliation均以`V2.4-PAPER-009`核对独立FakeBroker与Portfolio的同Run现金/持仓，API、Chromium和CLI复验通过。该对账当前覆盖BUY链；SELL跨日尚未进入HTTP/Web Fixture。
+- [x] 2026-10-24新增冻结`crossday-settlement` HTTP Fixture：同一`v24-paper-v2-{TestRunId}`内前日BUY、下一交易日SELL、结算日前现金拒绝、结算日09:30资金释放，并以`V2.4-CROSSDAY-001`至`005`核对订单、应收款和FakeBroker/Portfolio独立账。它只覆盖确定性`FIXTURE/PAPER/FAKE`会计闭环，不启动调度、活动策略或真实来源。
+- [x] 2026-10-25将候选风险账接入该跨日入口：1月4日BUY后日累计成交额为1000；轮换至1月5日后SELL从零累计1025；1月8日结算后敞口和累计损失归零。日限额暂停后的轮换必须记录操作员批准，`MANDATE_INACTIVE`不能轮换恢复；该规则仅在隔离TestRun的Fixture验证中执行。
+- [x] 2026-10-25至26候选A独立执行准入门：仅限上海时间09:31–09:35、订单接受之后的首个`READY`快照，年龄最多60秒、参考价偏离最多100bps；错过窗口、陈旧、`UNKNOWN`、错误证券/市场或超偏离均失败关闭并记录各自原因。`candidate-binding`场景升至2.4.0；隔离API/Web/CLI完整烟测的候选准入断言通过，Mandate仍为`PENDING`且无订单/成交/预算/调度副作用。证据：[2026-10-26完整隔离报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-63e7458b9ade4dc89ca548ac2a4a0794.json)。
+- [x] 2026-10-25至26接通并复验日终Fixture对账与Incident：同Run日线完成后重读Portfolio/FakeBroker；差异按TestRun键持久开立/去重Incident，账本匹配时恢复关闭；重放不新建事件，结果写回同Run TestRun。首轮完整Web复验还发现恢复路径未持久化风险/日终证据，以及跨日结算缺少通用投影字段；修复后6个API场景、5个Chromium TestRun和同Run CLI均PASS。完整报告见[2026-10-26隔离API/Web/CLI smoke](../../../evidence/audits/2026-10-26-v24-paper-smoke-206840a62ec441ebb42b750fb987f552.json)。该复选项仅代表Fixture纵切工程验收；后续增加Candidate A绑定/暂停正式Web场景后，6个API、6个Chromium及各自同Run CLI检查全部通过，见[2026-10-26完整隔离报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-89984be807ff492b9b4743c957e0e41a.json)。真实日终调度、外部通知发送、睡眠/断网中的真实时钟恢复仍未完成。
+
+- [x] 2026-10-24补齐可审阅的[最小候选A及参数](../../../evidence/audits/2026-10-24-od007-c5-activation-decision-package.md#最小具体候选-a待所有者确认)，实现纯规则评估和到期/暂停/日线可用性/精确现金等隔离单测；3文件31项通过，Platform typecheck/build通过。`AUTO_START`与手工入口统一OD-007配置和有效期门禁，实际子进程在仅配来源时于Nest/DB启动前拒绝。候选未批准、未接入活动交易；后台日线→目标→治理/风险/执行→账本/日终告警接线继续未完成，完整阶段门禁不变。
+
 2026-10-01工程维护记录：Trade Execution Fill Outbox交付已提取到application服务并以FakeBroker/Portfolio端口注入，HTTP组合根归入bootstrap。完整V2.4隔离代码套件exit 0；该工程回归不等于真实数据授权、活动Paper、人工验收或O2观察完成。证据：[Outbox应用边界审计](../../../evidence/audits/2026-10-01-w1-trade-execution-outbox-layer-increment.md)。
 
 - [x] 固定未接通业务链时的准备态契约：Web/API 持久化 owner-scoped WAITING TestRun，OpenAPI 与生成类型一致，并用实际 Chromium→Vite→Platform API→隔离PostgreSQL→CLI `--check-only`核对同一ID；不调用下游或生成交易证据。详见[TestRun OpenAPI及Web/API/CLI同run审计](../../../evidence/audits/2026-09-27-v24-run-openapi.md)。
 - [ ] 连接实际采样行情与FakeBroker，按已版本化日频信号/执行窗口自动调仓；使用SystemClock，保留数据年龄与成交假设。
+- [x] C5本地Fixture纵切子项：专用冻结组合Fixture→同Run scoped watchlist→Market Data持久快照采样→Paper授权/FakeBroker/Portfolio账本；重复tick幂等、陈旧快照零副作用拒绝、执行响应丢失后按原clientOrderId恢复，以及Web四场景/CLI同Run均已通过。仅完成确定性Fixture子范围，不表示真实时钟、活动策略或持续自动调仓完成；见[2026-10-24完整隔离烟测](../../../evidence/audits/2026-10-24-v24-paper-smoke-0a05aa0123e34b5eb07fc639d0f0fb15.json)及[Web/CLI场景报告](../../../evidence/audits/2026-10-24-v24-paper-web-e2e-8c000573-52d8-4837-9c4c-70552fc756aa.json)。
 - [ ] 定义独立SNAPSHOT模型：下单后首个符合新鲜度/会话政策的快照才可作为模拟成交输入；不补造两次采样之间触价记录，无可靠量数据不伪称参与率已验证。
 - [x] 冻结V2.4 Paper执行政策的准备边界：日频信号、A股快照窗口、下单后首个新鲜快照、PAPER/FAKE及风险预留前置；契约明确标记 `PREPARATION_ONLY`，策略、Mandate、偏离、风险/费用版本和美股政策缺项保持阻断（准备工作完成，不等于策略可执行）。
 - [x] 增加Platform会话代理与Web就绪显示，并实测内部每服务独立Bearer、匿名拒绝和零账本副作用：CN_A显示BLOCKED、US_EQUITY显示REJECTED，风险/资源预留仍NOT_RUN、订单提交关闭；浏览器显示由固定响应桩验证，真实HTTP代理/Bearer由隔离API smoke独立验证；不构成Paper执行验收。详见[P5.5 readiness审计](../../../evidence/audits/2026-09-27-p5-5-paper-readiness.md)。
 - [x] 增加严格受限的Fixture v2.0治理授权及Paper快照执行接口，并在四个临时数据库/独立服务进程中验证正常、陈旧拒绝、真实丢弃接受响应后的原单恢复；金额、账本、资源预留、FakeBroker Fill/Outbox和CLI同run结果均核对。此项只覆盖隔离Fixture执行，不激活默认策略。详见[隔离Fixture Paper审计](../../../evidence/audits/2026-09-27-v24-isolated-fixture-paper.md)。
 - [x] Web以可读摘要展示授权/风控、订单/成交、资金预留、现金/持仓、对账和Fixture限制；Chromium逐一运行normal/rejection/recovery，刷新/过期会话/关闭重开/原始JSON下载通过，每个Web TestRun均由CLI `--check-only`核对同ID，业务事实计数在CLI前后不变。实证及范围见[W1全栈审计](../../../evidence/audits/2026-09-30-v24-paper-smoke.json)和[Web步骤/业务结果](../../../evidence/audits/2026-09-30-v24-paper-web-e2e.json)。
+- [x] 2026-10-24完成C5 Fixture采样→Paper Web同Run联接复验：normal/rejection/recovery/external-reconciliation四个API与Chromium TestRun完成，C5采样/幂等/快照消费断言通过；CLI `--check-only`逐Run退出0。完整临时数据库快照导出后删除，临时Web容器/镜像清理，`activeServicesTouched=false`。机器报告：[完整Smoke](../../../evidence/audits/2026-10-24-v24-paper-smoke-0a05aa0123e34b5eb07fc639d0f0fb15.json)，[Web/CLI详细结果](../../../evidence/audits/2026-10-24-v24-paper-web-e2e-8c000573-52d8-4837-9c4c-70552fc756aa.json)。这不是完整V2.4 code suite，也不构成当前范围人工签收、真实行情授权或20日观察通过。
+- [x] 2026-10-24扩展C5 Fixture日终子链：新增同一三证券scoped watchlist覆盖的独立`DAILY_BAR` Fixture；normal、recovery和external-reconciliation均验证日线完成、重复入队返回原持久任务，以及读取FakeBroker/Portfolio对账事实。查询暂不可用后`/recover`使用原Run的冻结日线计划补齐完成并复验幂等，不盲目重发订单；告警确认通道持久化已隔离验证。完整API/Chromium/同Run CLI smoke通过，见[机器报告](../../../evidence/audits/2026-10-24-v24-paper-smoke-d3c8022e6a3c4f7ba26c8ab31f1a0402.json)和[Web/CLI结果](../../../evidence/audits/2026-10-24-v24-paper-web-e2e-01578745-d570-445d-ba8e-cd2cb44b2058.json)。此项只闭合确定性日终Fixture输入，不构成自动日终调度、连续告警、真实来源或20日观察。
+- [x] 2026-10-24收紧真实时钟入口：`scheduler/start`和`tick`除行情来源批准、授权引用和数据版本外，还要求`STOCKQUANT_V24_CONTINUOUS_PAPER_APPROVED=true`及OD-007的Mandate、策略、账户、风险、成本、有效期引用；任一缺失均403且不调用调度器。定向单测4/4、Platform typecheck通过。该门禁不创建或批准活动策略，也不构成启动许可。
 - [x] 新增独立外部订单差异Fixture场景：沿Platform生成客户端注入FakeBroker独立订单，后端持久TestRun断言本地缺单差异，正式Web显示证据并由CLI同Run核验；TestRun `47a3acfd-bd1d-4c58-9bc5-42b916f228de`（API），`bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1`（Web）。
 - [x] 验证P-F05撤单确认与迟到/缺序号Fill的因果顺序，以及费用更正版本、重放幂等、持久投递屏障和原始Fill不可变；固定故障顺序在隔离PostgreSQL完整持久化测试中通过。[复验说明](../../../evidence/audits/2026-10-05-w2-trade-cancel-fill-race.md)
 - [x] 持久化版本化SimulationExecutionPolicy，和未来LIVE策略分离；数据库约束只允许 `PREPARATION_ONLY/PAPER/FAKE/liveTradingEnabled=false`，同一版本不可改写，readiness仅从持久化策略只读加载。证据：[W3策略持久化审计](../../../evidence/audits/2026-10-02-w3-v24-simulation-policy-persistence.md)、[JSON](../../../evidence/audits/2026-10-02-w3-v24-simulation-policy-persistence.json)及[历史执行快照 SHA-256 Manifest](../../../evidence/audits/2026-10-02-w3-v24-simulation-policy-persistence.sha256)。后续共享Trade源码变更不回写该次执行清单。
-- [ ] 行情陈旧/未知状态/账户过期时自动暂停相应模拟交易并显示原因；完整连续交易/日终告警生命周期仍未接通。
+- [ ] 真实连续模拟运行在陈旧/未知行情、错过窗口或Mandate到期时自动暂停并持久展示原因；Candidate A Fixture现覆盖`SNAPSHOT_STALE`、`SNAPSHOT_STATUS_UNKNOWN`、`EXECUTION_WINDOW_CLOSED`及`MANDATE_INACTIVE`，同Run Web/API/CLI验证失败关闭和零订单副作用。所有者已决定账户无独立有效期、仅Mandate到期暂停（[决定记录](../../decisions/2026-10-26-c5-account-validity.md)）；真实连续运行的暂停状态仍待验证。
 - [ ] 日终自动对账、告警去重、断网/睡眠恢复；错过窗口只重评，不集中补旧单。新闻默认展示，升级动作需独立批准的策略规则。
 - [ ] 建立连续观察记录，建议A股20个实际交易日；观察期间可继续V2.5/V3独立工作，但观察门禁未满保持NOT_RUN，不用加速回放代替。
 
@@ -99,6 +116,7 @@ Mandate准备（2026-09-25）：新增 `v24-paper-mandate-v1` 准备契约与固
 - [ ] 第2节全部后端业务任务完成。隔离Fixture一次性执行纵切已实测；实际采样、活动策略、持续自动调仓、SystemClock交易窗、日终自动对账/告警、来源故障管理与20日观察仍未完成。
 - [x] 正式Web验收页normal/rejection/recovery三个隔离Fixture场景均经Chromium按钮运行；每个Web TestRun由CLI `--check-only`核对同一ID，刷新后从本地保存ID回读。只覆盖冻结Fixture链，不代表活动Paper验收。
 - [x] 独立外部订单差异场景在正式Web上展示`EXTERNAL_ORDER_MISSING_LOCALLY`证据并通过Web TestRun同ID CLI只读复验；全套证据见[2026-10-02 Smoke](../../../evidence/audits/2026-10-02-v24-paper-smoke-912a971fa6374e339157f75bee08b5f6.json)。
+- [x] 2026-10-26 Candidate A绑定/暂停入口纳入正式Web与六场景Chromium验收；可见摘要显示Mandate到期、陈旧/未知快照、错过窗口原因，以及预算/调度/订单/成交状态；Chromium逐字段断言并用同Run CLI核对，刷新后TestRun可恢复读取。完整隔离验收见[API/Web/CLI报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-d9122fc3a66a4e1da9e815f4a8761037.json)及[浏览器明细](../../../evidence/audits/2026-10-26-v24-paper-web-e2e-2613b0d9-c2a0-4467-8a00-09ae948f4bf8.json)。此项为自动Fixture证据，不代表人工验收。
 - [x] 2026-10-05重新通过完整V2.4代码套件；API normal/rejection/recovery/external-reconciliation四场景、四个Web场景及同Run CLI核验通过，含P-F05持久化竞态/费用更正和隔离容器清理。[套件审计](../../../evidence/audits/2026-10-05-w2-v24-code-suite.md)、[机器摘要](../../../evidence/audits/2026-10-05-v24-paper-smoke-9cb5834e8c3e4b318a95e6791623f836.json)、[历史执行快照 Hash 清单](../../../evidence/audits/2026-10-05-w2-v24-code-suite.sha256)。后续共享Trade源码变更不回写该次执行清单。本项为自动隔离回归，不代表实时Paper、来源授权、观察或人工验收。
 - [x] 2026-10-02完成NO_TRADE暂停原因纵切：执行窗口观察记录将`PAUSED`及原因写入持久化`evidence.executionGate`；非执行窗口的同日更新不覆盖该字段；未授权来源、陈旧/断连/未知来源、未确认交易日均有固定原因；`/paper`只读展示最近执行窗口暂停原因。无活动Paper账户时仍报告`NO_ACTIVE_PAPER_ACCOUNT_OR_APPROVED_MANDATE`，不冒充账户过期检测；没有来源授权时不发行情请求、不下单、不启用调度。Platform 166项单测、lint、Web typecheck/build、目标Chromium验收1/1及完整`pnpm verify:stage -- --stage V2.4 --suite code`均通过（最终隔离烟测报告[7e9678ab](../../../evidence/audits/2026-10-02-v24-paper-smoke-7e9678ab95964a26a97eb5915d929e31.json)）。该轮同时修正P5.7隔离PG探针：通过容器TCP查询确保连接官方镜像初始化结束后的正式PostgreSQL服务；P5.7与完整suite均通过并清理临时资源。真实PG合并断言和失败根因见[W3持久暂停门禁审计](../../../evidence/audits/2026-10-03-w3-persisted-execution-gate.md)。真实PostgreSQL执行门禁合并回归和完整suite最终复验详见[W3持久暂停门禁审计](../../../evidence/audits/2026-10-03-w3-persisted-execution-gate.md)；本轮W9门禁仍为INCOMPLETE且证据完整性通过，见[W9复核](../../../evidence/audits/2026-10-03-w9-version-gates-after-w3.md)。此项仅证明执行门禁记录/展示，不等于活动源授权、过期账户管理或W3业务链完成。
 - [x] W0当前工作树快照覆盖上述变更、最终隔离suite报告与测试输出边界；历史点保留。最新报告见[计划中的W0引用](../../plans/2026-09-30-complete-delivery-plan.md)。本快照是点时边界，不代表W3阶段验收或O2开始。
@@ -126,15 +144,15 @@ Mandate准备（2026-09-25）：新增 `v24-paper-mandate-v1` 准备契约与固
 
 | 开发交付时必须填写 | 当前值 |
 |---|---|
-| 实测代码Commit或工作区Hash/验证日期 | HEAD `3fdf2c9c693e1bc013601926865634a49a625ff4` + 未提交工作树；W1运行Hash见[W0基线](../../../evidence/audits/2026-09-30-w0-baseline.md)和[全栈报告](../../../evidence/audits/2026-09-30-v24-paper-smoke.json)，2026-09-30 |
+| 实测代码Commit或工作区Hash/验证日期 | 当前为未提交工作树；C5完整隔离Smoke验证日期2026-10-24，结果见[机器报告](../../../evidence/audits/2026-10-24-v24-paper-smoke-0a05aa0123e34b5eb07fc639d0f0fb15.json)；此结果绑定该次工作树，不代表后续源码Hash |
 | 项目根目录、Node/pnpm/Python/uv及Docker版本 | `/Users/huangbosong/Documents/ChatGPT/StockQuant`；Node `v24.1.0`；pnpm `10.34.5`；Docker Compose 容器化 |
 | Web基础URL/身份登录或会话建立方式 | `http://127.0.0.1:8080`；本地验收身份 `acceptance-owner-1`；不记录密码/token |
 | 本阶段Web路由 | `/acceptance/v2/v2.4`（目标） |
 | 正式页面的真实入口/跳转链接 | `http://127.0.0.1:8080/acceptance/v2/v2.4` |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 隔离交易输入 `fixtures/v2/v2.4/paper-execution-v2/v24-paper-execution-scenario-v2.json` v2.0.0；SHA-256 `713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821`；FIXTURE/PAPER/FAKE，100股×10元，费用5元；策略/政策/Mandate均为不可复用的测试版本，流动性参与率NOT_VERIFIED |
-| 配置文件及必需环境变量名/非秘密测试值 | `infra/compose/docker-compose.yml`；`STOCKQUANT_BROKER_MODE=FAKE`、`STOCKQUANT_LIVE_TRADING_ENABLED=false`。portfolio-risk内部调用还需在忽略的`.env.local`设置独立的`STOCKQUANT_SERVICE_TOKEN_PLATFORM_API`、`STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION`、`STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY`；不可将密钥提交到仓库。 |
+| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 原Paper输入 `fixtures/v2/v2.4/paper-execution-v2/v24-paper-execution-scenario-v2.json` v2.0.0；SHA-256 `713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821`。C5组合 `v24-sampled-paper-composition-1` Manifest见`fixtures/v2/v2.4/paper-execution-v2/manifest.json`，组合文件SHA-256 `d6731cc4b151c516722a4cf90444d22fb409c051d90ea84c5828a168cbcc08b7`，使用V2.1快照Fixture `v2.1-snapshot-sampling-1`；2026-10-16 09:50采样，20分钟，600000.SH 100股×10.2500，费用5.0000，现金期望8970.0000；FIXTURE/PAPER/FAKE，测试策略/Mandate不用于活动交易，流动性参与率NOT_VERIFIED |
+| 配置文件及必需环境变量名/非秘密测试值 | 完整隔离烟测：`node scripts/run-isolated-postgres-command.mjs --admin-env V24_PAPER_SMOKE_ADMIN_DATABASE_URL -- pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke`；仅使用该脚本创建的临时PostgreSQL及临时Web镜像/容器，完成后导出快照并清理。隔离管理员连接由环境变量`V24_PAPER_SMOKE_ADMIN_DATABASE_URL`提供；运行要求`STOCKQUANT_BROKER_MODE=FAKE`、`STOCKQUANT_LIVE_TRADING_ENABLED=false`。不得记录或提交访问凭据。 |
 | 外部故障目标及可执行命令、恢复/隔离清理入口 | recovery 场景固定注入来源断网/错过窗口；保留隔离运行和证据，不删除共享卷 |
-| 预期耗时、轮询超时、实际观察期/预算 | 单场景 <60 秒；服务健康轮询 20×5 秒；实际观察期 20 个交易日（当前 `NOT_RUN`） |
+| 预期耗时、轮询超时、实际观察期/预算 | 完整API/Web smoke实测约60秒；采样任务终态轮询8秒，服务启动健康轮询至多150×100毫秒，应用探针/场景超时以脚本内固定值为准；实际观察期20个合格交易日（当前`NOT_RUN`） |
 
 ### 8.2 初始化与启动（已验证命令）
 
@@ -158,7 +176,7 @@ pnpm dev:web
 
 1. 登录上表Web地址，进入“开发验收中心→V2→V2.4”；检查页面版本、默认策略准备态和冻结隔离Fixture说明。
 2. 完整默认命令启动真实临时服务/数据库并含Chromium/Web验收；正常Web TestRun与CLI同run已通过。`V24_PAPER_SMOKE_SKIP_WEB=true`仅用于后端诊断，不能作为Web验收结论。
-3. 分别点击正常、拒绝、恢复和外部订单差异场景；查看业务摘要中的授权/风控、订单成交、资金预留、现金/持仓、对账和断言。每个Web TestRun均由CLI `--check-only`复核，并刷新页面确认同一TestRun恢复显示。
+3. 分别点击正常、拒绝、恢复、外部订单差异、跨日结算和Candidate A绑定/暂停场景；查看业务摘要及原始证据。Candidate A场景应保持Mandate `PENDING`、预算/订单/成交为0、调度`STOPPED`，并显示到期`MANDATE_INACTIVE`、陈旧`SNAPSHOT_STALE`、未知`SNAPSHOT_STATUS_UNKNOWN`和错过窗口`EXECUTION_WINDOW_CLOSED`。每个Web TestRun均由CLI `--check-only`复核，并刷新页面确认同一TestRun恢复显示。
 
 | 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
 |---|---|---|---|
@@ -166,6 +184,7 @@ pnpm dev:web
 | rejection | 陈旧快照治理拒绝 | Web点击“运行隔离Paper拒绝场景”；截图[rejection](../../../evidence/audits/2026-09-30-v24-paper-web-rejection.png)。 | Governance以422拒绝；初始账目保留，订单/Fill/待投递Outbox为0；3项PASS。 |
 | recovery | 接受响应丢失恢复 | Web点击“运行隔离Paper恢复场景”；截图[recovery](../../../evidence/audits/2026-09-30-v24-paper-web-recovery.png)。 | Web recovery分支按原订单身份回读持久化订单；同批API smoke由代理确认实际丢弃Trade Execution接受响应，账本/对账正确。二者均由CLI同run只读校验。 |
 | external-reconciliation | 独立外部订单差异 | Web点击“运行外部订单差异场景”；固定输入由隔离FakeBroker观察生成，并记录在TestRun证据；截图[本轮场景](../../../evidence/audits/2026-10-02-v24-paper-web-external-reconciliation-bf8e8474-ce11-43c8-a9d4-ca2268c0c8a1.png)。 | 本地订单/Fill/账本仍为正常执行结果；独立外部事实产生1条`EXTERNAL_ORDER_MISSING_LOCALLY`，含外部ID与证据引用，Web明细可见；同Run CLI `--check-only`全部断言通过。 |
+| candidate-binding | Candidate A账户/Mandate绑定与暂停门禁 | Web点击“运行 Candidate A 绑定与暂停场景”；隔离Fixture不启动调度。 | 到期目标为`PAUSED/MANDATE_INACTIVE`且数量0；陈旧/未知/错过窗口各有独立暂停原因；Mandate `PENDING`，预算/订单/成交为0，调度`STOPPED`。浏览器/API及同Run CLI通过；见[完整隔离报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-d9122fc3a66a4e1da9e815f4a8761037.json)和[浏览器明细](../../../evidence/audits/2026-10-26-v24-paper-web-e2e-2613b0d9-c2a0-4467-8a00-09ae948f4bf8.json)。 |
 
 4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
 5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
@@ -177,11 +196,11 @@ pnpm dev:web
 ```bash
 # 已执行通过：真实隔离服务/临时数据库normal、rejection、response-loss recovery + CLI check-only。
 # 该环境变量只跳过浏览器步骤；不能用作Web/API/CLI验收结论。
-V24_PAPER_SMOKE_SKIP_WEB=true pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke
+V24_PAPER_SMOKE_SKIP_WEB=true node scripts/run-isolated-postgres-command.mjs --admin-env V24_PAPER_SMOKE_ADMIN_DATABASE_URL -- pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke
 echo $?
 
 # 完整W1隔离Fixture交付命令（当前全链路复验通过）：
-pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke
+node scripts/run-isolated-postgres-command.mjs --admin-env V24_PAPER_SMOKE_ADMIN_DATABASE_URL -- pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke
 # 退出0且摘要包含Web TestRun同run的CLI退出0。
 # 另保存每场景业务摘要/步骤、截图；CLI前后业务计数需相等。
 

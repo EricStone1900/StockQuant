@@ -182,6 +182,16 @@ createServer(async (request, response) => {
     const assets = await broker.independentAssetSnapshot(namespace, accountId);
     return assets ? json(response, 200, assets) : json(response, 404, { error: "independent FakeBroker assets not found" });
   }
+  const inFlightOrdersMatch = pathname.match(/^\/internal\/v1\/accounts\/([^/]+)\/in-flight-orders$/u);
+  if (request.method === "GET" && inFlightOrdersMatch) {
+    const query = new URL(request.url ?? "/", `http://127.0.0.1:${port}`).searchParams;
+    const namespace = query.get("namespace");
+    const ownerId = query.get("ownerId");
+    const testRunId = query.get("testRunId");
+    if (!namespace || !ownerId || !testRunId) return json(response, 422, { error: "namespace, ownerId, and testRunId are required" });
+    const orders = await broker.listInFlightOrders({ accountId: decodeURIComponent(inFlightOrdersMatch[1]!), namespace, ownerId, testRunId });
+    return json(response, 200, { accountId: decodeURIComponent(inFlightOrdersMatch[1]!), namespace, ownerId, testRunId, orders });
+  }
   if (request.method === "POST" && pathname === "/internal/v1/v13/accounts/settlements") {
     let raw = "";
     for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 4096) return json(response, 413, { error: "V1.3 settlement command exceeds 4 KiB" }); }
@@ -366,7 +376,7 @@ createServer(async (request, response) => {
     let raw = "";
     for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 65536) return json(response, 413, { error: "Paper Fixture command exceeds 64 KiB" }); }
     try {
-      const body = JSON.parse(raw) as { authorizationId?: unknown; grant?: V24PaperExecutionGrant };
+      const body = JSON.parse(raw) as { authorizationId?: unknown; grant?: V24PaperExecutionGrant; initialAccountCash?: string };
       if (typeof body.authorizationId !== "string" || !body.grant || typeof body.grant !== "object") return json(response, 422, { error: "authorizationId and grant are required" });
       const grant = body.grant;
       const evaluation = evaluateV24PaperFixtureGrant(grant, fixtureClock(grant.clockNow));
@@ -381,11 +391,12 @@ createServer(async (request, response) => {
           ownerId: grant.ownerId,
           idempotencyKey: `${grant.order.clientOrderId}-resource`,
           clientOrderId: grant.order.clientOrderId,
-          side: "BUY",
+          side: grant.signal.action,
           currency: grant.currency,
-          cashAmount: evaluation.reservedCash,
-          security: null,
-          quantity: null,
+          cashAmount: grant.signal.action === "BUY" ? evaluation.reservedCash : null,
+          security: grant.signal.action === "SELL" ? grant.order.security : null,
+          quantity: grant.signal.action === "SELL" ? grant.order.requestedQuantity : null,
+          ...(grant.signal.action === "SELL" ? { asOf: grant.clockNow } : {}),
         });
       } catch (error) {
         if (!(error instanceof PortfolioAccountClientError)) throw error;
@@ -395,9 +406,11 @@ createServer(async (request, response) => {
       const command: SnapshotPaperExecutionCommand = {
         namespace: grant.namespace, accountId: grant.accountId, clientOrderId: grant.order.clientOrderId, security: grant.order.security,
         requestedQuantity: grant.order.requestedQuantity, price: evaluation.snapshot.price, fee: grant.fee, effectiveAt: evaluation.snapshot.observedAt,
+        ...(body.initialAccountCash !== undefined ? { initialAccountCash: body.initialAccountCash } : {}),
         currency: grant.currency, snapshotId: evaluation.snapshot.snapshotId, policyVersion: evaluation.policyVersion, fixtureVersion: grant.scenarioVersion,
         quoteAgeSeconds: evaluation.risk.quoteAgeSeconds, deviationBps: evaluation.risk.deviationBps, testRunId: grant.testRunId, ownerId: grant.ownerId,
         mandateId: grant.mandate.mandateId, mandateVersion: grant.mandate.mandateVersion, strategyVersion: grant.mandate.strategyVersion,
+        side: grant.signal.action,
         reservation: { reservationId: reservationBody.reservation.reservationId, ownerId: grant.ownerId, testRunId: grant.testRunId, clientOrderId: grant.order.clientOrderId }
       };
       const executed = await broker.executeSnapshotPaper(command);
@@ -415,6 +428,21 @@ createServer(async (request, response) => {
     } catch (error) {
       const status = error instanceof IdempotencyConflictError ? 409 : 422;
       return json(response, status, { error: error instanceof Error ? error.message : "invalid V2.4 Paper execution command" });
+    }
+  }
+  if (request.method === "POST" && pathname === "/internal/v1/v24/paper-orders/probe-reservation") {
+    let raw = "";
+    for await (const chunk of request) { raw += chunk; if (Buffer.byteLength(raw, "utf8") > 4096) return json(response, 413, { error: "Paper Fixture reservation probe exceeds 4 KiB" }); }
+    let body: Record<string, unknown>;
+    try { body = JSON.parse(raw) as Record<string, unknown>; } catch { return json(response, 422, { error: "valid JSON body is required" }); }
+    const expectedKeys = "accountId,cashAmount,clientOrderId,currency,idempotencyKey,namespace,ownerId,testRunId";
+    if (!body || Array.isArray(body) || Object.keys(body).sort().join(",") !== expectedKeys || Object.values(body).some((value) => typeof value !== "string" || !value.trim()) || !String(body.namespace).startsWith("v24-paper-v2-")) return json(response, 422, { error: "isolated V2.4 Fixture reservation probe scope is invalid" });
+    try {
+      const reservation = await portfolioClient.reserveAccountResources(String(body.accountId), { namespace: String(body.namespace), testRunId: String(body.testRunId), ownerId: String(body.ownerId), idempotencyKey: String(body.idempotencyKey), clientOrderId: String(body.clientOrderId), side: "BUY", currency: String(body.currency), cashAmount: String(body.cashAmount), security: null, quantity: null });
+      return json(response, 201, reservation);
+    } catch (error) {
+      if (error instanceof PortfolioAccountClientError) return json(response, error.status, { error: "Portfolio resource reservation failed", detail: error.body });
+      throw error;
     }
   }
   if (request.method !== "POST" || request.url !== "/internal/v1/historical-orders/execute") return json(response, 404, { error: "not found" });

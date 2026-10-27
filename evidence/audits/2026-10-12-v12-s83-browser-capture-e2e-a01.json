@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "stockquant.v1.2.web-evidence-capture.v1",
+  "date": "2026-10-12",
+  "stageId": "V1.2",
+  "status": "PASS",
+  "command": "STOCKQUANT_V12_CAPTURE_EVIDENCE=1 pnpm test:e2e -- --stage V1.2",
+  "exitCode": 0,
+  "isolatedProject": "sq-v12-e2e-f49db636f628d3e9b8a2",
+  "environmentMode": "BACKTEST",
+  "dataMode": "FIXTURE",
+  "brokerMode": "FAKE",
+  "sourceAuthorization": "NONE",
+  "liveTradingEnabled": false,
+  "scenarioTestRunIds": {
+    "normal": "6ea4413a-bc39-4897-b11b-0dd438252e1e",
+    "rejection": "49be08a1-2a93-486f-9878-c755196c1366",
+    "recovery-probe": "75f53599-3488-4c44-b1f7-431d86bae38e",
+    "cancelled": "19637177-937f-4bed-9512-c0a26f057eac",
+    "platform-restart-recovery": "91990695-4b20-4a4d-9b8a-9fe29f448286"
+  },
+  "assertions": {
+    "normal": "CN_A and US_EQUITY Qlib 0.9.6 fit/predict; TOPK and NO_TRADE Artifact; same-Run CLI and refresh",
+    "rejection": "FUTURE_DATA rejection; same-Run CLI",
+    "recovery-probe": "fixed-probe-ok; modelCalls NOT_RUN; same-Run CLI",
+    "cancelled": "CANCELLED at safe checkpoint; no partial Artifact",
+    "platform-restart-recovery": "same TestRun resumed to COMPLETED after Platform restart; same-Run CLI"
+  },
+  "playwright": "1 passed (1.3m)",
+  "humanAcceptance": "NOT_RUN",
+  "cleanup": "verified; isolated containers, PostgreSQL/Artifact volumes and network removed",
+  "sourceLog": {
+    "path": "evidence/audits/2026-10-12-v12-s83-browser-capture-e2e-a01.log",
+    "sha256": "c20b403638d41f1c9f24ad57c516517390a8da245268db30e4b63af39e73d21b",
+    "exitCodePath": "evidence/audits/2026-10-12-v12-s83-browser-capture-e2e-a01.log.exit.txt"
+  },
+  "captures": [
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-cancelled-19637177-937f-4bed-9512-c0a26f057eac.png",
+      "sha256": "58c420ea17847d07d45b00df927c9fc00d3b79c0f30036dfa0988bd5eb9041fb",
+      "bytes": 183561,
+      "width": 1280,
+      "height": 1536
+    },
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-normal-6ea4413a-bc39-4897-b11b-0dd438252e1e.png",
+      "sha256": "3addb4525433522d231b48dfc4d86ba264ea94dac0f2e64bb12f2f0af179dba7",
+      "bytes": 1060524,
+      "width": 1452,
+      "height": 6699
+    },
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-platform-restart-91990695-4b20-4a4d-9b8a-9fe29f448286.png",
+      "sha256": "93740e9d5ea4c5e2e1c8f2610e285d81559108ce3d330426ae464d5b0e76f575",
+      "bytes": 1070978,
+      "width": 1452,
+      "height": 6744
+    },
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-recovery-75f53599-3488-4c44-b1f7-431d86bae38e.png",
+      "sha256": "753ce3b32a9f01d55c2caaa95d890ab324c7328feb46fecd91394a5f917604e0",
+      "bytes": 407971,
+      "width": 1280,
+      "height": 3513
+    },
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-rejection-49be08a1-2a93-486f-9878-c755196c1366.png",
+      "sha256": "942a24b8ac8bc547210206a8721197dc35751992602ca0900ededc4684dd222c",
+      "bytes": 408108,
+      "width": 1280,
+      "height": 3513
+    },
+    {
+      "path": "evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-f49db636f628d3e9b8a2/v12-scenario-matrix-2fe70207542d7f04053c-ca13911ebed9df3408f6.trace.zip",
+      "sha256": "6c7aa5baf0055609ac19b5c02a8bd3edaba662fb21a2b961276c8b510bbfb028",
+      "bytes": 1279724
+    }
+  ]
+}

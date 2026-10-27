@@ -49,7 +49,8 @@ export function validateGapRequest(body: GapRequestBody): GapRequestValidation {
     const end = new Date(gap.barEnd);
     if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start || shanghaiDate(gap.barStart) < body.fromDate || shanghaiDate(gap.barStart) > body.toDate) return { ok: false, code: "INVALID_GAP_BAR_RANGE" };
     if (typeof gap.reason !== "string" || !REASONS.has(gap.reason) || typeof gap.priority !== "string" || !PRIORITIES.has(gap.priority)) return { ok: false, code: "INVALID_GAP_INPUT" };
-    gaps.push({ gapId: gap.gapId, securityId: gap.securityId, barStart: gap.barStart, barEnd: gap.barEnd, reason: gap.reason as GapRecord["reason"], priority: gap.priority as GapRecord["priority"] });
+    if (gap.reason === "MISSING" && (typeof gap.evidenceReference !== "string" || !gap.evidenceReference.trim())) return { ok: false, code: "MISSING_GAP_EVIDENCE_REQUIRED" };
+    gaps.push({ gapId: gap.gapId, securityId: gap.securityId, barStart: gap.barStart, barEnd: gap.barEnd, reason: gap.reason as GapRecord["reason"], priority: gap.priority as GapRecord["priority"], ...(typeof gap.evidenceReference === "string" ? { evidenceReference: gap.evidenceReference.trim() } : {}) });
   }
   return { ok: true, value: { subscriptionId: body.subscriptionId.trim(), fromDate: body.fromDate, toDate: body.toDate, securityIds, gaps } };
 }

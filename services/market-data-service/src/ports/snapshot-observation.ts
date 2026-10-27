@@ -1,0 +1,1 @@
+export type SnapshotSamplingObservation = { snapshotId: string; securityId: string; sourceId: string; dataMode: "FIXTURE" | "REAL"; observedAt: string | null; ingestedAt: string | null; availableAt: string | null; ageSeconds: number | null; freshness: "FRESH" | "STALE" | "UNKNOWN"; price: string; status: "READY" | "STALE" | "UNKNOWN" };

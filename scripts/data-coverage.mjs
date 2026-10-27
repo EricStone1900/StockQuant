@@ -85,21 +85,26 @@ export function summarizeCoverage({ expectedKeys, validKeys = expectedKeys, rows
     const key = `${row.securityId}|${barStart}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  const missingKeys = [...expected].filter((key) => !counts.has(key));
+  // Calendar-open slots without a bar are unknown until a per-security status
+  // source confirms that the security was trading. Calendar alone cannot prove
+  // that the instrument was not suspended.
+  const unknownKeys = [...expected].filter((key) => !counts.has(key));
+  const missingKeys = [];
+  const suspendedKeys = [];
   const duplicateKeys = [...counts].filter(([, count]) => count > 1).map(([key]) => key);
   // A bar can arrive before its collection-completion deadline.  It is valid
   // evidence for the current session, even though it is not yet required for
   // coverage.  Only rows outside the trading calendar are unexpected.
   const unexpectedKeys = [...counts.keys()].filter((key) => !valid.has(key));
   const unknownCalendar = days.filter((day) => day.status === "UNKNOWN").map((day) => day.date);
-  const status = unknownCalendar.length ? "WAITING_DEPENDENCY" : missingKeys.length || duplicateKeys.length || unexpectedKeys.length || openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : expected.size > 0 ? "PASS" : "NOT_RUN";
-  return { status, expectedBars: expected.size, actualRows: rows.length, actualUniqueBars: counts.size, missingBars: missingKeys.length, duplicateBars: duplicateKeys.length, unexpectedBars: unexpectedKeys.length, missingKeys, duplicateKeys, unexpectedKeys, statuses, openGaps, pendingOutbox, unknownCalendar };
+  const status = unknownCalendar.length ? "WAITING_DEPENDENCY" : unknownKeys.length || duplicateKeys.length || unexpectedKeys.length || openGaps > 0 || statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : expected.size > 0 ? "PASS" : "NOT_RUN";
+  return { status, expectedBars: expected.size, actualRows: rows.length, actualUniqueBars: counts.size, missingBars: missingKeys.length, unknownBars: unknownKeys.length, suspendedBars: suspendedKeys.length, duplicateBars: duplicateKeys.length, unexpectedBars: unexpectedKeys.length, missingKeys, unknownKeys, suspendedKeys, duplicateKeys, unexpectedKeys, statuses, openGaps, pendingOutbox, unknownCalendar };
 }
 
 export function buildGapPayload(report) {
-  const missing = report.missingKeys.map((key) => {
+  const missing = report.missingKeys.filter((key) => typeof report.missingEvidence?.[key] === "string" && report.missingEvidence[key].trim()).map((key) => {
     const [securityId, barStart] = key.split("|");
-    return { gapId: `gap:${key}`, securityId, barStart, barEnd: new Date(new Date(barStart).getTime() + 5 * 60_000).toISOString(), reason: "MISSING", priority: "P1" };
+    return { gapId: `gap:${key}`, securityId, barStart, barEnd: new Date(new Date(barStart).getTime() + 5 * 60_000).toISOString(), reason: "MISSING", priority: "P1", evidenceReference: report.missingEvidence[key] };
   });
   const duplicate = report.duplicateKeys.map((key) => {
     const [securityId, barStart] = key.split("|");
@@ -149,7 +154,7 @@ export async function coverage({ subscriptionId, fromDate, toDate, securityIds =
     report.gapReconciliation = await persistGaps(calendarUrl, report);
     if (report.gapReconciliation.open !== undefined) {
       report.openGaps = report.gapReconciliation.open;
-      report.status = report.unknownCalendar.length ? "WAITING_DEPENDENCY" : report.missingBars || report.duplicateBars || report.unexpectedBars || report.openGaps > 0 || report.statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : report.expectedBars > 0 ? "PASS" : "NOT_RUN";
+      report.status = report.unknownCalendar.length ? "WAITING_DEPENDENCY" : report.unknownBars || report.missingBars || report.duplicateBars || report.unexpectedBars || report.openGaps > 0 || report.statuses.some((item) => item.status !== "COMPLETED") ? "INCOMPLETE" : report.expectedBars > 0 ? "PASS" : "NOT_RUN";
     }
   }
   const directory = resolve(outputDir);

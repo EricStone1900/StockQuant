@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
-import type { MinuteBarPage, MinuteImportBar, MinuteImportRecord, PersistedMinuteImport, PublishMinuteImportInput, PublishMinuteImportStreamInput, StreamingMinuteImportParse } from "../domain/minute-import.js";
+import { withMinuteBarContextDefaults, type MinuteBarPage, type MinuteImportBar, type MinuteImportRecord, type PersistedMinuteImport, type PublishMinuteImportInput, type PublishMinuteImportStreamInput, type StreamingMinuteImportParse } from "../domain/minute-import.js";
 import type { MinuteImportPort } from "../ports/minute-import.js";
+import { checkHistoricalContext, historicalContentSha256, type HistoricalContextKind, type HistoricalContextVersion } from "../domain/historical-context.js";
 export type { MinuteBarPage, MinuteImportBar, MinuteImportRecord, PersistedMinuteImport, StreamingMinuteImportParse } from "../domain/minute-import.js";
 
 type MinuteImportRow = {
@@ -16,8 +17,15 @@ type MinuteImportRow = {
 function mapRow(row: MinuteImportRow): MinuteImportRecord {
   return {
     importId: row.import_id, version: row.version, status: row.status, accepted: row.accepted, errors: row.errors, sha256: row.source_sha256,
-    manifest: row.import_manifest ?? { mapping: {}, semantics: {}, provenance: null, researchUseAllowed: false },
+    manifest: row.import_manifest ?? { mapping: {}, semantics: {}, provenance: null, researchUseAllowed: false, historicalContext: { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null }, historicalContextStatus: "LIMITED_MISSING_REFERENCES" },
   };
+}
+
+function completeManifest(manifest: PublishMinuteImportInput["manifest"]): MinuteImportRecord["manifest"] {
+  const historicalContext = manifest?.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
+  const historicalContextStatus = Object.values(historicalContext).every((value) => typeof value === "string" && value.trim().length > 0) ? "READY_FOR_REVIEW" : "LIMITED_MISSING_REFERENCES";
+  if (manifest?.historicalContextStatus && manifest.historicalContextStatus !== historicalContextStatus) throw new Error("minute import historical-context status does not match its references");
+  return { ...(manifest ?? { mapping: {}, semantics: {}, provenance: null, researchUseAllowed: false }), historicalContext, historicalContextStatus };
 }
 
 export class MinuteImportRepository implements MinuteImportPort {
@@ -37,10 +45,25 @@ export class MinuteImportRepository implements MinuteImportPort {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY(import_key_sha256)
       );
+      CREATE TABLE IF NOT EXISTS market_data_historical_context_versions (
+        kind TEXT NOT NULL CHECK (kind IN ('SECURITY_UNIVERSE','MARKET_RULE_SET','CORPORATE_ACTIONS')),
+        version TEXT NOT NULL,
+        content JSONB NOT NULL,
+        sha256 TEXT NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+        valid_from TIMESTAMPTZ NOT NULL,
+        valid_to TIMESTAMPTZ NOT NULL,
+        source_reference TEXT NOT NULL CHECK (length(trim(source_reference)) > 0),
+        attested_by TEXT NOT NULL CHECK (length(trim(attested_by)) > 0),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY(kind, version),
+        CHECK (valid_from <= valid_to)
+      );
       ALTER TABLE market_data_minute_imports ADD COLUMN IF NOT EXISTS import_key_sha256 TEXT;
       ALTER TABLE market_data_minute_imports ADD COLUMN IF NOT EXISTS import_manifest JSONB NOT NULL DEFAULT '{"mapping":{},"semantics":{}}'::jsonb;
       UPDATE market_data_minute_imports SET import_manifest = import_manifest || '{"provenance":null,"researchUseAllowed":false}'::jsonb
         WHERE NOT (import_manifest ? 'provenance') OR NOT (import_manifest ? 'researchUseAllowed');
+      UPDATE market_data_minute_imports SET import_manifest = import_manifest || '{"historicalContext":{"securityUniverseVersion":null,"marketRuleSetVersion":null,"corporateActionVersion":null},"historicalContextStatus":"LIMITED_MISSING_REFERENCES"}'::jsonb
+        WHERE NOT (import_manifest ? 'historicalContext') OR NOT (import_manifest ? 'historicalContextStatus');
       UPDATE market_data_minute_imports SET import_key_sha256=source_sha256 WHERE import_key_sha256 IS NULL;
       ALTER TABLE market_data_minute_imports ALTER COLUMN import_key_sha256 SET NOT NULL;
       DO $$
@@ -86,7 +109,7 @@ export class MinuteImportRepository implements MinuteImportPort {
 
   async publish(input: PublishMinuteImportInput): Promise<PersistedMinuteImport> {
     if (!/^[0-9a-f]{64}$/u.test(input.sourceSha256) || (input.importKeySha256 !== undefined && !/^[0-9a-f]{64}$/u.test(input.importKeySha256))) throw new Error("minute import identity hashes must be lowercase SHA-256");
-    const manifest = input.manifest ?? { mapping: {}, semantics: {}, provenance: null, researchUseAllowed: false };
+    const manifest = completeManifest(input.manifest);
     if (manifest.researchUseAllowed !== (manifest.provenance?.licenseVerification === "OPERATOR_CONFIRMED")) throw new Error("minute import research-use status must match the explicit license declaration");
     if (!Number.isSafeInteger(input.accepted) || input.accepted < 0 || !Array.isArray(input.errors) || !Array.isArray(input.bars)) throw new Error("minute import metadata is invalid");
     if (input.status === "PUBLISHED" && input.accepted !== input.bars.length) throw new Error("published minute import accepted count must equal its persisted row count");
@@ -122,6 +145,56 @@ export class MinuteImportRepository implements MinuteImportPort {
     } finally {
       client.release();
     }
+  }
+
+  async registerHistoricalContextVersion(input: HistoricalContextVersion): Promise<HistoricalContextVersion> {
+    if (!input.version.trim() || input.version.length > 120 || !/^[0-9a-f]{64}$/u.test(input.sha256) || historicalContentSha256(input.content) !== input.sha256) throw new Error("historical context version content hash is invalid");
+    if (!Number.isFinite(Date.parse(input.validFrom)) || !Number.isFinite(Date.parse(input.validTo)) || input.validFrom > input.validTo) throw new Error("historical context validity range is invalid");
+    if (!input.sourceReference.trim() || !input.attestedBy.trim()) throw new Error("historical context source reference and attestation are required");
+    const result = await this.pool.query<{ kind: HistoricalContextKind; version: string; content: Record<string, unknown>; sha256: string; valid_from: Date; valid_to: Date; source_reference: string; attested_by: string }>(
+      `INSERT INTO market_data_historical_context_versions(kind,version,content,sha256,valid_from,valid_to,source_reference,attested_by)
+       VALUES($1,$2,$3::jsonb,$4,$5,$6,$7,$8)
+       ON CONFLICT(kind,version) DO UPDATE SET version=EXCLUDED.version
+         WHERE market_data_historical_context_versions.content=EXCLUDED.content
+           AND market_data_historical_context_versions.sha256=EXCLUDED.sha256
+           AND market_data_historical_context_versions.valid_from=EXCLUDED.valid_from
+           AND market_data_historical_context_versions.valid_to=EXCLUDED.valid_to
+           AND market_data_historical_context_versions.source_reference=EXCLUDED.source_reference
+           AND market_data_historical_context_versions.attested_by=EXCLUDED.attested_by
+       RETURNING *`,
+      [input.kind, input.version, JSON.stringify(input.content), input.sha256, new Date(input.validFrom).toISOString(), new Date(input.validTo).toISOString(), input.sourceReference, input.attestedBy],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error("historical context version is immutable; publish a new version for changed content");
+    return { kind: row.kind, version: row.version, content: row.content, sha256: row.sha256, validFrom: new Date(row.valid_from).toISOString(), validTo: new Date(row.valid_to).toISOString(), sourceReference: row.source_reference, attestedBy: row.attested_by };
+  }
+
+  async checkReplayReadiness(version: string) {
+    const imported = await this.pool.query<{ status: string; accepted: number; import_manifest: MinuteImportRecord["manifest"] }>("SELECT status,accepted,import_manifest FROM market_data_minute_imports WHERE version=$1", [version]);
+    const row = imported.rows[0];
+    if (!row) return null;
+    const span = await this.pool.query<{ from: Date | null; to: Date | null; securities: string[] }>(`WITH visible_rows AS (
+      SELECT version,row_number,security_id,bar_start FROM market_data_minute_import_bars_by_day WHERE version=$1
+      UNION ALL SELECT legacy.version,legacy.row_number,legacy.security_id,legacy.bar_start FROM market_data_minute_import_rows legacy
+        WHERE legacy.version=$1 AND NOT EXISTS (SELECT 1 FROM market_data_minute_import_bars_by_day current WHERE current.version=legacy.version AND current.row_number=legacy.row_number)
+    ) SELECT min(bar_start) AS from,max(bar_start) AS to,array_agg(DISTINCT security_id ORDER BY security_id) AS securities FROM visible_rows`, [version]);
+    const data = span.rows[0];
+    const manifest = row.import_manifest;
+    const refs = manifest?.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
+    const requested: Array<[HistoricalContextKind, string | null]> = [["SECURITY_UNIVERSE", refs.securityUniverseVersion], ["MARKET_RULE_SET", refs.marketRuleSetVersion], ["CORPORATE_ACTIONS", refs.corporateActionVersion]];
+    const records: Partial<Record<HistoricalContextKind, HistoricalContextVersion>> = {};
+    for (const [kind, ref] of requested) {
+      if (!ref) continue;
+      const found = await this.pool.query<{ kind: HistoricalContextKind; version: string; content: Record<string, unknown>; sha256: string; valid_from: Date; valid_to: Date; source_reference: string; attested_by: string }>("SELECT * FROM market_data_historical_context_versions WHERE kind=$1 AND version=$2", [kind, ref]);
+      const item = found.rows[0];
+      if (item) records[kind] = { kind: item.kind, version: item.version, content: item.content, sha256: item.sha256, validFrom: new Date(item.valid_from).toISOString(), validTo: new Date(item.valid_to).toISOString(), sourceReference: item.source_reference, attestedBy: item.attested_by };
+    }
+    const result = checkHistoricalContext({ refs, records, from: data?.from ? new Date(data.from).toISOString() : null, to: data?.to ? new Date(data.to).toISOString() : null, securities: data?.securities ?? [], market: String(manifest?.semantics?.market ?? "") });
+    const reasons = [...result.reasons];
+    if (row.status !== "PUBLISHED") reasons.push("IMPORT_NOT_PUBLISHED");
+    if (row.accepted < 2 || !data?.from || !data?.to) reasons.push("IMPORT_HAS_INSUFFICIENT_BARS");
+    if (manifest?.researchUseAllowed !== true) reasons.push("RESEARCH_USE_NOT_CONFIRMED");
+    return { ...result, status: reasons.length ? "BLOCKED" as const : "READY" as const, reasons: [...new Set(reasons)] };
   }
 
   /**
@@ -168,7 +241,7 @@ export class MinuteImportRepository implements MinuteImportPort {
         accepted: status === "PUBLISHED" ? parsed.accepted : 0,
         errors: parsed.errors,
         sha256: parsed.sourceSha256,
-        manifest: input.manifest,
+        manifest: completeManifest(input.manifest),
       } satisfies MinuteImportRecord;
       await client.query("INSERT INTO market_data_minute_imports(import_key_sha256,source_sha256,import_id,version,status,accepted,errors,import_manifest) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)", [importKeySha256,record.sha256,record.importId,record.version,record.status,record.accepted,JSON.stringify(record.errors),JSON.stringify(record.manifest)]);
       if (status === "PUBLISHED") {
@@ -217,7 +290,7 @@ export class MinuteImportRepository implements MinuteImportPort {
     );
     const hasMore = result.rows.length > pageSize;
     const selected = result.rows.slice(0, pageSize);
-    return { version, items: selected.map((row) => row.bar), nextCursor: hasMore && selected.length ? String(selected.at(-1)!.row_number) : null };
+    return { version, items: selected.map((row) => withMinuteBarContextDefaults(row.bar)), nextCursor: hasMore && selected.length ? String(selected.at(-1)!.row_number) : null };
   }
 
   async backfillLegacyPartitions(batchSize = 1_000): Promise<number> {

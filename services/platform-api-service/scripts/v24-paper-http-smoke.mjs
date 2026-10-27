@@ -14,7 +14,9 @@ import { isIsolatedPostgresTarget } from "../../trade-execution-service/scripts/
 const { Client, Pool } = pg;
 const service = fileURLToPath(new URL("..", import.meta.url));
 const repo = resolve(service, "../..");
+assert.equal(createHash("sha256").update(await readFile(resolve(repo, "services/platform-api-service/src/application/v24-daily-direction.ts"))).digest("hex"), "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8", "strategy source must match the owner-approved candidate identity");
 const suffix = randomUUID().replaceAll("-", "");
+const evidenceDate = new Date().toISOString().slice(0, 10);
 const adminUrl = new URL(process.env.V24_PAPER_SMOKE_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
 assert.equal(isIsolatedPostgresTarget(adminUrl.toString(), process.env.STOCKQUANT_ISOLATED_PG_CONTAINER, undefined, { username: "postgres", database: "postgres" }), true, "Paper smoke requires the bounded disposable PostgreSQL admin endpoint; shared Compose PostgreSQL is forbidden");
 const admin = new Client({ connectionString: adminUrl.toString() });
@@ -22,6 +24,7 @@ const databases = ["platform", "portfolio", "trade", "governance", "market_data"
 const urls = databases.map((database) => { const url = new URL(adminUrl); url.pathname = `/${database}`; return url.toString(); });
 const tokens = Object.fromEntries(["platform", "trade", "replay", "governance"].map((name) => [name, randomBytes(48).toString("base64url")]));
 const owner = `v24-paper-${suffix}`;
+let sessionCookie;
 const children = [];
 let dropNextExecutionResponse = false;
 let failNextClientOrderLookup = false;
@@ -59,6 +62,7 @@ let databaseSnapshotFiles = [];
 let marketDataProcess;
 let marketDataPool;
 let alertIntegrationEvidence;
+let dailyReconciliationAlertEvidence;
 
 async function freePort() {
   const server = createServer();
@@ -87,14 +91,14 @@ async function waitReady(entry, url, live = false) {
 function serviceEnv(databaseUrl, port, extra = {}) {
   return { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: process.env.HOME ?? "/tmp", NODE_ENV: "test", STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl, STOCKQUANT_BROKER_MODE: "FAKE", STOCKQUANT_LIVE_TRADING_ENABLED: "false", ...extra };
 }
-async function request(apiUrl, path, { method = "GET", cookie = `sq_session=${owner}`, body } = {}) {
+async function request(apiUrl, path, { method = "GET", cookie = sessionCookie, body } = {}) {
   let response;
   try { response = await fetch(`${apiUrl}${path}`, { method, headers: { ...(cookie ? { cookie } : {}), ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) }); }
   catch (error) { throw new Error(`Platform request failed ${method} ${path}: ${error instanceof Error ? error.message : String(error)}\ngovernanceProxyErrors=${JSON.stringify(governanceProxyErrors)}\nproxyEvents=${JSON.stringify(proxyEvents)}\nservices=${JSON.stringify(children.map(({ child, output }) => ({ pid: child.pid, exitCode: child.exitCode, output: output.slice(-5000) })))}`); }
   return { status: response.status, body: await response.json().catch(() => null) };
 }
-async function internalRequest(baseUrl, path, headers = {}, body = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
+async function internalRequest(baseUrl, path, headers = {}, body) {
+  const response = await fetch(`${baseUrl}${path}`, { method: "POST", headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(5000) });
   return { status: response.status, body: await response.json().catch(() => null) };
 }
 async function paperFactCounts() {
@@ -179,14 +183,16 @@ try {
 
   const snapshotTestRunId = randomUUID();
   const snapshotCommand = {
-    namespace: `w2-v24-idempotency-${snapshotTestRunId}`, accountId: randomUUID(), clientOrderId: `w2-v24-order-${snapshotTestRunId}`,
+    namespace: `w2-v24-idempotency-${snapshotTestRunId}`, accountId: randomUUID(), clientOrderId: `w2-v24-order-${snapshotTestRunId}`, initialAccountCash: "10000.0000",
     security: "600000.SH", requestedQuantity: 100, price: "10.0000", fee: "5.0000", effectiveAt: "2026-09-25T01:32:00.000Z",
     currency: "CNY", snapshotId: "w2-fixed-snapshot", policyVersion: "w2-fixed-policy-v1", fixtureVersion: "2.0.0",
     quoteAgeSeconds: 1, deviationBps: 0, testRunId: snapshotTestRunId, ownerId: `w2-owner-${suffix}`,
     mandateId: "w2-fixed-mandate", mandateVersion: "2.0.0", strategyVersion: "a".repeat(64),
+    side: "BUY",
     reservation: { reservationId: randomUUID(), ownerId: `w2-owner-${suffix}`, testRunId: snapshotTestRunId, clientOrderId: `w2-v24-order-${snapshotTestRunId}` }
   };
   const idempotencyPool = new Pool({ connectionString: urls[2] });
+  idempotencyPool.on("error", (error) => console.error("[v24-smoke] idempotency pool error", error));
   const idempotencyRepository = new PostgresFakeBrokerRepository(idempotencyPool);
   let idempotencyFacts;
   try {
@@ -200,6 +206,7 @@ try {
     tradeProcess = start(resolve(repo, "services/trade-execution-service/dist/main.js"), resolve(repo, "services/trade-execution-service"), tradeEnv);
     await waitReady(tradeProcess, `${tradeUrl}/ready`);
     const reopenedPool = new Pool({ connectionString: urls[2] });
+    reopenedPool.on("error", (error) => console.error("[v24-smoke] reopened pool error", error));
     const reopenedRepository = new PostgresFakeBrokerRepository(reopenedPool);
     const reconnectReplay = await reopenedRepository.executeSnapshotPaper(snapshotCommand);
     assert.equal(reconnectReplay.replayed, true);
@@ -399,16 +406,34 @@ try {
   });
   await new Promise((resolveListen, reject) => { proxy.once("error", reject); proxy.listen(proxyPortValue, "127.0.0.1", resolveListen); });
   const proxyUrl = `http://127.0.0.1:${proxyPortValue}`;
+  const marketDataPort = await freePort();
+  const marketDataUrl = `http://127.0.0.1:${marketDataPort}`;
+  marketDataProcess = start(resolve(repo, "services/market-data-service/dist/main.js"), resolve(repo, "services/market-data-service"), serviceEnv(urls[4], marketDataPort, {
+    STOCKQUANT_PROJECT_ROOT: repo,
+    STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform,
+    STOCKQUANT_COLLECTION_EXECUTOR: "1",
+    STOCKQUANT_SCHEDULER_WORKER: "1",
+    STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "false"
+  }));
+  await waitReady(marketDataProcess, `${marketDataUrl}/ready`);
+  const marketDataReadiness = await fetch(`${marketDataUrl}/ready`).then((response) => response.json());
+  assert.equal(marketDataReadiness.collectionSourceAuthorization, "NOT_AUTHORIZED");
+  assert.equal(marketDataReadiness.collectionSchedulerWorker, "DISABLED", "scheduler must fail closed without source authorization");
+  assert.equal(marketDataReadiness.collectionExecutor, "DISABLED", "executor must fail closed without source authorization");
   const platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, serviceEnv(urls[0], platformPort, {
     STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "false", STOCKQUANT_V24_AUTO_START: "false",
     STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.governance,
     STOCKQUANT_PORTFOLIO_API_URL: portfolioUrl, STOCKQUANT_GOVERNANCE_URL: governanceUrl, STOCKQUANT_TRADE_EXECUTION_URL: proxyUrl,
-    STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: canaryUrl, STOCKQUANT_MARKET_DATA_URL: canaryUrl, STOCKQUANT_RESEARCH_AUTOMATION_URL: canaryUrl
+    STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: canaryUrl, STOCKQUANT_MARKET_DATA_URL: marketDataUrl, STOCKQUANT_RESEARCH_AUTOMATION_URL: canaryUrl
   }));
   const apiUrl = `http://127.0.0.1:${platformPort}`;
   await waitReady(platform, `${apiUrl}/live`);
+  const issuedSession = await fetch(`${apiUrl}/api/v1/session`);
+  assert.equal(issuedSession.status, 200);
+  sessionCookie = issuedSession.headers.get("set-cookie")?.split(";")[0];
+  assert.ok(sessionCookie?.startsWith("sq_session="), "Platform must issue a persisted local session for owner-scoped acceptance requests");
   assert.equal((await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { cookie: "", method: "POST", body: { scenarioId: "normal" } })).status, 401);
-  assert.equal((await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { cookie: "sq_session=foreign-owner", method: "POST", body: { scenarioId: "normal" } })).status, 403);
+  assert.equal((await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { cookie: "sq_session=foreign-owner", method: "POST", body: { scenarioId: "normal" } })).status, 401);
   const runs = [];
   for (const scenarioId of ["normal", "rejection", "recovery", "external-reconciliation"]) {
     if (scenarioId === "recovery") dropNextExecutionResponse = true;
@@ -421,19 +446,65 @@ try {
     const run = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${created.body.testRunId}`);
     assert.equal(run.body.status, "COMPLETED", JSON.stringify(run.body.assertions));
     assert.ok(run.body.assertions.length > 0 && run.body.assertions.every((item) => item.status === "PASS"), JSON.stringify(run.body.assertions));
-    assert.equal((await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${created.body.testRunId}`, { cookie: "sq_session=foreign-owner" })).status, 403);
-    const cli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", created.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: `sq_session=${owner}` } });
+    const samplingTask = run.body.evidence.sampling;
+    assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-C5-SAMPLING-001" && item.status === "PASS"));
+    assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-C5-IDEMPOTENCY-001" && item.status === "PASS"));
+    assert.equal(samplingTask.testRunId, run.body.testRunId);
+    assert.equal(samplingTask.accountId, run.body.evidence.accountId);
+    assert.equal(samplingTask.namespace, run.body.evidence.namespace);
+    assert.equal(samplingTask.taskId, samplingTask.duplicateTaskId);
+    assert.equal(samplingTask.observation.snapshotId, run.body.evidence.source.snapshotId);
+    if (scenarioId !== "rejection") {
+      assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-C5-DAILY-RECONCILIATION-ALERT-001" && item.status === "PASS"));
+      assert.equal(run.body.evidence.dailyClose.status, scenarioId === "external-reconciliation" ? "DISCREPANCY" : "MATCH");
+      assert.equal(run.body.evidence.dailyClose.idempotentReplay.created, false);
+      assert.equal(run.body.evidence.dailyClose.alert.incident?.state ?? null, scenarioId === "external-reconciliation" ? "OPEN" : null);
+      const target = run.body.evidence.dailyTarget;
+      assert.equal(target.strategyVersion, "c5-daily-direction-v1");
+      assert.equal(target.targetQuantity, 100);
+      assert.equal(target.clientOrderId, `v24-fixture-v2-${run.body.testRunId}`);
+      assert.equal(run.body.evidence.signal.signalId, target.targetId);
+      assert.equal(run.body.evidence.signal.asOf, target.evaluationAt);
+      assert.ok(target.input.bars.every((bar) => Date.parse(bar.availableAt) <= Date.parse(run.body.evidence.signal.asOf)), "signal cannot predate availability of its daily inputs");
+      assert.equal(run.body.evidence.dailyTargetReplayCreated, false);
+      const targetDb = new Client({ connectionString: urls[0] }); await targetDb.connect();
+      const savedTarget = await targetDb.query("SELECT payload FROM v24_fixture_daily_targets WHERE target_id=$1", [target.targetId]);
+      await targetDb.end();
+      assert.deepEqual(savedTarget.rows[0]?.payload, target, "daily target must be independently readable from PostgreSQL");
+      assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-C5-SNAPSHOT-CONSUMPTION-001" && item.status === "PASS"));
+      assert.equal(run.body.evidence.eligibility?.snapshotId, run.body.evidence.source.snapshotId);
+      assert.equal(run.body.evidence.fills?.[0]?.price, samplingTask.observation.price);
+    }
+    assert.equal(samplingTask.observation.status, scenarioId === "rejection" ? "STALE" : "READY");
+    assert.equal((await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${created.body.testRunId}`, { cookie: "sq_session=foreign-owner" })).status, 401);
+    const cli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", created.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
     assert.equal(cli.status, 0, cli.stderr); assert.equal(JSON.parse(cli.stdout).testRunId, created.body.testRunId); assert.equal(JSON.parse(cli.stdout).status, "COMPLETED");
     if (["normal", "recovery", "external-reconciliation"].includes(scenarioId)) {
       assert.equal(run.body.evidence.order.status, "FILLED");
-      assert.deepEqual(run.body.evidence.fills[0] && { quantity: run.body.evidence.fills[0].quantity, price: run.body.evidence.fills[0].price, fee: run.body.evidence.fills[0].fee }, { quantity: 100, price: "10.0000", fee: "5.0000" });
-      assert.equal(run.body.evidence.account.cash.amount, "8995.0000");
+      assert.deepEqual(run.body.evidence.fills[0] && { quantity: run.body.evidence.fills[0].quantity, price: run.body.evidence.fills[0].price, fee: run.body.evidence.fills[0].fee }, { quantity: 100, price: "10.2500", fee: "5.0000" });
+      assert.equal(run.body.evidence.account.cash.amount, "8970.0000");
+      assert.equal(run.body.evidence.independentAssets.current_cash, "8970.0000");
+      assert.deepEqual(run.body.evidence.independentAssets.positions, [{ security: "600000.SH", quantity: 100 }]);
+      assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-PAPER-009" && item.status === "PASS"));
+      assert.deepEqual(run.body.evidence.candidateRisk && { dailyTurnover: run.body.evidence.candidateRisk.state.dailyTurnover, grossExposure: run.body.evidence.candidateRisk.state.grossExposure, cumulativeLoss: run.body.evidence.candidateRisk.state.cumulativeLoss, appliedFillCount: run.body.evidence.candidateRisk.state.appliedFills.length, reconciliation: run.body.evidence.candidateRisk.projection.reconciliation.status }, { dailyTurnover: "1025.0000", grossExposure: "1025.0000", cumulativeLoss: "5.0000", appliedFillCount: 1, reconciliation: "MATCH" });
+      assert.ok(run.body.assertions.some((item) => item.assertionId === "V2.4-C5-RISK-001" && item.status === "PASS"));
       assert.equal(run.body.evidence.resourceReservation.status, "CAPTURED");
       assert.equal(run.body.evidence.outbox.status, "DELIVERED");
       if (scenarioId === "external-reconciliation") {
         assert.equal(run.body.assertions.at(-1).assertionId, "V2.4-PF05-001");
         assert.equal(run.body.evidence.reconciliation.externalOnlyOrderCount, 1);
         assert.equal(run.body.evidence.reconciliation.discrepancies[0].kind, "EXTERNAL_ORDER_MISSING_LOCALLY");
+        const resolved = await internalRequest(marketDataUrl, "/v2/alerts/paper-reconciliation", { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, { ownerId: owner, testRunId: run.body.testRunId, status: "MATCH", discrepancies: [] });
+        assert.equal(resolved.status, 200, JSON.stringify(resolved));
+        assert.equal(resolved.body.status, "MATCH");
+        assert.equal(resolved.body.created, false);
+        assert.equal(resolved.body.incident?.state, "RESOLVED");
+        const resolvedReplay = await internalRequest(marketDataUrl, "/v2/alerts/paper-reconciliation", { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, { ownerId: owner, testRunId: run.body.testRunId, status: "MATCH", discrepancies: [] });
+        assert.equal(resolvedReplay.status, 200, JSON.stringify(resolvedReplay));
+        assert.equal(resolvedReplay.body.status, "MATCH");
+        assert.equal(resolvedReplay.body.created, false);
+        assert.equal(resolvedReplay.body.incident, null);
+        dailyReconciliationAlertEvidence = { testRunId: run.body.testRunId, openedByScenario: run.body.evidence.dailyClose.alert, resolved, resolvedReplay };
       }
     } else {
       assert.equal(run.body.evidence.governance.httpStatus, 422); assert.deepEqual(run.body.evidence.orders, []); assert.deepEqual(run.body.evidence.fills, []);
@@ -447,6 +518,42 @@ try {
     }
     runs.push({ scenarioId, testRunId: created.body.testRunId, cliExitCode: cli.status, status: run.body.status, assertions: run.body.assertions });
   }
+  const crossdayCreation = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { method: "POST", body: { scenarioId: "crossday-settlement", seed: 20260927 } });
+  assert.equal(crossdayCreation.status, 202, JSON.stringify(crossdayCreation.body));
+  const crossdayRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${crossdayCreation.body.testRunId}`);
+  assert.equal(crossdayCreation.body.status, "COMPLETED", JSON.stringify(crossdayRun.body));
+  assert.equal(crossdayRun.body.status, "COMPLETED", JSON.stringify(crossdayRun.body.assertions));
+  assert.ok(crossdayRun.body.assertions.every((item) => item.status === "PASS"), JSON.stringify(crossdayRun.body.assertions));
+  assert.equal(crossdayRun.body.evidence.account.cash.amount, "10015.0000");
+  assert.equal(crossdayRun.body.evidence.independentAssets.current_cash, "10015.0000");
+  assert.deepEqual(crossdayRun.body.evidence.account.positions, []);
+  assert.ok(crossdayRun.body.assertions.some((item) => item.assertionId === "V2.4-CROSSDAY-005" && item.status === "PASS"));
+  assert.ok(crossdayRun.body.assertions.some((item) => item.assertionId === "V2.4-C5-RISK-CROSSDAY-001" && item.status === "PASS"));
+  assert.deepEqual(crossdayRun.body.evidence.candidateRisk.state && { sessionDate: crossdayRun.body.evidence.candidateRisk.state.sessionDate, dailyTurnover: crossdayRun.body.evidence.candidateRisk.state.dailyTurnover, grossExposure: crossdayRun.body.evidence.candidateRisk.state.grossExposure, cumulativeLoss: crossdayRun.body.evidence.candidateRisk.state.cumulativeLoss, transitionCount: crossdayRun.body.evidence.candidateRisk.state.sessionTransitions.length }, { sessionDate: "2024-01-05", dailyTurnover: "1025.0000", grossExposure: "0.0000", cumulativeLoss: "0.0000", transitionCount: 1 });
+  const crossdayCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", crossdayCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+  assert.equal(crossdayCli.status, 0, crossdayCli.stderr);
+  runs.push({ scenarioId: "crossday-settlement", testRunId: crossdayCreation.body.testRunId, cliExitCode: crossdayCli.status, status: crossdayRun.body.status, assertions: crossdayRun.body.assertions });
+  const candidateBindingCreation = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { method: "POST", body: { scenarioId: "candidate-binding", seed: 20261025 } });
+  assert.equal(candidateBindingCreation.status, 202, JSON.stringify(candidateBindingCreation.body));
+  const candidateBindingRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${candidateBindingCreation.body.testRunId}`);
+  assert.equal(candidateBindingCreation.body.status, "COMPLETED", JSON.stringify(candidateBindingRun.body));
+  assert.ok(candidateBindingRun.body.assertions.every((item) => item.status === "PASS"), JSON.stringify(candidateBindingRun.body.assertions));
+  assert.equal(candidateBindingRun.body.evidence.candidateBinding.mandate.status, "PENDING");
+  assert.deepEqual(candidateBindingRun.body.evidence.candidateBinding.dailyTarget.target.decision, { action: "PAUSED", quantity: 0, reason: "MANDATE_INACTIVE" });
+  assert.equal(candidateBindingRun.body.evidence.candidateBinding.dailyTarget.target.clientOrderId, null);
+  assert.deepEqual(candidateBindingRun.body.evidence.candidateBinding.riskState.state && { status: candidateBindingRun.body.evidence.candidateBinding.riskState.state.status, reason: candidateBindingRun.body.evidence.candidateBinding.riskState.state.reason, dailyTurnover: candidateBindingRun.body.evidence.candidateBinding.riskState.state.dailyTurnover, grossExposure: candidateBindingRun.body.evidence.candidateBinding.riskState.state.grossExposure, cumulativeLoss: candidateBindingRun.body.evidence.candidateBinding.riskState.state.cumulativeLoss }, { status: "PAUSED", reason: "MANDATE_INACTIVE", dailyTurnover: "0.0000", grossExposure: "0.0000", cumulativeLoss: "0.0000" });
+  assert.deepEqual(candidateBindingRun.body.evidence.candidateBinding.riskProjection, { grossExposure: "0.0000", cumulativeLoss: "0.0000", netValue: "10000.0000", holdingQuantity: 0, dailyTurnover: { status: "NOT_AVAILABLE", reason: "FILL_FACTS_REQUIRED" }, reconciliation: { status: "NOT_AVAILABLE", reason: "INDEPENDENT_FAKEBROKER_ASSETS_NOT_CREATED" }, eligibleForRiskUpdate: false });
+  assert.deepEqual(candidateBindingRun.body.evidence.candidateBinding.expiredMandateAdmission, { action: "PAUSED", quantity: 0, reason: "MANDATE_INACTIVE" });
+  assert.ok(candidateBindingRun.body.assertions.some((item) => item.assertionId === "V2.4-C5-MANDATE-EXPIRY-001" && item.status === "PASS"));
+  assert.deepEqual(candidateBindingRun.body.evidence.candidateBinding.executionAdmission, { eligible: { status: "ELIGIBLE", quoteAgeSeconds: 40, deviationBps: 0, policyVersion: "c5-candidate-a-execution-v1" }, stale: { status: "PAUSED", reason: "SNAPSHOT_STALE" }, unknown: { status: "PAUSED", reason: "SNAPSHOT_STATUS_UNKNOWN" }, missedWindow: { status: "PAUSED", reason: "EXECUTION_WINDOW_CLOSED" } });
+  assert.ok(candidateBindingRun.body.assertions.some((item) => item.assertionId === "V2.4-C5-CANDIDATE-EXECUTION-001" && item.status === "PASS"));
+  assert.equal(candidateBindingRun.body.evidence.candidateBinding.budget.reservationCount, 0);
+  assert.equal(candidateBindingRun.body.evidence.candidateBinding.scheduler.status, "STOPPED");
+  assert.deepEqual(candidateBindingRun.body.evidence.orders, []);
+  assert.deepEqual(candidateBindingRun.body.evidence.fills, []);
+  const candidateBindingCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", candidateBindingCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+  assert.equal(candidateBindingCli.status, 0, candidateBindingCli.stderr);
+  runs.push({ scenarioId: "candidate-binding", testRunId: candidateBindingCreation.body.testRunId, cliExitCode: candidateBindingCli.status, status: candidateBindingRun.body.status, assertions: candidateBindingRun.body.assertions });
   assert.equal(recoverySawDroppedResponse, true, "recovery smoke must discard the actual execution acceptance response");
 
   const beforePostExpiryFill = await paperFactCounts();
@@ -499,7 +606,7 @@ try {
   const reservationBeforeRestartDb = new Client({ connectionString: urls[1] }); await reservationBeforeRestartDb.connect();
   const reservationBeforeRestart = await reservationBeforeRestartDb.query("SELECT status,captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1", [outboxReservationId]);
   await reservationBeforeRestartDb.end();
-  assert.deepEqual(reservationBeforeRestart.rows[0], { status: "HELD", captured_cash_amount: "1005.0000" }, "Portfolio's committed Fill must apply exact cash usage while the unresolved reservation remains held after its response is lost");
+  assert.deepEqual(reservationBeforeRestart.rows[0], { status: "HELD", captured_cash_amount: "1030.0000" }, "Portfolio's committed Fill must apply exact cash usage while the unresolved reservation remains held after its response is lost");
   const committedFillCounts = await paperFactCounts();
   assert.deepEqual(committedFillCounts, { ledgerEntries: beforeV24OutboxLoss.ledgerEntries + 2, portfolioFills: beforeV24OutboxLoss.portfolioFills + 1, positions: beforeV24OutboxLoss.positions + 1, reservations: beforeV24OutboxLoss.reservations + 1, brokerOrders: beforeV24OutboxLoss.brokerOrders + 1, brokerFills: beforeV24OutboxLoss.brokerFills + 1, brokerOrderEvents: beforeV24OutboxLoss.brokerOrderEvents + 2, outboxEvents: beforeV24OutboxLoss.outboxEvents + 1 });
   await stop(portfolio);
@@ -509,7 +616,7 @@ try {
   const portfolioAfterRestart = await portfolioAfterRestartResponse.json();
   assert.equal(portfolioAfterRestartResponse.status, 200, JSON.stringify(portfolioAfterRestart));
   assert.equal(portfolioAfterRestart.ledgerEntryCount, 2, "Portfolio restart must retain the committed Fill ledger state before Outbox replay");
-  assert.equal(portfolioAfterRestart.cash.amount, "8995.0000");
+  assert.equal(portfolioAfterRestart.cash.amount, "8970.0000");
   tradeProcess = start(resolve(repo, "services/trade-execution-service/dist/main.js"), resolve(repo, "services/trade-execution-service"), tradeEnv);
   await waitReady(tradeProcess, `${tradeUrl}/ready`);
   holdPortfolioFillRetries = false;
@@ -527,7 +634,7 @@ try {
   const reservationAfterRestartDb = new Client({ connectionString: urls[1] }); await reservationAfterRestartDb.connect();
   const reservationAfterRestart = await reservationAfterRestartDb.query("SELECT status,captured_cash_amount::text FROM resource_reservations WHERE reservation_id=$1", [outboxReservationId]);
   await reservationAfterRestartDb.end();
-  assert.deepEqual(reservationAfterRestart.rows[0], { status: "CAPTURED", captured_cash_amount: "1005.0000" });
+  assert.deepEqual(reservationAfterRestart.rows[0], { status: "CAPTURED", captured_cash_amount: "1030.0000" });
   const afterV24OutboxRetry = await paperFactCounts();
   assert.deepEqual(afterV24OutboxRetry, committedFillCounts, "Portfolio idempotency must prevent a duplicate Fill after response-loss retry");
   v24OutboxRecoveryEvidence = { testRunId: v24OutboxRunCreation.body.testRunId, platformRunStatusBeforeRestart: v24OutboxRunRecord.body.status, responseDroppedAfterPortfolioCommit: portfolioFillResponseDropped, pendingBeforeRestart: { orderStatus: pendingOutbox.rows[0].status, outboxStatus: pendingOutbox.rows[0].outbox_status, attempts: pendingOutbox.rows[0].attempts }, reservationBeforeRestart: reservationBeforeRestart.rows[0], portfolioProcessRestartedBeforeOutboxReplay: true, portfolioFactsAfterRestart: { ledgerEntryCount: portfolioAfterRestart.ledgerEntryCount, cash: portfolioAfterRestart.cash.amount }, deliveredAfterTradeRestart: deliveredOutbox.rows[0], reservationAfterRestart: reservationAfterRestart.rows[0], factsAfterFirstCommit: committedFillCounts, factsAfterRetry: afterV24OutboxRetry, noDuplicatePortfolioFill: true };
@@ -579,15 +686,17 @@ try {
   assert.deepEqual(afterUnknownResume, { ledgerEntries: beforeLookupOutage.ledgerEntries + 2, portfolioFills: beforeLookupOutage.portfolioFills + 1, positions: beforeLookupOutage.positions + 1, reservations: beforeLookupOutage.reservations + 1, brokerOrders: beforeLookupOutage.brokerOrders + 1, brokerFills: beforeLookupOutage.brokerFills + 1, brokerOrderEvents: beforeLookupOutage.brokerOrderEvents + 2, outboxEvents: beforeLookupOutage.outboxEvents + 1 }, "UNKNOWN recovery cannot alter facts beyond the single original execution");
   const recoveredRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${lookupOutageCreation.body.testRunId}/recover`, { method: "POST" });
   assert.equal(recoveredRun.status, 202, JSON.stringify(recoveredRun.body));
-  assert.equal(recoveredRun.body.status, "COMPLETED");
+  assert.equal(recoveredRun.body.status, "COMPLETED", JSON.stringify(recoveredRun.body));
   assert.equal(recoveredRun.body.executionResent, false, "an existing authoritative order is recovered without resubmission");
   assert.equal(recoveredRun.body.recoveredOrderId, restoredLookup.order.order_id);
   const completedRecoveryRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${lookupOutageCreation.body.testRunId}`);
-  assert.equal(completedRecoveryRun.body.status, "COMPLETED");
+  assert.equal(completedRecoveryRun.body.status, "COMPLETED", JSON.stringify(completedRecoveryRun.body.assertions));
+  assert.equal(completedRecoveryRun.body.assertions.find((item) => item.assertionId === "V2.4-C5-DAILY-BAR-001")?.status, "PASS", "recovered C5 run must include the independent daily-bar completion");
+  assert.equal(completedRecoveryRun.body.assertions.find((item) => item.assertionId === "V2.4-C5-DAILY-BAR-IDEMPOTENCY-001")?.status, "PASS", "recovered C5 run must prove daily-bar request idempotency");
   const completedRecoveryHistory = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${lookupOutageCreation.body.testRunId}/history`);
   assert.equal(completedRecoveryHistory.body.revisions.length, 2);
   assert.equal(completedRecoveryHistory.body.revisions[1].evidence.recovery.status, "UNKNOWN");
-  const cliRecoveryCheck = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", lookupOutageCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: `sq_session=${owner}` } });
+  const cliRecoveryCheck = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", lookupOutageCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
   assert.equal(cliRecoveryCheck.status, 0, `${cliRecoveryCheck.stdout}\n${cliRecoveryCheck.stderr}`);
   const afterLookupOutage = await paperFactCounts();
   assert.deepEqual(afterLookupOutage, { ledgerEntries: beforeLookupOutage.ledgerEntries + 2, portfolioFills: beforeLookupOutage.portfolioFills + 1, positions: beforeLookupOutage.positions + 1, reservations: beforeLookupOutage.reservations + 1, brokerOrders: beforeLookupOutage.brokerOrders + 1, brokerFills: beforeLookupOutage.brokerFills + 1, brokerOrderEvents: beforeLookupOutage.brokerOrderEvents + 2, outboxEvents: beforeLookupOutage.outboxEvents + 1 }, "restoring the query reveals the original committed facts without duplicates");
@@ -601,7 +710,7 @@ try {
   for (const run of concurrentRunRecords) {
     assert.equal(run.body.status, "COMPLETED");
     assert.equal(run.body.evidence.order.status, "FILLED");
-    assert.equal(run.body.evidence.account.cash.amount, "8995.0000");
+    assert.equal(run.body.evidence.account.cash.amount, "8970.0000");
     assert.equal(run.body.evidence.reconciliation.order_count, 1);
     assert.equal(run.body.evidence.reconciliation.fill_count, 1);
   }
@@ -612,19 +721,6 @@ try {
   const concurrentRunEvidence = { testRunIds: concurrentRunIds, statuses: concurrentRunRecords.map(({ body }) => body.status), accountIds: concurrentRunRecords.map(({ body }) => body.evidence.accountId), accountCash: concurrentRunRecords.map(({ body }) => body.evidence.account.cash.amount), reconciliationCounts: concurrentRunRecords.map(({ body }) => ({ orders: body.evidence.reconciliation.order_count, fills: body.evidence.reconciliation.fill_count })), before: beforeConcurrentRuns, after: afterConcurrentRuns, isolated: true };
 
   if (process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true") {
-    const marketDataPort = await freePort();
-    const marketDataUrl = `http://127.0.0.1:${marketDataPort}`;
-    marketDataProcess = start(resolve(repo, "services/market-data-service/dist/main.js"), resolve(repo, "services/market-data-service"), serviceEnv(urls[4], marketDataPort, {
-      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform,
-      STOCKQUANT_COLLECTION_EXECUTOR: "1",
-      STOCKQUANT_SCHEDULER_WORKER: "1",
-      STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "false"
-    }));
-    await waitReady(marketDataProcess, `${marketDataUrl}/ready`);
-    const marketDataReadiness = await fetch(`${marketDataUrl}/ready`).then((response) => response.json());
-    assert.equal(marketDataReadiness.collectionSourceAuthorization, "NOT_AUTHORIZED");
-    assert.equal(marketDataReadiness.collectionSchedulerWorker, "DISABLED", "scheduler must fail closed even when its request flag is enabled without source authorization");
-    assert.equal(marketDataReadiness.collectionExecutor, "DISABLED", "executor must fail closed without source authorization");
     marketDataPool = new Pool({ connectionString: urls[4] });
     const alertRepository = new AlertOutboxRepository(marketDataPool);
     await alertRepository.migrate();
@@ -693,17 +789,19 @@ try {
     const browserRuns = await platformAuditDb.query("SELECT test_run_id::text,scenario_id,status FROM acceptance_stage_runs WHERE owner_id=$1 AND stage_id='V2.4' ORDER BY created_at", [owner]);
     await platformAuditDb.end();
     const browserScenarioRuns = browserRuns.rows.filter((run) => !runs.some((item) => item.testRunId === run.test_run_id) && run.test_run_id !== browserPlatformControlRunId && run.test_run_id !== lookupOutageCreation.body.testRunId && run.test_run_id !== expiryRunCreation.body.testRunId && run.test_run_id !== v24OutboxRunCreation.body.testRunId && !concurrentRunIds.includes(run.test_run_id));
-    assert.equal(browserRuns.rowCount, 14, "four isolated API scenarios, query-outage, post-expiry and V2.4 Outbox runs, two concurrent runs, one direct control and all four browser TestRuns must persist");
+    assert.equal(browserRuns.rowCount, 18, "six isolated API scenarios, query-outage, post-expiry and V2.4 Outbox runs, two concurrent runs, one direct control and all six browser TestRuns must persist");
     assert.deepEqual(browserScenarioRuns.map(({ scenario_id, status }) => ({ scenario_id, status })), [
       { scenario_id: "normal", status: "COMPLETED" },
       { scenario_id: "rejection", status: "COMPLETED" },
       { scenario_id: "recovery", status: "COMPLETED" },
-      { scenario_id: "external-reconciliation", status: "COMPLETED" }
+      { scenario_id: "external-reconciliation", status: "COMPLETED" },
+      { scenario_id: "crossday-settlement", status: "COMPLETED" },
+      { scenario_id: "candidate-binding", status: "COMPLETED" }
     ]);
     webTestRunId = browserScenarioRuns.at(-1).test_run_id;
     const beforeWebCliChecks = await paperFactCounts();
     webTestRuns = browserScenarioRuns.map((browserRun) => {
-      const webCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", browserRun.test_run_id, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: browserApiUrl, STOCKQUANT_SESSION_COOKIE: `sq_session=${owner}` } });
+      const webCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", browserRun.test_run_id, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: browserApiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
       assert.equal(webCli.status, 0, webCli.stderr);
       assert.equal(JSON.parse(webCli.stdout).testRunId, browserRun.test_run_id);
       assert.equal(JSON.parse(webCli.stdout).status, "COMPLETED");
@@ -722,7 +820,7 @@ try {
   assert.ok(outboxReportLine, outboxRestart.stdout);
   outboxRestartEvidence = JSON.parse(outboxReportLine);
   const auditDirectory = resolve(repo, "evidence/audits");
-  const snapshotDirectory = resolve(auditDirectory, `2026-10-02-v24-isolated-db-snapshots-${suffix}`);
+  const snapshotDirectory = resolve(auditDirectory, `${evidenceDate}-v24-isolated-db-snapshots-${suffix}`);
   await mkdir(snapshotDirectory, { recursive: true, mode: 0o700 });
   for (let index = 0; index < databases.length; index += 1) {
     const databaseClient = new Client({ connectionString: urls[index] });
@@ -754,7 +852,7 @@ try {
   }
   await mkdir(auditDirectory, { recursive: true });
   const auditReport = resolve(auditDirectory, `${new Date().toISOString().slice(0, 10)}-v24-paper-smoke-${suffix}.json`);
-  await writeFile(auditReport, `${JSON.stringify({ status: "PASS", source: "v24:paper-http-smoke", environment: "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution/Market Data processes plus Chromium and containerized Web image/Vite preview", brokerMode: "FAKE", dataMode: "FIXTURE", identityAndLiveReject, snapshotReject, scopeTamperReject, expiredAuthorizationReject, revokedAuthorizationEvidence, consumedAuthorizationRevokeEvidence, authorizedFillAfterExpiryEvidence, v24OutboxRecoveryEvidence, pendingFillCancelEvidence, resourceConcurrencyEvidence, lookupUnavailableRecovery, terminalCancelEvidence, concurrentRunEvidence, tradeExecutionSnapshotIdempotency: idempotencyFacts, tradeRestartEvidence, outboxRestartEvidence, apiScenarios: runs.map(({ scenarioId, testRunId, cliExitCode, status, assertions }) => ({ scenarioId, testRunId, cliExitCode, status, assertions: assertions.map(({ assertionId, status }) => ({ assertionId, status })) })), browserPlatformControlRunId, browserScenarios: webTestRuns, alertIntegrationEvidence, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, droppedExecutionResponseCount, successfulApiAndWebRecoveryDrops: 2, webRecoveryDroppedResponseConfirmed: droppedExecutionResponseCount >= 2, proxyFaultEvents: proxyEvents.filter((event) => event.outcome === "RESPONSE_DROPPED" || event.outcome === "LOOKUP_UNAVAILABLE"), webCliReadOnlyFactCounts: webFactCounts, temporaryDatabaseExportedBeforeCleanup: databaseSnapshotFiles.length === 5, databaseSnapshotFiles, activeServicesTouched: false, temporaryWebImageTag: webImageTag, temporaryWebImageId: webImageId, temporaryWebContainerName: webContainerName, temporaryWebImageRemovedAfterRun: webImageRemoved, temporaryWebContainerRemovedAfterRun: webContainerRemoved }, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(auditReport, `${JSON.stringify({ status: "PASS", source: "v24:paper-http-smoke", environment: "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution/Market Data processes plus Chromium and containerized Web image/Vite preview", brokerMode: "FAKE", dataMode: "FIXTURE", identityAndLiveReject, snapshotReject, scopeTamperReject, expiredAuthorizationReject, revokedAuthorizationEvidence, consumedAuthorizationRevokeEvidence, authorizedFillAfterExpiryEvidence, v24OutboxRecoveryEvidence, pendingFillCancelEvidence, resourceConcurrencyEvidence, lookupUnavailableRecovery, terminalCancelEvidence, concurrentRunEvidence, tradeExecutionSnapshotIdempotency: idempotencyFacts, tradeRestartEvidence, outboxRestartEvidence, apiScenarios: runs.map(({ scenarioId, testRunId, cliExitCode, status, assertions }) => ({ scenarioId, testRunId, cliExitCode, status, assertions: assertions.map(({ assertionId, status }) => ({ assertionId, status })) })), browserPlatformControlRunId, browserScenarios: webTestRuns, alertIntegrationEvidence, dailyReconciliationAlertEvidence, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, droppedExecutionResponseCount, successfulApiAndWebRecoveryDrops: 2, webRecoveryDroppedResponseConfirmed: droppedExecutionResponseCount >= 2, proxyFaultEvents: proxyEvents.filter((event) => event.outcome === "RESPONSE_DROPPED" || event.outcome === "LOOKUP_UNAVAILABLE"), webCliReadOnlyFactCounts: webFactCounts, temporaryDatabaseExportedBeforeCleanup: databaseSnapshotFiles.length === 5, databaseSnapshotFiles, activeServicesTouched: false, temporaryWebImageTag: webImageTag, temporaryWebImageId: webImageId, temporaryWebContainerName: webContainerName, temporaryWebImageRemovedAfterRun: webImageRemoved, temporaryWebContainerRemovedAfterRun: webContainerRemoved }, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify({ status: "PASS", auditReport, testRunIds: runs.map((run) => run.testRunId), scenarios: runs, webTestRunId, webTestRuns, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, webApiCliSameRun: process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true", webChecked: process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true", tempDatabases: databases, activeServicesTouched: false }));
 } finally {
   for (const entry of [...children].reverse()) await stop(entry);

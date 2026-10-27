@@ -4,14 +4,129 @@
   "title": "LiveQuotePreview",
   "type": "object",
   "additionalProperties": false,
-  "required": ["sourceId", "requestedSymbols", "securities", "count", "ingestedAt"],
+  "required": [
+    "sourceId",
+    "requestedSymbols",
+    "securities",
+    "count",
+    "ingestedAt"
+  ],
   "properties": {
-    "sourceId": {"const": "tencent-quote"},
-    "requestedSymbols": {"type": "array", "maxItems": 100, "items": {"type": "string", "minLength": 1}},
-    "securities": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["symbol", "price", "name", "observedAt", "ingestedAt", "status"], "properties": {"symbol": {"type": "string"}, "price": {"type": "number"}, "name": {"type": ["string", "null"]}, "observedAt": {"type": ["string", "null"], "format": "date-time"}, "ingestedAt": {"type": "string", "format": "date-time"}, "status": {"enum": ["LIVE_SOURCE", "MISSING_TIMESTAMP", "MALFORMED", "SOURCE_ERROR"]}}}},
-    "count": {"type": "integer", "minimum": 0},
-    "ingestedAt": {"type": "string", "format": "date-time"},
-    "status": {"const": "STALE"},
-    "error": {"type": "string"}
+    "sourceId": {
+      "const": "tencent-quote"
+    },
+    "requestedSymbols": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "securities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "symbol",
+          "price",
+          "name",
+          "observedAt",
+          "ingestedAt",
+          "status",
+          "freshness",
+          "ageSeconds"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ingestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "enum": [
+              "LIVE_SOURCE",
+              "MISSING_TIMESTAMP",
+              "MALFORMED",
+              "SOURCE_ERROR"
+            ]
+          },
+          "freshness": {
+            "enum": [
+              "FRESH",
+              "STALE",
+              "UNKNOWN"
+            ]
+          },
+          "ageSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ingestedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "const": "STALE"
+    },
+    "error": {
+      "type": "string"
+    },
+    "freshnessPolicy": {
+      "type": "object",
+      "required": [
+        "maxAgeMinutes",
+        "clock",
+        "status"
+      ],
+      "properties": {
+        "maxAgeMinutes": {
+          "enum": [
+            20,
+            30
+          ]
+        },
+        "clock": {
+          "const": "UTC_INSTANT"
+        },
+        "status": {
+          "enum": [
+            "CONFIGURED",
+            "DEFAULT_UNPERSISTED"
+          ]
+        }
+      }
+    }
   }
 }

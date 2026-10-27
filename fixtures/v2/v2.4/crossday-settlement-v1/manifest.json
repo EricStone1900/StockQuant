@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-crossday-settlement-v1",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "A deterministic C5 accounting fixture for previous-day BUY, next-day SELL and settlement-day cash release. It is not market data.",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-24T00:00:00Z",
+  "semantics": {
+    "markets": ["CN_A"],
+    "currencies": ["CNY"],
+    "timezone": "Asia/Shanghai",
+    "prices": "BUY 100 at 10.0000 plus 5.0000 fee on 2024-01-04; SELL 100 at 10.2500 plus 5.0000 fee on 2024-01-05; 1020.0000 receivable is released on 2024-01-08.",
+    "sessions": { "count": 3, "start": "2024-01-04", "end": "2024-01-08", "calendar": "v1.4-synthetic-settlement-3" },
+    "securities": { "600000.SH": 1 },
+    "qualityCases": ["T+1 sellability", "unsettled SELL receivable cannot fund a BUY", "settlement-day cash release", "independent FakeBroker and Portfolio reconciliation"]
+  },
+  "files": [
+    { "path": "fixtures/v2/v2.4/crossday-settlement-v1/input.json", "sha256": "30ca6912d0173e0053b0f841bb0486570d4539b0649495e0938c26d5f7a78fcc", "mediaType": "application/json", "schemaRef": "v24-crossday-settlement-v1" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-CROSSDAY-001", "description": "The prior-day BUY is filled from the frozen input." },
+    { "assertionId": "V2.4-CROSSDAY-002", "description": "The next-trading-day SELL is filled and delivered." },
+    { "assertionId": "V2.4-CROSSDAY-003", "description": "SELL proceeds remain unavailable before settlement." },
+    { "assertionId": "V2.4-CROSSDAY-004", "description": "Settlement releases exactly the frozen receivable." },
+    { "assertionId": "V2.4-CROSSDAY-005", "description": "Portfolio and independent FakeBroker balance after settlement." }
+  ]
+}

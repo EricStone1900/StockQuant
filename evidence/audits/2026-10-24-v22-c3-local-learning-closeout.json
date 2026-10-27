@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "scope-closeout-v1",
+  "decisionId": "C3-LOCAL-LEARNING-CLOSEOUT-20261024",
+  "date": "2026-10-24",
+  "stageId": "V2.2",
+  "workPackage": "C3",
+  "status": "PASS",
+  "scope": "LOCAL_LEARNING_ONLY",
+  "ownerDecision": {
+    "status": "ACCEPTED",
+    "confirmation": "确认",
+    "context": "Explicit confirmation of local-learning scope, historical-fact deferral and independent C4 prerequisites.",
+    "newReplayManualExecutionClaimed": false
+  },
+  "decisionDocument": "docs/decisions/2026-10-24-v22-c3-local-learning-closeout-scope.md",
+  "decisionDocumentSha256": "96023394e1fad64ee553f2a66888b9a82fae415ce69d3452ef24d0dcdd2e7a2a",
+  "previousHumanAcceptance": "evidence/audits/2026-10-23-v22-c3-current-candidate-human-acceptance.json",
+  "boundEvidence": [
+    {
+      "stageId": "V2.2",
+      "testRunId": "75300ba9-0807-48f5-80dc-a6cadce18b2c",
+      "evidenceManifestSha256": "b95d07c9b2123279990bbf70bc8541f29ff78e12f47cf2f28a96a5e75d10c827",
+      "status": "COMPLETED",
+      "assertions": 5,
+      "allAssertionsPass": true,
+      "manifestVerified": true
+    },
+    {
+      "stageId": "V2.3",
+      "testRunId": "fb9d5de2-fb60-48fd-a9d2-7d73d0bd9417",
+      "evidenceManifestSha256": "f8039b802ac45e38d0e9f5dcece4ee250c8f0209a98991dabf80e22267f15c5d",
+      "status": "COMPLETED",
+      "assertions": 4,
+      "allAssertionsPass": true,
+      "manifestVerified": true
+    }
+  ],
+  "reusedEvidence": [
+    "evidence/audits/2026-10-23-v22-c3-current-candidate-combined.md",
+    "evidence/audits/2026-10-21-v22-c3-gap-recovery.md",
+    "evidence/audits/2026-10-24-v22-c3-bounded-local-replay.md"
+  ],
+  "deferredFacts": [
+    "authoritative per-bar trading/suspension status",
+    "historical price limits and exceptions",
+    "complete corporate actions and point-in-time security status"
+  ],
+  "missingFactValue": "UNKNOWN/null",
+  "sourcePermissionsChanged": false,
+  "newProviderRequests": 0,
+  "newBusinessRuns": 0,
+  "immutableExportsChanged": false,
+  "c4RealResearchAuthorized": false,
+  "nextWorkPackage": "C4_INPUT_AND_GAP_REVIEW",
+  "wholeV2Status": "PARTIALLY_IMPLEMENTED",
+  "verification": {
+    "evidenceIntegrity": "PASS",
+    "docsCheck": {
+      "status": "PASS",
+      "command": "pnpm docs:check",
+      "exitCode": 0,
+      "localLinksChecked": 14274
+    },
+    "diffCheck": {
+      "status": "PASS",
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    "stageGate": {
+      "stageDocuments": {
+        "status": "PASS",
+        "stagesChecked": 1,
+        "failures": []
+      },
+      "passClaims": [],
+      "testRunEvidence": {
+        "status": "PASS",
+        "stagesChecked": 1,
+        "testRunIdsChecked": 1,
+        "unresolvedAssociations": [],
+        "results": [
+          {
+            "stageId": "V2.2",
+            "testRunIds": [
+              "75300ba9-0807-48f5-80dc-a6cadce18b2c"
+            ],
+            "status": "PASS",
+            "results": [
+              {
+                "testRunId": "75300ba9-0807-48f5-80dc-a6cadce18b2c",
+                "status": "PASS",
+                "evidencePath": "evidence/local/V2.2/75300ba9-0807-48f5-80dc-a6cadce18b2c/evidence.json",
+                "failures": []
+              }
+            ],
+            "failures": []
+          }
+        ],
+        "scope": "Checks exact TestRun UUIDs against stage-scoped structured evidence exports and their SHA-256 manifests; PASS stages additionally require completed runs, all-PASS assertions, and a UUID-bound dated user sign-off. Legacy IDs without exported bundles remain unresolved rather than being inferred as valid."
+      }
+    },
+    "correctedDuringReview": "Initial signoff cell lacked exact UUID; added the existing accepted software candidate UUID and reran unchanged gate checks."
+  },
+  "limitations": [
+    "No full PIT or full market-rule simulation claim.",
+    "Daily reference remains unverified; provider cross-frequency differences retained.",
+    "One-off source scope and retention deadline unchanged.",
+    "Old human acceptance and immutable TestRun exports preserved."
+  ]
+}

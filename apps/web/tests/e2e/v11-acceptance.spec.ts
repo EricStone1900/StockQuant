@@ -2246,7 +2246,7 @@ test("V2.1 source, live news and 101-security rejection are visible in Web accep
   await expect(page.getByTestId("v21-evidence")).toContainText("tencent-quote");
   await page.getByRole("button", { name: "抓取实时新闻" }).click();
   await expect(page.getByTestId("v21-evidence")).toContainText("eastmoney-news");
-  await page.getByRole("button", { name: "提交101只并验证拒绝" }).click();
+  await page.getByRole("button", { name: "提交101只并验证旧接口拒绝" }).click();
   await expect(page.getByRole("alert")).toContainText("WATCHLIST_LIMIT");
 });
 

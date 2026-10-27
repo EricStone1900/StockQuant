@@ -1,0 +1,995 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-22",
+  "status": "COMPLETED",
+  "stopReason": null,
+  "scope": "bounded source evidence acquisition only; not stage/human acceptance or full historical truth",
+  "sourceManifestPath": "data/local/baostock-c3-context-2024-01-02-2024-01-08-v1/manifest.json",
+  "sourceManifestSha256": "fa5f221aa17888d2b7b888a0f6991e041c2793e8ecb265ec894d910a074c0d73",
+  "scriptSha256": "12667c01106ae330e1060618f6ef8947e51ea8dd642876c618f2b557920e9de6",
+  "sdkVersion": "0.9.3",
+  "endpoint": {
+    "transport": "TCP",
+    "host": "public-api.baostock.com",
+    "port": 10030
+  },
+  "approval": "OD008-C3-LOCAL-HISTORY-20261022",
+  "transport": {
+    "rpcAttempts": 20,
+    "rpcTransmitted": 20,
+    "receivedBytes": 21269,
+    "transmittedBytes": 2266,
+    "lastRpc": 934329.623866583
+  },
+  "receipts": [
+    {
+      "method": "login",
+      "params": {},
+      "kind": "SESSION",
+      "rpcBefore": 0,
+      "errorCode": "0",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.114,
+      "rpcAfter": 1
+    },
+    {
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600000"
+      },
+      "kind": "BASIC",
+      "rpcBefore": 1,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1,
+      "responseSha256": "12355007e65c23603d1aca2d4c400f8469f70300a4f93fb7586567976dfa1dff",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.946,
+      "rpcAfter": 2
+    },
+    {
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600004"
+      },
+      "kind": "BASIC",
+      "rpcBefore": 2,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1,
+      "responseSha256": "56b27bc1ff24e3249c93873da1275384c5faa68428a5422da3ed7e040e777b7f",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.002,
+      "rpcAfter": 3
+    },
+    {
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600006"
+      },
+      "kind": "BASIC",
+      "rpcBefore": 3,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1,
+      "responseSha256": "3360746080d1462242124318d0dd658a4deb3a84831771dd99186a86d785c214",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.004,
+      "rpcAfter": 4
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600000",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "kind": "DAILY",
+      "rpcBefore": 4,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5,
+      "responseSha256": "978186913bd7cf22ddbb3add23315ad7fab34e956fff17bbe1f071063fb87c46",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.006,
+      "rpcAfter": 5
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600004",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "kind": "DAILY",
+      "rpcBefore": 5,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5,
+      "responseSha256": "1a993503f48bd658ed40d4ff3240c344b550c824388f0e009884621402c00f5d",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.001,
+      "rpcAfter": 6
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600006",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "kind": "DAILY",
+      "rpcBefore": 6,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5,
+      "responseSha256": "eb4076e1e523ae47931ef422c7231d4eec3e40420dc54bbbaea35fd64d6f0010",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.01,
+      "rpcAfter": 7
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600000",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "kind": "MINUTE",
+      "rpcBefore": 7,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240,
+      "responseSha256": "b632a9eadd9f7cbac6fbb4490ef43407d574712794101a8221b568597515ee37",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.168,
+      "rpcAfter": 8
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600004",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "kind": "MINUTE",
+      "rpcBefore": 8,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240,
+      "responseSha256": "49ec004386b6534030f4c431d78873182f89495a08fdec8b91149bef602579ef",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.251,
+      "rpcAfter": 9
+    },
+    {
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600006",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "kind": "MINUTE",
+      "rpcBefore": 9,
+      "errorCode": "0",
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240,
+      "responseSha256": "6f2ec0fe7c5361c8644a3480fe514f7495d302a07d1f645033a6fd7cd13500cf",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.784,
+      "rpcAfter": 10
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600000",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 10,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1,
+      "responseSha256": "c6e339b7cf578f37ba19d8363b3005edf2924f95194a5a26dadce1dfb42ba9bb",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.813,
+      "rpcAfter": 11
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600000",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 11,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1,
+      "responseSha256": "4ae4c4d78136874e04017af2a0054eabaf5da820aa8a06c71340b68a07cfad66",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.002,
+      "rpcAfter": 12
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600004",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 12,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 0,
+      "responseSha256": "eae9d27b02796474987596a867ac93d53afc52065b0facbbdad73d8b50a425ba",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.241,
+      "rpcAfter": 13
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600004",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 13,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1,
+      "responseSha256": "558c6b558593cf67c51ea9ae404d916d61bc6189d134be4eb56759cc0f8b4f60",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.061,
+      "rpcAfter": 14
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600006",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 14,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1,
+      "responseSha256": "a729f15c3f7579661da434ac29111e5a13aef7849065a9a979d8e54ae9800535",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.711,
+      "rpcAfter": 15
+    },
+    {
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600006",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "kind": "DIVIDEND",
+      "rpcBefore": 15,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1,
+      "responseSha256": "1fc7f8376aa1c617630ca197199f7328f261f82a687dbc61147335f993ced7b8",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.185,
+      "rpcAfter": 16
+    },
+    {
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600000",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "kind": "FACTOR",
+      "rpcBefore": 16,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0,
+      "responseSha256": "55938ea2d664d4cdd42509ede2a993b4568c0f5e6dd88776d7a941e3db362b5e",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.825,
+      "rpcAfter": 17
+    },
+    {
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600004",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "kind": "FACTOR",
+      "rpcBefore": 17,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0,
+      "responseSha256": "1a1d4c2e6ac6af3283bddd1d353baf7458a9af6e3cbeab85a36377d1f45d7633",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.096,
+      "rpcAfter": 18
+    },
+    {
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600006",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "kind": "FACTOR",
+      "rpcBefore": 18,
+      "errorCode": "0",
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0,
+      "responseSha256": "ad1cacc282e391cdf029c80cd944978976f6fea9913da2e0c1a08789e6d93c0e",
+      "status": "SUCCESS",
+      "elapsedSeconds": 0.915,
+      "rpcAfter": 19
+    },
+    {
+      "method": "logout",
+      "params": {},
+      "kind": "SESSION",
+      "rpcBefore": 19,
+      "errorCode": "0",
+      "status": "SUCCESS",
+      "elapsedSeconds": 1.052,
+      "rpcAfter": 20
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "01-basic-sh_600000.json",
+      "sha256": "12355007e65c23603d1aca2d4c400f8469f70300a4f93fb7586567976dfa1dff",
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600000"
+      },
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "02-basic-sh_600004.json",
+      "sha256": "56b27bc1ff24e3249c93873da1275384c5faa68428a5422da3ed7e040e777b7f",
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600004"
+      },
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "03-basic-sh_600006.json",
+      "sha256": "3360746080d1462242124318d0dd658a4deb3a84831771dd99186a86d785c214",
+      "method": "query_stock_basic",
+      "params": {
+        "code": "sh.600006"
+      },
+      "fields": [
+        "code",
+        "code_name",
+        "ipoDate",
+        "outDate",
+        "type",
+        "status"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "04-daily-sh_600000.json",
+      "sha256": "978186913bd7cf22ddbb3add23315ad7fab34e956fff17bbe1f071063fb87c46",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600000",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5
+    },
+    {
+      "path": "05-daily-sh_600004.json",
+      "sha256": "1a993503f48bd658ed40d4ff3240c344b550c824388f0e009884621402c00f5d",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600004",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5
+    },
+    {
+      "path": "06-daily-sh_600006.json",
+      "sha256": "eb4076e1e523ae47931ef422c7231d4eec3e40420dc54bbbaea35fd64d6f0010",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600006",
+        "fields": "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,isST",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "d",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag",
+        "tradestatus",
+        "isST"
+      ],
+      "rows": 5
+    },
+    {
+      "path": "07-minute-sh_600000.json",
+      "sha256": "b632a9eadd9f7cbac6fbb4490ef43407d574712794101a8221b568597515ee37",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600000",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240
+    },
+    {
+      "path": "08-minute-sh_600004.json",
+      "sha256": "49ec004386b6534030f4c431d78873182f89495a08fdec8b91149bef602579ef",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600004",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240
+    },
+    {
+      "path": "09-minute-sh_600006.json",
+      "sha256": "6f2ec0fe7c5361c8644a3480fe514f7495d302a07d1f645033a6fd7cd13500cf",
+      "method": "query_history_k_data_plus",
+      "params": {
+        "code": "sh.600006",
+        "fields": "date,time,code,open,high,low,close,volume,amount,adjustflag",
+        "start_date": "2024-01-02",
+        "end_date": "2024-01-08",
+        "frequency": "5",
+        "adjustflag": "3"
+      },
+      "fields": [
+        "date",
+        "time",
+        "code",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "amount",
+        "adjustflag"
+      ],
+      "rows": 240
+    },
+    {
+      "path": "10-dividend-sh_600000-2023.json",
+      "sha256": "c6e339b7cf578f37ba19d8363b3005edf2924f95194a5a26dadce1dfb42ba9bb",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600000",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "11-dividend-sh_600000-2024.json",
+      "sha256": "4ae4c4d78136874e04017af2a0054eabaf5da820aa8a06c71340b68a07cfad66",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600000",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "12-dividend-sh_600004-2023.json",
+      "sha256": "eae9d27b02796474987596a867ac93d53afc52065b0facbbdad73d8b50a425ba",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600004",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 0
+    },
+    {
+      "path": "13-dividend-sh_600004-2024.json",
+      "sha256": "558c6b558593cf67c51ea9ae404d916d61bc6189d134be4eb56759cc0f8b4f60",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600004",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "14-dividend-sh_600006-2023.json",
+      "sha256": "a729f15c3f7579661da434ac29111e5a13aef7849065a9a979d8e54ae9800535",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600006",
+        "year": 2023,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "15-dividend-sh_600006-2024.json",
+      "sha256": "1fc7f8376aa1c617630ca197199f7328f261f82a687dbc61147335f993ced7b8",
+      "method": "query_dividend_data",
+      "params": {
+        "code": "sh.600006",
+        "year": 2024,
+        "yearType": "operate"
+      },
+      "fields": [
+        "code",
+        "dividPreNoticeDate",
+        "dividAgmPumDate",
+        "dividPlanAnnounceDate",
+        "dividPlanDate",
+        "dividRegistDate",
+        "dividOperateDate",
+        "dividPayDate",
+        "dividStockMarketDate",
+        "dividCashPsBeforeTax",
+        "dividCashPsAfterTax",
+        "dividStocksPs",
+        "dividCashStock",
+        "dividReserveToStockPs"
+      ],
+      "rows": 1
+    },
+    {
+      "path": "16-factor-sh_600000.json",
+      "sha256": "55938ea2d664d4cdd42509ede2a993b4568c0f5e6dd88776d7a941e3db362b5e",
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600000",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0
+    },
+    {
+      "path": "17-factor-sh_600004.json",
+      "sha256": "1a1d4c2e6ac6af3283bddd1d353baf7458a9af6e3cbeab85a36377d1f45d7633",
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600004",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0
+    },
+    {
+      "path": "18-factor-sh_600006.json",
+      "sha256": "ad1cacc282e391cdf029c80cd944978976f6fea9913da2e0c1a08789e6d93c0e",
+      "method": "query_adjust_factor",
+      "params": {
+        "code": "sh.600006",
+        "start_date": "2023-12-29",
+        "end_date": "2024-01-08"
+      },
+      "fields": [
+        "code",
+        "dividOperateDate",
+        "foreAdjustFactor",
+        "backAdjustFactor",
+        "adjustFactor"
+      ],
+      "rows": 0
+    }
+  ],
+  "elapsedSeconds": 19.199,
+  "positiveReplay": "NOT_RUN",
+  "humanAcceptance": "NOT_RUN",
+  "activeServicesTouched": false,
+  "modelsOrStrategiesEnabled": false
+}

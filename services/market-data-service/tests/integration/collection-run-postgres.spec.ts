@@ -15,6 +15,7 @@ import { ArtifactDeliveryRepository } from "../../src/adapters/postgres-artifact
 import { DataVersionConflict, ProjectAccessDenied } from "../../src/application/project-delivery.js";
 import { AlertOutboxRepository } from "../../src/adapters/postgres-alert-outbox-repository.js";
 import { MinuteImportRepository } from "../../src/adapters/postgres-minute-import-repository.js";
+import { historicalContentSha256, type HistoricalContextVersion } from "../../src/domain/historical-context.js";
 import { MINUTE_UPLOAD_CHUNK_BYTES, MinuteUploadConflict, MinuteUploadQuotaExceeded, MinuteUploadRepository, type MinuteUploadMetadata } from "../../src/adapters/postgres-minute-upload-repository.js";
 
 const connectionString = process.env.MARKET_DATA_DATABASE_URL;
@@ -32,6 +33,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
   const minuteUploads = new MinuteUploadRepository(pool);
   const suffix = Date.now().toString();
   const minuteImportHashes: string[] = [];
+  const historicalContextVersions: string[] = [];
   const minuteUploadIds: string[] = [];
   const artifactTaskIds: string[] = [];
   const alertIds: string[] = [];
@@ -53,6 +55,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     if (alertIds.length) await pool.query("DELETE FROM market_data_alert_outbox WHERE alert_id=ANY($1::uuid[])", [alertIds]);
     if (minuteUploadIds.length) await pool.query("DELETE FROM market_data_minute_uploads WHERE upload_id=ANY($1::uuid[])", [minuteUploadIds]);
     if (minuteImportHashes.length) await pool.query("DELETE FROM market_data_minute_imports WHERE source_sha256=ANY($1::text[])", [minuteImportHashes]);
+    if (historicalContextVersions.length) await pool.query("DELETE FROM market_data_historical_context_versions WHERE version=ANY($1::text[])", [historicalContextVersions]);
     await pool.query("UPDATE market_data_collection_schedules SET enabled=false WHERE subscription_id LIKE $1", [`%${suffix}`]);
     await pool.end();
   });
@@ -163,8 +166,8 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const sourceSha256 = createHash("sha256").update(`minute-import-${suffix}`).digest("hex");
     minuteImportHashes.push(sourceSha256);
     const bars = [
-      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:30:00+08:00", barEnd: "2026-09-11T09:35:00+08:00", availableAt: "2026-09-11T09:35:01+08:00", open: 10, high: 10.2, low: 9.9, close: 10.1, volume: 100, amount: 1000, adjustment: "raw" },
-      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:35:00+08:00", barEnd: "2026-09-11T09:40:00+08:00", availableAt: "2026-09-11T09:40:01+08:00", open: 10.1, high: 10.3, low: 10, close: 10.2, volume: 120, amount: 1200, adjustment: "raw" },
+      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:30:00+08:00", barEnd: "2026-09-11T09:35:00+08:00", availableAt: "2026-09-11T09:35:01+08:00", open: 10, high: 10.2, low: 9.9, close: 10.1, volume: 100, amount: 1000, adjustment: "raw", tradingStatus: "UNKNOWN", tradingStatusReference: null, limitPriceReference: { status: "UNKNOWN", upperLimit: null, lowerLimit: null, marketRuleSetVersion: null, sourceReference: null } },
+      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:35:00+08:00", barEnd: "2026-09-11T09:40:00+08:00", availableAt: "2026-09-11T09:40:01+08:00", open: 10.1, high: 10.3, low: 10, close: 10.2, volume: 120, amount: 1200, adjustment: "raw", tradingStatus: "UNKNOWN", tradingStatusReference: null, limitPriceReference: { status: "UNKNOWN", upperLimit: null, lowerLimit: null, marketRuleSetVersion: null, sourceReference: null } },
     ];
     const request = { sourceSha256, status: "PUBLISHED" as const, accepted: bars.length, errors: [], bars };
     const concurrent = await Promise.all([minuteImports.publish(request), minuteImports.publish(request)]);
@@ -182,6 +185,31 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     await expect(new MinuteImportRepository(pool).find(version)).resolves.toMatchObject({ status: "PUBLISHED", accepted: 2, sha256: sourceSha256 });
     await expect(minuteImports.page(version, -1, 1)).rejects.toThrow("non-negative integer");
     await expect(minuteImports.page(version, 0, 1001)).rejects.toThrow("between 1 and 1000");
+  });
+
+  it("resolves immutable history versions and blocks replay when a version changes", async () => {
+    const sourceSha256 = createHash("sha256").update(`minute-context-${suffix}`).digest("hex");
+    minuteImportHashes.push(sourceSha256);
+    const versionSuffix = `context-${suffix}`;
+    historicalContextVersions.push(`${versionSuffix}-universe`, `${versionSuffix}-rules`, `${versionSuffix}-actions`);
+    const membership = [{ securityId: "600000.SH", validFrom: "2026-01-01T00:00:00.000Z", validTo: "2026-12-31T23:59:59.999Z" }];
+    const records: HistoricalContextVersion[] = [
+      { kind: "SECURITY_UNIVERSE", version: `${versionSuffix}-universe`, content: { securities: membership }, sha256: historicalContentSha256({ securities: membership }), validFrom: "2026-01-01T00:00:00.000Z", validTo: "2026-12-31T23:59:59.999Z", sourceReference: "fixture://universe", attestedBy: "integration-test" },
+      { kind: "MARKET_RULE_SET", version: `${versionSuffix}-rules`, content: { market: "CN_A", sessions: [{ start: "09:30", end: "11:30" }] }, sha256: historicalContentSha256({ market: "CN_A", sessions: [{ start: "09:30", end: "11:30" }] }), validFrom: "2026-01-01T00:00:00.000Z", validTo: "2026-12-31T23:59:59.999Z", sourceReference: "fixture://rules", attestedBy: "integration-test" },
+      { kind: "CORPORATE_ACTIONS", version: `${versionSuffix}-actions`, content: { securities: membership, actions: [] }, sha256: historicalContentSha256({ securities: membership, actions: [] }), validFrom: "2026-01-01T00:00:00.000Z", validTo: "2026-12-31T23:59:59.999Z", sourceReference: "fixture://actions", attestedBy: "integration-test" },
+    ];
+    for (const record of records) await minuteImports.registerHistoricalContextVersion(record);
+    const bars = [
+      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:30:00+08:00", barEnd: "2026-09-11T09:35:00+08:00", availableAt: "2026-09-11T09:35:01+08:00", open: 10, high: 10.2, low: 9.9, close: 10.1, volume: 100, amount: 1000, adjustment: "RAW" },
+      { securityId: "600000.SH", market: "CN_A", frequency: "5m", barStart: "2026-09-11T09:35:00+08:00", barEnd: "2026-09-11T09:40:00+08:00", availableAt: "2026-09-11T09:40:01+08:00", open: 10.1, high: 10.3, low: 10, close: 10.2, volume: 120, amount: 1200, adjustment: "RAW" },
+    ];
+    const result = await minuteImports.publish({ sourceSha256, status: "PUBLISHED", accepted: 2, errors: [], bars, manifest: {
+      mapping: {}, semantics: { market: "CN_A" }, provenance: { sourceName: "fixture", sourceReference: "fixture://bars", licenseStatement: "local test fixture", licenseVerification: "OPERATOR_CONFIRMED", acquiredAt: "2026-09-11T00:00:00.000Z" }, researchUseAllowed: true,
+      historicalContext: { securityUniverseVersion: records[0]!.version, marketRuleSetVersion: records[1]!.version, corporateActionVersion: records[2]!.version },
+    } });
+    expect(await minuteImports.checkReplayReadiness(result.record.version)).toMatchObject({ status: "READY", reasons: [], securities: ["600000.SH"] });
+    const changedMembership = [{ securityId: "000001.SZ", validFrom: "2026-01-01T00:00:00.000Z", validTo: "2026-12-31T23:59:59.999Z" }];
+    await expect(minuteImports.registerHistoricalContextVersion({ ...records[0]!, content: { securities: changedMembership }, sha256: historicalContentSha256({ securities: changedMembership }) })).rejects.toThrow("immutable");
   });
 
   it("streams 1200 synthetic rows into PostgreSQL partitions and reads the complete version by bounded pages", async () => {
@@ -340,7 +368,7 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
     const secondImportKey = createHash("sha256").update(`map-b-${suffix}`).digest("hex");
     minuteImportHashes.push(sourceSha256);
     const bar = { securityId: "600000.SH", market: "CN_A", frequency: "1m", barStart: "2026-09-11T01:30:00.000Z", barEnd: "2026-09-11T01:31:00.000Z", availableAt: "2026-09-11T01:31:00.000Z", open: 10, high: 10, low: 10, close: 10, volume: 100, amount: 1000, adjustment: "RAW" };
-    const manifest = { mapping: { securityId: "code", timestamp: "time" }, semantics: { market: "CN_A", frequency: "1m", timezone: "Asia/Shanghai" }, provenance: { sourceName: "integration test source", sourceReference: null, licenseStatement: "synthetic test fixture", licenseVerification: "OPERATOR_CONFIRMED" as const, acquiredAt: "2026-09-11T00:00:00.000Z" }, researchUseAllowed: true };
+    const manifest = { mapping: { securityId: "code", timestamp: "time" }, semantics: { market: "CN_A", frequency: "1m", timezone: "Asia/Shanghai" }, provenance: { sourceName: "integration test source", sourceReference: null, licenseStatement: "synthetic test fixture", licenseVerification: "OPERATOR_CONFIRMED" as const, acquiredAt: "2026-09-11T00:00:00.000Z" }, researchUseAllowed: true, historicalContext: { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null }, historicalContextStatus: "LIMITED_MISSING_REFERENCES" as const };
     const first = await minuteImports.publish({ sourceSha256, importKeySha256: firstImportKey, manifest, status: "PUBLISHED", accepted: 1, errors: [], bars: [bar] });
     const replay = await minuteImports.publish({ sourceSha256, importKeySha256: firstImportKey, status: "PUBLISHED", accepted: 1, errors: [], bars: [bar] });
     const second = await minuteImports.publish({ sourceSha256, importKeySha256: secondImportKey, status: "PUBLISHED", accepted: 1, errors: [], bars: [{ ...bar, securityId: "000001.SZ" }] });
@@ -428,9 +456,9 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
 
   it("persists gaps and makes backfill requests idempotent", async () => {
     const subscriptionId = `coverage-${suffix}`;
-    const gaps = [{ gapId: `gap-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const }];
+    const gaps = [{ gapId: `gap-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const, evidenceReference: "test-status-record:2" }];
     expect(await coverage.upsertGaps(subscriptionId, gaps)).toBe(1);
-    expect((await coverage.open(subscriptionId))).toHaveLength(1);
+    expect(await coverage.open(subscriptionId)).toMatchObject([{ gapId: gaps[0].gapId, evidenceReference: "test-status-record:2" }]);
     expect(await coverage.upsertGaps(subscriptionId, gaps)).toBe(1);
     expect((await coverage.open(subscriptionId))).toHaveLength(1);
     await coverage.close(gaps[0].gapId);
@@ -467,12 +495,18 @@ describeIfDatabase("CollectionRunRepository PostgreSQL integration", () => {
 
   it("closes resolved gaps during scoped reconciliation", async () => {
     const subscriptionId = `coverage-reconcile-${suffix}`;
-    const gap = { gapId: `gap-reconcile-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const };
+    const gap = { gapId: `gap-reconcile-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const, evidenceReference: "test-status-record:1" };
     await coverage.reconcileGaps(subscriptionId, "2026-09-11", "2026-09-11", [gap.securityId], [gap]);
-    expect(await coverage.open(subscriptionId)).toHaveLength(1);
+    expect(await coverage.open(subscriptionId)).toMatchObject([{ gapId: gap.gapId, evidenceReference: "test-status-record:1" }]);
     const result = await coverage.reconcileGaps(subscriptionId, "2026-09-11", "2026-09-11", [gap.securityId], []);
     expect(result.closed).toBe(1);
     expect(await coverage.open(subscriptionId)).toHaveLength(0);
+  });
+
+  it("refuses to persist a missing gap without trading-status evidence", async () => {
+    const subscriptionId = `coverage-no-evidence-${suffix}`;
+    const gap = { gapId: `gap-no-evidence-${suffix}`, securityId: "600000.SH", barStart: "2026-09-11T01:35:00.000Z", barEnd: "2026-09-11T01:40:00.000Z", reason: "MISSING" as const, priority: "P1" as const };
+    await expect(coverage.reconcileGaps(subscriptionId, "2026-09-11", "2026-09-11", [gap.securityId], [gap])).rejects.toThrow("missing gap evidence reference required");
   });
 
   it("authenticates persisted projects and enforces the persisted run quota", async () => {

@@ -7,6 +7,7 @@ const serviceDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(serviceDir, "../..");
 const tag = `stockquant-qlib-worker-smoke:${randomUUID()}`;
 const smoke = resolve(serviceDir, "scripts/qlib-fit-container-smoke.py");
+const fixture = resolve(root, "fixtures/v2/v2.3/qlib-fit/qlib-fit-input.json");
 const quantToken = randomBytes(48).toString("base64url");
 let imageCreated = false;
 try {
@@ -16,7 +17,7 @@ try {
   process.stdout.write(JSON.stringify({ event: "temporary_qlib_image_built", imageId, platform: "linux/amd64" }) + "\n");
   execFileSync("docker", [
     "run", "--rm", "--platform", "linux/amd64", "--network", "none", "--memory", "2g", "--cpus", "1", "--pids-limit", "128", "--read-only",
-    "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m", "--volume", `${smoke}:/opt/qlib/qlib-fit-container-smoke.py:ro`, "-e", "HOME=/tmp", "-e", `STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE=${quantToken}`, tag,
+    "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m", "--volume", `${smoke}:/opt/qlib/qlib-fit-container-smoke.py:ro`, "--volume", `${fixture}:/opt/qlib/qlib-fit-input.json:ro`, "-e", "HOME=/tmp", "-e", `STOCKQUANT_SERVICE_TOKEN_QUANT_RESEARCH_SERVICE=${quantToken}`, tag,
     "python", "/opt/qlib/qlib-fit-container-smoke.py",
   ], { cwd: root, stdio: "inherit" });
 } finally {

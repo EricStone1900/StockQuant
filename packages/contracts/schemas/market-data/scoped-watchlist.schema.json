@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/scoped-watchlist-v1.schema.json",
+  "title": "ScopedWatchlist",
+  "type": "object",
+  "required": ["ownerId", "accountId", "namespace", "testRunId", "securities", "count", "max", "requiredCount", "omittedCandidates"],
+  "properties": {
+    "ownerId": { "type": "string" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "securities": { "type": "array", "maxItems": 100, "items": { "type": "string" } },
+    "count": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "max": { "const": 100 },
+    "requiredCount": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "omittedCandidates": { "type": "array", "items": { "type": "string" } },
+    "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "additionalProperties": true
+}

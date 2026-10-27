@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-candidate-a-binding-v1",
+  "fixtureVersion": "1.0.0",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Frozen Candidate A binding facts for an isolated, inactive PAPER/FAKE Mandate validation. It is not an activation grant or market data.", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-25T00:00:00Z",
+  "semantics": { "markets": ["CN_A"], "currencies": ["CNY"], "timezone": "Asia/Shanghai", "prices": "No market price is consumed and no order may be submitted.", "sessions": { "count": 1, "start": "2026-10-25", "end": "2026-10-25", "calendar": "isolated-test-clock" }, "securities": { "600000.SH": 1 }, "qualityCases": ["isolated account ownership", "persistent inactive Governance Mandate", "zero order and budget side effects", "scheduler remains stopped"] },
+  "files": [ { "path": "fixtures/v2/v2.4/candidate-a-binding-v1/input.json", "sha256": "b71d400c9638f2cf634805e3f3a220ea34ab41fad0577be67969d2b37f7f0fdf", "mediaType": "application/json", "schemaRef": "v24-candidate-a-binding-v1" } ],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-C5-BINDING-001", "description": "A new candidate account is scoped to the isolated TestRun." },
+    { "assertionId": "V2.4-C5-BINDING-002", "description": "Governance persists the frozen candidate scope as an inactive Mandate." },
+    { "assertionId": "V2.4-C5-BINDING-003", "description": "The binding leaves no budget, order, fill, or scheduler side effect." }
+  ]
+}

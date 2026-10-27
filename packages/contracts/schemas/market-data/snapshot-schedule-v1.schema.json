@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/snapshot-schedule-v1.schema.json",
+  "title": "MarketDataSnapshotSchedule",
+  "type": "object",
+  "required": ["scope", "sourceId", "enabled"],
+  "properties": {
+    "scope": { "type": "object", "required": ["market", "ownerId", "accountId", "namespace", "testRunId"], "properties": { "market": { "const": "CN_A" }, "ownerId": { "type": "string" }, "accountId": { "type": "string", "format": "uuid" }, "namespace": { "type": "string" }, "testRunId": { "type": "string", "format": "uuid" } }, "additionalProperties": false },
+    "sourceId": { "enum": ["tencent-quote", "sina-quote"] },
+    "enabled": { "type": "boolean" },
+    "externalRequests": { "const": 0 },
+    "placeOrders": { "const": false }
+  },
+  "additionalProperties": false
+}

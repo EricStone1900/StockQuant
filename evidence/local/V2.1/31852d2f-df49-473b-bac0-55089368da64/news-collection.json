@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "testRunId": "31852d2f-df49-473b-bac0-55089368da64",
+  "dataMode": "SYNTHETIC_HTTP_REAL_POSTGRESQL",
+  "externalRequests": 0,
+  "environment": {
+    "node": "v24.1.0",
+    "hostPlatform": "darwin",
+    "hostArchitecture": "arm64",
+    "postgresContainer": "sq-test-postgres-b80cb71a70c810ff"
+  },
+  "codeSha256": {
+    "scripts/news-collection-persistence-smoke.mjs": "b04c18fc376b9fec5e917cd097ca175b1222e3329c33d26b62855d32c4e53979",
+    "src/adapters/public-source-http-adapter.ts": "dae6ebc9b32f297c6983b39e12794a249c9bb47f12ac75136c29a49aa921fdde",
+    "src/application/v21-news-collection.ts": "7ad5fc317b8e7b6f1cceaf4af1437abe39c09317e7a372cbb7bb57dbfbc82e7e",
+    "src/adapters/postgres-news-revision-repository.ts": "879c4286a8222e1b11c016dbbc1afb902c575ee9266b572c7a4e3cf2b84418fd",
+    "src/bootstrap/main.ts": "485a5d997cbd81795be1ee5b53f29e46853925d4f830e5077f410077bb83900c"
+  },
+  "fixtureVersion": "v2.1-news-revisions-1",
+  "fixtureSha256": "5feb697b6d517aeae2ff7de85b324c97b95d153a7cb60cf08cfb516748f7d05b",
+  "transformation": "synthetic og:article HTML using frozen titles/publication fields; source IDs mapped to registered candidate hosts; no actual page was downloaded",
+  "assertions": {
+    "twoSources": true,
+    "listingToArticle": true,
+    "repeatIdempotency": true,
+    "revisionSupersedes": true,
+    "crossSourceReferences": true,
+    "unknownPublicationTime": true,
+    "singleSourceFailureIsolation": true,
+    "freshConnectionReadback": true
+  },
+  "calls": [
+    {
+      "url": "https://finance.eastmoney.com/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://finance.eastmoney.com/a/123.html",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/detail/123",
+      "redirect": "error"
+    },
+    {
+      "url": "https://finance.eastmoney.com/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://finance.eastmoney.com/a/123.html",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/detail/123",
+      "redirect": "error"
+    },
+    {
+      "url": "https://finance.eastmoney.com/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/",
+      "redirect": "error"
+    },
+    {
+      "url": "https://www.cls.cn/detail/123",
+      "redirect": "error"
+    }
+  ],
+  "humanAcceptance": "NOT_RUN",
+  "realProviderCapability": "NOT_RUN_OD008"
+}

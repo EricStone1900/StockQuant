@@ -374,6 +374,289 @@
         }
       }
     },
+    "/v2/sampling/tasks/tick": {
+      "post": {
+        "operationId": "evaluateV21SnapshotSamplingTick",
+        "summary": "Evaluate one run-clock snapshot schedule tick and durably record a blocked task when eligible",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scheduledAt",
+                  "sourceId"
+                ],
+                "properties": {
+                  "scheduledAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "sourceId": {
+                    "type": "string",
+                    "enum": [
+                      "tencent-quote",
+                      "sina-quote"
+                    ]
+                  },
+                  "scope": {
+                    "type": "object",
+                    "required": [
+                      "market",
+                      "ownerId",
+                      "accountId",
+                      "namespace",
+                      "testRunId"
+                    ],
+                    "properties": {
+                      "market": {
+                        "const": "CN_A"
+                      },
+                      "ownerId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "namespace": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "testRunId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deterministic sampling decision and optional durable task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/sampling-task-decision-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Invalid scheduled instant"
+          },
+          "503": {
+            "description": "Sampling persistence unavailable"
+          }
+        }
+      }
+    },
+    "/v2/sampling/tasks/tick-fixture": {
+      "post": {
+        "operationId": "evaluateV21SnapshotSamplingFixtureTick",
+        "summary": "Execute one eligible snapshot tick against the immutable synthetic V2.1 Fixture",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "scheduledAt"
+                ],
+                "properties": {
+                  "scheduledAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "acceptanceIntervalMinutes": {
+                    "type": "integer",
+                    "enum": [20, 30],
+                    "description": "TestRun-scoped immutable Fixture input. It does not update the production sampling configuration."
+                  },
+                  "fixtureVariant": { "type": "string", "enum": ["fresh", "stale"], "description": "Versioned synthetic observation availability scenario; requires TestRun scope." },
+                  "scope": {
+                    "type": "object",
+                    "required": [
+                      "market",
+                      "ownerId",
+                      "accountId",
+                      "namespace",
+                      "testRunId"
+                    ],
+                    "properties": {
+                      "market": {
+                        "const": "CN_A"
+                      },
+                      "ownerId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "accountId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "namespace": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "testRunId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deterministic Fixture observations and optional durable task; no external source request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/sampling-task-decision-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Invalid scheduled instant"
+          },
+          "503": {
+            "description": "Sampling persistence unavailable"
+          }
+        }
+      }
+    },
+    "/v2/sampling/tasks/latest": {
+      "get": {
+        "operationId": "getV21LatestSnapshotSamplingTask",
+        "summary": "Read the latest durable snapshot sampling task after restart",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest persisted task or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/sampling-task-latest-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "503": {
+            "description": "Sampling persistence unavailable"
+          }
+        }
+      }
+    },
     "/v2/watchlist": {
       "get": {
         "operationId": "getV21Watchlist",
@@ -457,6 +740,142 @@
         }
       }
     },
+    "/v2/watchlist/scoped": {
+      "get": {
+        "operationId": "getV21ScopedWatchlist",
+        "summary": "Read the persistent online pool for an exact owner, account, namespace, and TestRun",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped pool or empty state for a new scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/scoped-watchlist-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "409": {
+            "description": "Scope conflicts with the stored namespace"
+          },
+          "422": {
+            "description": "Invalid scope"
+          },
+          "503": {
+            "description": "Watchlist persistence unavailable"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateV21ScopedWatchlist",
+        "summary": "Prioritize authenticated domain facts and persist the scoped online pool",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/scoped-watchlist-update-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated persisted pool",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/scoped-watchlist-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "409": {
+            "description": "Scope conflicts with the stored namespace"
+          },
+          "422": {
+            "description": "Invalid request or more than 100 required securities"
+          },
+          "503": {
+            "description": "Watchlist persistence unavailable"
+          }
+        }
+      }
+    },
     "/v2/news/preview": {
       "get": {
         "operationId": "getV21NewsPreview",
@@ -525,6 +944,84 @@
           },
           "401": {
             "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/news/fixture/ingest": {
+      "post": {
+        "operationId": "ingestV21NewsFixture",
+        "summary": "Ingest the pinned synthetic news revision Fixture into the revision ledger",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fixture records appended idempotently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/news-fixture-ingest-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "503": {
+            "description": "News revision persistence unavailable"
+          }
+        }
+      }
+    },
+    "/v2/news/fixture/history": {
+      "get": {
+        "operationId": "getV21NewsFixtureHistory",
+        "summary": "Read synthetic news revision history from the durable ledger",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted source items and revisions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/news-fixture-history-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "503": {
+            "description": "News revision persistence unavailable"
           }
         }
       }
@@ -695,6 +1192,20 @@
         }
       }
     },
+    "/v2/alerts/paper-reconciliation": {
+      "post": {
+        "operationId": "recordPaperReconciliationAlert",
+        "summary": "Open or resolve a scoped Paper reconciliation alert",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/paper-reconciliation-alert-request-v1.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Scoped reconciliation incident state", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/paper-reconciliation-alert-result-v1.schema.json" } } } },
+          "401": { "description": "Platform service bearer required" },
+          "422": { "description": "Invalid reconciliation result" }
+        }
+      }
+    },
     "/v2/alerts/{incidentId}/acknowledge": {
       "post": {
         "operationId": "acknowledgeMarketDataAlertIncident",
@@ -785,6 +1296,271 @@
           },
           "401": {
             "description": "Platform service bearer required"
+          }
+        }
+      }
+    },
+    "/v2/sampling/schedules": {
+      "put": {
+        "operationId": "updateV21SnapshotSchedule",
+        "summary": "Persist opt-in scope/source registration for the independent 20/30 minute snapshot scheduler",
+        "security": [{ "ServiceBearer": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/snapshot-schedule-v1.schema.json" } } } },
+        "responses": { "200": { "description": "Registration persisted without Provider requests", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/snapshot-schedule-v1.schema.json" } } } }, "409": { "description": "Source/executor or scoped online pool not ready" } }
+      }
+    },
+    "/v2/daily-bars/real/complete": {
+      "post": {
+        "operationId": "completeV21RealDailyBar",
+        "summary": "Queue independent current-session RAW daily bars for the scoped online pool after close and DAILY_BAR approval",
+        "security": [{ "ServiceBearer": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-request-v1.schema.json" } } } },
+        "responses": {
+          "200": { "description": "Durable task accepted; no Provider is called in this request", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-task-result-v1.schema.json" } } } },
+          "401": { "description": "Platform service bearer required" },
+          "403": { "description": "DAILY_BAR purpose or executor disabled" },
+          "409": { "description": "Session not closed or scoped pool missing" }
+        }
+      }
+    },
+    "/v2/daily-bars/fixture/complete": {
+      "post": {
+        "operationId": "completeV21DailyBarFixture",
+        "summary": "Validate and persist a registered immutable independent DAILY_BAR Fixture completion for one owner/account/TestRun scope",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persisted result, created false on idempotent retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-task-result-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Invalid scope or Fixture"
+          },
+          "503": {
+            "description": "Persistence unavailable"
+          },
+          "409": {
+            "description": "Current scope watchlist coverage mismatch or idempotency conflict"
+          }
+        }
+      }
+    },
+    "/v2/daily-bars/completions/latest": {
+      "get": {
+        "operationId": "getV21LatestDailyBarCompletion",
+        "summary": "Read the latest persisted DAILY_BAR completion for the current scope after restart",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest result or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-latest-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Invalid scope"
+          },
+          "503": {
+            "description": "Persistence unavailable"
+          }
+        }
+      }
+    },
+    "/v2/sampling/monitor-policy": {
+      "put": {
+        "operationId": "updateV21MonitorEvaluationPolicy",
+        "summary": "Enable or disable the independent quote-quality consumer",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/monitor-evaluation-policy-update-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated Monitor consumer policy; pending events remain durable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/monitor-evaluation-policy-result-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "422": {
+            "description": "Invalid policy value"
+          },
+          "503": {
+            "description": "Sampling persistence unavailable"
+          }
+        }
+      }
+    },
+    "/v2/daily-bars/schedules": {
+      "put": {
+        "operationId": "updateV21DailyBarSchedule",
+        "summary": "Enable or disable an opt-in after-close DAILY_BAR schedule for one TestRun scope",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "platform-api-service"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/daily-bar-schedule-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated scoped close scheduler policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/daily-bar-schedule-result-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Platform service bearer required"
+          },
+          "409": {
+            "description": "Scoped watchlist missing or conflicts"
+          },
+          "422": {
+            "description": "Invalid scoped schedule"
+          },
+          "503": {
+            "description": "Schedule persistence unavailable"
           }
         }
       }

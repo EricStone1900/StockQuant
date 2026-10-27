@@ -1,0 +1,19 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.1-snapshot-sampling",
+  "fixtureVersion": "v2.1-snapshot-sampling-1",
+  "stageId": "V2.1",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Two synthetic CN_A quote snapshot observations for deterministic C2 sampling task execution; not market data", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-18T00:00:00Z",
+  "files": [
+    { "path": "fixtures/v2/v2.1-snapshot-sampling/snapshots.json", "sha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c", "mediaType": "application/json", "schemaRef": "v21-snapshot-sampling-fixture-v1" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.1-SNAPSHOT-FIXTURE-001", "description": "Eligible explicit Fixture tick persists two synthetic observations with their Fixture version and SHA-256" },
+    { "assertionId": "V2.1-SNAPSHOT-FIXTURE-002", "description": "Repeated tick is idempotent and task plus observations survive repository/process restart" },
+    { "assertionId": "V2.1-SNAPSHOT-FIXTURE-003", "description": "Fixture execution creates zero external requests and does not claim REAL source validation" }
+  ]
+}

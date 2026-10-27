@@ -36,6 +36,8 @@ domain：测试场景/运行/人工签署、访问范围；application：BFF聚�
 
 ## 3. 数据与一致性
 
+2026-10-24 C5 Fixture目标增量：Platform保存`v24_fixture_daily_targets`不可变验收目标，以owner/account/namespace/TestRun隔离并关联V2.4 StageRun；每TestRun最多一个目标，输入/版本/Clock/决策和拟用clientOrderId一并保存，重复相同输入返回原记录，改变输入或替换账户冲突。HOLD/PAUSED不生成订单身份；恢复流程先重读目标核对原授权命令，再查询原订单。此表保存验收编排意图，不保存权威Mandate、风险预算或订单/Fill/组合账本。固定Fixture BUY目标复用原治理/执行接口，未新增活动交易API；活动多日/SELL和持续风险接线保持未完成。
+
 逻辑持久化：identities/sessions、preferences、platform_audits、notification_projections、test_scenarios、test_runs、test_assertions、acceptance_records、job_dispatch_records。
 
 V1.5 Run Incident由Platform按owner/TestRun持久证据派生并持久化到`v15_run_incidents`投影；当前会话负责确认身份，恢复的阻塞会解决Incident，复发创建新记录。该投影服务于Run告警与验收状态，不拥有交易订单/成交/账本事实，也不表示已配置外发通知渠道。具体触发状态与HTTP路径见[V1.5阶段手册§8.24](../../docs/prd/v1-local-simulation/05-scheduling-and-recovery.md#824-v15-run-incident生命周期与确认2026-10-09)。

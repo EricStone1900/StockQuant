@@ -27,11 +27,27 @@ describe("V2.4 scheduler source authorization gate", () => {
     expect(start).not.toHaveBeenCalled();
   });
 
+  it("rejects start and tick when the source is configured but the OD-007 Paper decision is incomplete", async () => {
+    const start = vi.fn(async () => ({ status: "RUNNING" }));
+    const tick = vi.fn(async () => ({ status: "RUNNING" }));
+    const controller = new V24AcceptanceController({
+      isV24QuoteSourceUseConfigured: () => true,
+      isV24ContinuousPaperUseConfigured: () => false,
+      scheduler: { start, tick },
+    } as any);
+
+    await expect(controller.schedulerStart("sq_session=acceptance-owner-1", undefined)).rejects.toThrow("approved OD-007 mandate");
+    await expect(controller.schedulerTick("sq_session=acceptance-owner-1", undefined)).rejects.toThrow("approved OD-007 mandate");
+    expect(start).not.toHaveBeenCalled();
+    expect(tick).not.toHaveBeenCalled();
+  });
+
   it("preserves scheduler operations when all explicit source authorization fields are configured", async () => {
     const start = vi.fn(async () => ({ status: "RUNNING" }));
     const tick = vi.fn(async () => ({ status: "RUNNING", tickCount: 1 }));
     const controller = new V24AcceptanceController({
       isV24QuoteSourceUseConfigured: () => true,
+      isV24ContinuousPaperUseConfigured: () => true,
       scheduler: { start, tick },
     } as any);
 

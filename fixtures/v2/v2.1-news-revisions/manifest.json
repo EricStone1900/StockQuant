@@ -1,0 +1,29 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.1-news-revisions",
+  "fixtureVersion": "v2.1-news-revisions-1",
+  "stageId": "V2.1",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Synthetic stable-source news IDs, timestamps, linked/ambiguous entities and an article revision",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-17T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.1-news-revisions/news-revisions.json",
+      "sha256": "5feb697b6d517aeae2ff7de85b324c97b95d153a7cb60cf08cfb516748f7d05b",
+      "mediaType": "application/json",
+      "schemaRef": "news-revisions-fixture-v1"
+    }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.1-NEWS-REV-001", "description": "fixture-news-a/notice-001 appends revisions 1 then 2; repeating ingestion creates no duplicate revision" },
+    { "assertionId": "V2.1-NEWS-TIME-001", "description": "publication, observation, ingestion and availability times remain separately visible; null publication time stays UNKNOWN" },
+    { "assertionId": "V2.1-NEWS-ENTITY-001", "description": "single-symbol entity links and multi-symbol ambiguity are represented explicitly" }
+  ]
+}

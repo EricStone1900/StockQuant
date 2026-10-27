@@ -9,6 +9,6 @@ describe("Tencent quote preview", () => {
 
   it("rejects malformed names and prices instead of calling them live", () => {
     const text = 'v_sh600000="51~\ufffd~600000~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~20260914150000";';
-    expect(previewTencentQuotes(["600000.SH"], text, "2026-09-14T07:00:00.000Z")[0].status).toBe("MALFORMED");
+    expect(previewTencentQuotes(["600000.SH"], text, "2026-09-14T07:00:00.000Z")[0]).toMatchObject({ status: "MALFORMED", price: null });
   });
 });

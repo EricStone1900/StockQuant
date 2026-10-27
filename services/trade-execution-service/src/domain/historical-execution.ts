@@ -31,8 +31,9 @@ export interface HistoricalExecutionCommand {
 
 export type SnapshotPaperExecutionCommand = {
   namespace: string; accountId: string; clientOrderId: string; security: string; requestedQuantity: number;
-  price: string; fee: string; effectiveAt: string; currency: string; snapshotId: string; policyVersion: string; fixtureVersion: string;
+  initialAccountCash?: string; price: string; fee: string; effectiveAt: string; currency: string; snapshotId: string; policyVersion: string; fixtureVersion: string;
   quoteAgeSeconds: number; deviationBps: number; testRunId: string; ownerId: string; mandateId: string; mandateVersion: string; strategyVersion: string;
+  side: "BUY" | "SELL";
   reservation: { reservationId: string; ownerId: string; testRunId: string; clientOrderId: string };
 };
 

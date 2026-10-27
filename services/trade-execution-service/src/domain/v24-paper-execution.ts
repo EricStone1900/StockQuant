@@ -6,7 +6,7 @@ export type V24PaperExecutionGrant = {
   dataMode: "FIXTURE"; environmentMode: "PAPER"; brokerMode: "FAKE"; liveTradingEnabled: false; market: "CN_A"; currency: "CNY";
   policy: { policyId: string; policyVersion: string; riskPolicyVersion: string; feePolicyVersion: string; maxDeviationBps: number; freshnessLimitSeconds: number; executionWindowStart: string; executionWindowEnd: string };
   mandate: { mandateId: string; mandateVersion: string; strategyVersion: string; securityScope: string[]; maxOrderNotional: string; maxGrossExposure: string; maxDailyTurnover: string; approvalEvidenceRef: string };
-  signal: { signalId: string; asOf: string; action: "BUY"; quantity: number; referencePrice: string };
+  signal: { signalId: string; asOf: string; action: "BUY" | "SELL"; quantity: number; referencePrice: string };
   order: { clientOrderId: string; security: string; acceptedAt: string; requestedQuantity: number };
   snapshot: Snapshot;
   fee: string;
@@ -51,6 +51,7 @@ export function evaluateV24PaperFixtureGrant(grant: V24PaperExecutionGrant, cloc
   const maxExposure = toTicks(grant.mandate.maxGrossExposure);
   const maxTurnover = toTicks(grant.mandate.maxDailyTurnover);
   if (price === null || fee === null || maxNotional === null || maxExposure === null || maxTurnover === null) return { status: "REJECTED", reason: "INVALID_POLICY_MONEY" };
+  if (grant.signal.action !== "BUY" && grant.signal.action !== "SELL") return { status: "REJECTED", reason: "UNSUPPORTED_SIGNAL_ACTION" };
   const notional = price * BigInt(grant.order.requestedQuantity);
   if (notional > maxNotional || notional > maxExposure || notional > maxTurnover) return { status: "REJECTED", reason: "MANDATE_NOTIONAL_LIMIT_EXCEEDED" };
   return { status: "ELIGIBLE", snapshot: { ...grant.snapshot, price: eligibility.price }, risk: { quoteAgeSeconds: risk.quoteAgeSeconds, deviationBps: risk.deviationBps }, reservedCash: fromTicks(notional + fee), executionModel: "SNAPSHOT", policyVersion: eligibility.policyVersion };

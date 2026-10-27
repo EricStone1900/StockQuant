@@ -1,0 +1,249 @@
+{
+  "status": "PASS",
+  "testRunId": "97c2a477-fcf1-406b-921a-856b75c40d42",
+  "dataMode": "FIXTURE",
+  "seed": 20260907,
+  "environment": {
+    "node": "v24.1.0",
+    "hostPlatform": "darwin",
+    "hostArchitecture": "arm64",
+    "postgresContainer": "sq-test-postgres-5159e3f7e43908db"
+  },
+  "codeSha256": {
+    "scripts/sampling-crash-recovery-smoke.mjs": "b28e8ec06e2c7995cc7485012a0c6701324d37c42a48e2e028357c334b583c18",
+    "src/application/sampling-task-worker.ts": "7844161b1ea2a9ef98dafcf56ac327c54c4c6b4e5707aa6a25fda3a889a54cf3",
+    "src/adapters/postgres-sampling-task-lifecycle-repository.ts": "276c58edd5381804e2bc37ff8863f22802fe84da3e2659e6a6e3f35bc7a63e45",
+    "src/adapters/postgres-snapshot-sampling-repository.ts": "96bdaf8b07d57d115718b5379edf1f2dca4ea62ba5edad89e29438e84276312a"
+  },
+  "faultPlan": [
+    "SIGKILL_AFTER_CLAIM",
+    "SIGKILL_AFTER_RESULT_BEFORE_FINISH",
+    "TRANSIENT_ERROR_AND_PROCESS_RESTART",
+    "LAST_ATTEMPT_CRASH_WITHOUT_RESULT",
+    "LAST_ATTEMPT_CRASH_AFTER_COMMIT"
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "mode": "crash-after-claim",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3bf867eeaa944335c2089c3fb312bde4e26f84412361c0577b2e74396fe82eb:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 2,
+      "event": "PROCESS_KILLED",
+      "pid": 57707,
+      "signal": "SIGKILL"
+    },
+    {
+      "sequence": 3,
+      "mode": "recover",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3bf867eeaa944335c2089c3fb312bde4e26f84412361c0577b2e74396fe82eb:2026-10-16T01:50:00.000Z",
+      "attempt": 2
+    },
+    {
+      "sequence": 4,
+      "mode": "recover",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3bf867eeaa944335c2089c3fb312bde4e26f84412361c0577b2e74396fe82eb:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 5,
+      "mode": "recover",
+      "event": "TERMINAL",
+      "claimed": true,
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3bf867eeaa944335c2089c3fb312bde4e26f84412361c0577b2e74396fe82eb:2026-10-16T01:50:00.000Z",
+      "state": "COMPLETED"
+    },
+    {
+      "sequence": 6,
+      "event": "RECOVERY_VERIFIED",
+      "mode": "crash-after-claim",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3bf867eeaa944335c2089c3fb312bde4e26f84412361c0577b2e74396fe82eb:2026-10-16T01:50:00.000Z",
+      "attempt": 2,
+      "observations": 2,
+      "outboxEvents": 1
+    },
+    {
+      "sequence": 7,
+      "mode": "crash-after-result",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 8,
+      "mode": "crash-after-result",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 9,
+      "event": "PROCESS_KILLED",
+      "pid": 57711,
+      "signal": "SIGKILL"
+    },
+    {
+      "sequence": 10,
+      "mode": "recover",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z",
+      "attempt": 2
+    },
+    {
+      "sequence": 11,
+      "mode": "recover",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 12,
+      "mode": "recover",
+      "event": "TERMINAL",
+      "claimed": true,
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z",
+      "state": "COMPLETED"
+    },
+    {
+      "sequence": 13,
+      "event": "RECOVERY_VERIFIED",
+      "mode": "crash-after-result",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:5ee72f7dbd972e834540ee0dc6969cfd308e3d5631845b6772f6030f7e34f792:2026-10-16T01:50:00.000Z",
+      "attempt": 2,
+      "observations": 2,
+      "outboxEvents": 1
+    },
+    {
+      "sequence": 14,
+      "mode": "retry",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 15,
+      "mode": "retry",
+      "event": "TERMINAL",
+      "claimed": true,
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z",
+      "state": "RETRY_WAIT"
+    },
+    {
+      "sequence": 16,
+      "mode": "recover",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z",
+      "attempt": 2
+    },
+    {
+      "sequence": 17,
+      "mode": "recover",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 18,
+      "mode": "recover",
+      "event": "TERMINAL",
+      "claimed": true,
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z",
+      "state": "COMPLETED"
+    },
+    {
+      "sequence": 19,
+      "event": "RECOVERY_VERIFIED",
+      "mode": "retry",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f37b24c00a7ccc7cb4030f03574eb609223f43d0e6e4c33f6f4562ad1560ae4e:2026-10-16T01:50:00.000Z",
+      "attempt": 2,
+      "observations": 2,
+      "outboxEvents": 1
+    },
+    {
+      "sequence": 20,
+      "mode": "crash-after-claim",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:fb93ea0da14d02fba018c5feef3e5e3d60692a1c4886f37ee6b59c0f58fdbc2f:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 21,
+      "event": "PROCESS_KILLED",
+      "pid": 57715,
+      "signal": "SIGKILL"
+    },
+    {
+      "sequence": 22,
+      "mode": "recover",
+      "event": "TERMINAL",
+      "claimed": false,
+      "taskId": null,
+      "state": "IDLE"
+    },
+    {
+      "sequence": 23,
+      "event": "EXHAUSTED_FAILURE_VERIFIED",
+      "scenario": "last-attempt-crash-after-claim",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:fb93ea0da14d02fba018c5feef3e5e3d60692a1c4886f37ee6b59c0f58fdbc2f:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 24,
+      "mode": "crash-after-result",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 25,
+      "mode": "crash-after-result",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 26,
+      "event": "PROCESS_KILLED",
+      "pid": 57717,
+      "signal": "SIGKILL"
+    },
+    {
+      "sequence": 27,
+      "mode": "recover",
+      "event": "CLAIMED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z",
+      "attempt": 1
+    },
+    {
+      "sequence": 28,
+      "mode": "recover",
+      "event": "RESULT_COMMITTED",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z"
+    },
+    {
+      "sequence": 29,
+      "mode": "recover",
+      "event": "TERMINAL",
+      "claimed": true,
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z",
+      "state": "COMPLETED"
+    },
+    {
+      "sequence": 30,
+      "event": "RECOVERY_VERIFIED",
+      "mode": "crash-after-result",
+      "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:b25e69ebfb5e7d33ec0bd9980dcc9eb403ebd06ea3e95a4fa5394ae83dd97896:2026-10-16T01:50:00.000Z",
+      "attempt": 1,
+      "observations": 2,
+      "outboxEvents": 1
+    }
+  ],
+  "fixtureVersion": "v2.1-snapshot-sampling-1",
+  "fixtureSha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c",
+  "externalRequests": 0,
+  "components": {
+    "worker": "SamplingTaskWorker",
+    "database": "REAL_POSTGRESQL",
+    "executor": "FIXTURE_ADAPTER_HARNESS"
+  },
+  "humanAcceptance": "NOT_RUN"
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v2.1-daily-bar-completion",
+  "fixtureVersion": "v2.1-daily-bars-1",
+  "stageId": "V2.1",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Two synthetic CN_A DAILY_BAR rows for independent close-completion acceptance; not market data", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-19T00:00:00Z",
+  "files": [
+    { "path": "fixtures/v2/v2.1-daily-bar-completion/bars.json", "sha256": "b98309c9be021c2117d9b3b53276b4ddb313de290413f6bfea5b7040361ae6c4", "mediaType": "application/json", "schemaRef": "fixtures/manifests/v21-daily-bars-fixture.schema.json" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.1-DAILY-BAR-COMPLETE-001", "description": "Independent versioned DAILY_BAR Fixture completes only after close and availableAt" },
+    { "assertionId": "V2.1-DAILY-BAR-REJECT-001", "description": "Incomplete, malformed, pre-close or snapshot-derived data cannot be published READY" },
+    { "assertionId": "V2.1-DAILY-BAR-IDEMPOTENCY-001", "description": "Same source/version/session/content yields a stable completion identity" }
+  ]
+}

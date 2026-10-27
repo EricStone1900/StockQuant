@@ -34,10 +34,24 @@ export function isProtectedPlatformApiRequest(method: string, pathname: string):
     || (method === "POST" && ["/v2/minute/quality", "/v2/minute/coverage"].includes(pathname))
     || /^\/v2\/minute\/(?:csv|parquet)\/(?:preview|import|uploads(?:\/|$))/u.test(pathname)
     || /^\/v2\/minute\/imports\/[^/]+(?:\/bars)?$/u.test(pathname)
+    || (method === "POST" && pathname === "/v2/historical-context/versions")
+    || (method === "GET" && /^\/v2\/minute\/imports\/[^/]+\/replay-readiness$/u.test(pathname))
     || pathname === "/v2/watchlist"
+    || pathname === "/v2/watchlist/scoped"
     || (method === "POST" && /^\/v2\/alerts\/[0-9a-f-]+\/acknowledge$/iu.test(pathname))
-    || ["/v2/sources", "/v2/sampling", "/v2/news/preview"].includes(pathname)
+    || (method === "POST" && pathname === "/v2/alerts/paper-reconciliation")
+    || ["/v2/sources", "/v2/sampling", "/v2/news/preview", "/v2/news/fixture/history"].includes(pathname)
+    || (method === "POST" && pathname === "/v2/news/fixture/ingest")
+    || (method === "POST" && pathname === "/v2/sampling/tasks/tick")
+    || (method === "PUT" && pathname === "/v2/sampling/schedules")
+    || (method === "POST" && pathname === "/v2/sampling/tasks/tick-fixture")
+    || (method === "GET" && pathname === "/v2/sampling/tasks/latest")
+    || (method === "POST" && pathname === "/v2/daily-bars/fixture/complete")
+    || (method === "POST" && pathname === "/v2/daily-bars/real/complete")
+    || (method === "GET" && pathname === "/v2/daily-bars/completions/latest")
+    || (method === "PUT" && pathname === "/v2/daily-bars/schedules")
     || (method === "GET" && ["/v2/quote/preview", "/v2/news/live", "/v2/sources/smoke"].includes(pathname))
     || (method === "PUT" && ["/v2/sampling", "/v2/watchlist"].includes(pathname))
+    || (method === "PUT" && pathname === "/v2/sampling/monitor-policy")
     || (method === "POST" && /^\/v2\/sources\/[^/]+\/(?:fail|recover)$/u.test(pathname));
 }

@@ -42,6 +42,11 @@ export class GeneratedPlatformV13ManualTradeClient {
     const response = await this.request(this.baseUrl + "/internal/v1/v13/accounts/assets?" + query, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(5000) });
     return { status: response.status, body: await response.json().catch(() => undefined) };
   }
+  async readInFlightOrders(accountId: string, scope: { namespace: string; ownerId: string; testRunId: string }): Promise<{ status: number; body?: unknown }> {
+    const query = new URLSearchParams(scope);
+    const response = await this.request(this.baseUrl + "/internal/v1/accounts/" + encodeURIComponent(accountId) + "/in-flight-orders?" + query, { method: "GET", headers: { "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, signal: AbortSignal.timeout(5000) });
+    return { status: response.status, body: await response.json().catch(() => undefined) };
+  }
   async settleForSession(body: { namespace: string; accountId: string; ownerId: string; testRunId: string; asOf: string }): Promise<{ status: number; body?: unknown }> {
     const response = await this.request(this.baseUrl + "/internal/v1/v13/accounts/settlements", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
     return { status: response.status, body: await response.json().catch(() => undefined) };

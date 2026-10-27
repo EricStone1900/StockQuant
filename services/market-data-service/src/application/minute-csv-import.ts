@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { validateBars, type QualityBar } from "./minute-quality.js";
-import type { MinuteImportBar } from "../domain/minute-import.js";
+import { withMinuteBarContextDefaults, type MinuteImportBar } from "../domain/minute-import.js";
 
 export type MinuteCsvField = "securityId" | "timestamp" | "open" | "high" | "low" | "close" | "volume" | "amount";
 export type MinuteCsvMapping = Partial<Record<MinuteCsvField, string>>;
@@ -13,6 +13,8 @@ export type MinuteCsvProvenance = {
   licenseVerification: "OPERATOR_CONFIRMED" | "UNCONFIRMED";
   acquiredAt: string;
 };
+export type MinuteCsvHistoricalContext = { securityUniverseVersion: string | null; marketRuleSetVersion: string | null; corporateActionVersion: string | null };
+const EMPTY_HISTORICAL_CONTEXT: MinuteCsvHistoricalContext = { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
 
 const REQUIRED: MinuteCsvField[] = ["securityId", "timestamp", "open", "high", "low", "close", "volume", "amount"];
 export const MAX_MINUTE_CSV_BYTES = 64 * 1024 * 1024;
@@ -31,18 +33,22 @@ export type MinuteCsvSemantics = {
   amountUnit: "CNY";
 };
 
-export function minuteCsvImportIdentityFromSha(sourceSha256: string, mapping: MinuteCsvMapping, semantics: MinuteCsvSemantics, provenance: MinuteCsvProvenance): { sourceSha256: string; importKeySha256: string } {
+export function minuteCsvImportIdentityFromSha(sourceSha256: string, mapping: MinuteCsvMapping, semantics: MinuteCsvSemantics, provenance: MinuteCsvProvenance, historicalContext: MinuteCsvHistoricalContext = EMPTY_HISTORICAL_CONTEXT): { sourceSha256: string; importKeySha256: string } {
   if (!/^[0-9a-f]{64}$/u.test(sourceSha256)) throw new Error("source SHA-256 is invalid");
   const canonicalMapping = REQUIRED.map((field) => [field, mapping[field] ?? null]);
   const canonicalSemantics = [semantics.market, semantics.frequency, semantics.adjustment, semantics.timezone, semantics.timestampSemantics, semantics.volumeUnit, semantics.amountUnit];
   const canonicalProvenance = [provenance.sourceName, provenance.sourceReference, provenance.licenseStatement, provenance.licenseVerification, provenance.acquiredAt];
-  const canonical = JSON.stringify({ sourceSha256, mapping: canonicalMapping, semantics: canonicalSemantics, ...(semantics.fileFormat === "PARQUET" ? { fileFormat: "PARQUET" } : {}), provenance: canonicalProvenance });
+  const canonical = JSON.stringify({ sourceSha256, mapping: canonicalMapping, semantics: canonicalSemantics, ...(semantics.fileFormat === "PARQUET" ? { fileFormat: "PARQUET" } : {}), provenance: canonicalProvenance, historicalContext });
   return { sourceSha256, importKeySha256: createHash("sha256").update(canonical).digest("hex") };
 }
 
-export function minuteCsvImportIdentity(content: string, mapping: MinuteCsvMapping, semantics: MinuteCsvSemantics, provenance: MinuteCsvProvenance): { sourceSha256: string; importKeySha256: string } {
+export function minuteCsvImportIdentity(content: string, mapping: MinuteCsvMapping, semantics: MinuteCsvSemantics, provenance: MinuteCsvProvenance, historicalContext?: MinuteCsvHistoricalContext): { sourceSha256: string; importKeySha256: string } {
   const sourceSha256 = createHash("sha256").update(content, "utf8").digest("hex");
-  return minuteCsvImportIdentityFromSha(sourceSha256, mapping, semantics, provenance);
+  return minuteCsvImportIdentityFromSha(sourceSha256, mapping, semantics, provenance, historicalContext);
+}
+
+export function historicalContextStatus(context: MinuteCsvHistoricalContext): "READY_FOR_REVIEW" | "LIMITED_MISSING_REFERENCES" {
+  return Object.values(context).every((value) => typeof value === "string" && value.trim().length > 0) ? "READY_FOR_REVIEW" : "LIMITED_MISSING_REFERENCES";
 }
 
 async function* parseCsvRows(chunks: AsyncIterable<string>): AsyncGenerator<string[]> {
@@ -169,7 +175,7 @@ export async function previewMinuteCsvStream(input: MinuteCsvPreviewInput, chunk
     const durationMs = input.frequency === "5m" ? 300_000 : 60_000;
     const barStart = new Date(sourceTime.getTime() - (input.timestampSemantics === "BAR_END" ? durationMs : 0));
     const barEnd = new Date(sourceTime.getTime() + (input.timestampSemantics === "BAR_START" ? durationMs : 0));
-    const bar = { securityId, market: input.market, frequency: input.frequency, barStart: barStart.toISOString(), barEnd: barEnd.toISOString(), availableAt: barEnd.toISOString(), open: values.open, high: values.high, low: values.low, close: values.close, volume: values.volume, amount: values.amount, adjustment: input.adjustment };
+    const bar = withMinuteBarContextDefaults({ securityId, market: input.market, frequency: input.frequency, barStart: barStart.toISOString(), barEnd: barEnd.toISOString(), availableAt: barEnd.toISOString(), open: values.open, high: values.high, low: values.low, close: values.close, volume: values.volume, amount: values.amount, adjustment: input.adjustment });
     candidateCount += 1;
     const key = `${bar.securityId}|${bar.barStart}`;
     const firstSourceRow = seen.get(key);

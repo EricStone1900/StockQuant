@@ -1,0 +1,13 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "StockQuant Market Monitor API", "version": "1.0.0" },
+  "paths": {
+    "/v1/quote-quality/evaluations": {
+      "post": { "operationId": "evaluateQuoteQuality", "security": [{ "ServiceBearer": [] }], "parameters": [{ "$ref": "#/components/parameters/ServiceIdentity" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/quote-quality-evaluation-request-v1.schema.json" } } } }, "responses": { "200": { "description": "Saved or idempotently reused quote quality projection", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/quote-quality-result-v1.schema.json" } } } }, "401": { "description": "Invalid service identity" }, "409": { "description": "Same task identity with different input" }, "422": { "description": "Invalid quality input" } } }
+    },
+    "/v1/quote-quality/latest": {
+      "get": { "operationId": "getLatestQuoteQuality", "security": [{ "ServiceBearer": [] }], "parameters": [{ "$ref": "#/components/parameters/ServiceIdentity" }, { "name": "market", "in": "query", "required": true, "schema": { "const": "CN_A" } }, { "name": "ownerId", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "accountId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "testRunId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Most recent quality projection in this scope", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/market-data/quote-quality-latest-v1.schema.json" } } } }, "401": { "description": "Invalid service identity" } } }
+    }
+  },
+  "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } }, "parameters": { "ServiceIdentity": { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } } } }
+}

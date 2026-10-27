@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-daily-direction",
+  "fixtureVersion": "v24-daily-direction-1",
+  "stageId": "V2.4", "status": "FROZEN", "dataMode": "FIXTURE", "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Two independent synthetic completed daily closes for the approved C5 candidate; no real market prices or active authorization.", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-24T00:00:00Z",
+  "files": [{ "path": "fixtures/v2/v2.4/daily-direction-v1/input.json", "sha256": "b04ca7ed834cbbddca1138905aa3c208574b362c9d44dc15b91a9717c68ae48b", "mediaType": "application/json", "schemaRef": "fixtures/manifests/v24-daily-direction-input.schema.json" }],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-C5-DAILY-TARGET-001", "description": "The exact approved strategy computes and persists BUY 100 from the two frozen completed daily closes and actual isolated Portfolio account snapshot." },
+    { "assertionId": "V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001", "description": "Duplicate evaluation reads the same immutable target and original order identity without overwriting evidence." }
+  ]
+}

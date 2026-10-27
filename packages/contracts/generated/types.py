@@ -1356,6 +1356,7 @@ V24PaperAuthorizationValidation = TypedDict("V24PaperAuthorizationValidation", {
 V24PaperExecutionCommand = TypedDict("V24PaperExecutionCommand", {
   "authorizationId": Required[str],
   "grant": Required[V24PaperExecutionGrant],
+  "initialAccountCash": NotRequired[str],
 })
 
 V24PaperExecutionGrant = TypedDict("V24PaperExecutionGrant", {
@@ -1465,27 +1466,40 @@ V24PaperReadiness = TypedDict("V24PaperReadiness", {
 V24PaperStageRunAccepted = TypedDict("V24PaperStageRunAccepted", {
   "accepted": Required[Literal[True]],
   "testRunId": Required[str],
-  "status": Required[Literal['WAITING']],
+  "status": Required[Literal['WAITING', 'RUNNING', 'COMPLETED', 'FAILED']],
 })
 
 V24PaperStageRunRequest = TypedDict("V24PaperStageRunRequest", {
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation', 'crossday-settlement', 'candidate-binding']],
   "seed": Required[int],
 })
 
 V24PaperStageRunResult = TypedDict("V24PaperStageRunResult", {
   "testRunId": Required[str],
   "stageId": Required[Literal['V2.4']],
-  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation']],
+  "scenarioId": Required[Literal['normal', 'rejection', 'recovery', 'external-reconciliation', 'crossday-settlement', 'candidate-binding']],
   "scenarioVersion": Required[str],
   "ownerId": Required[str],
   "namespace": Required[str],
-  "status": Required[Literal['WAITING']],
+  "status": Required[Literal['QUEUED', 'RUNNING', 'WAITING', 'COMPLETED', 'FAILED', 'CANCELLED']],
   "seed": Required[int],
   "assertions": Required[list[dict[str, object]]],
-  "evidence": Required[dict[str, object]],
+  "evidence": Required[object],
   "createdAt": Required[str],
-  "completedAt": Required[object],
+  "completedAt": Required[str | None],
+})
+
+V24SampledPaperComposition = TypedDict("V24SampledPaperComposition", {
+  "$schema": NotRequired[str],
+  "fixtureId": Required[Literal['v24-sampled-paper-composition']],
+  "fixtureVersion": Required[Literal['v24-sampled-paper-composition-1']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "market": Required[Literal['CN_A']],
+  "currency": Required[Literal['CNY']],
+  "sampling": Required[dict[str, object]],
+  "dailyBar": Required[dict[str, object]],
+  "signal": Required[dict[str, object]],
+  "execution": Required[dict[str, object]],
 })
 
 V24SnapshotFixtureExecutionV2 = TypedDict("V24SnapshotFixtureExecutionV2", {
@@ -1645,10 +1659,76 @@ CollectionSubscription = TypedDict("CollectionSubscription", {
   "quota": NotRequired[dict[str, object]],
 })
 
+MarketDataLatestDailyBarCompletion = TypedDict("MarketDataLatestDailyBarCompletion", {
+  "task": Required[object],
+  "completion": Required[object],
+})
+
+MarketDataDailyBarCompletionRequest = TypedDict("MarketDataDailyBarCompletionRequest", {
+  "scope": Required[dict[str, object]],
+  "fixtureVersion": NotRequired[Literal['v2.1-daily-bars-1', 'v24-c5-daily-bars-1']],
+})
+
+MarketDataDailyBarCompletionTaskResult = TypedDict("MarketDataDailyBarCompletionTaskResult", {
+  "task": Required[MarketDataDailyBarCompletionTask],
+  "created": Required[bool],
+  "dataMode": Required[Literal['FIXTURE', 'REAL']],
+  "externalRequests": Required[Literal[0]],
+  "placeOrders": Required[Literal[False]],
+})
+
+MarketDataDailyBarCompletionTask = TypedDict("MarketDataDailyBarCompletionTask", {
+  "taskId": Required[str],
+  "state": Required[Literal['QUEUED', 'CLAIMED', 'RETRY_WAIT', 'COMPLETED', 'FAILED']],
+  "scope": Required[dict[str, object]],
+  "fixtureVersion": Required[str | None],
+  "fixtureSha256": Required[str | None],
+  "sourceRequest": NotRequired[dict[str, object]],
+  "attempt": Required[int],
+  "maxAttempts": Required[int],
+  "leaseOwner": Required[str | None],
+  "leaseUntil": Required[str | None],
+  "nextAttemptAt": Required[str | None],
+  "lastError": Required[str | None],
+  "completionId": Required[str | None],
+  "createdAt": Required[str],
+  "updatedAt": Required[str],
+})
+
+MarketDataDailyBarCompletion = TypedDict("MarketDataDailyBarCompletion", {
+  "status": Required[Literal['COMPLETED_FIXTURE', 'COMPLETED_REAL', 'BLOCKED_SOURCE_AUTHORIZATION', 'REJECTED']],
+  "reason": Required[str | None],
+  "completionId": Required[str | None],
+  "dataVersion": Required[str],
+  "fixtureVersion": Required[str | None],
+  "sessionDate": Required[str],
+  "sourceId": Required[str],
+  "dataMode": Required[Literal['FIXTURE', 'REAL']],
+  "scope": Required[dict[str, object]],
+  "availableAt": Required[str | None],
+  "bars": Required[list[dict[str, object]]],
+})
+
+DailyBarScheduleRequestV1 = TypedDict("DailyBarScheduleRequestV1", {
+  "enabled": Required[bool],
+  "scope": Required[dict[str, object]],
+})
+
+DailyBarScheduleResultV1 = TypedDict("DailyBarScheduleResultV1", {
+  "scope": Required[dict[str, object]],
+  "enabled": Required[bool],
+  "enabledScopes": Required[int],
+  "fixture": Required[dict[str, object] | None],
+  "externalRequests": Required[Literal[0]],
+  "placeOrders": Required[Literal[False]],
+})
+
 MarketDataLiveNewsPreview = TypedDict("MarketDataLiveNewsPreview", {
   "observedAt": Required[str],
   "items": Required[list[dict[str, object]]],
   "sourceCount": Required[int],
+  "sources": NotRequired[list[dict[str, object]]],
+  "sourceFailures": NotRequired[list[str]],
   "deduplicated": Required[bool],
   "status": Required[Literal['PASS', 'PARTIAL']],
 })
@@ -1661,6 +1741,7 @@ LiveQuotePreview = TypedDict("LiveQuotePreview", {
   "ingestedAt": Required[str],
   "status": NotRequired[Literal['STALE']],
   "error": NotRequired[str],
+  "freshnessPolicy": NotRequired[dict[str, object]],
 })
 
 MarketDataAlertIncidentV1 = TypedDict("MarketDataAlertIncidentV1", {
@@ -1677,10 +1758,36 @@ MarketDataAlertIncidentV1 = TypedDict("MarketDataAlertIncidentV1", {
   "resolvedAt": Required[str | None],
 })
 
+MinuteBarPage = TypedDict("MinuteBarPage", {
+  "version": Required[str],
+  "items": Required[list[MinuteBar]],
+  "nextCursor": Required[str | None],
+})
+
+MinuteBar = TypedDict("MinuteBar", {
+  "securityId": Required[str],
+  "market": Required[str],
+  "frequency": Required[Literal['1m', '5m']],
+  "barStart": Required[str],
+  "barEnd": Required[str],
+  "availableAt": Required[str],
+  "open": Required[float],
+  "high": Required[float],
+  "low": Required[float],
+  "close": Required[float],
+  "volume": Required[float],
+  "amount": Required[float],
+  "adjustment": Required[Literal['RAW']],
+  "tradingStatus": Required[Literal['TRADING', 'SUSPENDED', 'UNKNOWN']],
+  "tradingStatusReference": Required[str | None],
+  "limitPriceReference": Required[dict[str, object]],
+})
+
 MinuteCsvImportRequest = TypedDict("MinuteCsvImportRequest", {
   "content": Required[str],
   "mapping": Required[dict[str, object]],
   "provenance": Required[dict[str, object]],
+  "historicalContext": NotRequired[dict[str, object]],
   "market": Required[Literal['CN_A']],
   "frequency": Required[Literal['1m', '5m']],
   "adjustment": Required[Literal['RAW']],
@@ -1722,7 +1829,7 @@ MinuteFixturePreview = TypedDict("MinuteFixturePreview", {
   "rows": Required[int],
   "securities": Required[int],
   "quality": Required[list[dict[str, object]]],
-  "bars": Required[list[dict[str, object]]],
+  "bars": Required[list[MinuteBar]],
 })
 
 MinuteImportRecord = TypedDict("MinuteImportRecord", {
@@ -1741,10 +1848,48 @@ MinuteOpenGaps = TypedDict("MinuteOpenGaps", {
   "open": Required[list[dict[str, object]]],
 })
 
+MarketDataMonitorEvaluationPolicyResult = TypedDict("MarketDataMonitorEvaluationPolicyResult", {
+  "policy": Required[dict[str, object]],
+  "consumer": Required[Literal['monitorOutboxWorker']],
+  "pendingEventsRetained": Required[Literal[True]],
+  "placeOrders": Required[Literal[False]],
+})
+
+MarketDataMonitorEvaluationPolicyUpdate = TypedDict("MarketDataMonitorEvaluationPolicyUpdate", {
+  "enabled": Required[bool],
+})
+
+MarketDataNewsFixtureHistory = TypedDict("MarketDataNewsFixtureHistory", {
+  "fixtureVersion": Required[Literal['v2.1-news-revisions-1']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "histories": Required[list[dict[str, object]]],
+})
+
+MarketDataNewsFixtureIngest = TypedDict("MarketDataNewsFixtureIngest", {
+  "fixtureVersion": Required[Literal['v2.1-news-revisions-1']],
+  "dataMode": Required[Literal['FIXTURE']],
+  "records": Required[list[dict[str, object]]],
+})
+
 MarketDataNewsPreview = TypedDict("MarketDataNewsPreview", {
   "items": Required[list[dict[str, object]]],
   "deduplicated": Required[bool],
   "sourceStatus": Required[str],
+  "dataMode": NotRequired[Literal['FIXTURE', 'LIVE_SOURCE']],
+})
+
+PaperReconciliationAlertRequestV1 = TypedDict("PaperReconciliationAlertRequestV1", {
+  "ownerId": Required[str],
+  "testRunId": Required[str],
+  "status": Required[Literal['MATCH', 'DISCREPANCY']],
+  "discrepancies": Required[list[dict[str, object]]],
+})
+
+PaperReconciliationAlertResultV1 = TypedDict("PaperReconciliationAlertResultV1", {
+  "status": Required[Literal['MATCH', 'DISCREPANCY']],
+  "alertKey": Required[str],
+  "created": Required[bool],
+  "incident": Required[object],
 })
 
 ProjectDataExportRequest = TypedDict("ProjectDataExportRequest", {
@@ -1786,16 +1931,100 @@ ProviderCapability = TypedDict("ProviderCapability", {
   "notes": NotRequired[list[str]],
 })
 
+MarketMonitorQuoteQualityEvaluationRequest = TypedDict("MarketMonitorQuoteQualityEvaluationRequest", {
+  "scope": Required[MarketMonitorQuoteQualityScope],
+  "taskId": Required[str],
+  "expectedSecurityIds": Required[list[str]],
+  "observations": Required[list[dict[str, object]]],
+})
+
+MarketMonitorLatestQuoteQuality = TypedDict("MarketMonitorLatestQuoteQuality", {
+  "quality": Required[object],
+})
+
+MarketMonitorQuoteQualityResult = TypedDict("MarketMonitorQuoteQualityResult", {
+  "scope": Required[MarketMonitorQuoteQualityScope],
+  "taskId": Required[str],
+  "expectedCount": Required[int],
+  "freshCount": Required[int],
+  "coverageRatio": Required[float],
+  "status": Required[Literal['READY', 'PARTIAL', 'UNAVAILABLE']],
+  "maxAgeSeconds": Required[int | None],
+  "anomalies": Required[list[dict[str, object]]],
+  "quoteRefs": Required[list[dict[str, object]]],
+  "evaluationId": Required[str],
+  "evaluatedAt": Required[str],
+})
+
+MarketMonitorQuoteQualityScope = TypedDict("MarketMonitorQuoteQualityScope", {
+  "market": Required[Literal['CN_A']],
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+})
+
 MarketDataSamplingConfig = TypedDict("MarketDataSamplingConfig", {
   "intervalMinutes": Required[Literal[20, 30]],
+  "settingsVersion": NotRequired[int],
+  "updatedAt": NotRequired[str | None],
+  "persistence": NotRequired[Literal['POSTGRESQL', 'UNAVAILABLE']],
+  "scheduleSeparation": NotRequired[dict[str, object]],
+  "policies": NotRequired[list[dict[str, object]]],
   "allowed": Required[list[Literal[20, 30]]],
   "tradingWindows": Required[list[dict[str, object]]],
   "lunchBreak": Required[list[str]],
   "placeOrders": Required[Literal[False]],
 })
 
+MarketDataSamplingTaskDecision = TypedDict("MarketDataSamplingTaskDecision", {
+  "execution": NotRequired[dict[str, object] | None],
+  "decision": Required[dict[str, object]],
+  "task": NotRequired[dict[str, object] | None],
+  "intervalMinutes": Required[Literal[20, 30]],
+  "settingsVersion": Required[int],
+  "externalRequests": Required[Literal[0]],
+  "dataMode": NotRequired[Literal['FIXTURE', 'REAL']],
+})
+
+MarketDataLatestSamplingTask = TypedDict("MarketDataLatestSamplingTask", {
+  "execution": NotRequired[dict[str, object] | None],
+  "task": Required[dict[str, object] | None],
+})
+
 MarketDataSamplingUpdate = TypedDict("MarketDataSamplingUpdate", {
   "intervalMinutes": Required[Literal[20, 30]],
+})
+
+ScopedWatchlistUpdate = TypedDict("ScopedWatchlistUpdate", {
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+  "holdings": Required[list[str]],
+  "inFlightOrders": Required[list[str]],
+  "candidates": Required[list[str]],
+})
+
+ScopedWatchlist = TypedDict("ScopedWatchlist", {
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+  "securities": Required[list[str]],
+  "count": Required[int],
+  "max": Required[Literal[100]],
+  "requiredCount": Required[int],
+  "omittedCandidates": Required[list[str]],
+  "updatedAt": NotRequired[str | None],
+})
+
+MarketDataSnapshotSchedule = TypedDict("MarketDataSnapshotSchedule", {
+  "scope": Required[dict[str, object]],
+  "sourceId": Required[Literal['tencent-quote', 'sina-quote']],
+  "enabled": Required[bool],
+  "externalRequests": NotRequired[Literal[0]],
+  "placeOrders": NotRequired[Literal[False]],
 })
 
 MarketDataSourceCircuitState = TypedDict("MarketDataSourceCircuitState", {

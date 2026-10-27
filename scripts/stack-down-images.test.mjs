@@ -29,6 +29,9 @@ test("succeeds when an isolated project owns no remaining image tags", () => {
 
 test("rejects invalid project names and image-filter results outside the project", () => {
   assert.equal(removeIsolatedProjectImages("stockquant").status, 2);
+  assert.equal(removeIsolatedProjectImages("sq-v21-stack-0123456789abcdef0123", (_command, args) => args[1] === "ls" && args.includes("--format")
+    ? { status: 0, stdout: "", stderr: "" }
+    : { status: 0, stdout: "", stderr: "" }).status, 0);
   const result = removeIsolatedProjectImages(project, (_command, args) => args.includes("--format")
     ? { status: 0, stdout: "unrelated:latest", stderr: "" }
     : { status: 0, stdout: "", stderr: "" });

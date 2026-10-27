@@ -24,6 +24,13 @@ describe("V2.4 isolated Fixture SNAPSHOT execution gate", () => {
     });
   });
 
+  it("allows the same isolated Fixture gate to evaluate a SELL; sellability remains a Portfolio reservation concern", () => {
+    const sell = { ...grant, signal: { ...grant.signal, action: "SELL" as const }, order: { ...grant.order, clientOrderId: "v24-fixture-v2-test-sell" } };
+    expect(evaluateV24PaperFixtureGrant(sell, fixtureClock(sell.clockNow))).toMatchObject({
+      status: "ELIGIBLE", reservedCash: "1005.0000", risk: { quoteAgeSeconds: 1, deviationBps: 0 }
+    });
+  });
+
   it("waits on unqualified snapshots and rejects LIVE writes and unsupported markets", () => {
     expect(evaluateV24PaperFixtureGrant({ ...grant, snapshot: { ...grant.snapshot, status: "STALE", observedAt: grant.order.acceptedAt } }, fixtureClock(grant.clockNow)).status).toBe("WAITING");
     expect(evaluateV24PaperFixtureGrant({ ...grant, liveTradingEnabled: true }, fixtureClock(grant.clockNow)).status).toBe("REJECTED");

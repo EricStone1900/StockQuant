@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "v1-historical-run-bundle-recovery-v1",
+  "date": "2026-10-12",
+  "stageId": "V1.2",
+  "sourceLog": {
+    "path": "evidence/audits/2026-10-12-v12-s83-browser-capture-e2e-a01.log",
+    "sha256": "c20b403638d41f1c9f24ad57c516517390a8da245268db30e4b63af39e73d21b"
+  },
+  "sourceReport": {
+    "path": "evidence/audits/2026-10-12-v12-s83-browser-capture-e2e-a01.json",
+    "sha256": "621b433d9979574d43001f757f44503461eec2d3f757330bbe7b477c95f98f69"
+  },
+  "recoveryBasis": "Exact JSON objects captured from Platform API persisted-readback log lines after the original isolated Web/API/CLI run; no fields inside each TestRun or assertion were synthesized. Human acceptance remains NOT_RUN.",
+  "recovered": [
+    {
+      "testRunId": "49be08a1-2a93-486f-9878-c755196c1366",
+      "scenario": "rejection",
+      "status": "COMPLETED",
+      "assertionCount": 1,
+      "manualConclusion": "NOT_RUN",
+      "evidenceSha256": "b83c42a21e2455a9c0214d5e0ec396a71f670e01a4c5dde26242cc068264b72d",
+      "captureReferences": 1
+    },
+    {
+      "testRunId": "75f53599-3488-4c44-b1f7-431d86bae38e",
+      "scenario": "recovery",
+      "status": "COMPLETED",
+      "assertionCount": 1,
+      "manualConclusion": "NOT_RUN",
+      "evidenceSha256": "e6d63e0aea77629e4be2aeb50ebe2b35f7e36462641437b3d25fe52001dc793f",
+      "captureReferences": 1
+    }
+  ],
+  "notRecovered": [
+    "5dc2a5a7-28f1-4c9f-a867-3a676994f5b4",
+    "19637177-937f-4bed-9512-c0a26f057eac",
+    "91990695-4b20-4a4d-9b8a-9fe29f448286"
+  ],
+  "limitations": [
+    "The V1.2 normal run has an existing bundle. This recovery creates two additional bundles from exact full persisted-readback API payloads.",
+    "The cancellation TestRun 19637177 has a complete payload but the source log does not record a same-Run CLI check; the Platform restart-recovery TestRun 91990695 has only a partial workflow summary, not a complete persisted-readback payload. Neither is reconstructed.",
+    "No screenshots or traces were copied; their paths/hashes are referenced from the original machine report.",
+    "No live database data was available for the exact UUIDs in the read-only check; no database or container was modified."
+  ]
+}

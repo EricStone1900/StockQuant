@@ -57,8 +57,16 @@ if (stage === "V1.5") {
   if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
   process.exit();
 }
+if (stage === "V2.1") {
+  const child = spawn(process.execPath, ["scripts/stack-up-v21-interactive.mjs"], { stdio: "inherit" });
+  let stopping = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.once(signal, () => { stopping = true; if (child.exitCode === null) child.kill(signal); });
+  const result = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  if (result.code !== 0 && !stopping) process.exitCode = result.code ?? 1;
+  process.exit();
+}
 if (stage !== "V1.1") {
-  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3|V1.4|V1.5");
+  console.error("usage: pnpm stack:up -- --stage V1.1|V1.2|V1.3|V1.4|V1.5|V2.1");
   process.exit(2);
 }
 
@@ -79,12 +87,13 @@ const envFile = path.join(stateDirectory, `${project}.env`);
 const stateFile = path.join(stateDirectory, `${project}.json`);
 const composeFile = "infra/compose/docker-compose.v11-integration.yml";
 const [apiPort, webPort] = await Promise.all([availableLoopbackPort(), availableLoopbackPort()]);
-const secretNames = ["PLATFORM_API", "PORTFOLIO_RISK", "TRADE_EXECUTION", "TRADE_EXECUTION_TEST", "HISTORICAL_REPLAY", "DECISION_GOVERNANCE", "QUANT_RESEARCH", "RESEARCH_AUTOMATION", "MARKET_DATA"];
+const secretNames = ["PLATFORM_API", "PORTFOLIO_RISK", "TRADE_EXECUTION", "TRADE_EXECUTION_TEST", "HISTORICAL_REPLAY", "DECISION_GOVERNANCE", "QUANT_RESEARCH", "RESEARCH_AUTOMATION", "MARKET_DATA", "MARKET_MONITOR"];
 const env = [
   `V11_HOST_PORT=${apiPort}`,
   `V11_WEB_HOST_PORT=${webPort}`,
   `STOCKQUANT_POSTGRES_SUPERUSER_PASSWORD=${randomBytes(32).toString("hex")}`,
   ...secretNames.map((name) => `STOCKQUANT_DATABASE_PASSWORD_${name}=${randomBytes(32).toString("hex")}`),
+  `STOCKQUANT_SERVICE_TOKEN_MARKET_MONITOR=${randomBytes(32).toString("hex")}`,
 ].join("\n") + "\n";
 const compose = (composeArgs, stdio = "inherit") => spawnSync("docker", ["compose", "-p", project, "--env-file", envFile, "-f", composeFile, ...composeArgs], { encoding: "utf8", stdio });
 let started = false;

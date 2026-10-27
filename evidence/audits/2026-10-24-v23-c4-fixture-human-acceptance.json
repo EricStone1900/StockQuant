@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "human-acceptance-v1",
+  "stageId": "V2.3",
+  "workPackage": "C4",
+  "status": "PASS",
+  "acceptedAt": "2026-10-24",
+  "confirmationSource": "项目所有者在当前对话中明确回复：确认 C4 本地 Fixture 范围验收通过。",
+  "acceptedScope": "仅限冻结合成Fixture上的锁版Qlib训练/预测、Artifact完整性与追溯、已保存模型独立推理复算和限制报告。SIMULATION_ONLY。",
+  "candidateBinding": {
+    "fixtureId": "v2.3-qlib-fit-input",
+    "fixtureVersion": "v2.3-qlib-fit-input-1",
+    "fixtureSha256": "1f99de3fb13b2cd0359a36bc2f202d2ed8359ea93d6b269a8845bc7b7e58c22e",
+    "command": "pnpm --filter @stockquant/quant-research-service qlib:fit-smoke",
+    "commandExitCode": 0,
+    "runtime": "Qlib 0.9.6 / LightGBM 4.7.0; linux/amd64 container emulated on Apple Silicon; network disabled",
+    "modelArtifactSha256": "08d29ca3ccefc37e887928d5a4512a9f63d53edef6cc91b4289e1731ec675695",
+    "testPredictionsSha256": "09d1563ed1102a87f6e71672e9b1238ce844094aa336cb33efeea6ac995bdbe3",
+    "independentRecompute": "24/24 predictions match; rtol=0, atol=1e-12"
+  },
+  "boundEvidence": [
+    "evidence/audits/2026-10-24-v23-c4-fixture-validation.md",
+    "evidence/local/V2.3/41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe/evidence.json",
+    "evidence/audits/2026-10-02-w4-v23-qlib-fixture-rerun.md"
+  ],
+  "limitations": [
+    "This acceptance applies only to the synthetic local Fixture learning scope.",
+    "Qlib modelValidation remains NOT_RUN; the independent step checks inference reproducibility of the saved model, not model quality, statistical validity or profitability.",
+    "Real market research, PIT, historical universe/corporate-action validation, RD-Agent, candidate execution, real brokerage and Ubuntu host acceptance remain NOT_RUN or out of scope.",
+    "Whole V2.3 and V2 status remain PARTIALLY_IMPLEMENTED."
+  ],
+  "wholeStageStatus": "PARTIALLY_IMPLEMENTED",
+  "note": "Records the project owner's explicit human acceptance of C4 local Fixture scope only. It does not alter immutable TestRuns or accept outstanding V2.3/V2 gates."
+}

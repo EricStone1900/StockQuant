@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "human-acceptance-v1",
+  "stageId": "V2.2",
+  "workPackage": "C3",
+  "status": "PASS",
+  "acceptedAt": "2026-10-23",
+  "confirmationSource": "项目所有者在当前候选复核后明确回复：人工验收已通过。",
+  "acceptedScope": "当前V2.2本地合成/Fixture软件操作闭环：CSV上传、分钟查询、覆盖分类、DataVersion比较、分钟聚合/日线参考对账及对应Web/CLI验收流程。",
+  "candidateBinding": {
+    "testRunId": "75300ba9-0807-48f5-80dc-a6cadce18b2c",
+    "testRunStatus": "COMPLETED",
+    "assertions": "5/5 PASS",
+    "evidenceManifestSha256": "b95d07c9b2123279990bbf70bc8541f29ff78e12f47cf2f28a96a5e75d10c827",
+    "sourceWorkspaceHash": "NOT_RECORDED"
+  },
+  "independentRecheck": {
+    "manifestMatchesEvidenceJson": true,
+    "normalRejectionRecoveryAndSameRunCli": "PASS per current candidate audit",
+    "csvServiceRestartAndFinalizingRecovery": "PASS per current candidate audit",
+    "parquetDatabaseAndServiceRestartRecovery": "PASS per current candidate audit",
+    "externalSourceRequests": 0
+  },
+  "limitations": [
+    "Coverage report is INCOMPLETE: 240 expected bars, 160 valid bars, 80 UNKNOWN, 0 confirmed missing.",
+    "The daily reference values were operator supplied and not independently verified.",
+    "researchUseAllowed=true in this TestRun applies only to the locally generated synthetic CSV; it does not establish rights for external historical sources.",
+    "External source license remains UNCONFIRMED and HISTORICAL_RESEARCH remains disabled.",
+    "Authoritative per-bar trading/suspension/limit-price facts remain unverified and are UNKNOWN/null when absent.",
+    "No positive historical research replay was performed; V2.2 and C3 remain PARTIALLY_IMPLEMENTED."
+  ],
+  "wholeStageStatus": "PARTIALLY_IMPLEMENTED",
+  "note": "This record captures the owner's human acceptance of the bound local software candidate. It does not modify the immutable TestRun export or imply acceptance of the unresolved external-source, factual-history, or historical-research gates."
+}

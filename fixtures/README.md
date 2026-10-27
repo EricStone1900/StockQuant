@@ -30,6 +30,8 @@ fixtures/<version>/<stage>/      后续阶段固定输入
 
 V1.2双市场研究样本的当前版本为[`v1.2-market-data-5`](./v1/v1.2/v1.2-market-data-5/manifest.json)。它在`market_sessions.csv`中明确列出CN_A与US_EQUITY的合成预期交易日，用于发现整市场某日完全缺少Bars的情况；该日历为合成工作日，不代表交易所休市/开市规则。旧版`v1.2-market-data-4`保留为历史冻结输入，不覆盖。
 
+V2.4 C5的[`v24-sampled-paper-composition-1`](./v2/v2.4/paper-execution-v2/manifest.json)将V2.1冻结快照采样Fixture与测试专用信号/执行窗口组合；它只用于FIXTURE/PAPER/FAKE同Run验收，证券池保留V2.1源Fixture要求的三只证券范围，实际Paper信号只针对600000.SH。配套的[`v24-c5-daily-bars-1`](./v2/v2.4/c5-daily-bar-completion/manifest.json)为同一三证券范围提供独立合成`DAILY_BAR`完成输入，并验证持久任务重放；两者均不启用真实来源、策略或常驻调度。
+
 ## 场景可复现性
 
 每个场景固定输入、规则版本、Clock、seed、故障计划和预期断言。并发故障还要保存实际注入顺序；seed 不能替代事件序列。重新运行创建新 testRunId/namespace，但引用相同 Fixture 版本和 Hash。
@@ -94,7 +96,13 @@ The fixed-fixture reference calculator is `pnpm --filter @stockquant/quant-resea
 
 ## V2.3 锁版 Qlib 拟合输入
 
+C5另有独立合成输入[`v24-daily-direction-1`](./v2/v2.4/daily-direction-v1/manifest.json)：两根已完成日线收盘价与固定Clock账户/期限上下文，用于计算和持久化候选A的日频目标。该Fixture只用于`SIMULATION_ONLY`隔离验收；不覆盖真实源、活动Mandate或20日观察，不覆盖C4研究输入。SHA-256与Schema独立冻结，不改写既有采样或交易Fixture。
+
 `v2/v2.3/qlib-fit/manifest.json` 冻结了 `qlib-fit-input.json`（120行、5个合成特征、合成标签与逐行时间可用性，训练/验证/测试切分为 `[0,72)`/`[72,96)`/`[96,120)`）。Platform TestRun 直接读取该文件并在使用前重算 Manifest SHA-256。该 Fixture 只用于验证锁版 Qlib 训练、预测及时间切分拒绝路径；不是行情/收益数据、真实市场 PIT 证据或独立模型验证。
+
+## V2.1 合成快照采样输入
+
+[`v2.1-snapshot-sampling-1`](./v2/v2.1-snapshot-sampling/manifest.json) 冻结两条 CN_A/CNY 合成快照记录，用于明确执行采样时点、持久化Fixture版本/Hash/结果、幂等重放及进程重启恢复。输入SHA-256为`9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c`。仅显式Fixture tick使用此文件；普通采样tick在OD-008未授权时仍返回`BLOCKED_SOURCE_AUTHORIZATION`，不得把该Fixture作为真实行情源、实时新鲜度或供应商能力证据。
 
 ## V1.3 合成多腿 Paper 输入（执行验证待进行）
 

@@ -15,7 +15,7 @@
     "manifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mapping", "semantics", "provenance", "researchUseAllowed"],
+      "required": ["mapping", "semantics", "provenance", "researchUseAllowed", "historicalContext", "historicalContextStatus"],
       "properties": {
         "mapping": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
         "semantics": {"type": "object", "additionalProperties": {"type": "string"}},
@@ -36,7 +36,17 @@
             }
           ]
         },
-        "researchUseAllowed": {"type": "boolean"}
+        "researchUseAllowed": {"type": "boolean"},
+        "historicalContext": {
+          "type": "object", "additionalProperties": false,
+          "required": ["securityUniverseVersion", "marketRuleSetVersion", "corporateActionVersion"],
+          "properties": {
+            "securityUniverseVersion": {"type": ["string", "null"], "maxLength": 120},
+            "marketRuleSetVersion": {"type": ["string", "null"], "maxLength": 120},
+            "corporateActionVersion": {"type": ["string", "null"], "maxLength": 120}
+          }
+        },
+        "historicalContextStatus": {"enum": ["READY_FOR_REVIEW", "LIMITED_MISSING_REFERENCES"]}
       }
     },
     "idempotent": {"type": "boolean"}

@@ -1875,6 +1875,7 @@ export type V24PaperAuthorizationValidation = {
 export type V24PaperExecutionCommand = {
   "authorizationId": string;
   "grant": V24PaperExecutionGrant;
+  "initialAccountCash"?: string;
 }
 
 export type V24PaperExecutionGrant = {
@@ -1914,7 +1915,7 @@ export type V24PaperExecutionGrant = {
   "signal": {
   "signalId": string;
   "asOf": string;
-  "action": 'BUY';
+  "action": 'BUY' | 'SELL';
   "quantity": number;
   "referencePrice": string;
 };
@@ -2155,33 +2156,33 @@ export type V24PaperReadiness = {
 export type V24PaperStageRunAccepted = {
   "accepted": true;
   "testRunId": string;
-  "status": 'WAITING';
+  "status": 'WAITING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
 }
 
 export type V24PaperStageRunRequest = {
-  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation' | 'crossday-settlement' | 'candidate-binding';
   "seed": number;
 }
 
 export type V24PaperStageRunResult = {
   "testRunId": string;
   "stageId": 'V2.4';
-  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation' | 'crossday-settlement' | 'candidate-binding';
   "scenarioVersion": string;
   "ownerId": string;
   "namespace": string;
-  "status": 'WAITING';
+  "status": 'QUEUED' | 'RUNNING' | 'WAITING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   "seed": number;
   "assertions": Array<{
   "assertionId": string;
-  "status": 'WAITING';
+  "status": 'WAITING' | 'PASS' | 'FAIL';
   "expected": unknown;
   "actual": unknown;
 }>;
   "evidence": {
   "testRunId": string;
   "stageId": 'V2.4';
-  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation';
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation' | 'crossday-settlement' | 'candidate-binding';
   "scenarioVersion": string;
   "seed": number;
   "status": 'WAITING';
@@ -2219,9 +2220,82 @@ export type V24PaperStageRunResult = {
   "expected": unknown;
   "actual": unknown;
 }>;
+} | {
+  "schemaVersion": 'v24-paper-execution-evidence-v2';
+  "testRunId": string;
+  "scenarioId": 'normal' | 'rejection' | 'recovery' | 'external-reconciliation' | 'crossday-settlement' | 'candidate-binding';
+  "scenarioVersion": string;
+  "environmentMode": 'PAPER';
+  "dataMode": 'FIXTURE';
+  "brokerMode": 'FAKE';
+  "namespace": string;
+  "executionPolicy": {
+  "status": 'ISOLATED_FIXTURE_ONLY';
+  "liveTradingEnabled": false;
+};
+  "observationDays": 0;
+  "humanAcceptance": 'NOT_RUN';
+  "dailyTarget"?: {
+  "targetId": string;
+  "testRunId": string;
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "strategyVersion": 'c5-daily-direction-v1';
+  "strategySha256": string;
+  "fixtureSha256": string;
+  "dataMode": 'FIXTURE';
+  "sessionDate": string;
+  "evaluationAt": string;
+  "decision": {
+  "action": 'BUY' | 'SELL' | 'HOLD' | 'PAUSED';
+  "quantity": number;
+  "reason": string;
+};
+  "clientOrderId": string | null;
+  "targetQuantity": number | null;
+};
 };
   "createdAt": string;
-  "completedAt": null;
+  "completedAt": string | null;
+}
+
+export type V24SampledPaperComposition = {
+  "$schema"?: string;
+  "fixtureId": 'v24-sampled-paper-composition';
+  "fixtureVersion": 'v24-sampled-paper-composition-1';
+  "dataMode": 'FIXTURE';
+  "market": 'CN_A';
+  "currency": 'CNY';
+  "sampling": {
+  "sourceFixtureVersion": 'v2.1-snapshot-sampling-1';
+  "scheduledAt": '2026-10-16T09:50:00+08:00';
+  "acceptanceIntervalMinutes": 20;
+  "security": '600000.SH';
+  "watchlistSecurities": ['600000.SH','000001.SZ','600519.SH'];
+  "expectedPrice": '10.2500';
+};
+  "dailyBar": {
+  "sourceFixtureVersion": 'v24-c5-daily-bars-1';
+  "sessionDate": '2026-10-16';
+  "expectedSecurityIds": ['600000.SH','000001.SZ','600519.SH'];
+};
+  "signal": {
+  "signalId": 'fixture-v24-sampled-signal-600000-20261016';
+  "asOf": '2026-10-15T15:00:00+08:00';
+  "action": 'BUY';
+  "quantity": 100;
+  "referencePrice": '10.2500';
+};
+  "execution": {
+  "windowStart": '2026-10-16T09:49:00+08:00';
+  "windowEnd": '2026-10-16T09:55:00+08:00';
+  "acceptedAt": '2026-10-16T09:49:00+08:00';
+  "maxOrderNotional": '1100.0000';
+  "fee": '5.0000';
+  "expectedCashAfterFill": '8970.0000';
+  "expectedReservation": '1030.0000';
+};
 }
 
 export type V24SnapshotFixtureExecutionV2 = {
@@ -2437,6 +2511,114 @@ export type CollectionSubscription = {
 };
 }
 
+export type MarketDataLatestDailyBarCompletion = {
+  "task": MarketDataDailyBarCompletionTask | null;
+  "completion": MarketDataDailyBarCompletion | null;
+}
+
+export type MarketDataDailyBarCompletionRequest = {
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+};
+  "fixtureVersion"?: 'v2.1-daily-bars-1' | 'v24-c5-daily-bars-1';
+}
+
+export type MarketDataDailyBarCompletionTaskResult = {
+  "task": MarketDataDailyBarCompletionTask;
+  "created": boolean;
+  "dataMode": 'FIXTURE' | 'REAL';
+  "externalRequests": 0;
+  "placeOrders": false;
+}
+
+export type MarketDataDailyBarCompletionTask = {
+  "taskId": string;
+  "state": 'QUEUED' | 'CLAIMED' | 'RETRY_WAIT' | 'COMPLETED' | 'FAILED';
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string | null;
+  "namespace": string | null;
+  "testRunId": string | null;
+};
+  "fixtureVersion": string | null;
+  "fixtureSha256": string | null;
+  "sourceRequest"?: {
+  "sourceId": 'eastmoney-daily';
+  "sessionDate": string;
+  "securityIds": Array<string>;
+  "dataVersion": string;
+};
+  "attempt": number;
+  "maxAttempts": number;
+  "leaseOwner": string | null;
+  "leaseUntil": string | null;
+  "nextAttemptAt": string | null;
+  "lastError": string | null;
+  "completionId": string | null;
+  "createdAt": string;
+  "updatedAt": string;
+}
+
+export type MarketDataDailyBarCompletion = {
+  "status": 'COMPLETED_FIXTURE' | 'COMPLETED_REAL' | 'BLOCKED_SOURCE_AUTHORIZATION' | 'REJECTED';
+  "reason": string | null;
+  "completionId": string | null;
+  "dataVersion": string;
+  "fixtureVersion": string | null;
+  "sessionDate": string;
+  "sourceId": string;
+  "dataMode": 'FIXTURE' | 'REAL';
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string | null;
+  "namespace": string | null;
+  "testRunId": string | null;
+};
+  "availableAt": string | null;
+  "bars": Array<{
+  "securityId": string;
+  "sessionDate": string;
+  "open": string;
+  "high": string;
+  "low": string;
+  "close": string;
+  "volume": number;
+  "amount": string;
+}>;
+}
+
+export type DailyBarScheduleRequestV1 = {
+  "enabled": boolean;
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+};
+}
+
+export type DailyBarScheduleResultV1 = {
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+};
+  "enabled": boolean;
+  "enabledScopes": number;
+  "fixture": Record<string, unknown> | null;
+  "externalRequests": 0;
+  "placeOrders": false;
+}
+
 export type MarketDataLiveNewsPreview = {
   "observedAt": string;
   "items": Array<{
@@ -2449,8 +2631,27 @@ export type MarketDataLiveNewsPreview = {
   "availableAt": string;
   "revision": number;
   "symbols": Array<string>;
+  "sourceIds": Array<string>;
+  "publicationTimeStatus": 'KNOWN' | 'UNKNOWN';
+  "entityMatchStatus": 'LINKED' | 'UNMATCHED' | 'AMBIGUOUS';
+  "revisionStatus": 'VERIFIED_STABLE_SOURCE_ID' | 'UNVERIFIED_NO_STABLE_SOURCE_ID';
+  "sourceItemId": string;
+  "sourceUrl": string;
+  "sourceArticles": Array<{
+  "sourceId": string;
+  "sourceItemId": string | null;
+  "sourceUrl": string | null;
+  "title": string;
+  "publishedAt": string | null;
+  "revision": number;
+}>;
 }>;
   "sourceCount": number;
+  "sources"?: Array<{
+  "sourceId": string;
+  "status": 'RECEIVED' | 'UNAVAILABLE';
+}>;
+  "sourceFailures"?: Array<string>;
   "deduplicated": boolean;
   "status": 'PASS' | 'PARTIAL';
 }
@@ -2460,16 +2661,23 @@ export type LiveQuotePreview = {
   "requestedSymbols": Array<string>;
   "securities": Array<{
   "symbol": string;
-  "price": number;
+  "price": number | null;
   "name": string | null;
   "observedAt": string | null;
   "ingestedAt": string;
   "status": 'LIVE_SOURCE' | 'MISSING_TIMESTAMP' | 'MALFORMED' | 'SOURCE_ERROR';
+  "freshness": 'FRESH' | 'STALE' | 'UNKNOWN';
+  "ageSeconds": number | null;
 }>;
   "count": number;
   "ingestedAt": string;
   "status"?: 'STALE';
   "error"?: string;
+  "freshnessPolicy"?: {
+  "maxAgeMinutes": 20 | 30;
+  "clock": 'UTC_INSTANT';
+  "status": 'CONFIGURED' | 'DEFAULT_UNPERSISTED';
+};
 }
 
 export type MarketDataAlertIncidentV1 = {
@@ -2485,6 +2693,37 @@ export type MarketDataAlertIncidentV1 = {
   "acknowledgedAt": string | null;
   "resolvedAt": string | null;
 }
+
+export type MinuteBarPage = {
+  "version": string;
+  "items": Array<MinuteBar>;
+  "nextCursor": string | null;
+}
+
+export type MinuteBar = {
+  "securityId": string;
+  "market": string;
+  "frequency": '1m' | '5m';
+  "barStart": string;
+  "barEnd": string;
+  "availableAt": string;
+  "open": number;
+  "high": number;
+  "low": number;
+  "close": number;
+  "volume": number;
+  "amount": number;
+  "adjustment": 'RAW';
+  "tradingStatus": 'TRADING' | 'SUSPENDED' | 'UNKNOWN';
+  "tradingStatusReference": string | null;
+  "limitPriceReference": {
+  "status": 'AVAILABLE' | 'NOT_APPLICABLE' | 'UNKNOWN';
+  "upperLimit": number | null;
+  "lowerLimit": number | null;
+  "marketRuleSetVersion": string | null;
+  "sourceReference": string | null;
+};
+} & unknown & unknown & unknown & unknown & unknown
 
 export type MinuteCsvImportRequest = {
   "content": string;
@@ -2504,6 +2743,11 @@ export type MinuteCsvImportRequest = {
   "licenseStatement": string;
   "licenseVerification": 'OPERATOR_CONFIRMED' | 'UNCONFIRMED';
   "acquiredAt": string;
+};
+  "historicalContext"?: {
+  "securityUniverseVersion": string | null;
+  "marketRuleSetVersion": string | null;
+  "corporateActionVersion": string | null;
 };
   "market": 'CN_A';
   "frequency": '1m' | '5m';
@@ -2532,6 +2776,11 @@ export type MinuteCsvUploadCreateRequest = {
   "licenseStatement": string;
   "licenseVerification": 'OPERATOR_CONFIRMED' | 'UNCONFIRMED';
   "acquiredAt": string;
+};
+  "historicalContext"?: {
+  "securityUniverseVersion": string | null;
+  "marketRuleSetVersion": string | null;
+  "corporateActionVersion": string | null;
 };
   "market": 'CN_A';
   "frequency": '1m' | '5m';
@@ -2566,21 +2815,7 @@ export type MinuteFixturePreview = {
   "code": string;
   "row": number;
 }>;
-  "bars": Array<{
-  "securityId": string;
-  "market": string;
-  "frequency": string;
-  "barStart": string;
-  "barEnd": string;
-  "availableAt": string;
-  "open": number;
-  "high": number;
-  "low": number;
-  "close": number;
-  "volume": number;
-  "amount": number;
-  "adjustment": string;
-}>;
+  "bars": Array<MinuteBar>;
 }
 
 export type MinuteImportRecord = {
@@ -2601,6 +2836,12 @@ export type MinuteImportRecord = {
   "acquiredAt": string;
 };
   "researchUseAllowed": boolean;
+  "historicalContext": {
+  "securityUniverseVersion": string | null;
+  "marketRuleSetVersion": string | null;
+  "corporateActionVersion": string | null;
+};
+  "historicalContextStatus": 'READY_FOR_REVIEW' | 'LIMITED_MISSING_REFERENCES';
 };
   "idempotent": boolean;
 }
@@ -2610,17 +2851,86 @@ export type MinuteOpenGaps = {
   "open": Array<Record<string, unknown>>;
 }
 
+export type MarketDataMonitorEvaluationPolicyResult = {
+  "policy": {
+  "policyId": 'monitorEvaluation';
+  "version": number;
+  "enabled": boolean;
+  "trigger": 'ON_QUOTE_AVAILABLE';
+  "executor": 'CONFIGURED';
+};
+  "consumer": 'monitorOutboxWorker';
+  "pendingEventsRetained": true;
+  "placeOrders": false;
+}
+
+export type MarketDataMonitorEvaluationPolicyUpdate = {
+  "enabled": boolean;
+}
+
+export type MarketDataNewsFixtureHistory = {
+  "fixtureVersion": 'v2.1-news-revisions-1';
+  "dataMode": 'FIXTURE';
+  "histories": Array<{
+  "sourceId": string;
+  "sourceItemId": string;
+  "sourceUrl": string | null;
+  "title": string;
+  "publishedAt": string | null;
+  "symbols": Array<string>;
+  "observedAt": string;
+  "ingestedAt": string;
+  "availableAt": string;
+  "revision": number;
+  "contentHash": string;
+  "supersedesRevision": number | null;
+  "publicationTimeStatus": 'KNOWN' | 'UNKNOWN';
+  "entityMatchStatus": 'LINKED' | 'UNMATCHED' | 'AMBIGUOUS';
+  "revisionStatus": 'VERIFIED_STABLE_SOURCE_ID';
+}>;
+}
+
+export type MarketDataNewsFixtureIngest = {
+  "fixtureVersion": 'v2.1-news-revisions-1';
+  "dataMode": 'FIXTURE';
+  "records": Array<{
+  "sourceId": string;
+  "sourceItemId": string;
+  "revision": number;
+  "created": boolean;
+}>;
+}
+
 export type MarketDataNewsPreview = {
   "items": Array<{
   "newsId": string;
   "sourceId": string;
   "title": string;
-  "publishedAt": string;
+  "publishedAt": string | null;
   "revision": number;
   "symbols": Array<string>;
+  "sourceIds"?: Array<string>;
+  "publicationTimeStatus"?: 'KNOWN' | 'UNKNOWN';
+  "entityMatchStatus"?: 'LINKED' | 'UNMATCHED' | 'AMBIGUOUS';
+  "revisionStatus"?: 'UNVERIFIED_NO_STABLE_SOURCE_ID';
 }>;
   "deduplicated": boolean;
   "sourceStatus": string;
+  "dataMode"?: 'FIXTURE' | 'LIVE_SOURCE';
+}
+
+export type PaperReconciliationAlertRequestV1 = {
+  "ownerId": string;
+  "testRunId": string;
+  "status": 'MATCH' | 'DISCREPANCY';
+  "discrepancies": Array<Record<string, unknown>>;
+}
+
+export type PaperReconciliationAlertResultV1 = {
+  "status": 'MATCH' | 'DISCREPANCY';
+  "alertKey": string;
+  "created": boolean;
+  "incident": MarketDataAlertIncidentV1 | null;
 }
 
 export type ProjectDataExportRequest = {
@@ -2662,8 +2972,93 @@ export type ProviderCapability = {
   "notes"?: Array<string>;
 }
 
+export type MarketMonitorQuoteQualityEvaluationRequest = {
+  "scope": MarketMonitorQuoteQualityScope;
+  "taskId": string;
+  "expectedSecurityIds": Array<string>;
+  "observations": Array<{
+  "securityId": string;
+  "snapshotId": string;
+  "sourceId": string;
+  "dataMode": 'FIXTURE' | 'REAL';
+  "observedAt": string | null;
+  "ingestedAt": string | null;
+  "availableAt": string | null;
+  "ageSeconds": number | null;
+  "freshness": 'FRESH' | 'STALE' | 'UNKNOWN';
+  "status": 'READY' | 'STALE' | 'UNKNOWN';
+}>;
+}
+
+export type MarketMonitorLatestQuoteQuality = {
+  "quality": MarketMonitorQuoteQualityResult | null;
+}
+
+export type MarketMonitorQuoteQualityResult = {
+  "scope": MarketMonitorQuoteQualityScope;
+  "taskId": string;
+  "expectedCount": number;
+  "freshCount": number;
+  "coverageRatio": number;
+  "status": 'READY' | 'PARTIAL' | 'UNAVAILABLE';
+  "maxAgeSeconds": number | null;
+  "anomalies": Array<{
+  "securityId": string;
+  "code": 'QUOTE_MISSING' | 'QUOTE_STALE' | 'QUOTE_TIME_UNKNOWN';
+  "snapshotId": string | null;
+}>;
+  "quoteRefs": Array<{
+  "securityId": string;
+  "snapshotId": string;
+  "sourceId": string;
+  "dataMode": 'FIXTURE' | 'REAL';
+  "observedAt": string | null;
+  "ingestedAt": string | null;
+  "availableAt": string | null;
+  "ageSeconds": number | null;
+  "freshness": 'FRESH' | 'STALE' | 'UNKNOWN';
+  "status": 'READY' | 'STALE' | 'UNKNOWN';
+}>;
+  "evaluationId": string;
+  "evaluatedAt": string;
+}
+
+export type MarketMonitorQuoteQualityScope = {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+}
+
 export type MarketDataSamplingConfig = {
   "intervalMinutes": 20 | 30;
+  "settingsVersion"?: number;
+  "updatedAt"?: string | null;
+  "persistence"?: 'POSTGRESQL' | 'UNAVAILABLE';
+  "scheduleSeparation"?: {
+  "snapshotSampling"?: 'CONFIGURED';
+  "monitorEvaluation"?: 'CONFIGURED';
+  "orderExecution"?: 'NOT_CONFIGURED';
+  "dailyBarCompletion"?: 'NOT_CONFIGURED';
+  "strategyEvaluation"?: 'NOT_CONFIGURED';
+};
+  "policies"?: Array<{
+  "policyId": 'snapshotSampling' | 'monitorEvaluation' | 'dailyBarCompletion' | 'strategyEvaluation' | 'orderExecution';
+  "version": number;
+  "enabled": boolean;
+  "trigger": 'FIXED_INTERVAL' | 'ON_QUOTE_AVAILABLE' | 'AFTER_SESSION_CLOSE' | 'ON_DAILY_BAR_READY' | 'C5_EXECUTION_WINDOW';
+  "intervalMinutes": 20 | 30 | null;
+  "timezone": 'Asia/Shanghai';
+  "windows": Array<{
+  "name": string;
+  "start": string;
+  "end": string;
+}>;
+  "activationGate": 'SOURCE_AUTHORIZATION' | 'DATA_READY' | 'OD007_APPROVAL' | 'C5_APPROVAL';
+  "executor": 'CONFIGURED' | 'NOT_IMPLEMENTED';
+  "updatedAt": string | null;
+}>;
   "allowed": Array<20 | 30>;
   "tradingWindows": Array<{
   "name": string;
@@ -2674,8 +3069,65 @@ export type MarketDataSamplingConfig = {
   "placeOrders": false;
 }
 
+export type MarketDataSamplingTaskDecision = {
+  "execution"?: Record<string, unknown> | null;
+  "decision": {
+  "status": 'ELIGIBLE' | 'CLOSED' | 'NOT_SAMPLING_TICK' | 'UNKNOWN_CALENDAR';
+  "localTime": string;
+  "calendarVersion": string;
+  "window": 'morning' | 'afternoon' | null;
+};
+  "task"?: Record<string, unknown> | null;
+  "intervalMinutes": 20 | 30;
+  "settingsVersion": number;
+  "externalRequests": 0;
+  "dataMode"?: 'FIXTURE' | 'REAL';
+}
+
+export type MarketDataLatestSamplingTask = {
+  "execution"?: Record<string, unknown> | null;
+  "task": Record<string, unknown> | null;
+}
+
 export type MarketDataSamplingUpdate = {
   "intervalMinutes": 20 | 30;
+}
+
+export type ScopedWatchlistUpdate = {
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "holdings": Array<string>;
+  "inFlightOrders": Array<string>;
+  "candidates": Array<string>;
+}
+
+export type ScopedWatchlist = {
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "securities": Array<string>;
+  "count": number;
+  "max": 100;
+  "requiredCount": number;
+  "omittedCandidates": Array<string>;
+  "updatedAt"?: string | null;
+}
+
+export type MarketDataSnapshotSchedule = {
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+};
+  "sourceId": 'tencent-quote' | 'sina-quote';
+  "enabled": boolean;
+  "externalRequests"?: 0;
+  "placeOrders"?: false;
 }
 
 export type MarketDataSourceCircuitState = {
@@ -2692,6 +3144,7 @@ export type MarketDataSourceInventory = {
   "status": string;
   "license"?: string;
   "circuit": string;
+  "samplingHealth": Record<string, unknown> | null;
 }>;
   "checkedAt": string;
   "note"?: string;

@@ -1,0 +1,105 @@
+{
+  "status": "PASS",
+  "testRunId": "a0282ef8-d563-4131-bf70-f9c127ee167d",
+  "dataMode": "SYNTHETIC_HTTP_REAL_SERVICES",
+  "humanAcceptance": "NOT_RUN",
+  "assertions": [
+    {
+      "id": "REAL_WORKER_PERSISTENCE",
+      "status": "PASS",
+      "taskId": "CN_A:snapshot:REAL:tencent-quote:0:c727c94da86eace92c874217154d399cdca5e7f0fc8ea16ec8251ad3a418bc5e:2026-10-21T01:30:00.000Z",
+      "freshness": [
+        "FRESH",
+        "FRESH"
+      ]
+    },
+    {
+      "id": "REAL_MONITOR_OUTBOX",
+      "status": "PASS",
+      "evaluationId": "quotequality:ff230d768a0b4de34c9c8b5de6d73f7218ea55fb87aed3e5996aeb67cfdd53e5",
+      "qualityStatus": "READY",
+      "freshCount": 2
+    },
+    {
+      "id": "REPEATED_TICK_ZERO_REQUESTS",
+      "status": "PASS"
+    },
+    {
+      "id": "INDEPENDENT_REAL_DAILY_BARS",
+      "status": "PASS",
+      "taskId": "dailybarreal:af51362318bc14e222511056ab6d3ccf71d2b122c865dad5a2b2717d7146827c",
+      "completionId": "dailybar:634f944055c371e41caf79056828d7ae0a03ed06a94a6cefb1abeda69cec0df4",
+      "sourceId": "eastmoney-daily",
+      "sessionDate": "2026-10-21",
+      "barsSha256": "1a8cd138ff72bba067387bc5fed003a09c5986aa0b3f058e71ce7ae8873c5b28"
+    },
+    {
+      "id": "CIRCUIT_AND_CACHE_ZERO_REQUESTS",
+      "status": "PASS",
+      "persistedArticles": 2
+    },
+    {
+      "id": "SERVICE_RESTART_PERSISTENCE",
+      "status": "PASS"
+    }
+  ],
+  "sourceRequests": [
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "qt.gtimg.cn",
+      "path": "/q=sh600000,sz000001",
+      "query": ""
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "push2his.eastmoney.com",
+      "path": "/api/qt/stock/kline/get",
+      "query": "?secid=0.000001&klt=101&fqt=0&beg=20261021&end=20261021&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57"
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "push2his.eastmoney.com",
+      "path": "/api/qt/stock/kline/get",
+      "query": "?secid=1.600000&klt=101&fqt=0&beg=20261021&end=20261021&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57"
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "finance.eastmoney.com",
+      "path": "/",
+      "query": ""
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "www.cls.cn",
+      "path": "/",
+      "query": ""
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "finance.eastmoney.com",
+      "path": "/a/123.html",
+      "query": ""
+    },
+    {
+      "event": "SOURCE_REQUEST",
+      "host": "www.cls.cn",
+      "path": "/detail/123",
+      "query": ""
+    }
+  ],
+  "environment": {
+    "host": "darwin",
+    "arch": "arm64",
+    "node": "v24.1.0",
+    "isolatedPostgres": "sq-test-postgres-195a1d3e6e565f43"
+  },
+  "limitations": [],
+  "codeSha256": {
+    "scripts/c2-source-pipeline-smoke.mjs": "a6f3f42ae1b3261e452e4745246eb9458166d02b4dd94504267bd6c7f89e8c7a",
+    "src/bootstrap/main.ts": "485a5d997cbd81795be1ee5b53f29e46853925d4f830e5077f410077bb83900c",
+    "src/adapters/eastmoney-daily-bar-provider.ts": "759e3710df226991352155a8ee8a1a002f7b49b9b8228b1702920f5104e12608",
+    "src/adapters/postgres-daily-bar-completion-repository.ts": "9d4e115143549181ccf7102c99280c98001b7caa8708cbb272e7eca948fa4706"
+  },
+  "externalRequests": 0,
+  "transformation": "Injected HTTP quotes use the test process instant; independent daily OHLCV copied from v2.1-daily-bars-1 and date relabelled to the test session; news HTML is synthetic. Provider HTTP alone is substituted; production workers, HTTP services and isolated PostgreSQL are real."
+}

@@ -12,30 +12,56 @@ import { CollectionScheduleConflict } from "../domain/collection-schedule.js";
 import { PersistentCollectionSchedulerWorker } from "../application/persistent-collection-scheduler.js";
 import { PersistentCollectionExecutor, PythonMinuteCollectionAdapter } from "../application/collection-executor.js";
 import { buildCoverage, validateBars, type QualityBar } from "../application/minute-quality.js";
+import { compareMinuteDailyAggregate } from "../application/minute-daily-aggregate.js";
 import { CoverageRepository } from "../adapters/postgres-coverage-repository.js";
 import { BackfillConflict } from "../domain/coverage.js";
 import { validateGapRequest } from "../application/coverage-request.js";
 import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWithManifest, paginateVersioned, physicalDedupeKey, type ProjectActor, type ProjectScope } from "../application/project-delivery.js";
 import { parseProjectTokenConfig } from "../application/project-token-config.js";
 import { ProjectAccessRepository } from "../adapters/postgres-project-access-repository.js";
-import { migrateMarketDataSchema } from "../adapters/postgres-schema-migrations.js";
+import { migrateDailyBarCloseSchedulerSchema, migrateDailyBarCompletionSchema, migrateMarketDataSchema, migrateMonitorConsumerOutboxSchema } from "../adapters/postgres-schema-migrations.js";
 import { ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../ports/project-access.js";
 import { ArtifactDeliveryRepository } from "../adapters/postgres-artifact-delivery-repository.js";
 import { ArtifactTaskExecutor } from "../application/artifact-task-executor.js";
 import { AlertOutboxRepository } from "../adapters/postgres-alert-outbox-repository.js";
 import { PublicSourceHttpAdapter } from "../adapters/public-source-http-adapter.js";
+import { TencentSnapshotSamplingProvider } from "../adapters/tencent-snapshot-sampling-provider.js";
+import { SinaSnapshotSamplingProvider } from "../adapters/sina-snapshot-sampling-provider.js";
+import { EastmoneyDailyBarProvider } from "../adapters/eastmoney-daily-bar-provider.js";
+import { validateDailyBarCompletion } from "../application/v21-daily-bar-completion.js";
+import { isHistoricalResearchSourceAuthorized } from "../application/external-source-authorization.js";
 import { MinuteImportRepository } from "../adapters/postgres-minute-import-repository.js";
-import type { MinuteImportBar } from "../domain/minute-import.js";
-import { MAX_MINUTE_CSV_PREVIEW_BARS, minuteCsvImportIdentity, minuteCsvImportIdentityFromSha, previewMinuteCsv, previewMinuteCsvStream, type MinuteCsvMapping } from "../application/minute-csv-import.js";
+import { withMinuteBarContextDefaults, type MinuteImportBar } from "../domain/minute-import.js";
+import { MAX_MINUTE_CSV_PREVIEW_BARS, historicalContextStatus, minuteCsvImportIdentity, minuteCsvImportIdentityFromSha, previewMinuteCsv, previewMinuteCsvStream, type MinuteCsvHistoricalContext, type MinuteCsvMapping } from "../application/minute-csv-import.js";
 import { previewMinuteParquetStream } from "../application/minute-parquet-import.js";
 import { MinuteUploadRepository } from "../adapters/postgres-minute-upload-repository.js";
 import { MINUTE_UPLOAD_CHUNK_BYTES, MinuteUploadConflict, MinuteUploadQuotaExceeded, type MinuteUploadMetadata } from "../domain/minute-upload.js";
 import { SingleFlightGate } from "../application/single-flight-gate.js";
 import { PostgresAdvisorySingleFlightGate } from "../adapters/postgres-single-flight-gate.js";
 import { HttpBodyTooLargeError, readHttpBody } from "../http-body.js";
-import { cnAShareSession, isCalendarDate } from "../application/cn-a-share-calendar.js";
+import { cnAShareSession, decideCnAShareDailyBarClose, decideCnAShareSamplingTick, isCalendarDate } from "../application/cn-a-share-calendar.js";
 import { isAuthorizedPlatformApi, isProtectedPlatformApiRequest, loadMarketDataServiceTokens } from "../service-auth.js";
 import { externalSourceUseAuthorized, missingSourceAuthorizationConfig, shouldEnableCollectionExecutor, shouldEnableCollectionScheduler } from "../application/external-source-authorization.js";
+import { normalizeWatchlist, prioritizeWatchlist, type WatchlistPriorityInput } from "../application/watchlist.js";
+import { PostgresWatchlistRepository } from "../adapters/postgres-watchlist-repository.js";
+import { PostgresSamplingSettingsRepository } from "../adapters/postgres-sampling-settings-repository.js";
+import { PostgresSamplingPolicyRepository } from "../adapters/postgres-sampling-policy-repository.js";
+import { PostgresNewsRevisionRepository, type NewsRevisionInput } from "../adapters/postgres-news-revision-repository.js";
+import { collectV21News } from "../application/v21-news-collection.js";
+import { PostgresSnapshotSamplingRepository, type SnapshotSamplingScope } from "../adapters/postgres-snapshot-sampling-repository.js";
+import { PostgresSamplingTaskLifecycleRepository } from "../adapters/postgres-sampling-task-lifecycle-repository.js";
+import { PostgresDailyBarCompletionRepository } from "../adapters/postgres-daily-bar-completion-repository.js";
+import type { DailyBarCompletionScope } from "../application/daily-bar-completion-queue.js";
+import { SamplingTaskWorker } from "../application/sampling-task-worker.js";
+import { SnapshotSamplingScheduler } from "../application/snapshot-sampling-scheduler.js";
+import { PostgresSnapshotScheduleRepository } from "../adapters/postgres-snapshot-schedule-repository.js";
+import { MonitorOutboxWorker } from "../application/monitor-outbox-worker.js";
+import { isSnapshotSamplingProviderEnabled, normalizeSnapshotSamplingProviderResult, type SnapshotSamplingProvider } from "../application/snapshot-sampling-provider.js";
+import { parseV21SnapshotSamplingFixture } from "../application/v21-snapshot-sampling-fixture.js";
+import { parseV21DailyBarCompletionFixture } from "../application/v21-daily-bar-fixture.js";
+import { DailyBarCompletionWorker } from "../application/daily-bar-completion-worker.js";
+import { DailyBarCloseScheduler } from "../application/daily-bar-close-scheduler.js";
+import { classifyQuoteAge } from "../application/v21-market-observation.js";
 import { canPublishV12DailyFixture, parseV12DailyFixture, validateV12DailyBars, type V12DailyBar, type V12QualityError } from "../application/v12-daily-fixture.js";
 
 class MinuteCsvFinalizeParseError extends Error {}
@@ -52,11 +78,14 @@ function configuredMinuteSources(): string[] {
   return (process.env.STOCKQUANT_COLLECTION_SOURCES ?? "sina,baostock").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
 }
 let watchlist: string[] = ["600000.SH", "000001.SZ", "600519.SH"];
-let samplingMinutes = 30;
 const sourceState = new Map<string, { status: "HEALTHY" | "OPEN"; failures: number }>;
 for (const id of ["tencent-quote", "sina-quote", "eastmoney-news", "cls-news"]) sourceState.set(id, { status: "HEALTHY", failures: 0 });
 const databasePool = process.env.STOCKQUANT_DATABASE_URL ? new Pool({ connectionString: process.env.STOCKQUANT_DATABASE_URL }) : null;
 const publicSourceHttp = new PublicSourceHttpAdapter();
+const snapshotSamplingProviders = new Map<string, SnapshotSamplingProvider>([
+  ["tencent-quote", new TencentSnapshotSamplingProvider(publicSourceHttp)],
+  ["sina-quote", new SinaSnapshotSamplingProvider(publicSourceHttp)],
+]);
 const collectionRuns = databasePool ? new CollectionRunRepository(databasePool) : null;
 const collectionSchedules = databasePool ? new CollectionScheduleRepository(databasePool) : null;
 const coverageRepository = databasePool ? new CoverageRepository(databasePool) : null;
@@ -74,6 +103,119 @@ const artifactTaskExecutor = artifactDeliveryRepository ? new ArtifactTaskExecut
 const alertOutboxRepository = databasePool ? new AlertOutboxRepository(databasePool) : null;
 const minuteImportRepository = databasePool ? new MinuteImportRepository(databasePool) : null;
 const minuteUploadRepository = databasePool ? new MinuteUploadRepository(databasePool) : null;
+const watchlistRepository = databasePool ? new PostgresWatchlistRepository(databasePool) : null;
+const samplingSettingsRepository = databasePool ? new PostgresSamplingSettingsRepository(databasePool) : null;
+const samplingPolicyRepository = databasePool ? new PostgresSamplingPolicyRepository(databasePool) : null;
+const newsRevisionRepository = databasePool ? new PostgresNewsRevisionRepository(databasePool) : null;
+const snapshotSamplingRepository = databasePool ? new PostgresSnapshotSamplingRepository(databasePool) : null;
+const samplingTaskLifecycleRepository = databasePool ? new PostgresSamplingTaskLifecycleRepository(databasePool) : null;
+const snapshotScheduleRepository = databasePool ? new PostgresSnapshotScheduleRepository(databasePool) : null;
+const snapshotScheduler = snapshotScheduleRepository && samplingSettingsRepository && snapshotSamplingRepository && samplingTaskLifecycleRepository ? new SnapshotSamplingScheduler(
+  () => snapshotScheduleRepository.enabled(), () => samplingSettingsRepository.get(),
+  async (schedule, tick) => {
+    if (!externalSourceUseAuthorized("QUOTE", [schedule.sourceId]) || !isSnapshotSamplingProviderEnabled(true)) return { created: false };
+    const pool = await watchlistRepository!.get({ ownerId: schedule.scope.ownerId, accountId: schedule.scope.accountId, testRunId: schedule.scope.testRunId });
+    if (!pool || pool.namespace !== schedule.scope.namespace || !pool.securities.length) return { created: false };
+    const task = await snapshotSamplingRepository.record({ ...tick, settingsVersion: tick.version, dataMode: "REAL", sourceId: schedule.sourceId, scope: schedule.scope, securityIds: pool.securities, status: "QUEUED" });
+    await samplingTaskLifecycleRepository.enqueue(task.taskId);
+    return { created: task.created };
+  }, { now: () => new Date() },
+) : null;
+const dailyBarCompletionRepository = databasePool ? new PostgresDailyBarCompletionRepository(databasePool) : null;
+const dailyBarFixtures: Record<string, { manifestPath: string; fixturePath: string }> = {
+  "v2.1-daily-bars-1": { manifestPath: "fixtures/v2/v2.1-daily-bar-completion/manifest.json", fixturePath: "fixtures/v2/v2.1-daily-bar-completion/bars.json" },
+  "v24-c5-daily-bars-1": { manifestPath: "fixtures/v2/v2.4/c5-daily-bar-completion/manifest.json", fixturePath: "fixtures/v2/v2.4/c5-daily-bar-completion/bars.json" }
+};
+async function loadDailyBarFixture(fixtureVersion: string): Promise<{ bytes: Uint8Array; manifestVersion: string; expectedSha256: string }> {
+  const source = dailyBarFixtures[fixtureVersion];
+  if (!source) throw new Error("DAILY_BAR_FIXTURE_VERSION_MISMATCH");
+  const manifest = JSON.parse(await readFile(resolve(root, source.manifestPath), "utf8")) as { fixtureVersion?: string; status?: string; files?: Array<{ path: string; sha256: string }> };
+  if (manifest.status !== "FROZEN" || manifest.fixtureVersion !== fixtureVersion || manifest.files?.length !== 1 || manifest.files[0]?.path !== source.fixturePath) throw new Error("DAILY_BAR_FIXTURE_MANIFEST_INVALID");
+  return { bytes: await readFile(resolve(root, source.fixturePath)), manifestVersion: manifest.fixtureVersion, expectedSha256: manifest.files[0].sha256 };
+}
+const dailyBarCompletionWorker = dailyBarCompletionRepository ? new DailyBarCompletionWorker(
+  dailyBarCompletionRepository,
+  loadDailyBarFixture,
+  parseV21DailyBarCompletionFixture,
+  { now: () => new Date() },
+  process.env.STOCKQUANT_DAILY_BAR_WORKER_ID ?? `dailybar-worker-${process.pid}`,
+  Number(process.env.STOCKQUANT_DAILY_BAR_WORKER_LEASE_MS ?? 30_000),
+  Number(process.env.STOCKQUANT_DAILY_BAR_WORKER_RETRY_DELAY_MS ?? 5_000),
+  async (task, executionAt) => {
+    const request = task.sourceRequest;
+    if (!request || !externalSourceUseAuthorized("DAILY_BAR", [request.sourceId]) || process.env.STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED !== "true") throw new Error("DAILY_BAR_SOURCE_AUTHORIZATION_REQUIRED");
+    const close = decideCnAShareDailyBarClose(executionAt.toISOString());
+    if (close.status !== "DUE" || close.localDate !== request.sessionDate) throw new Error("DAILY_BAR_SESSION_NOT_CLOSED_OR_CURRENT");
+    const bars = await new EastmoneyDailyBarProvider().loadDailyBars(request);
+    return validateDailyBarCompletion({ ...request, dataMode: "REAL", scope: task.scope, fixtureVersion: null, expectedSecurityIds: request.securityIds, bars,
+      sessionCloseAt: `${request.sessionDate}T15:00:00+08:00`, completionRequestedAt: executionAt.toISOString(), availableAt: new Date().toISOString() }, { sourceAuthorized: true });
+  },
+) : null;
+const dailyBarCloseScheduler = dailyBarCompletionRepository && samplingPolicyRepository ? new DailyBarCloseScheduler(
+  dailyBarCompletionRepository,
+  dailyBarCompletionRepository,
+  async () => (await samplingPolicyRepository!.list()).find((item) => item.policyId === "dailyBarCompletion")?.enabled === true,
+  { now: () => new Date() },
+  process.env.STOCKQUANT_DAILY_BAR_SCHEDULER_ID ?? `daily-bar-close-${process.pid}`,
+  { version: "v2.1-daily-bars-1", sha256: "b98309c9be021c2117d9b3b53276b4ddb313de290413f6bfea5b7040361ae6c4", sessionDate: "2026-10-16" },
+  process.env.STOCKQUANT_DAILY_BAR_SOURCE_MODE === "REAL" ? async (scope, sessionDate) => {
+    if (!externalSourceUseAuthorized("DAILY_BAR", ["eastmoney-daily"]) || process.env.STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED !== "true") throw new Error("DAILY_BAR_SOURCE_AUTHORIZATION_REQUIRED");
+    const watchlist = await watchlistRepository!.get({ ownerId: scope.ownerId, accountId: scope.accountId!, testRunId: scope.testRunId! });
+    if (!watchlist || watchlist.namespace !== scope.namespace) throw new Error("SCOPED_WATCHLIST_REQUIRED");
+    return dailyBarCompletionRepository!.enqueueReal(scope, { sourceId: "eastmoney-daily", sessionDate, securityIds: watchlist.securities, dataVersion: process.env.STOCKQUANT_MARKET_DAILY_DATA_VERSION! });
+  } : undefined,
+) : null;
+const samplingTaskWorker = samplingTaskLifecycleRepository && snapshotSamplingRepository ? new SamplingTaskWorker(
+  samplingTaskLifecycleRepository,
+  { execute: async (run) => {
+    const task = await snapshotSamplingRepository.find(run.taskId);
+    if (!task) throw new Error("SNAPSHOT_TASK_NOT_FOUND");
+    if (task.status === "COMPLETED_FIXTURE") return { state: "COMPLETED" };
+    if (task.status === "COMPLETED_REAL") return { state: "COMPLETED" };
+    if (task.status === "BLOCKED_SOURCE_AUTHORIZATION") return { state: "BLOCKED_SOURCE_AUTHORIZATION", reason: "OD-008 source authorization is not configured; no provider request was made" };
+    if (task.status !== "QUEUED") throw new Error(`SNAPSHOT_TASK_NOT_EXECUTABLE:${task.status}`);
+    if (task.dataMode === "REAL") {
+      if (!externalSourceUseAuthorized("QUOTE", [task.sourceId])) {
+        await snapshotSamplingRepository.blockUnauthorized(task.taskId);
+        return { state: "BLOCKED_SOURCE_AUTHORIZATION", reason: "OD-008 source authorization is not configured; no provider request was made" };
+      }
+      if (!isSnapshotSamplingProviderEnabled(true)) throw new Error("SNAPSHOT_PROVIDER_EXECUTION_DISABLED");
+      if (!run.executionAt) throw new Error("SAMPLING_WORKER_CLOCK_REQUIRED");
+      if (sourceState.get(task.sourceId)?.status === "OPEN") throw new Error("SOURCE_CIRCUIT_OPEN");
+      const provider = snapshotSamplingProviders.get(task.sourceId);
+      if (!provider) throw new Error("SNAPSHOT_PROVIDER_NOT_CONFIGURED");
+      const result = await provider.sample({ sourceId: task.sourceId as "tencent-quote" | "sina-quote", securityIds: task.securityIds, scheduledAt: task.scheduledAt, executionAt: run.executionAt, maxAgeMinutes: task.intervalMinutes });
+      const observations = normalizeSnapshotSamplingProviderResult({ sourceId: task.sourceId as "tencent-quote" | "sina-quote", securityIds: task.securityIds, scheduledAt: task.scheduledAt, executionAt: run.executionAt, maxAgeMinutes: task.intervalMinutes }, result);
+      await snapshotSamplingRepository.completeReal(task.taskId, task.sourceId, observations);
+      return { state: "COMPLETED" };
+    }
+    if (!run.executionAt) throw new Error("SAMPLING_WORKER_CLOCK_REQUIRED");
+    const fixtureDirectory = task.fixtureVersion === "v2.1-snapshot-stale-1" ? "v2.1-snapshot-stale" : "v2.1-snapshot-sampling";
+    const manifest = JSON.parse(await readFile(resolve(root, `fixtures/v2/${fixtureDirectory}/manifest.json`), "utf8")) as { fixtureVersion?: string; files?: Array<{ path: string; sha256: string }> };
+    const entry = manifest.files?.find((file) => file.path === `fixtures/v2/${fixtureDirectory}/snapshots.json`);
+    if (!entry) throw new Error("SNAPSHOT_FIXTURE_MANIFEST_INVALID");
+    // Fixture timestamps model the frozen observation's availability. Worker wall
+    // time remains limited to leases and retries, rather than changing business age.
+    const fixtureAvailableAt = new Date(Date.parse(task.scheduledAt) + (task.fixtureVersion === "v2.1-snapshot-stale-1" ? 31 : 10) * 60_000).toISOString();
+    const result = parseV21SnapshotSamplingFixture({
+      bytes: await readFile(resolve(root, entry.path)), manifestVersion: manifest.fixtureVersion,
+      manifestSha256: entry.sha256, scheduledAt: task.scheduledAt, calendarVersion: task.calendarVersion,
+      securityIds: task.securityIds, ingestedAt: fixtureAvailableAt,
+      availableAt: fixtureAvailableAt, maxAgeMinutes: task.intervalMinutes,
+    });
+    await snapshotSamplingRepository.completeFixture(task.taskId, result.fixtureVersion, result.fixtureSha256, result.observations);
+    return { state: "COMPLETED" };
+  }, failed: async (taskId) => snapshotSamplingRepository.fail(taskId) },
+  { now: () => new Date() },
+  process.env.STOCKQUANT_SAMPLING_TASK_WORKER_ID ?? `sampling-worker-${process.pid}`,
+  Number(process.env.STOCKQUANT_SAMPLING_TASK_LEASE_MS ?? 30_000),
+  Number(process.env.STOCKQUANT_SAMPLING_TASK_RETRY_DELAY_MS ?? 5_000),
+) : null;
+const monitorOutboxWorker = samplingTaskLifecycleRepository && process.env.STOCKQUANT_SERVICE_TOKEN_MARKET_MONITOR
+  ? new MonitorOutboxWorker(samplingTaskLifecycleRepository, process.env.STOCKQUANT_MARKET_MONITOR_URL ?? "http://127.0.0.1:3009", process.env.STOCKQUANT_SERVICE_TOKEN_MARKET_MONITOR, process.env.STOCKQUANT_MONITOR_OUTBOX_WORKER_ID ?? `monitor-outbox-${process.pid}`, () => new Date(), fetch, 15_000, 5_000, process.env.STOCKQUANT_SERVICE_TOKEN_PLATFORM_API ?? "")
+  : null;
+const v21NewsFixtureRoot = resolve(root, "fixtures/v2/v2.1-news-revisions");
+const v21SnapshotFixtureRoot = resolve(root, "fixtures/v2/v2.1-snapshot-sampling");
 const collectionSecurityIds = (process.env.STOCKQUANT_COLLECTION_SECURITY_IDS ?? "600000.SH,000001.SZ,600519.SH").split(",").map((item) => item.trim()).filter(Boolean);
 const collectionScheduler = new CollectionScheduler({ session: (date) => {
   const result = cnAShareSession(date);
@@ -216,10 +358,24 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return json(res, { status: "RELEASED", holdMs });
     }
     if (req.url === "/live") return json(res, { status: "live", service: "market-data-service" });
-    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: externalSourceUseAuthorized("QUOTE", ["tencent-quote"]) ? "LIVE_SOURCE" : "NOT_AUTHORIZED", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", collectionSourceAuthorization: externalSourceUseAuthorized("MINUTE_COLLECTION", configuredMinuteSources()) ? "AUTHORIZED" : "NOT_AUTHORIZED", ...(externalSourceUseAuthorized("MINUTE_COLLECTION", configuredMinuteSources()) ? { collectionSecurityIds } : {}) });
+    if (req.url === "/ready") return json(res, { status: "ready", service: "market-data-service", dataMode: "MIXED", liveQuoteMode: externalSourceUseAuthorized("QUOTE", ["tencent-quote"]) ? "LIVE_SOURCE" : "NOT_AUTHORIZED", fixtureRoutesAvailable: true, collectionPersistence: collectionRuns ? "POSTGRES" : "DISABLED", collectionSchedulerWorker: persistentSchedulerWorker ? "ENABLED" : "DISABLED", collectionExecutor: collectionExecutor ? "ENABLED" : "DISABLED", samplingTaskWorker: samplingTaskWorker?.status() ?? { enabled: false, workerId: null, lastTickAt: null, lastResult: null }, monitorOutboxWorker: monitorOutboxWorker?.status() ?? { enabled: false, workerId: null, lastTickAt: null, lastResult: null }, dailyBarCompletionWorker: dailyBarCompletionWorker?.status() ?? { enabled: false, workerId: null, lastTickAt: null, lastResult: null }, dailyBarCloseScheduler: dailyBarCloseScheduler?.status() ?? { enabled: false, workerId: null, lastTickAt: null, lastResult: null }, collectionSourceAuthorization: externalSourceUseAuthorized("MINUTE_COLLECTION", configuredMinuteSources()) ? "AUTHORIZED" : "NOT_AUTHORIZED", ...(externalSourceUseAuthorized("MINUTE_COLLECTION", configuredMinuteSources()) ? { collectionSecurityIds } : {}) });
     if (pathname === "/v2/alerts" && req.method === "GET") {
       if (!alertOutboxRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       return json(res, { incidents: await alertOutboxRepository.activeIncidents() });
+    }
+    if (pathname === "/v2/alerts/paper-reconciliation" && req.method === "POST") {
+      if (!alertOutboxRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      let body: { ownerId?: unknown; testRunId?: unknown; status?: unknown; discrepancies?: unknown };
+      try { body = JSON.parse(await readBody(req)) as typeof body; }
+      catch { return json(res, { code: "INVALID_JSON" }, 400); }
+      if (typeof body.ownerId !== "string" || !body.ownerId.trim() || body.ownerId.length > 200 || typeof body.testRunId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body.testRunId) || !["MATCH", "DISCREPANCY"].includes(String(body.status)) || !Array.isArray(body.discrepancies) || body.discrepancies.length > 100) return json(res, { code: "INVALID_RECONCILIATION_RESULT" }, 422);
+      const alertKey = `v24-paper-reconciliation:${body.testRunId}`;
+      if (body.status === "DISCREPANCY") {
+        const result = await alertOutboxRepository.raiseIncident(alertKey, "V24_PAPER_RECONCILIATION_DISCREPANCY", "CRITICAL", { ownerId: body.ownerId, testRunId: body.testRunId, discrepancies: body.discrepancies });
+        return json(res, { status: "DISCREPANCY", alertKey, created: result.created, incident: result.incident });
+      }
+      const incident = await alertOutboxRepository.resolveIncident(alertKey);
+      return json(res, { status: "MATCH", alertKey, created: false, incident });
     }
     const acknowledgeAlertMatch = pathname.match(/^\/v2\/alerts\/([0-9a-f-]+)\/acknowledge$/iu);
     if (acknowledgeAlertMatch && req.method === "POST") {
@@ -254,7 +410,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     if (req.url === "/v2/collection-scheduler/enable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.enable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url === "/v2/collection-scheduler/disable" && req.method === "POST") { if (!authorizedCollectionControl(req)) return json(res, { code: "UNAUTHENTICATED" }, 401); collectionScheduler.disable(); return json(res, { status: collectionScheduler.status() }); }
     if (req.url?.startsWith("/v2/collection-scheduler/plan") && req.method === "GET") {
-      const query = new URL(req.url, "http://localhost").searchParams;
+      const query = new URL(req.url ?? "/", "http://localhost").searchParams;
       const subscriptionId = query.get("subscriptionId"); const from = query.get("from"); const to = query.get("to");
       if (!subscriptionId || !from || !to) return json(res, { code: "INVALID_SCHEDULE_QUERY", required: ["subscriptionId", "from", "to"] }, 422);
       return json(res, collectionScheduler.plan(subscriptionId, from, to));
@@ -330,16 +486,156 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         throw error;
       }
     }
-    if (req.url === "/v2/sources" && req.method === "GET") return json(res, { sources: [
+    if (req.url === "/v2/sources" && req.method === "GET") {
+      const quoteSourceIds = ["tencent-quote", "sina-quote"];
+      const samplingHealth = snapshotSamplingRepository ? await snapshotSamplingRepository.sourceHealth(quoteSourceIds) : [];
+      const healthBySource = new Map(samplingHealth.map((health) => [health.sourceId, health]));
+      return json(res, { sources: [
       { sourceId: "tencent-quote", kind: "QUOTE", url: "https://qt.gtimg.cn", status: externalSourceUseAuthorized("QUOTE", ["tencent-quote"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "public web endpoint; verify terms before production" },
       { sourceId: "sina-quote", kind: "QUOTE", url: "https://hq.sinajs.cn", status: externalSourceUseAuthorized("QUOTE", ["sina-quote"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "public web endpoint; verify terms before production" },
-      { sourceId: "eastmoney-rss", kind: "NEWS", url: "https://finance.eastmoney.com", status: externalSourceUseAuthorized("NEWS", ["eastmoney-news"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "public news pages; verify terms before production" },
-      { sourceId: "cls-rss", kind: "NEWS", url: "https://www.cls.cn", status: externalSourceUseAuthorized("NEWS", ["cls-news"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "public news pages; verify terms before production" }
-    ].map((source) => ({ ...source, circuit: sourceState.get(source.sourceId)?.status ?? "HEALTHY" })), checkedAt: new Date().toISOString(), note: "Endpoint capability is verified by configured URL; production licensing and rate limits remain deployment checks." });
-    if (req.url === "/v2/sampling" && req.method === "GET") return json(res, { intervalMinutes: samplingMinutes, allowed: [20, 30], tradingWindows: [{ name: "morning", start: "09:30", end: "11:30" }, { name: "afternoon", start: "13:00", end: "15:00" }], lunchBreak: ["11:30", "13:00"], placeOrders: false });
+      { sourceId: "eastmoney-news", kind: "NEWS", url: "https://finance.eastmoney.com", status: externalSourceUseAuthorized("NEWS", ["eastmoney-news"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "personal local-learning review; no redistribution" },
+      { sourceId: "cls-news", kind: "NEWS", url: "https://www.cls.cn", status: externalSourceUseAuthorized("NEWS", ["cls-news"]) ? "CONFIGURED" : "NOT_AUTHORIZED", license: "personal local-learning review; no redistribution" }
+      ].map((source) => ({ ...source, circuit: sourceState.get(source.sourceId)?.status ?? "HEALTHY", samplingHealth: source.kind === "QUOTE" ? healthBySource.get(source.sourceId) ?? { sourceId: source.sourceId, state: snapshotSamplingRepository ? "NEVER_RUN" : "UNAVAILABLE", lastAttemptAt: null, lastSuccessAt: null, lastFailureAt: null, lastErrorCode: null } : null })), checkedAt: new Date().toISOString(), note: "Configured capability, manual circuit and persisted sampling health are separate; this endpoint makes no provider request. Production licensing and rate limits remain deployment checks." });
+    }
+    if (req.url === "/v2/sampling" && req.method === "GET") {
+      const setting = samplingSettingsRepository ? await samplingSettingsRepository.get() : { intervalMinutes: 30 as const, version: 0, updatedAt: null };
+      const policyPayload = samplingPolicyRepository ? { policies: await samplingPolicyRepository.list() } : {};
+      return json(res, { intervalMinutes: setting.intervalMinutes, settingsVersion: setting.version, updatedAt: setting.updatedAt, persistence: samplingSettingsRepository ? "POSTGRESQL" : "UNAVAILABLE", allowed: [20, 30], tradingWindows: [{ name: "morning", start: "09:30", end: "11:30" }, { name: "afternoon", start: "13:00", end: "15:00" }], lunchBreak: ["11:30", "13:00"], ...policyPayload, scheduleSeparation: { snapshotSampling: "CONFIGURED", monitorEvaluation: "CONFIGURED", dailyBarCompletion: "CONFIGURED", strategyEvaluation: "NOT_CONFIGURED", orderExecution: "NOT_CONFIGURED" }, placeOrders: false });
+    }
     const calendarMatch = req.url?.match(/^\/v2\/calendar\/cn-a-share\/(\d{4}-\d{2}-\d{2})$/);
     if (calendarMatch && req.method === "GET") return isCalendarDate(calendarMatch[1]) ? json(res, cnAShareSession(calendarMatch[1])) : json(res, { code: "INVALID_DATE" }, 400);
-    if (req.url === "/v2/sampling" && req.method === "PUT") { const body = JSON.parse(await readBody(req)); const value = Number(body.intervalMinutes); if (![20, 30].includes(value)) return json(res, { code: "INVALID_SAMPLING_INTERVAL", allowed: [20, 30] }, 422); samplingMinutes = value; return json(res, { intervalMinutes: samplingMinutes, placeOrders: false }); }
+    if (req.url === "/v2/sampling" && req.method === "PUT") { if (!samplingSettingsRepository || !samplingPolicyRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503); const body = JSON.parse(await readBody(req)); const value = Number(body.intervalMinutes); if (![20, 30].includes(value)) return json(res, { code: "INVALID_SAMPLING_INTERVAL", allowed: [20, 30] }, 422); const client = await databasePool!.connect(); let setting: Awaited<ReturnType<PostgresSamplingSettingsRepository["set"]>>; try { await client.query("BEGIN"); setting = await samplingSettingsRepository.set(value as 20 | 30, client); await samplingPolicyRepository.updateSnapshotInterval(setting.intervalMinutes, setting.version, client); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); } const policies = await samplingPolicyRepository.list(); return json(res, { intervalMinutes: setting.intervalMinutes, settingsVersion: setting.version, updatedAt: setting.updatedAt, persistence: "POSTGRESQL", allowed: [20, 30], tradingWindows: [{ name: "morning", start: "09:30", end: "11:30" }, { name: "afternoon", start: "13:00", end: "15:00" }], lunchBreak: ["11:30", "13:00"], policies, scheduleSeparation: { snapshotSampling: "CONFIGURED", monitorEvaluation: "CONFIGURED", dailyBarCompletion: "CONFIGURED", strategyEvaluation: "NOT_CONFIGURED", orderExecution: "NOT_CONFIGURED" }, placeOrders: false }); }
+    if (req.url === "/v2/sampling/monitor-policy" && req.method === "PUT") {
+      if (!samplingPolicyRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { enabled?: unknown };
+      if (typeof body.enabled !== "boolean") return json(res, { code: "INVALID_MONITOR_EVALUATION_POLICY" }, 422);
+      const policy = await samplingPolicyRepository.setMonitorEvaluationEnabled(body.enabled);
+      return json(res, { policy, consumer: "monitorOutboxWorker", pendingEventsRetained: true, placeOrders: false });
+    }
+    if (req.url === "/v2/daily-bars/schedules" && req.method === "PUT") {
+      if (!dailyBarCompletionRepository || !samplingPolicyRepository || !watchlistRepository) return json(res, { code: "DAILY_BAR_SCHEDULER_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { enabled?: unknown; scope?: DailyBarCompletionScope };
+      const scope = body.scope;
+      if (typeof body.enabled !== "boolean" || !scope || scope.market !== "CN_A" || !scope.ownerId?.trim() || scope.ownerId.length > 128 || !scope.accountId || !isUuid(scope.accountId) || !scope.namespace?.trim() || scope.namespace.length > 128 || !scope.testRunId || !isUuid(scope.testRunId)) return json(res, { code: "INVALID_DAILY_BAR_SCHEDULE" }, 422);
+      const scopedWatchlist = await watchlistRepository.get({ ownerId: scope.ownerId, accountId: scope.accountId, testRunId: scope.testRunId });
+      if (!scopedWatchlist) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      if (scopedWatchlist.namespace !== scope.namespace) return json(res, { code: "DAILY_BAR_SCOPE_CONFLICT" }, 409);
+      if (body.enabled && process.env.STOCKQUANT_DAILY_BAR_SOURCE_MODE === "REAL" && (!externalSourceUseAuthorized("DAILY_BAR", ["eastmoney-daily"]) || process.env.STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED !== "true")) return json(res, { code: "DAILY_BAR_SOURCE_AUTHORIZATION_REQUIRED", externalRequests: 0 }, 403);
+      if (body.enabled && process.env.STOCKQUANT_DAILY_BAR_SOURCE_MODE !== "REAL" && JSON.stringify([...scopedWatchlist.securities].sort()) !== JSON.stringify(["000001.SZ", "600000.SH"])) return json(res, { code: "DAILY_BAR_FIXTURE_SCOPE_COVERAGE_MISMATCH", expectedSecurityIds: ["600000.SH", "000001.SZ"], actualCount: scopedWatchlist.securities.length }, 409);
+      await dailyBarCompletionRepository.setSchedule(scope, body.enabled);
+      const enabledCount = await dailyBarCompletionRepository.enabledScheduleCount();
+      const policy = await samplingPolicyRepository.setDailyBarCompletionEnabled(enabledCount > 0);
+      return json(res, { policy, scope, enabled: body.enabled, enabledScopes: enabledCount, schedule: dailyBarCloseScheduler?.status() ?? null, dataMode: process.env.STOCKQUANT_DAILY_BAR_SOURCE_MODE === "REAL" ? "REAL" : "FIXTURE", fixture: process.env.STOCKQUANT_DAILY_BAR_SOURCE_MODE === "REAL" ? null : { version: "v2.1-daily-bars-1", sessionDate: "2026-10-16", dataMode: "FIXTURE" }, externalRequests: 0, placeOrders: false });
+    }
+    if (req.url === "/v2/sampling/schedules" && req.method === "PUT") {
+      if (!snapshotScheduleRepository || !watchlistRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { enabled?: boolean; sourceId?: "tencent-quote" | "sina-quote"; scope?: { market: "CN_A"; ownerId: string; accountId: string; namespace: string; testRunId: string } };
+      const scope = body.scope;
+      if (typeof body.enabled !== "boolean" || !scope || scope.market !== "CN_A" || !scope.ownerId?.trim() || !isUuid(scope.accountId ?? "") || !scope.namespace?.trim() || !isUuid(scope.testRunId ?? "") || !["tencent-quote", "sina-quote"].includes(body.sourceId ?? "")) return json(res, { code: "INVALID_SAMPLING_SCOPE" }, 422);
+      if (body.enabled && (!externalSourceUseAuthorized("QUOTE", [body.sourceId!]) || !isSnapshotSamplingProviderEnabled(true) || process.env.STOCKQUANT_SNAPSHOT_SCHEDULER_ENABLED !== "true")) return json(res, { code: "SAMPLING_EXECUTOR_NOT_CONFIGURED", externalRequests: 0 }, 409);
+      const pool = await watchlistRepository.get({ ownerId: scope.ownerId, accountId: scope.accountId, testRunId: scope.testRunId });
+      if (!pool || pool.namespace !== scope.namespace || !pool.securities.length) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      await snapshotScheduleRepository.set({ scope, sourceId: body.sourceId! }, body.enabled);
+      return json(res, { scope, sourceId: body.sourceId, enabled: body.enabled, externalRequests: 0, placeOrders: false });
+    }
+    if (req.url === "/v2/sampling/tasks/tick" && req.method === "POST") {
+      if (!samplingSettingsRepository || !snapshotSamplingRepository || !samplingTaskLifecycleRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { scheduledAt?: string; sourceId?: string; scope?: SnapshotSamplingScope };
+      if (typeof body.scheduledAt !== "string" || !Number.isFinite(Date.parse(body.scheduledAt))) return json(res, { code: "INVALID_SCHEDULED_AT" }, 422);
+      if (body.sourceId !== "tencent-quote" && body.sourceId !== "sina-quote") return json(res, { code: "INVALID_QUOTE_SOURCE_ID", allowed: ["tencent-quote", "sina-quote"] }, 422);
+      if (externalSourceUseAuthorized("QUOTE", [body.sourceId]) && !isSnapshotSamplingProviderEnabled(true)) return json(res, { code: "SAMPLING_EXECUTOR_NOT_CONFIGURED", reason: "REAL provider execution requires STOCKQUANT_SNAPSHOT_REAL_PROVIDER_ENABLED=true" }, 409);
+      if (body.scope && (body.scope.market !== "CN_A" || !body.scope.ownerId?.trim() || body.scope.ownerId.length > 128 || !body.scope.accountId || !isUuid(body.scope.accountId) || !body.scope.namespace?.trim() || body.scope.namespace.length > 128 || !body.scope.testRunId || !isUuid(body.scope.testRunId))) return json(res, { code: "INVALID_SAMPLING_SCOPE" }, 422);
+      const scheduledAt = new Date(body.scheduledAt).toISOString();
+      const setting = await samplingSettingsRepository.get();
+      const decision = decideCnAShareSamplingTick(scheduledAt, setting.intervalMinutes);
+      if (decision.status !== "ELIGIBLE") return json(res, { task: null, decision, intervalMinutes: setting.intervalMinutes, settingsVersion: setting.version, dataMode: "REAL", externalRequests: 0 });
+      const scopedWatchlist = body.scope && watchlistRepository ? await watchlistRepository.get({ ownerId: body.scope.ownerId, accountId: body.scope.accountId!, testRunId: body.scope.testRunId! }) : null;
+      if (body.scope && !scopedWatchlist) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      if (body.scope && scopedWatchlist?.namespace !== body.scope.namespace) return json(res, { code: "SAMPLING_SCOPE_CONFLICT" }, 409);
+      const task = await snapshotSamplingRepository.record({ scheduledAt, intervalMinutes: setting.intervalMinutes, settingsVersion: setting.version, calendarVersion: decision.calendarVersion, window: decision.window!, dataMode: "REAL", sourceId: body.sourceId, scope: body.scope, securityIds: scopedWatchlist?.securities ?? [], status: "QUEUED" });
+      const execution = await samplingTaskLifecycleRepository.enqueue(task.taskId);
+      return json(res, { task, execution, decision, intervalMinutes: setting.intervalMinutes, settingsVersion: setting.version, dataMode: "REAL", externalRequests: 0 });
+    }
+    if (req.url === "/v2/sampling/tasks/tick-fixture" && req.method === "POST") {
+      if (!samplingSettingsRepository || !snapshotSamplingRepository || !samplingTaskLifecycleRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { scheduledAt?: string; scope?: SnapshotSamplingScope; acceptanceIntervalMinutes?: unknown; fixtureVariant?: "fresh" | "stale" };
+      if (body.fixtureVariant !== undefined && body.fixtureVariant !== "fresh" && body.fixtureVariant !== "stale") return json(res, { code: "INVALID_FIXTURE_VARIANT" }, 422);
+      if (body.fixtureVariant && !body.scope?.testRunId) return json(res, { code: "ACCEPTANCE_FIXTURE_SCOPE_REQUIRED" }, 422);
+      if (typeof body.scheduledAt !== "string" || !Number.isFinite(Date.parse(body.scheduledAt))) return json(res, { code: "INVALID_SCHEDULED_AT" }, 422);
+      if (body.scope && (body.scope.market !== "CN_A" || !body.scope.ownerId?.trim() || body.scope.ownerId.length > 128 || !body.scope.accountId || !isUuid(body.scope.accountId) || !body.scope.namespace?.trim() || body.scope.namespace.length > 128 || !body.scope.testRunId || !isUuid(body.scope.testRunId))) return json(res, { code: "INVALID_SAMPLING_SCOPE" }, 422);
+      if (body.acceptanceIntervalMinutes !== undefined && body.acceptanceIntervalMinutes !== 20 && body.acceptanceIntervalMinutes !== 30) return json(res, { code: "INVALID_ACCEPTANCE_SAMPLING_INTERVAL", allowed: [20, 30] }, 422);
+      if (body.acceptanceIntervalMinutes !== undefined && !body.scope?.testRunId) return json(res, { code: "ACCEPTANCE_FIXTURE_SCOPE_REQUIRED" }, 422);
+      const scheduledAt = new Date(body.scheduledAt).toISOString();
+      const setting = await samplingSettingsRepository.get();
+      // A TestRun override is a request-scoped immutable Fixture input. It never
+      // writes the production setting, so concurrent acceptance runs cannot clobber it.
+      const intervalMinutes = (body.acceptanceIntervalMinutes ?? setting.intervalMinutes) as 20 | 30;
+      const decision = decideCnAShareSamplingTick(scheduledAt, intervalMinutes);
+      if (decision.status !== "ELIGIBLE") return json(res, { task: null, decision, intervalMinutes, settingsVersion: setting.version, dataMode: "FIXTURE", acceptanceFixture: body.acceptanceIntervalMinutes !== undefined, externalRequests: 0 });
+      const scopedWatchlist = body.scope && watchlistRepository ? await watchlistRepository.get({ ownerId: body.scope.ownerId, accountId: body.scope.accountId!, testRunId: body.scope.testRunId! }) : null;
+      if (body.scope && !scopedWatchlist) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      if (body.scope && scopedWatchlist?.namespace !== body.scope.namespace) return json(res, { code: "SAMPLING_SCOPE_CONFLICT" }, 409);
+      const fixtureVersion = body.fixtureVariant === "stale" ? "v2.1-snapshot-stale-1" : "v2.1-snapshot-sampling-1";
+      const task = await snapshotSamplingRepository.record({ scheduledAt, intervalMinutes, settingsVersion: setting.version, calendarVersion: decision.calendarVersion, window: decision.window!, dataMode: "FIXTURE", sourceId: `fixture:${fixtureVersion}`, scope: body.scope, securityIds: scopedWatchlist?.securities ?? [], status: "QUEUED", fixtureVersion });
+      const execution = await samplingTaskLifecycleRepository.enqueue(task.taskId);
+      return json(res, { task, execution, decision, intervalMinutes, settingsVersion: setting.version, dataMode: "FIXTURE", acceptanceFixture: body.acceptanceIntervalMinutes !== undefined, externalRequests: 0 });
+    }
+    if (pathname === "/v2/sampling/tasks/latest" && req.method === "GET") {
+      if (!snapshotSamplingRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const query = new URL(req.url ?? "/", "http://localhost").searchParams;
+      const ownerId = query.get("ownerId"); const accountId = query.get("accountId"); const namespace = query.get("namespace"); const testRunId = query.get("testRunId");
+      const supplied = [ownerId, accountId, namespace, testRunId].filter((value) => value !== null).length;
+      if (supplied > 0 && (supplied < 4 || !ownerId?.trim() || !accountId || !isUuid(accountId) || !namespace?.trim() || !testRunId || !isUuid(testRunId))) return json(res, { code: "INVALID_SAMPLING_SCOPE" }, 422);
+      const scope = supplied ? { market: "CN_A" as const, ownerId: ownerId!, accountId: accountId!, namespace: namespace!, testRunId: testRunId! } : undefined;
+      const task = await snapshotSamplingRepository.latest(scope);
+      const execution = task && samplingTaskLifecycleRepository ? await samplingTaskLifecycleRepository.read(task.taskId) : null;
+      return json(res, { task, execution });
+    }
+    if (req.url === "/v2/daily-bars/real/complete" && req.method === "POST") {
+      if (!dailyBarCompletionRepository || !watchlistRepository) return json(res, { code: "DAILY_BAR_COMPLETION_PERSISTENCE_UNAVAILABLE" }, 503);
+      if (!externalSourceUseAuthorized("DAILY_BAR", ["eastmoney-daily"]) || process.env.STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED !== "true") return json(res, { code: "DAILY_BAR_SOURCE_AUTHORIZATION_REQUIRED", externalRequests: 0 }, 403);
+      const body = JSON.parse(await readBody(req)) as { scope?: DailyBarCompletionScope };
+      const scope = body.scope;
+      if (!scope || scope.market !== "CN_A" || !scope.ownerId?.trim() || !scope.accountId || !isUuid(scope.accountId) || !scope.namespace?.trim() || !scope.testRunId || !isUuid(scope.testRunId)) return json(res, { code: "INVALID_DAILY_BAR_SCOPE" }, 422);
+      const close = decideCnAShareDailyBarClose(new Date().toISOString());
+      if (close.status !== "DUE") return json(res, { code: "DAILY_BAR_SESSION_NOT_CLOSED", decision: close, externalRequests: 0 }, 409);
+      const watchlist = await watchlistRepository.get({ ownerId: scope.ownerId, accountId: scope.accountId, testRunId: scope.testRunId });
+      if (!watchlist || watchlist.namespace !== scope.namespace || !watchlist.securities.length) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      const queued = await dailyBarCompletionRepository.enqueueReal(scope, { sourceId: "eastmoney-daily", sessionDate: close.localDate, securityIds: watchlist.securities, dataVersion: process.env.STOCKQUANT_MARKET_DAILY_DATA_VERSION! });
+      return json(res, { ...queued, dataMode: "REAL", externalRequests: 0, placeOrders: false });
+    }
+    if (req.url === "/v2/daily-bars/fixture/complete" && req.method === "POST") {
+      if (!dailyBarCompletionRepository) return json(res, { code: "DAILY_BAR_COMPLETION_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { scope?: DailyBarCompletionScope; fixtureVersion?: unknown };
+      const scope = body.scope;
+      const fixtureVersion = body.fixtureVersion === undefined ? "v2.1-daily-bars-1" : body.fixtureVersion;
+      if (typeof fixtureVersion !== "string" || !dailyBarFixtures[fixtureVersion]) return json(res, { code: "INVALID_DAILY_BAR_FIXTURE_VERSION" }, 422);
+      if (!scope || scope.market !== "CN_A" || !scope.ownerId?.trim() || scope.ownerId.length > 128 || !scope.accountId || !isUuid(scope.accountId) || !scope.namespace?.trim() || scope.namespace.length > 128 || !scope.testRunId || !isUuid(scope.testRunId)) return json(res, { code: "INVALID_DAILY_BAR_SCOPE" }, 422);
+      const scopedWatchlist = watchlistRepository ? await watchlistRepository.get({ ownerId: scope.ownerId, accountId: scope.accountId, testRunId: scope.testRunId }) : null;
+      if (!scopedWatchlist) return json(res, { code: "SCOPED_WATCHLIST_REQUIRED" }, 409);
+      if (scopedWatchlist.namespace !== scope.namespace) return json(res, { code: "DAILY_BAR_SCOPE_CONFLICT" }, 409);
+      let loaded: { bytes: Uint8Array; manifestVersion: string; expectedSha256: string };
+      try { loaded = await loadDailyBarFixture(fixtureVersion); }
+      catch { return json(res, { code: "DAILY_BAR_FIXTURE_MANIFEST_INVALID" }, 500); }
+      const preview = parseV21DailyBarCompletionFixture({ ...loaded, scope });
+      if (preview.status === "REJECTED" || preview.status === "BLOCKED_SOURCE_AUTHORIZATION") return json(res, { code: preview.reason ?? preview.status, completion: preview }, 422);
+      if (JSON.stringify([...scopedWatchlist.securities].sort()) !== JSON.stringify(preview.bars.map((bar) => bar.securityId).sort())) return json(res, { code: "DAILY_BAR_FIXTURE_SCOPE_COVERAGE_MISMATCH" }, 409);
+      try {
+        const queued = await dailyBarCompletionRepository.enqueue({ scope, fixtureVersion: loaded.manifestVersion, fixtureSha256: loaded.expectedSha256 });
+        return json(res, { task: queued.task, created: queued.created, dataMode: "FIXTURE", externalRequests: 0, placeOrders: false });
+      } catch (error) {
+        if (error instanceof Error && error.message === "DAILY_BAR_TASK_IDEMPOTENCY_CONFLICT") return json(res, { code: error.message }, 409);
+        throw error;
+      }
+    }
+    if (pathname === "/v2/daily-bars/completions/latest" && req.method === "GET") {
+      if (!dailyBarCompletionRepository) return json(res, { code: "DAILY_BAR_COMPLETION_PERSISTENCE_UNAVAILABLE" }, 503);
+      const query = new URL(req.url ?? "/", "http://localhost").searchParams;
+      const ownerId = query.get("ownerId"); const accountId = query.get("accountId"); const namespace = query.get("namespace"); const testRunId = query.get("testRunId");
+      if (!ownerId?.trim() || ownerId.length > 128 || !accountId || !isUuid(accountId) || !namespace?.trim() || namespace.length > 128 || !testRunId || !isUuid(testRunId)) return json(res, { code: "INVALID_DAILY_BAR_SCOPE" }, 422);
+      const scope: DailyBarCompletionScope = { market: "CN_A", ownerId, accountId, namespace, testRunId };
+      return json(res, await dailyBarCompletionRepository.latest(scope) ?? { task: null, completion: null });
+    }
     const breakerMatch = req.url?.match(/^\/v2\/sources\/([^/]+)\/(fail|recover)$/);
     if (breakerMatch && req.method === "POST") { const state = sourceState.get(breakerMatch[1]); if (!state) return json(res, { code: "SOURCE_NOT_FOUND" }, 404); if (breakerMatch[2] === "fail") { state.failures += 1; state.status = "OPEN"; } else { state.failures = 0; state.status = "HEALTHY"; } return json(res, { sourceId: breakerMatch[1], circuit: state.status, failures: state.failures }); }
     if (req.url === "/v2/sources/smoke" && req.method === "GET") {
@@ -355,26 +651,74 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if (req.url === "/v2/watchlist" && req.method === "GET") return json(res, { securities: watchlist, count: watchlist.length, max: 100, priority: "holdings_then_in_flight_then_candidates" });
     if (req.url === "/v2/watchlist" && req.method === "PUT") {
-      const body = JSON.parse(await readBody(req)); const securities = Array.isArray(body.securities) ? body.securities.map(String) : [];
-      if (securities.length > 100) return json(res, { code: "WATCHLIST_LIMIT", message: "watchlist cannot exceed 100 securities", max: 100 }, 422);
-      watchlist = [...new Set(securities)] as string[]; return json(res, { securities: watchlist, count: watchlist.length, max: 100 });
+      const body = JSON.parse(await readBody(req)); const result = normalizeWatchlist(body.securities);
+      if (!result.accepted) return json(res, { code: "WATCHLIST_LIMIT", message: "watchlist cannot exceed 100 unique securities", max: result.max }, 422);
+      watchlist = result.securities; return json(res, { securities: watchlist, count: watchlist.length, max: 100 });
+    }
+    if (pathname === "/v2/watchlist/scoped" && req.method === "GET") {
+      if (!watchlistRepository) return json(res, { code: "WATCHLIST_PERSISTENCE_UNAVAILABLE" }, 503);
+      const query = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+      const ownerId = query.get("ownerId") ?? ""; const accountId = query.get("accountId") ?? ""; const namespace = query.get("namespace") ?? ""; const testRunId = query.get("testRunId") ?? "";
+      if (!ownerId || !accountId || !namespace || !isUuid(testRunId)) return json(res, { code: "INVALID_WATCHLIST_SCOPE" }, 422);
+      const stored = await watchlistRepository.get({ ownerId, accountId, testRunId });
+      if (!stored) return json(res, { ownerId, accountId, namespace, testRunId, securities: [], count: 0, max: 100, requiredCount: 0, omittedCandidates: [], updatedAt: null });
+      if (stored.namespace !== namespace) return json(res, { code: "WATCHLIST_SCOPE_CONFLICT" }, 409);
+      return json(res, stored);
+    }
+    if (pathname === "/v2/watchlist/scoped" && req.method === "PUT") {
+      if (!watchlistRepository) return json(res, { code: "WATCHLIST_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as Record<string, unknown>;
+      const fields = ["ownerId", "accountId", "namespace", "testRunId", "holdings", "inFlightOrders", "candidates"];
+      if (Object.keys(body).length !== fields.length || fields.some((field) => !Object.hasOwn(body, field))) return json(res, { code: "INVALID_WATCHLIST_SCOPE" }, 422);
+      if (typeof body.ownerId !== "string" || !body.ownerId.trim() || body.ownerId.length > 128 || typeof body.accountId !== "string" || !isUuid(body.accountId) || typeof body.namespace !== "string" || !body.namespace.trim() || body.namespace.length > 128 || typeof body.testRunId !== "string" || !isUuid(body.testRunId)) return json(res, { code: "INVALID_WATCHLIST_SCOPE" }, 422);
+      const securities = [body.holdings, body.inFlightOrders, body.candidates];
+      if (securities.some((items) => !Array.isArray(items) || items.length > 5000 || items.some((item) => typeof item !== "string" || !item.trim() || item.length > 64))) return json(res, { code: "INVALID_WATCHLIST_SECURITIES" }, 422);
+      const input: WatchlistPriorityInput = { holdings: body.holdings as string[], inFlightOrders: body.inFlightOrders as string[], candidates: body.candidates as string[] };
+      const result = prioritizeWatchlist(input);
+      if (!result.accepted) return json(res, { code: result.reason, message: "required holdings and in-flight securities exceed the online pool limit", max: result.max, requiredCount: result.requiredCount }, 422);
+      try {
+        const stored = await watchlistRepository.save({ ownerId: body.ownerId, accountId: body.accountId, namespace: body.namespace, testRunId: body.testRunId }, input, result);
+        return json(res, stored);
+      } catch (error) {
+        if (error instanceof Error && error.message === "WATCHLIST_SCOPE_CONFLICT") return json(res, { code: error.message }, 409);
+        throw error;
+      }
     }
     if (req.url === "/v2/quote/preview" && req.method === "GET") {
       if (!externalSourceUseAuthorized("QUOTE", ["tencent-quote"])) return json(res, { code: "SOURCE_NOT_AUTHORIZED", message: "live quote request is disabled until Tencent source use authorization and data version are configured", missingConfiguration: missingSourceAuthorizationConfig("QUOTE", ["tencent-quote"]) }, 403);
       const symbols = watchlist.slice(0, 100);
-      return json(res, await publicSourceHttp.tencentQuotePreview(symbols));
+      const quotes = await publicSourceHttp.tencentQuotePreview(symbols);
+      const setting = samplingSettingsRepository ? await samplingSettingsRepository.get() : { intervalMinutes: 30 as const, version: 0 };
+      const observedAtNow = new Date().toISOString();
+      const securities = quotes.securities.map((quote) => ({ ...quote, ...classifyQuoteAge(quote, observedAtNow, setting.intervalMinutes) }));
+      return json(res, { ...quotes, securities, freshnessPolicy: { maxAgeMinutes: setting.intervalMinutes, clock: "UTC_INSTANT", status: samplingSettingsRepository && setting.version > 0 ? "CONFIGURED" : "DEFAULT_UNPERSISTED" } });
     }
-    if (req.url === "/v2/news/preview" && req.method === "GET") return json(res, { items: [{ newsId: "v2-news-001", sourceId: "eastmoney-rss", title: "示例公告（验收样本）", publishedAt: "2026-09-09T00:00:00Z", revision: 1, symbols: ["600000.SH"] }], deduplicated: true, sourceStatus: "CONFIGURED" });
+    if (req.url === "/v2/news/preview" && req.method === "GET") return json(res, { items: [{ newsId: "v2-fixture-news-001", sourceId: "fixture-news-v2.1", sourceIds: ["fixture-news-v2.1"], title: "示例公告（合成验收样本）", publishedAt: null, publicationTimeStatus: "UNKNOWN", revision: 1, revisionStatus: "UNVERIFIED_NO_STABLE_SOURCE_ID", symbols: [], entityMatchStatus: "UNMATCHED" }], deduplicated: false, sourceStatus: "FIXTURE_ONLY", dataMode: "FIXTURE" });
+    if (req.url === "/v2/news/fixture/ingest" && req.method === "POST") {
+      if (!newsRevisionRepository) return json(res, { code: "NEWS_REVISION_PERSISTENCE_UNAVAILABLE" }, 503);
+      const manifest = JSON.parse(await readFile(resolve(v21NewsFixtureRoot, "manifest.json"), "utf8")) as { fixtureVersion?: string; files?: Array<{ path: string; sha256: string }> };
+      if (manifest.fixtureVersion !== "v2.1-news-revisions-1" || manifest.files?.length !== 1) return json(res, { code: "NEWS_FIXTURE_MANIFEST_INVALID" }, 500);
+      const fixtureBytes = await readFile(resolve(root, manifest.files[0]!.path));
+      if (createHash("sha256").update(fixtureBytes).digest("hex") !== manifest.files[0]!.sha256) return json(res, { code: "NEWS_FIXTURE_HASH_MISMATCH" }, 500);
+      const fixtureData = JSON.parse(fixtureBytes.toString("utf8")) as { fixtureVersion?: string; records?: NewsRevisionInput[] };
+      if (fixtureData.fixtureVersion !== manifest.fixtureVersion || !Array.isArray(fixtureData.records)) return json(res, { code: "NEWS_FIXTURE_VERSION_INVALID" }, 500);
+      const ingested = [];
+      for (const record of fixtureData.records) ingested.push(await newsRevisionRepository.append(record));
+      return json(res, { fixtureVersion: manifest.fixtureVersion, dataMode: "FIXTURE", records: ingested.map(({ revision, created }) => ({ sourceId: revision.sourceId, sourceItemId: revision.sourceItemId, revision: revision.revision, created })) });
+    }
+    if (req.url === "/v2/news/fixture/history" && req.method === "GET") {
+      if (!newsRevisionRepository) return json(res, { code: "NEWS_REVISION_PERSISTENCE_UNAVAILABLE" }, 503);
+      const history = await Promise.all(["fixture-news-a", "fixture-news-b"].map((sourceId) => newsRevisionRepository.listBySource(sourceId)));
+      return json(res, { fixtureVersion: "v2.1-news-revisions-1", dataMode: "FIXTURE", histories: history.flat().map((item) => ({ ...item, publicationTimeStatus: item.publishedAt ? "KNOWN" : "UNKNOWN", entityMatchStatus: item.symbols.length > 1 ? "AMBIGUOUS" : item.symbols.length === 1 ? "LINKED" : "UNMATCHED", revisionStatus: "VERIFIED_STABLE_SOURCE_ID" })) });
+    }
     if (req.url === "/v2/news/live" && req.method === "GET") {
       if (!externalSourceUseAuthorized("NEWS")) return json(res, { code: "SOURCE_NOT_AUTHORIZED", message: "live news request is disabled until news source use authorization and data version are configured", missingConfiguration: missingSourceAuthorizationConfig("NEWS") }, 403);
+      if (!newsRevisionRepository) return json(res, { code: "NEWS_REVISION_PERSISTENCE_UNAVAILABLE" }, 503);
       const observedAt = new Date().toISOString();
-      const results = await Promise.all([
-        publicSourceHttp.liveNews("eastmoney-news", "https://finance.eastmoney.com/", observedAt),
-        publicSourceHttp.liveNews("cls-news", "https://www.cls.cn/", observedAt)
-      ]);
-      const items = results.filter((item): item is NonNullable<typeof item> => item !== null);
-      const deduplicated = [...new Map(items.map((item) => [`${item.title}|${item.sourceId}`, item])).values()];
-      return json(res, { observedAt, items: deduplicated, sourceCount: 2, deduplicated: deduplicated.length === items.length, status: deduplicated.length === 2 ? "PASS" : "PARTIAL" });
+      const preview = await collectV21News(["eastmoney-news", "cls-news"],
+        (sourceId) => sourceState.get(sourceId)?.status === "OPEN" ? Promise.resolve(null) : publicSourceHttp.latestNews(sourceId as "eastmoney-news" | "cls-news", observedAt),
+        (article) => newsRevisionRepository.append(article));
+      return json(res, { observedAt, dataMode: "LIVE_SOURCE", ...preview, sourceErrors: preview.sourceFailures.map((sourceId) => ({ sourceId, code: sourceState.get(sourceId)?.status === "OPEN" ? "SOURCE_CIRCUIT_OPEN" : publicSourceHttp.newsError(sourceId as "eastmoney-news" | "cls-news") ?? "NEWS_PERSISTENCE_FAILED" })) });
     }
     if (req.url === "/v2/minute/preview" && req.method === "GET") { const bars = await parseMinute(minuteFixture); return json(res, { fixtureVersion: "v2.2-minute-bars-1", rows: bars.length, securities: new Set(bars.map((bar) => bar.securityId)).size, quality: minuteQuality(bars), bars }); }
     if (req.url === "/v2/minute/quality" && req.method === "POST") {
@@ -384,9 +728,9 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return json(res, { status: issues.length ? "REJECTED" : "READY", rows: body.bars.length, issues }, issues.length ? 422 : 200);
     }
     if (req.url === "/v2/minute/coverage" && req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as { securityIds?: string[]; fromDate?: string; toDate?: string; bars?: QualityBar[] };
-      if (!Array.isArray(body.securityIds) || !body.fromDate || !body.toDate || !Array.isArray(body.bars)) return json(res, { code: "INVALID_COVERAGE_INPUT" }, 422);
-      const report = buildCoverage(body.securityIds, body.fromDate, body.toDate, body.bars, { session: (date) => { const session = cnAShareSession(date); return { status: session.status as "TRADING" | "CLOSED" | "UNKNOWN", sessions: session.sessions }; } });
+      const body = JSON.parse(await readBody(req)) as { securityIds?: string[]; fromDate?: string; toDate?: string; windowMinutes?: 1 | 5; bars?: QualityBar[]; tradingStatusEvidence?: Array<{ securityId: string; barStart: string; barEnd: string; status: "TRADING" | "SUSPENDED"; sourceReference: string }> };
+      if (!Array.isArray(body.securityIds) || !body.fromDate || !body.toDate || !Array.isArray(body.bars) || (body.windowMinutes !== undefined && ![1, 5].includes(body.windowMinutes))) return json(res, { code: "INVALID_COVERAGE_INPUT" }, 422);
+      const report = buildCoverage(body.securityIds, body.fromDate, body.toDate, body.bars, { session: (date) => { const session = cnAShareSession(date); return { status: session.status as "TRADING" | "CLOSED" | "UNKNOWN", sessions: session.sessions }; } }, { windowMinutes: body.windowMinutes, tradingStatusEvidence: body.tradingStatusEvidence });
       return json(res, report, report.status === "PASS" ? 200 : 422);
     }
     if (req.url === "/v2/minute/gaps" && req.method === "POST") {
@@ -495,20 +839,22 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
     if ((req.url === "/v2/minute/csv/preview" || req.url === "/v2/minute/csv/import") && req.method === "POST") {
       if (!minuteImportRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
-      const body = JSON.parse(await readBody(req)) as { content?: string; mapping?: MinuteCsvMapping; provenance?: { sourceName?: string; sourceReference?: string | null; licenseStatement?: string; licenseVerification?: string; acquiredAt?: string }; market?: string; frequency?: string; adjustment?: string; timezone?: string; timestampSemantics?: string; volumeUnit?: string; amountUnit?: string };
+      const body = JSON.parse(await readBody(req)) as { content?: string; mapping?: MinuteCsvMapping; provenance?: { sourceName?: string; sourceReference?: string | null; licenseStatement?: string; licenseVerification?: string; acquiredAt?: string }; historicalContext?: MinuteCsvHistoricalContext; market?: string; frequency?: string; adjustment?: string; timezone?: string; timestampSemantics?: string; volumeUnit?: string; amountUnit?: string };
       if (typeof body.content !== "string" || Buffer.byteLength(body.content, "utf8") > 700_000 || !body.mapping || !body.provenance) return json(res, { code: "INVALID_CSV_UPLOAD" }, 422);
       const { sourceName, sourceReference, licenseStatement, licenseVerification, acquiredAt } = body.provenance;
       if (typeof sourceName !== "string" || !sourceName.trim() || sourceName.length > 160 || !(sourceReference === null || typeof sourceReference === "string" && sourceReference.length <= 500) || typeof licenseStatement !== "string" || !licenseStatement.trim() || licenseStatement.length > 500 || !["OPERATOR_CONFIRMED", "UNCONFIRMED"].includes(licenseVerification ?? "") || typeof acquiredAt !== "string" || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(acquiredAt) || !Number.isFinite(Date.parse(acquiredAt))) return json(res, { code: "INVALID_CSV_PROVENANCE" }, 422);
+      const historicalContext = body.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
+      if (!historicalContext || Object.keys(historicalContext).some((key) => !["securityUniverseVersion", "marketRuleSetVersion", "corporateActionVersion"].includes(key)) || Object.values(historicalContext).some((value) => !(value === null || typeof value === "string" && value.trim().length > 0 && value.length <= 120))) return json(res, { code: "INVALID_HISTORICAL_CONTEXT" }, 422);
       if (body.market !== "CN_A" || !["1m", "5m"].includes(body.frequency ?? "") || body.adjustment !== "RAW" || body.timezone !== "Asia/Shanghai" || !["BAR_START", "BAR_END"].includes(body.timestampSemantics ?? "") || body.volumeUnit !== "SHARES" || body.amountUnit !== "CNY") return json(res, { code: "UNSUPPORTED_CSV_SEMANTICS" }, 422);
       let preview;
       try { preview = await previewMinuteCsv({ content: body.content, mapping: body.mapping, market: "CN_A", frequency: body.frequency as "1m" | "5m", adjustment: "RAW", timezone: "Asia/Shanghai", timestampSemantics: body.timestampSemantics as "BAR_START" | "BAR_END", volumeUnit: "SHARES", amountUnit: "CNY" }); }
       catch (error) { return json(res, { code: "CSV_PARSE_REJECTED", message: error instanceof Error ? error.message : "CSV is invalid" }, 422); }
-      if (req.url === "/v2/minute/csv/preview") return json(res, { ...preview, semantics: { market: body.market, frequency: body.frequency, adjustment: body.adjustment, timezone: body.timezone, timestampSemantics: body.timestampSemantics, volumeUnit: body.volumeUnit, amountUnit: body.amountUnit }, provenance: body.provenance });
+      if (req.url === "/v2/minute/csv/preview") return json(res, { ...preview, semantics: { market: body.market, frequency: body.frequency, adjustment: body.adjustment, timezone: body.timezone, timestampSemantics: body.timestampSemantics, volumeUnit: body.volumeUnit, amountUnit: body.amountUnit }, provenance: body.provenance, historicalContext, historicalContextStatus: historicalContextStatus(historicalContext) });
       const semantics = { market: "CN_A" as const, frequency: body.frequency as "1m" | "5m", adjustment: "RAW" as const, timezone: "Asia/Shanghai" as const, timestampSemantics: body.timestampSemantics as "BAR_START" | "BAR_END", volumeUnit: "SHARES" as const, amountUnit: "CNY" as const };
       const provenance = { sourceName: sourceName.trim(), sourceReference: sourceReference === null ? null : sourceReference.trim() || null, licenseStatement: licenseStatement.trim(), licenseVerification: licenseVerification as "OPERATOR_CONFIRMED" | "UNCONFIRMED", acquiredAt: new Date(acquiredAt).toISOString() };
-      const { sourceSha256, importKeySha256 } = minuteCsvImportIdentity(body.content, body.mapping, semantics, provenance);
+      const { sourceSha256, importKeySha256 } = minuteCsvImportIdentity(body.content, body.mapping, semantics, provenance, historicalContext);
       const rejected = preview.errors.length > 0 || preview.acceptedRows === 0;
-      const imported = await minuteImportRepository.publish({ sourceSha256, importKeySha256, manifest: { mapping: Object.fromEntries(Object.entries(body.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED" }, status: rejected ? "REJECTED" : "PUBLISHED", accepted: rejected ? 0 : preview.acceptedRows, errors: preview.errors, bars: rejected ? [] : preview.bars });
+      const imported = await minuteImportRepository.publish({ sourceSha256, importKeySha256, manifest: { mapping: Object.fromEntries(Object.entries(body.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED", historicalContext, historicalContextStatus: historicalContextStatus(historicalContext) }, status: rejected ? "REJECTED" : "PUBLISHED", accepted: rejected ? 0 : preview.acceptedRows, errors: preview.errors, bars: rejected ? [] : preview.bars });
       return json(res, { ...imported.record, idempotent: imported.idempotent }, imported.idempotent ? 200 : rejected ? 422 : 201);
     }
     const minuteUploadCreateMatch = req.url?.match(/^\/v2\/minute\/(csv|parquet)\/uploads$/iu);
@@ -516,13 +862,15 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!minuteUploadRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       const body = JSON.parse(await readBody(req)) as { uploadId?: string; expectedSha256?: string; expectedBytes?: number; metadata?: MinuteUploadMetadata };
       const ownerId = req.headers["x-stockquant-owner-id"];
-      const metadata = body.metadata ? { ...body.metadata, fileFormat: body.metadata.fileFormat ?? "CSV" } : undefined;
+      const metadata = body.metadata ? { ...body.metadata, fileFormat: body.metadata.fileFormat ?? "CSV", historicalContext: body.metadata.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null } } : undefined;
       if (typeof ownerId !== "string" || typeof body.uploadId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body.uploadId) || !metadata || typeof body.expectedBytes !== "number" || typeof body.expectedSha256 !== "string") return json(res, { code: "INVALID_UPLOAD_REQUEST" }, 422);
       if (metadata.fileFormat !== "CSV" && metadata.fileFormat !== "PARQUET") return json(res, { code: "UNSUPPORTED_FILE_FORMAT" }, 422);
       if (metadata.fileFormat !== minuteUploadCreateMatch[1].toUpperCase()) return json(res, { code: "UPLOAD_ROUTE_FORMAT_MISMATCH" }, 422);
       if (metadata.market !== "CN_A" || !["1m", "5m"].includes(metadata.frequency ?? "") || metadata.adjustment !== "RAW" || metadata.timezone !== "Asia/Shanghai" || !["BAR_START", "BAR_END"].includes(metadata.timestampSemantics ?? "") || metadata.volumeUnit !== "SHARES" || metadata.amountUnit !== "CNY") return json(res, { code: "UNSUPPORTED_MINUTE_FILE_SEMANTICS" }, 422);
       const provenance = metadata.provenance;
       if (!provenance || typeof provenance.sourceName !== "string" || !provenance.sourceName.trim() || provenance.sourceName.length > 160 || !(provenance.sourceReference === null || typeof provenance.sourceReference === "string" && provenance.sourceReference.length <= 500) || typeof provenance.licenseStatement !== "string" || !provenance.licenseStatement.trim() || provenance.licenseStatement.length > 500 || !["OPERATOR_CONFIRMED", "UNCONFIRMED"].includes(provenance.licenseVerification) || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(provenance.acquiredAt) || !Number.isFinite(Date.parse(provenance.acquiredAt))) return json(res, { code: "INVALID_CSV_PROVENANCE" }, 422);
+      const history = metadata.historicalContext;
+      if (!history || Object.keys(history).some((key) => !["securityUniverseVersion", "marketRuleSetVersion", "corporateActionVersion"].includes(key)) || Object.values(history).some((value) => !(value === null || typeof value === "string" && value.trim().length > 0 && value.length <= 120))) return json(res, { code: "INVALID_HISTORICAL_CONTEXT" }, 422);
       const result = await minuteUploadRepository.create({ uploadId: body.uploadId, ownerId, expectedSha256: body.expectedSha256, expectedBytes: body.expectedBytes, metadata });
       return json(res, { ...result.progress, idempotent: result.idempotent }, result.idempotent ? 200 : 201);
     }
@@ -567,12 +915,13 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         const upload = await minuteUploadRepository.beginFinalization(ownerId, uploadId);
         if (upload.alreadyCompleted) return json(res, { ...upload.alreadyCompleted, idempotent: true, uploadId }, 200);
         const provenance = upload.metadata.provenance;
-        const manifest = { mapping: Object.fromEntries(Object.entries(upload.metadata.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics: { fileFormat: upload.metadata.fileFormat ?? "CSV", market: upload.metadata.market, frequency: upload.metadata.frequency, adjustment: upload.metadata.adjustment, timezone: upload.metadata.timezone, timestampSemantics: upload.metadata.timestampSemantics, volumeUnit: upload.metadata.volumeUnit, amountUnit: upload.metadata.amountUnit }, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED" };
+        const historicalContext = upload.metadata.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
+        const manifest = { mapping: Object.fromEntries(Object.entries(upload.metadata.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics: { fileFormat: upload.metadata.fileFormat ?? "CSV", market: upload.metadata.market, frequency: upload.metadata.frequency, adjustment: upload.metadata.adjustment, timezone: upload.metadata.timezone, timestampSemantics: upload.metadata.timestampSemantics, volumeUnit: upload.metadata.volumeUnit, amountUnit: upload.metadata.amountUnit }, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED", historicalContext, historicalContextStatus: historicalContextStatus(historicalContext) };
         try {
           const imported = await minuteImportRepository!.publishStream({
             expectedSha256: upload.expectedSha256,
             manifest,
-            importKeyForSha: (sha256) => minuteCsvImportIdentityFromSha(sha256, upload.metadata.mapping, upload.metadata, provenance).importKeySha256,
+            importKeyForSha: (sha256) => minuteCsvImportIdentityFromSha(sha256, upload.metadata.mapping, upload.metadata, provenance, historicalContext).importKeySha256,
             parse: async (writeBarsBatch) => {
               let persistenceFailed = false;
               try {
@@ -615,6 +964,25 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const imported = await minuteImportRepository.publish({ sourceSha256: sha256, status: rejected ? "REJECTED" : "PUBLISHED", accepted: rejected ? 0 : bars.length, errors, bars: rejected ? [] : bars });
       return json(res, { ...imported.record, idempotent: imported.idempotent }, imported.idempotent ? 200 : rejected ? 422 : 201);
     }
+    if (req.url === "/v2/historical-context/versions" && req.method === "POST") {
+      if (!minuteImportRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { kind?: string; version?: string; content?: Record<string, unknown>; sha256?: string; validFrom?: string; validTo?: string; sourceReference?: string; attestedBy?: string };
+      if (!body || !["SECURITY_UNIVERSE", "MARKET_RULE_SET", "CORPORATE_ACTIONS"].includes(body.kind ?? "") || typeof body.version !== "string" || !body.content || Array.isArray(body.content) || typeof body.sha256 !== "string" || typeof body.validFrom !== "string" || typeof body.validTo !== "string" || typeof body.sourceReference !== "string" || typeof body.attestedBy !== "string") return json(res, { code: "INVALID_HISTORICAL_CONTEXT_VERSION" }, 422);
+      try { return json(res, await minuteImportRepository.registerHistoricalContextVersion(body as import("../domain/historical-context.js").HistoricalContextVersion), 201); }
+      catch (error) { return json(res, { code: "HISTORICAL_CONTEXT_VERSION_REJECTED", message: error instanceof Error ? error.message : "invalid version" }, 422); }
+    }
+    const replayReadinessMatch = req.url?.match(/^\/v2\/minute\/imports\/([^/?]+)\/replay-readiness(?:\?.*)?$/u);
+    if (replayReadinessMatch && req.method === "GET") {
+      if (!minuteImportRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const version = decodeURIComponent(replayReadinessMatch[1]);
+      const [result, imported] = await Promise.all([minuteImportRepository.checkReplayReadiness(version), minuteImportRepository.find(version)]);
+      if (!result || !imported) return json(res, { code: "NOT_FOUND" }, 404);
+      const sourceId = imported.manifest.provenance?.sourceName.trim().toLowerCase();
+      const reasons = [...result.reasons];
+      if (!isHistoricalResearchSourceAuthorized(sourceId)) reasons.push("HISTORICAL_RESEARCH_SOURCE_NOT_AUTHORIZED");
+      const readiness = { ...result, status: reasons.length ? "BLOCKED" as const : "READY" as const, reasons: [...new Set(reasons)] };
+      return json(res, readiness, readiness.status === "READY" ? 200 : 409);
+    }
     const minuteBarsMatch = req.url?.match(/^\/v2\/minute\/imports\/([^/?]+)\/bars(?:\?.*)?$/);
     if (minuteBarsMatch && req.method === "GET") {
       if (!minuteImportRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
@@ -628,6 +996,34 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const toBarStart = url.searchParams.get("toBarStart") ?? undefined;
       try { return json(res, await minuteImportRepository.page(version, cursor, pageSize, securityId, fromBarStart, toBarStart)); }
       catch (error) { return json(res, { code: "INVALID_PAGE", message: error instanceof Error ? error.message : "invalid page" }, 422); }
+    }
+    const minuteDailyAggregateMatch = req.url?.match(/^\/v2\/minute\/imports\/([^/?]+)\/daily-aggregate-check$/u);
+    if (minuteDailyAggregateMatch && req.method === "POST") {
+      if (!minuteImportRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
+      const version = decodeURIComponent(minuteDailyAggregateMatch[1]);
+      const imported = await minuteImportRepository.find(version);
+      if (!imported) return json(res, { code: "NOT_FOUND" }, 404);
+      let body: Record<string, unknown>;
+      try { body = JSON.parse(await readBody(req)) as Record<string, unknown>; }
+      catch { return json(res, { code: "INVALID_JSON" }, 422); }
+      if (typeof body.securityId !== "string" || typeof body.tradingDate !== "string" || !["1m", "5m"].includes(String(body.frequency)) || !body.reference || typeof body.reference !== "object" || typeof body.referenceSource !== "string" || typeof body.sourceReference !== "string") return json(res, { code: "INVALID_DAILY_AGGREGATE_REQUEST" }, 422);
+      const requestedDate = Date.parse(`${body.tradingDate}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/u.test(body.tradingDate) || !Number.isFinite(requestedDate) || new Date(requestedDate).toISOString().slice(0, 10) !== body.tradingDate) return json(res, { code: "INVALID_DAILY_AGGREGATE_REQUEST" }, 422);
+      const frequency = body.frequency as "1m" | "5m";
+      if (imported.manifest.semantics?.frequency !== frequency || imported.manifest.semantics?.adjustment !== "RAW") return json(res, { code: "INCOMPATIBLE_IMPORT_SEMANTICS" }, 422);
+      const fromBarStart = `${body.tradingDate}T00:00:00+08:00`;
+      const nextDate = new Date(Date.parse(`${body.tradingDate}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+      const toBarStart = `${nextDate}T00:00:00+08:00`;
+      const bars = [];
+      let cursor = 0;
+      do {
+        const page = await minuteImportRepository.page(version, cursor, 500, body.securityId, fromBarStart, toBarStart);
+        bars.push(...page.items);
+        if (bars.length > 500) return json(res, { code: "DAILY_AGGREGATE_BAR_LIMIT", limit: 500 }, 422);
+        cursor = page.nextCursor === null ? -1 : Number(page.nextCursor);
+      } while (cursor >= 0);
+      const report = compareMinuteDailyAggregate({ bars, securityId: body.securityId, tradingDate: body.tradingDate, frequency, reference: body.reference as import("../application/minute-daily-aggregate.js").DailyReference, referenceSource: body.referenceSource, sourceReference: body.sourceReference });
+      return json(res, { dataVersion: version, importSha256: imported.sha256, ...report });
     }
     const minuteGet = req.url?.match(/^\/v2\/minute\/imports\/([^/?]+)$/);
     if (minuteGet && req.method === "GET") {
@@ -666,7 +1062,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return task ? json(res, task) : json(res, { code: "NOT_FOUND" }, 404);
     }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { const bodyTooLarge = error instanceof HttpBodyTooLargeError; const unauthenticated = error instanceof ProjectAuthenticationError; const accessDenied = error instanceof ProjectAccessDenied; const quota = error instanceof ProjectQuotaRepositoryError || error instanceof MinuteUploadQuotaExceeded; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict || error instanceof MinuteUploadConflict; return json(res, { code: bodyTooLarge ? "REQUEST_BODY_TOO_LARGE" : unauthenticated ? "UNAUTHENTICATED" : accessDenied ? "PROJECT_ACCESS_DENIED" : quota ? "PROJECT_QUOTA_EXCEEDED" : conflict ? "UPLOAD_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, bodyTooLarge ? 413 : unauthenticated ? 401 : accessDenied ? 403 : quota ? 429 : conflict ? 409 : 500); }
+  } catch (error) { const bodyTooLarge = error instanceof HttpBodyTooLargeError; const unauthenticated = error instanceof ProjectAuthenticationError; const accessDenied = error instanceof ProjectAccessDenied; const quota = error instanceof ProjectQuotaRepositoryError || error instanceof MinuteUploadQuotaExceeded; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict || error instanceof MinuteUploadConflict || (error instanceof Error && error.name === "SnapshotTaskConflict"); return json(res, { code: bodyTooLarge ? "REQUEST_BODY_TOO_LARGE" : unauthenticated ? "UNAUTHENTICATED" : accessDenied ? "PROJECT_ACCESS_DENIED" : quota ? "PROJECT_QUOTA_EXCEEDED" : conflict ? "IDEMPOTENCY_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, bodyTooLarge ? 413 : unauthenticated ? 401 : accessDenied ? 403 : quota ? 429 : conflict ? 409 : 500); }
   finally { if (releaseMinuteImport) { await waitForResponseDrain(res); await releaseMinuteImport(); } }
 });
 async function projectActorForRequest(req: IncomingMessage): Promise<ProjectActor | null> {
@@ -682,17 +1078,22 @@ async function projectActorForRequest(req: IncomingMessage): Promise<ProjectActo
   return { projectId: project.projectId, scopes: new Set(project.scopes) };
 }
 function readBody(req: IncomingMessage): Promise<string> { return readHttpBody(req); }
-type MinuteBar = { securityId: string; market: string; frequency: string; barStart: string; barEnd: string; availableAt: string; open: number; high: number; low: number; close: number; volume: number; amount: number; adjustment: string };
-async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1); return lines.map((line) => { const [securityId, market, frequency, barStart, barEnd, availableAt, open, high, low, close, volume, amount, adjustment] = line.split(","); return { securityId, market, frequency, barStart, barEnd, availableAt, open: Number(open), high: Number(high), low: Number(low), close: Number(close), volume: Number(volume), amount: Number(amount), adjustment }; }); }
+type MinuteBar = MinuteImportBar;
+async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1); return lines.map((line) => { const [securityId, market, frequency, barStart, barEnd, availableAt, open, high, low, close, volume, amount, adjustment] = line.split(","); return withMinuteBarContextDefaults({ securityId: securityId!, market: market!, frequency: frequency as MinuteBar["frequency"], barStart: barStart!, barEnd: barEnd!, availableAt: availableAt!, open: Number(open), high: Number(high), low: Number(low), close: Number(close), volume: Number(volume), amount: Number(amount), adjustment: adjustment as MinuteBar["adjustment"] }); }); }
 function minuteQuality(bars: MinuteBar[]) { const errors: Array<Record<string, unknown>> = []; const seen = new Set<string>(); for (const [index, bar] of bars.entries()) { const key = `${bar.securityId}|${bar.barStart}`; if (seen.has(key)) errors.push({ code: "DUPLICATE_CONFLICT", row: index + 2, key }); seen.add(key); if (!(bar.high >= bar.low && bar.high >= bar.open && bar.high >= bar.close && bar.low <= bar.open && bar.low <= bar.close)) errors.push({ code: "OHLC_INVALID", row: index + 2 }); const time = bar.barStart.slice(11, 16); if ((time >= "11:30" && time < "13:00") || time < "09:30" || time >= "15:00") errors.push({ code: "NON_TRADING_SESSION", row: index + 2, time }); if (bar.volume < 0 || bar.amount < 0) errors.push({ code: "UNIT_INVALID", row: index + 2 }); } return errors; }
 async function start(): Promise<void> {
-  if (databasePool) await migrateMarketDataSchema(databasePool);
+  if (databasePool) { await migrateMarketDataSchema(databasePool); await migrateDailyBarCompletionSchema(databasePool); await migrateMonitorConsumerOutboxSchema(databasePool); await migrateDailyBarCloseSchedulerSchema(databasePool); }
   if (artifactTaskExecutor && process.env.STOCKQUANT_ARTIFACT_TASK_EXECUTOR !== "0") artifactTaskExecutor.start(Number(process.env.STOCKQUANT_ARTIFACT_TASK_INTERVAL_MS ?? 250));
   if (projectAccessRepository) {
     for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);
   }
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
   if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
+  if (samplingTaskWorker && process.env.STOCKQUANT_SAMPLING_TASK_WORKER !== "0") samplingTaskWorker.start(Number(process.env.STOCKQUANT_SAMPLING_TASK_WORKER_INTERVAL_MS ?? 1_000));
+  if (snapshotScheduler && process.env.STOCKQUANT_SNAPSHOT_SCHEDULER_ENABLED === "true") snapshotScheduler.start();
+  if (monitorOutboxWorker && process.env.STOCKQUANT_MONITOR_OUTBOX_WORKER !== "0") monitorOutboxWorker.start(Number(process.env.STOCKQUANT_MONITOR_OUTBOX_INTERVAL_MS ?? 1_000));
+  if (dailyBarCompletionWorker && process.env.STOCKQUANT_DAILY_BAR_WORKER !== "0") dailyBarCompletionWorker.start(Number(process.env.STOCKQUANT_DAILY_BAR_WORKER_INTERVAL_MS ?? 1_000));
+  if (dailyBarCloseScheduler && process.env.STOCKQUANT_DAILY_BAR_SCHEDULER !== "0") dailyBarCloseScheduler.start(Number(process.env.STOCKQUANT_DAILY_BAR_SCHEDULER_INTERVAL_MS ?? 30_000));
   if (collectionExecutor) collectionExecutor.start(Number(process.env.STOCKQUANT_COLLECTION_EXECUTOR_INTERVAL_MS ?? 60_000));
 }
 void start().catch((error: unknown) => { console.error("market-data-service startup failed", error); process.exitCode = 1; });

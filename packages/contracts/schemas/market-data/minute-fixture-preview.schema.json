@@ -3,7 +3,50 @@
   "$id": "https://stockquant.local/contracts/market-data/minute-fixture-preview-v1.schema.json",
   "title": "MinuteFixturePreview",
   "type": "object",
-  "required": ["fixtureVersion", "rows", "securities", "quality", "bars"],
-  "properties": {"fixtureVersion": {"type": "string"}, "rows": {"type": "integer", "minimum": 0}, "securities": {"type": "integer", "minimum": 0}, "quality": {"type": "array", "items": {"type": "object", "required": ["code", "row"], "properties": {"code": {"type": "string"}, "row": {"type": "integer"}}, "additionalProperties": true}}, "bars": {"type": "array", "items": {"type": "object", "required": ["securityId", "market", "frequency", "barStart", "barEnd", "availableAt", "open", "high", "low", "close", "volume", "amount", "adjustment"], "properties": {"securityId": {"type": "string"}, "market": {"type": "string"}, "frequency": {"type": "string"}, "barStart": {"type": "string", "format": "date-time"}, "barEnd": {"type": "string", "format": "date-time"}, "availableAt": {"type": "string", "format": "date-time"}, "open": {"type": "number"}, "high": {"type": "number"}, "low": {"type": "number"}, "close": {"type": "number"}, "volume": {"type": "number"}, "amount": {"type": "number"}, "adjustment": {"type": "string"}}, "additionalProperties": false}}},
+  "required": [
+    "fixtureVersion",
+    "rows",
+    "securities",
+    "quality",
+    "bars"
+  ],
+  "properties": {
+    "fixtureVersion": {
+      "type": "string"
+    },
+    "rows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "securities": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quality": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "row"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "row": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "bars": {
+      "type": "array",
+      "items": {
+        "$ref": "https://stockquant.local/contracts/market-data/minute-bar.schema.json"
+      }
+    }
+  },
   "additionalProperties": false
 }

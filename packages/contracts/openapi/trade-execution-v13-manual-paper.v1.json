@@ -31,6 +31,25 @@
         "responses": { "200": { "description": "Independent FakeBroker asset snapshot" }, "403": { "description": "Service identity or scope rejected" }, "404": { "description": "FakeBroker assets were not found" } }
       }
     },
+    "/internal/v1/accounts/{accountId}/in-flight-orders": {
+      "get": {
+        "operationId": "readV21InFlightOrdersForAccount",
+        "summary": "Read unresolved simulated orders within an exact account, owner, namespace, and TestRun scope",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "ownerId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "testRunId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Scoped unresolved simulated order securities", "content": { "application/json": { "schema": { "type": "object", "required": ["accountId", "namespace", "ownerId", "testRunId", "orders"], "properties": { "accountId": { "type": "string", "format": "uuid" }, "namespace": { "type": "string" }, "ownerId": { "type": "string" }, "testRunId": { "type": "string", "format": "uuid" }, "orders": { "type": "array", "items": { "type": "object", "required": ["security", "status"], "properties": { "security": { "type": "string" }, "status": { "type": "string" } }, "additionalProperties": false } } }, "additionalProperties": false } } } },
+          "403": { "description": "Service identity or scope rejected" },
+          "422": { "description": "Required scope query parameters are missing" }
+        }
+      }
+    },
     "/internal/v1/v13/accounts/settlements": {
       "post": {
         "operationId": "settleV13PaperReceivables",

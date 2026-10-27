@@ -18,6 +18,14 @@ describe("run-scoped V2.4 Fixture Paper authorization", () => {
     expect(validatePaperFixtureGrant(grant)).toBe(true);
   });
 
+  it("accepts a scoped SELL grant without broadening the Fixture to LIVE or real-source execution", () => {
+    expect(validatePaperFixtureGrant({
+      ...grant,
+      signal: { ...grant.signal, action: "SELL" },
+      order: { ...grant.order, clientOrderId: "v24-fixture-v2-test-sell" },
+    })).toBe(true);
+  });
+
   it.each([
     ["LIVE writes", { liveTradingEnabled: true }],
     ["other markets", { market: "US_EQUITY" }],

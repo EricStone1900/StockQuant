@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-c5-daily-bar-completion",
+  "fixtureVersion": "v24-c5-daily-bars-1",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Three synthetic CN_A DAILY_BAR rows matching the C5 scoped sampling Fixture watchlist; not market data.", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-24T00:00:00Z",
+  "files": [
+    { "path": "fixtures/v2/v2.4/c5-daily-bar-completion/bars.json", "sha256": "048c6732107b7eeb46d698d8fb4af258bf01ab9792182ec62a7f803609ae631b", "mediaType": "application/json", "schemaRef": "fixtures/manifests/v24-c5-daily-bars-fixture.schema.json" }
+  ],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-C5-DAILY-BAR-001", "description": "The exact C5 scoped watchlist completes one independent synthetic DAILY_BAR batch after close." },
+    { "assertionId": "V2.4-C5-DAILY-BAR-IDEMPOTENCY-001", "description": "A repeated completion request returns the original durable daily-bar task and completion." }
+  ]
+}

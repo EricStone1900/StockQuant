@@ -68,7 +68,7 @@ export function validatePaperFixtureGrant(value: unknown): value is PaperFixture
   const maxOrderNotional = ticks(mandate.maxOrderNotional);
   const maxGrossExposure = ticks(mandate.maxGrossExposure);
   const maxDailyTurnover = ticks(mandate.maxDailyTurnover);
-  if (order?.security !== "600000.SH" || order.requestedQuantity !== signal?.quantity || signal.action !== "BUY" ||
+  if (order?.security !== "600000.SH" || order.requestedQuantity !== signal?.quantity || !["BUY", "SELL"].includes(signal.action) ||
       !order.clientOrderId.startsWith("v24-fixture-v2-") || !mandate.securityScope.includes(order.security) ||
       orderNotional === null || maxOrderNotional === null || maxGrossExposure === null || maxDailyTurnover === null ||
       orderNotional > maxOrderNotional || orderNotional > maxGrossExposure || orderNotional > maxDailyTurnover || price === 0n || reference === null) return false;

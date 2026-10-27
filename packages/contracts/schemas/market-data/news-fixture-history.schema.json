@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/news-fixture-history-v1.schema.json",
+  "title": "MarketDataNewsFixtureHistory",
+  "type": "object",
+  "required": ["fixtureVersion", "dataMode", "histories"],
+  "properties": {
+    "fixtureVersion": { "const": "v2.1-news-revisions-1" },
+    "dataMode": { "const": "FIXTURE" },
+    "histories": { "type": "array", "items": { "type": "object", "required": ["sourceId", "sourceItemId", "sourceUrl", "title", "publishedAt", "symbols", "observedAt", "ingestedAt", "availableAt", "revision", "contentHash", "supersedesRevision", "publicationTimeStatus", "entityMatchStatus", "revisionStatus"], "properties": { "sourceId": { "type": "string" }, "sourceItemId": { "type": "string" }, "sourceUrl": { "type": ["string", "null"] }, "title": { "type": "string" }, "publishedAt": { "type": ["string", "null"], "format": "date-time" }, "symbols": { "type": "array", "items": { "type": "string" } }, "observedAt": { "type": "string", "format": "date-time" }, "ingestedAt": { "type": "string", "format": "date-time" }, "availableAt": { "type": "string", "format": "date-time" }, "revision": { "type": "integer", "minimum": 1 }, "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "supersedesRevision": { "type": ["integer", "null"] }, "publicationTimeStatus": { "enum": ["KNOWN", "UNKNOWN"] }, "entityMatchStatus": { "enum": ["LINKED", "UNMATCHED", "AMBIGUOUS"] }, "revisionStatus": { "const": "VERIFIED_STABLE_SOURCE_ID" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": false
+}

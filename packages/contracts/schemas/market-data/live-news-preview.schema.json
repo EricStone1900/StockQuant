@@ -3,7 +3,200 @@
   "$id": "https://stockquant.local/contracts/market-data/live-news-preview-v1.schema.json",
   "title": "MarketDataLiveNewsPreview",
   "type": "object",
-  "required": ["observedAt", "items", "sourceCount", "deduplicated", "status"],
-  "properties": {"observedAt": {"type": "string", "format": "date-time"}, "items": {"type": "array", "items": {"type": "object", "required": ["newsId", "sourceId", "title", "publishedAt", "observedAt", "ingestedAt", "availableAt", "revision", "symbols"], "properties": {"newsId": {"type": "string"}, "sourceId": {"type": "string"}, "title": {"type": "string"}, "publishedAt": {"type": ["string", "null"], "format": "date-time"}, "observedAt": {"type": "string", "format": "date-time"}, "ingestedAt": {"type": "string", "format": "date-time"}, "availableAt": {"type": "string", "format": "date-time"}, "revision": {"type": "integer"}, "symbols": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": true}}, "sourceCount": {"type": "integer"}, "deduplicated": {"type": "boolean"}, "status": {"enum": ["PASS", "PARTIAL"]}},
+  "required": [
+    "observedAt",
+    "items",
+    "sourceCount",
+    "deduplicated",
+    "status"
+  ],
+  "properties": {
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "newsId",
+          "sourceId",
+          "title",
+          "publishedAt",
+          "observedAt",
+          "ingestedAt",
+          "availableAt",
+          "revision",
+          "symbols",
+          "sourceIds",
+          "publicationTimeStatus",
+          "entityMatchStatus",
+          "revisionStatus",
+          "sourceItemId",
+          "sourceUrl",
+          "sourceArticles"
+        ],
+        "properties": {
+          "newsId": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ingestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "availableAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publicationTimeStatus": {
+            "enum": [
+              "KNOWN",
+              "UNKNOWN"
+            ]
+          },
+          "entityMatchStatus": {
+            "enum": [
+              "LINKED",
+              "UNMATCHED",
+              "AMBIGUOUS"
+            ]
+          },
+          "revisionStatus": {
+            "enum": [
+              "VERIFIED_STABLE_SOURCE_ID",
+              "UNVERIFIED_NO_STABLE_SOURCE_ID"
+            ]
+          },
+          "sourceItemId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sourceArticles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "sourceId",
+                "sourceItemId",
+                "sourceUrl",
+                "title",
+                "publishedAt",
+                "revision"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "sourceItemId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sourceUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "sourceCount": {
+      "type": "integer"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "status"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "RECEIVED",
+              "UNAVAILABLE"
+            ]
+          }
+        }
+      }
+    },
+    "sourceFailures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deduplicated": {
+      "type": "boolean"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "PARTIAL"
+      ]
+    }
+  },
   "additionalProperties": true
 }

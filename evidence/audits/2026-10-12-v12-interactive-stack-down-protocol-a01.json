@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "stockquant.v1.2.interactive-stack-lifecycle-audit.v1",
+  "date": "2026-10-12",
+  "stageId": "V1.2",
+  "status": "PASS",
+  "isolatedProject": "sq-v12-e2e-63523f9c7a5cbf8945bf",
+  "startup": {
+    "command": "pnpm v12:acceptance",
+    "status": "READY_FOR_MANUAL_ACCEPTANCE",
+    "exitCode": 0,
+    "webUrl": "http://127.0.0.1:50662/acceptance/v1/v1.2",
+    "platformApiUrl": "http://127.0.0.1:23161",
+    "fixtureVersion": "v1.2-market-data-1",
+    "sourceAuthorization": "NONE",
+    "brokerMode": "FAKE",
+    "liveTradingEnabled": false,
+    "webRuntime": "containerized Web",
+    "identityBoundary": {
+      "anonymousRejected": 11,
+      "forgedOwnerRejected": 11,
+      "expectedStatuses": {
+        "anonymous": 401,
+        "forgedOwner": 403
+      }
+    },
+    "modeInjectionBoundary": {
+      "clientModeCombinationsRejected": 6,
+      "status": 422,
+      "testRunCountUnchanged": true
+    }
+  },
+  "shutdown": {
+    "command": "pnpm stack:down -- --project sq-v12-e2e-63523f9c7a5cbf8945bf",
+    "exitCode": 0,
+    "stackDownStatus": "STOPPED_AND_PURGED",
+    "harnessStatus": "MANUAL_STACK_CLEANUP_VERIFIED",
+    "containers": 0,
+    "volumes": 0,
+    "networks": 0,
+    "projectImages": 0,
+    "credentialsFileRemoved": true,
+    "activeComposeTargeted": false
+  },
+  "testRunCreated": false,
+  "humanAcceptance": "NOT_RUN",
+  "scope": "Verifies current manual stack startup/readiness and exact-project cleanup instructions. No user scenario was run, no human sign-off was recorded, and this does not establish Ubuntu or version acceptance."
+}

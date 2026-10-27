@@ -27,12 +27,14 @@ export function authorizeTradeExecutionRequest(input: {
   if (input.authorization !== `Bearer ${input.tokens[caller]}`) return false;
   if (input.method === "POST" && input.pathname === "/internal/v1/historical-orders/execute") return caller === "historical-replay-worker";
   if (input.method === "POST" && input.pathname === "/internal/v1/v24/paper-orders/execute-snapshot") return caller === "platform-api-service";
+  if (input.method === "POST" && input.pathname === "/internal/v1/v24/paper-orders/probe-reservation") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/paper-orders/execute-manual-proposal") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/accounts/settlements") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/paper-orders/execute-auto-proposal") return caller === "platform-api-service";
   if (input.method === "GET" && input.pathname === "/internal/v1/v24/paper-readiness") return caller === "platform-api-service";
   if (input.method === "GET" && input.pathname === "/internal/v1/v13/accounts/assets") return caller === "platform-api-service";
+  if (input.method === "GET" && /^\/internal\/v1\/accounts\/[^/]+\/in-flight-orders$/u.test(input.pathname)) return caller === "platform-api-service";
   if (input.method === "GET" && input.pathname === "/internal/v1/orders/by-client-id") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/fake-broker/external-orders") return caller === "platform-api-service";
   if (input.method === "GET" && /^\/internal\/v1\/historical-orders\/[^/]+$/.test(input.pathname)) return caller === "historical-replay-worker";

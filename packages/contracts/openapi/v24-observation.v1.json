@@ -22,11 +22,11 @@
     "/api/v1/acceptance/v2/v2.4/runs": {
       "post": {
         "operationId": "createV24PaperStageRun",
-        "summary": "Create an owner-scoped V2.4 readiness TestRun",
+        "summary": "Create an owner-scoped V2.4 isolated Fixture Paper TestRun",
         "security": [{ "localSession": [] }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-stage-run-request.schema.json" } } } },
         "responses": {
-          "202": { "description": "Persisted WAITING readiness run", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-stage-run-accepted.schema.json" } } } },
+          "202": { "description": "Persisted run state; a job ID alone does not prove completion", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-stage-run-accepted.schema.json" } } } },
           "400": { "description": "Malformed JSON request" },
           "401": { "description": "A local session is required" },
           "403": { "description": "The scenario is unsupported or the user is outside the local acceptance scope" }
@@ -43,7 +43,7 @@
           { "name": "x-stockquant-user", "in": "header", "required": false, "description": "Available only when the local test identity header is enabled.", "schema": { "type": "string", "minLength": 1 } }
         ],
         "responses": {
-          "200": { "description": "The exact persisted WAITING run", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-stage-run-result.schema.json" } } } },
+          "200": { "description": "The exact persisted preparation or isolated Fixture run; includes immutable daily target when evaluated", "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/schemas/common/v24-paper-stage-run-result.schema.json" } } } },
           "401": { "description": "A local session is required" },
           "403": { "description": "The authenticated user is outside the local acceptance scope" },
           "404": { "description": "The run is missing, unowned, or not a V2.4 run" }

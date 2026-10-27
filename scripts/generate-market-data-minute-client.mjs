@@ -12,10 +12,12 @@ const uploadOperations = [
   document.paths?.["/v2/minute/{format}/uploads/{uploadId}"]?.get,
   document.paths?.["/v2/minute/{format}/uploads/{uploadId}/{action}"]?.post,
 ];
-const readOperations = [document.paths?.["/v2/minute/csv/preview"]?.post, document.paths?.["/v2/minute/imports/{version}"]?.get, document.paths?.["/v2/minute/imports/{version}/bars"]?.get];
+const readOperations = [document.paths?.["/v2/minute/csv/preview"]?.post, document.paths?.["/v2/minute/imports/{version}"]?.get, document.paths?.["/v2/minute/imports/{version}/bars"]?.get, document.paths?.["/v2/minute/imports/{version}/replay-readiness"]?.get, document.paths?.["/v2/minute/coverage"]?.post];
+const contextVersionOperation = document.paths?.["/v2/historical-context/versions"]?.post;
+const coverageOperation = document.paths?.["/v2/minute/coverage"]?.post;
 const fixturePreviewOperation = document.paths?.["/v2/minute/preview"]?.get;
 const fixtureImportOperation = document.paths?.["/v2/minute/import"]?.post;
-if (document.openapi !== "3.1.0" || !document.servers?.[0]?.url?.includes("market-data-service") || operation?.operationId !== "importMarketDataMinuteCsv" || !operation.security?.some((item) => item.ServiceBearer) || operation.parameters?.find((item) => item.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service" || !JSON.stringify(operation.requestBody).includes("minute-csv-import-request-v1.schema.json") || !JSON.stringify(operation.responses?.["201"]).includes("minute-import-record-v1.schema.json") || uploadOperations.some((item) => !item?.security?.some((entry) => entry.ServiceBearer) || item.parameters?.find((parameter) => parameter.name === "x-stockquant-owner-id")?.required !== true) || readOperations.some((item) => !item?.security?.some((entry) => entry.ServiceBearer) || item.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service") || fixturePreviewOperation?.operationId !== "previewMarketDataMinuteFixture" || !fixturePreviewOperation.security?.some((entry) => entry.ServiceBearer) || !JSON.stringify(fixturePreviewOperation.responses?.["200"]).includes("minute-fixture-preview-v1.schema.json") || fixtureImportOperation?.operationId !== "importMarketDataMinuteFixture" || !fixtureImportOperation.security?.some((entry) => entry.ServiceBearer) || !JSON.stringify(fixtureImportOperation.requestBody).includes("minute-fixture-import-request-v1.schema.json")) throw new Error("Market Data minute import/upload OpenAPI contract is incomplete");
+if (document.openapi !== "3.1.0" || !document.servers?.[0]?.url?.includes("market-data-service") || operation?.operationId !== "importMarketDataMinuteCsv" || !operation.security?.some((item) => item.ServiceBearer) || operation.parameters?.find((item) => item.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service" || !JSON.stringify(operation.requestBody).includes("minute-csv-import-request-v1.schema.json") || !JSON.stringify(operation.responses?.["201"]).includes("minute-import-record-v1.schema.json") || uploadOperations.some((item) => !item?.security?.some((entry) => entry.ServiceBearer) || item.parameters?.find((parameter) => parameter.name === "x-stockquant-owner-id")?.required !== true) || readOperations.some((item) => !item?.security?.some((entry) => entry.ServiceBearer) || item.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service") || coverageOperation?.operationId !== "calculateMarketDataMinuteCoverage" || !coverageOperation.security?.some((entry) => entry.ServiceBearer) || coverageOperation.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service" || contextVersionOperation?.operationId !== "registerMarketDataHistoricalContextVersion" || !contextVersionOperation.security?.some((entry) => entry.ServiceBearer) || contextVersionOperation.parameters?.find((parameter) => parameter.name === "x-stockquant-service-id")?.schema?.const !== "platform-api-service" || fixturePreviewOperation?.operationId !== "previewMarketDataMinuteFixture" || !fixturePreviewOperation.security?.some((entry) => entry.ServiceBearer) || !JSON.stringify(fixturePreviewOperation.responses?.["200"]).includes("minute-fixture-preview-v1.schema.json") || fixtureImportOperation?.operationId !== "importMarketDataMinuteFixture" || !fixtureImportOperation.security?.some((entry) => entry.ServiceBearer) || !JSON.stringify(fixtureImportOperation.requestBody).includes("minute-fixture-import-request-v1.schema.json")) throw new Error("Market Data minute import/upload OpenAPI contract is incomplete");
 
 const expected = `// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/market-data-minute-import.v1.json
 import type * as Contracts from "./generated-types.js";
@@ -73,9 +75,28 @@ export class GeneratedMarketDataMinuteClient {
     return this.call<Contracts.MinuteImportRecord>(\`/v2/minute/imports/\${encodeURIComponent(version)}\`, "GET");
   }
 
-  async pageMarketDataMinuteImportBars(version: string, query: { cursor?: string; pageSize?: string; securityId?: string }): Promise<unknown> {
+  async pageMarketDataMinuteImportBars(version: string, query: { cursor?: string; pageSize?: string; securityId?: string; fromBarStart?: string; toBarStart?: string }): Promise<Contracts.MinuteBarPage> {
     const params = new URLSearchParams(Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string] => entry[1] !== undefined)));
-    return this.call<unknown>(\`/v2/minute/imports/\${encodeURIComponent(version)}/bars?\${params.toString()}\`, "GET");
+    return this.call<Contracts.MinuteBarPage>(\`/v2/minute/imports/\${encodeURIComponent(version)}/bars?\${params.toString()}\`, "GET");
+  }
+
+  async checkMarketDataMinuteDailyAggregate(version: string, body: { securityId: string; tradingDate: string; frequency: "1m" | "5m"; reference: { open: number; high: number; low: number; close: number; volume: number; amount: number }; referenceSource: string; sourceReference: string }): Promise<unknown> {
+    return this.call<unknown>(\`/v2/minute/imports/\${encodeURIComponent(version)}/daily-aggregate-check\`, "POST", body);
+  }
+
+  async calculateMarketDataMinuteCoverage(body: { securityIds: string[]; fromDate: string; toDate: string; windowMinutes: 1 | 5; bars: Array<{ securityId: string; barStart: string; barEnd: string; open: number; high: number; low: number; close: number; volume: number; amount: number | null }> }): Promise<unknown> {
+    const response = await this.request(this.baseUrl + "/v2/minute/coverage", { method: "POST", headers: { ...this.headers(), "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+    const value = await response.json().catch(() => ({}));
+    if (![200, 422].includes(response.status)) throw new MarketDataMinuteHttpError(response.status, value);
+    return value;
+  }
+
+  async checkMarketDataMinuteImportReplayReadiness(version: string): Promise<{ status: "READY" | "BLOCKED"; reasons: string[]; from: string | null; to: string | null; securities: string[] }> {
+    return this.call(\`/v2/minute/imports/\${encodeURIComponent(version)}/replay-readiness\`, "GET");
+  }
+
+  async registerMarketDataHistoricalContextVersion(body: { kind: "SECURITY_UNIVERSE" | "MARKET_RULE_SET" | "CORPORATE_ACTIONS"; version: string; content: Record<string, unknown>; sha256: string; validFrom: string; validTo: string; sourceReference: string; attestedBy: string }): Promise<unknown> {
+    return this.call("/v2/historical-context/versions", "POST", body);
   }
 
   private async call<T>(path: string, method: "GET" | "POST" | "PUT", body?: unknown, ownerId?: string): Promise<T> {
@@ -95,4 +116,4 @@ if (actual !== expected) {
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, expected);
 }
-console.log(`Market Data minute OpenAPI client ${checkOnly ? "checked" : "generated"}: 10 operations -> services/platform-api-service/src/contracts/generated-market-data-minute-client.ts`);
+console.log(`Market Data minute OpenAPI client ${checkOnly ? "checked" : "generated"}: 13 operations -> services/platform-api-service/src/contracts/generated-market-data-minute-client.ts`);

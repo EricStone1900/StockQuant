@@ -102,10 +102,19 @@ V2.2内部读取/计算身份补充（2026-09-27）：固定分钟Fixture预览�
 
 ## 9. 外部市场来源用途门禁
 
-行情预览、新闻读取、来源Smoke和分钟采集分别要求显式的运行时用途门禁。每类配置必须同时提供`*_SOURCE_USE_AUTHORIZED=true`、授权/决定引用、数据版本及精确允许的source ID；缺任一项时，在任何Provider HTTP请求之前拒绝。服务Bearer只认证调用方，不能代替来源许可或用途批准。门禁变量本身亦不构成法律授权，必须引用经项目所有者确认的逐来源决定。当前确认状态为`NO_TRADE`且没有来源授权，故这些配置保持关闭；隔离HTTP证明各外部路径被拒且Provider请求数为零。分钟采集调度与执行器也要求MINUTE_COLLECTION用途已授权，未经授权的运行不能通过就绪门禁或由监督器自动修复启动。
+行情预览、新闻读取、来源Smoke和分钟采集分别要求显式的运行时用途门禁。每类配置必须同时提供`*_SOURCE_USE_AUTHORIZED=true`、用途适用性/决定引用、数据版本及精确允许的source ID；缺任一项时，在任何Provider HTTP请求之前拒绝。服务Bearer只认证调用方，不能代替来源条款、用途判断或项目所有者决定。
+
+2026-10-21项目所有者将OD-008限定为个人、本地、非商业学习和FakeBroker/Paper观察：QUOTE和NEWS可在逐源记录当前公开条款、精确端点、低频请求预算、仅元数据留存期限及不共享边界后进行有界能力验证，毋须把供应商书面许可作为普遍前置条件。该记录不是许可本身；遇到明确禁止、登录/付费墙、访问控制或限流要求时必须停止并记为`BLOCKED`或`PARTIAL`。MINUTE_COLLECTION、HISTORICAL_RESEARCH、批量留存、对外共享、策略激活和任何LIVE交易不由此范围决定，继续保持关闭。门禁配置只执行该受限决定，不能绕过来源限制。
+
+V2.1 REAL快照Worker在逐来源QUOTE适用性门禁之外，还要求独立运行开关`STOCKQUANT_SNAPSHOT_REAL_PROVIDER_ENABLED=true`；未设置时默认为关闭。HTTP路由只创建持久任务，Worker领取后再次检查门禁和开关，之后才可调用Provider。OD-008个人本地学习小样本已为PARTIAL，但该Worker开关仍未设置；本次能力探针没有启动常驻采样。开关、凭证或服务Bearer均不能代替来源条款/用途判断。
 
 2026-10-01采集适配器增补：Market Data的Python分钟适配器CLI也会被直接调用，因此在构造任一网络Provider客户端之前复核分钟采集用途授权和全部来源ID。这样即使绕过TypeScript CollectionExecutor，未授权请求仍在最靠近网络边界处fail-closed。
 
 2026-10-01独立来源探针补充：所有可直连真实分钟来源的维护/能力探针（Sina、BaoStock、TDX）在启动SDK/网络请求前也必须经过同一授权判断。无授权探针以`BLOCKED`退出，不生成来源健康PASS，也不写诊断数据。
 
 历史数据用途独立记为`HISTORICAL_RESEARCH`，与`MINUTE_COLLECTION`分离；日线/PIT能力或导入仅获历史研究授权，分钟历史来源运行同时需要历史研究和采集两个用途的独立确认。可直连外部来源的历史导入器及能力探针在Provider会话打开和输出写入前检查以上配置。
+
+
+2026-10-21 C2独立DAILY_BAR配置：当前交易日RAW日线仅允许登记的eastmoney-daily，使用独立的STOCKQUANT_MARKET_DAILY_SOURCE_USE_AUTHORIZED、SOURCE_AUTHORIZATION_REF、DATA_VERSION、AUTHORIZED_SOURCE_IDS，另需STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED=true；QUOTE/NEWS授权不能放行日线。STOCKQUANT_DAILY_BAR_SOURCE_MODE默认FIXTURE，快照自动定时器STOCKQUANT_SNAPSHOT_SCHEDULER_ENABLED默认false，REAL快照执行另有独立开关。Platform会话及服务Bearer保护新路由，scope按owner验证；关闭注册始终允许。当前只在隔离一次性环境完成有界来源验证，没有开启活动旧栈；详见[收口审计](../evidence/audits/2026-10-21-v21-c2-closeout.md)。
+
+2026-10-21 V2.2/V2.3历史回放门禁增量：导入分钟数据进入V2.3前必须满足独立`HISTORICAL_RESEARCH`用途配置及精确来源ID allowlist；`OPERATOR_CONFIRMED`只代表上传时的操作者许可声明，不能代替该用途配置。历史上下文版本注册以当前Platform用户登记，不可改写，内容Hash由服务端规范化计算；这不证明内容是官方事实。Market Data对未知版本、Hash不符、整体/逐证券日期不覆盖、市场规则不完整或研究用途未授权返回BLOCKED，Platform在创建TestRun/Worker任务前拒绝。当前未配置历史研究授权，因此真实来源正向回放仍关闭。

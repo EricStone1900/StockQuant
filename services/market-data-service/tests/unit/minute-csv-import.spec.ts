@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_MINUTE_CSV_BYTES, minuteCsvImportIdentity, previewMinuteCsv, previewMinuteCsvStream } from "../../src/application/minute-csv-import.js";
+import { historicalContextStatus, MAX_MINUTE_CSV_BYTES, minuteCsvImportIdentity, previewMinuteCsv, previewMinuteCsvStream } from "../../src/application/minute-csv-import.js";
 
 const metadata = {
   mapping: { securityId: "code", timestamp: "time", open: "o", high: "h", low: "l", close: "c", volume: "vol", amount: "amt" },
@@ -20,17 +20,25 @@ describe("minute CSV preview", () => {
     const reordered = minuteCsvImportIdentity(content, Object.fromEntries(Object.entries(metadata.mapping).reverse()), { ...metadata }, { ...provenance });
     const changedMapping = minuteCsvImportIdentity(content, { ...metadata.mapping, securityId: "time", timestamp: "code" }, metadata, provenance);
     const changedProvenance = minuteCsvImportIdentity(content, metadata.mapping, metadata, { ...provenance, licenseStatement: "unknown license" });
+    const changedHistoricalContext = minuteCsvImportIdentity(content, metadata.mapping, metadata, provenance, { securityUniverseVersion: "universe-2026-09", marketRuleSetVersion: "rules-cn-a-v3", corporateActionVersion: "actions-2026-q3" });
     expect(reordered).toEqual(first);
     expect(changedMapping.sourceSha256).toBe(first.sourceSha256);
     expect(changedMapping.importKeySha256).not.toBe(first.importKeySha256);
     expect(changedProvenance.sourceSha256).toBe(first.sourceSha256);
     expect(changedProvenance.importKeySha256).not.toBe(first.importKeySha256);
+    expect(changedHistoricalContext.sourceSha256).toBe(first.sourceSha256);
+    expect(changedHistoricalContext.importKeySha256).not.toBe(first.importKeySha256);
+  });
+
+  it("limits historical use until universe, MarketRuleSet and corporate action references are all provided", () => {
+    expect(historicalContextStatus({ securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null })).toBe("LIMITED_MISSING_REFERENCES");
+    expect(historicalContextStatus({ securityUniverseVersion: "universe-v1", marketRuleSetVersion: "rules-v1", corporateActionVersion: "actions-v1" })).toBe("READY_FOR_REVIEW");
   });
 
   it("maps explicit columns and converts Shanghai bar starts to UTC", async () => {
     const result = await previewMinuteCsv({ ...metadata, content: "code,time,o,h,l,c,vol,amt\n600000,2026-09-24 09:30,10,11,9,10.5,100,1050\n" });
     expect(result).toMatchObject({ totalRows: 1, acceptedRows: 1, errors: [] });
-    expect(result.bars[0]).toMatchObject({ securityId: "600000.SH", barStart: "2026-09-24T01:30:00.000Z", barEnd: "2026-09-24T01:31:00.000Z", adjustment: "RAW" });
+    expect(result.bars[0]).toMatchObject({ securityId: "600000.SH", barStart: "2026-09-24T01:30:00.000Z", barEnd: "2026-09-24T01:31:00.000Z", adjustment: "RAW", tradingStatus: "UNKNOWN", tradingStatusReference: null, limitPriceReference: { status: "UNKNOWN", upperLimit: null, lowerLimit: null, marketRuleSetVersion: null, sourceReference: null } });
   });
 
   it("imports BaoStock compact Shanghai timestamps as aligned five-minute bars", async () => {

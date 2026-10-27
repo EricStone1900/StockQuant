@@ -103,3 +103,35 @@ test("V2.2 imports BaoStock five-minute end-stamped CSV with explicit semantics"
   await expect(page.getByRole("button", { name: "确认并导入" })).toBeEnabled();
   expect(submitted).toMatchObject({ market: "CN_A", frequency: "5m", timestampSemantics: "BAR_END", timezone: "Asia/Shanghai", mapping: { securityId: "code", timestamp: "time" } });
 });
+
+test("V2.2 queries a selected day, renders coverage states, and compares import versions", async ({ page }) => {
+  await page.route("**/api/v1/session", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "authenticated" }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.2/imports/minute-v1", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ version: "minute-v1", status: "PUBLISHED", accepted: 1, manifest: { researchUseAllowed: false, semantics: { market: "CN_A", frequency: "5m", adjustment: "RAW", timezone: "Asia/Shanghai", volumeUnit: "SHARES", amountUnit: "CNY" } } }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.2/imports/minute-v2", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ version: "minute-v2", status: "PUBLISHED", accepted: 1, manifest: { semantics: { market: "CN_A", frequency: "5m", adjustment: "RAW", timezone: "Asia/Shanghai", volumeUnit: "SHARES", amountUnit: "CNY" } } }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.2/imports/*/bars?*", async (route) => {
+    const url = new URL(route.request().url());
+    const version = url.pathname.includes("minute-v2") ? "minute-v2" : "minute-v1";
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ version, items: [{ securityId: "600000.SH", barStart: "2026-10-20T01:30:00.000Z", barEnd: "2026-10-20T01:35:00.000Z", open: 10, high: 10, low: 10, close: version === "minute-v1" ? 10 : 10.1, volume: 100, amount: 1000 }], nextCursor: null }) });
+  });
+  await page.route("**/api/v1/acceptance/v2/v2.2/imports/minute-v1/coverage", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "INCOMPLETE", expectedBars: 48, validBars: 1, missingBars: 0, unknownBars: 47, suspendedBars: 0, barStatuses: [{ securityId: "600000.SH", barStart: "2026-10-20T01:30:00.000Z", status: "PRESENT" }, { securityId: "600000.SH", barStart: "2026-10-20T01:35:00.000Z", status: "UNKNOWN" }] }) }));
+  await page.route("**/api/v1/acceptance/v2/v2.2/imports/minute-v1/daily-aggregate-check", async (route) => { expect(route.request().postDataJSON()).toMatchObject({ securityId: "600000.SH", tradingDate: "2026-10-20", frequency: "5m", referenceSource: "local daily csv", sourceReference: "archive.csv#row2" }); return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "DIFFERENT", securityId: "600000.SH", tradingDate: "2026-10-20", observedBars: 1, aggregate: { open: 10, high: 10, low: 10, close: 10, volume: 100, amount: 1000 }, reference: { open: 10, high: 10, low: 10, close: 10.1, volume: 100, amount: 1000 }, referenceSource: "local daily csv", sourceReference: "archive.csv#row2", referenceVerification: "OPERATOR_SUPPLIED_NOT_INDEPENDENTLY_VERIFIED", completeness: "NOT_ASSESSED_BY_AGGREGATION", issues: [], differences: [{ field: "close", aggregate: 10, reference: 10.1, delta: -0.1 }] }) }); });
+
+  await page.goto("/acceptance/v2/v2.2");
+  await page.getByLabel("分钟查询版本").fill("minute-v1");
+  await page.getByLabel("分钟查询证券").fill("600000.SH");
+  await page.getByLabel("分钟查询开始日期").fill("2026-10-20");
+  await page.getByLabel("分钟查询结束日期").fill("2026-10-20");
+  await page.getByRole("button", { name: "查询指定日分钟数据" }).click();
+  await expect(page.getByRole("cell", { name: "600000.SH" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "计算覆盖与缺口" }).click();
+  await expect(page.getByRole("cell", { name: "UNKNOWN" })).toBeVisible();
+  for (const [field, value] of Object.entries({ open: "10", high: "10", low: "10", close: "10.1", volume: "100", amount: "1000" })) await page.getByLabel(`日线参考${field}`).fill(value);
+  await page.getByLabel("日线参考来源名称").fill("local daily csv");
+  await page.getByLabel("日线参考来源引用").fill("archive.csv#row2");
+  await page.getByRole("button", { name: "对账分钟聚合" }).click();
+  await expect(page.getByRole("heading", { name: "分钟聚合对账结果：DIFFERENT" })).toBeVisible();
+  await expect(page.getByText("参考值未独立核验")).toBeVisible();
+  await page.getByLabel("分钟比较版本").fill("minute-v2");
+  await page.getByRole("button", { name: "比较两个版本" }).click();
+  await expect(page.getByRole("cell", { name: "DIFFERENT" })).toBeVisible();
+});

@@ -7,6 +7,7 @@
   "required": ["authorizationId", "grant"],
   "properties": {
     "authorizationId": { "type": "string", "minLength": 1, "maxLength": 128 },
-    "grant": { "$ref": "v24-paper-execution-grant.schema.json" }
+    "grant": { "$ref": "v24-paper-execution-grant.schema.json" },
+    "initialAccountCash": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$" }
   }
 }

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/minute-bar.schema.json",
+  "title": "MinuteBar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["securityId", "market", "frequency", "barStart", "barEnd", "availableAt", "open", "high", "low", "close", "volume", "amount", "adjustment", "tradingStatus", "tradingStatusReference", "limitPriceReference"],
+  "properties": {
+    "securityId": { "type": "string", "minLength": 1 },
+    "market": { "type": "string", "minLength": 1 },
+    "frequency": { "type": "string", "enum": ["1m", "5m"] },
+    "barStart": { "type": "string", "format": "date-time" },
+    "barEnd": { "type": "string", "format": "date-time" },
+    "availableAt": { "type": "string", "format": "date-time" },
+    "open": { "type": "number", "minimum": 0 },
+    "high": { "type": "number", "minimum": 0 },
+    "low": { "type": "number", "minimum": 0 },
+    "close": { "type": "number", "minimum": 0 },
+    "volume": { "type": "number", "minimum": 0 },
+    "amount": { "type": "number", "minimum": 0 },
+    "adjustment": { "type": "string", "const": "RAW" },
+    "tradingStatus": { "type": "string", "enum": ["TRADING", "SUSPENDED", "UNKNOWN"] },
+    "tradingStatusReference": { "type": ["string", "null"], "minLength": 1 },
+    "limitPriceReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "upperLimit", "lowerLimit", "marketRuleSetVersion", "sourceReference"],
+      "properties": {
+        "status": { "type": "string", "enum": ["AVAILABLE", "NOT_APPLICABLE", "UNKNOWN"] },
+        "upperLimit": { "type": ["number", "null"], "minimum": 0 },
+        "lowerLimit": { "type": ["number", "null"], "minimum": 0 },
+        "marketRuleSetVersion": { "type": ["string", "null"], "minLength": 1 },
+        "sourceReference": { "type": ["string", "null"], "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "tradingStatus": { "const": "UNKNOWN" } }, "required": ["tradingStatus"] },
+      "then": { "properties": { "tradingStatusReference": { "const": null } } }
+    },
+    {
+      "if": { "properties": { "tradingStatus": { "enum": ["TRADING", "SUSPENDED"] } }, "required": ["tradingStatus"] },
+      "then": { "properties": { "tradingStatusReference": { "type": "string", "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "limitPriceReference": { "properties": { "status": { "const": "UNKNOWN" } }, "required": ["status"] } }, "required": ["limitPriceReference"] },
+      "then": { "properties": { "limitPriceReference": { "properties": { "upperLimit": { "const": null }, "lowerLimit": { "const": null }, "marketRuleSetVersion": { "const": null }, "sourceReference": { "const": null } } } } }
+    },
+    {
+      "if": { "properties": { "limitPriceReference": { "properties": { "status": { "const": "AVAILABLE" } }, "required": ["status"] } }, "required": ["limitPriceReference"] },
+      "then": { "properties": { "limitPriceReference": { "properties": { "upperLimit": { "type": "number", "minimum": 0 }, "lowerLimit": { "type": "number", "minimum": 0 }, "marketRuleSetVersion": { "type": "string", "minLength": 1 }, "sourceReference": { "type": "string", "minLength": 1 } } } } }
+    },
+    {
+      "if": { "properties": { "limitPriceReference": { "properties": { "status": { "const": "NOT_APPLICABLE" } }, "required": ["status"] } }, "required": ["limitPriceReference"] },
+      "then": { "properties": { "limitPriceReference": { "properties": { "upperLimit": { "const": null }, "lowerLimit": { "const": null }, "sourceReference": { "type": "string", "minLength": 1 } } } } }
+    }
+  ]
+}

@@ -4,6 +4,6 @@
   "title": "MarketDataNewsPreview",
   "type": "object",
   "required": ["items", "deduplicated", "sourceStatus"],
-  "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["newsId", "sourceId", "title", "publishedAt", "revision", "symbols"], "properties": {"newsId": {"type": "string"}, "sourceId": {"type": "string"}, "title": {"type": "string"}, "publishedAt": {"type": "string", "format": "date-time"}, "revision": {"type": "integer"}, "symbols": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": true}}, "deduplicated": {"type": "boolean"}, "sourceStatus": {"type": "string"}},
+  "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["newsId", "sourceId", "title", "publishedAt", "revision", "symbols"], "properties": {"newsId": {"type": "string"}, "sourceId": {"type": "string"}, "title": {"type": "string"}, "publishedAt": {"type": ["string", "null"], "format": "date-time"}, "revision": {"type": "integer"}, "symbols": {"type": "array", "items": {"type": "string"}}, "sourceIds": {"type": "array", "items": {"type": "string"}}, "publicationTimeStatus": {"enum": ["KNOWN", "UNKNOWN"]}, "entityMatchStatus": {"enum": ["LINKED", "UNMATCHED", "AMBIGUOUS"]}, "revisionStatus": {"const": "UNVERIFIED_NO_STABLE_SOURCE_ID"}}, "additionalProperties": true}}, "deduplicated": {"type": "boolean"}, "sourceStatus": {"type": "string"}, "dataMode": {"enum": ["FIXTURE", "LIVE_SOURCE"]}},
   "additionalProperties": true
 }

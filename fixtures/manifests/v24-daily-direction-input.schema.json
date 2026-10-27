@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v24-daily-direction-input.schema.json",
+  "title": "V24DailyDirectionFixtureInput",
+  "type": "object", "additionalProperties": false,
+  "required": ["sessionDate", "expectedPriorSessions", "bars", "account", "mandate", "referencePrice"],
+  "properties": {
+    "sessionDate": { "type": "string", "format": "date" },
+    "expectedPriorSessions": { "type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": { "type": "string", "format": "date" } },
+    "bars": { "type": "array", "minItems": 2, "maxItems": 2, "items": {
+      "type": "object", "additionalProperties": false, "required": ["securityId", "sessionDate", "availableAt", "close"],
+      "properties": { "securityId": { "const": "600000.SH" }, "sessionDate": { "type": "string", "format": "date" }, "availableAt": { "type": "string", "format": "date-time" }, "close": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" } }
+    } },
+    "account": { "type": "object", "additionalProperties": false, "required": ["heldQuantity", "sellableQuantity", "settledCash"], "properties": { "heldQuantity": { "enum": [0, 100] }, "sellableQuantity": { "type": "integer", "minimum": 0, "maximum": 100 }, "settledCash": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" } } },
+    "mandate": { "type": "object", "additionalProperties": false, "required": ["validFrom", "expiresAt", "paused"], "properties": { "validFrom": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "paused": { "type": "boolean" } } },
+    "referencePrice": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }
+  }
+}

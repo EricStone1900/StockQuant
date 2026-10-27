@@ -1,6 +1,6 @@
 # 在线股票池与市场监控服务
 
-服务：`market-monitor-service`。日期：2026-09-07。状态：设计草案；实现/运行/验收均NOT_RUN。技术基线：Python / FastAPI Worker。
+服务：`market-monitor-service`。设计日期：2026-09-07；截至2026-10-19，C2-C质量投影持久化/API/Web切片已实现并通过定向自动检查；其余调度、持续监控及阶段人工验收仍NOT_RUN。技术基线：Python / FastAPI。
 
 共同约束见[整体架构](../01-system-architecture.md)、[契约与数据](../02-contracts-and-data.md)、[部署](../03-deployment-and-operations.md)。本文是服务S0设计输入；逻辑表与扩展端口需在对应阶段冻结Schema/迁移，不表示已有实现。
 
@@ -16,7 +16,7 @@ V2.1在线池/采样策略与质量；V2.4持续监控；高级盘中风险动�
 
 domain：池合并/容量、时间窗口/质量/冷却；application：更新池、请求采样、评估/异常合并；ports：MarketData、Portfolio/Execution只读、Calendar/Clock；adapters：DB/API、调度。
 
-目标目录：`services/market-monitor-service/`，包含src、独立依赖锁、migrations、Dockerfile、README和分层tests。domain不依赖框架/SDK；application依赖ports，由bootstrap注入adapters。配置验证失败需明确依赖项。
+服务目录：`services/market-monitor-service/`，包含src、独立依赖锁、migrations、Dockerfile、README和分层tests。domain不依赖框架/SDK；application依赖ports，由bootstrap注入adapters。配置验证失败需明确依赖项。
 
 ## 3. 数据与一致性
 
@@ -74,3 +74,29 @@ Python / FastAPI Worker组件按已启用能力部署；API和长计算/消费�
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+2026-10-17 V2.1 C2实现边界：Market Data现持久化20/30分钟快照采样间隔，并以明确的A股日历/交易会话函数计算采样节拍；该功能不启动Monitor评估、日频策略或订单执行。快照新鲜阈值当前随采样间隔计算并标记证据，不覆盖V2.4更严格的SimulationExecutionPolicy年龄门禁；独立评估/执行配置与真实时钟调度恢复仍需其阶段实测。
+
+## 10. V2.1 C2消费者交接契约（2026-10-19）
+
+以下契约冻结C2消费者之间的输入/触发边界。Market Data保留带完整scope的`GET /v2/sampling/tasks/latest`读接口，并在采样任务终态事务中写入Monitor Outbox事件；Platform仍可显式读取任务，后台消费者通过独立service identity投递。Monitor只读取终态`COMPLETED_FIXTURE`或`COMPLETED_REAL`任务中的`observations`，并逐条保留`taskId`、`snapshotId`、`securityId`、`sourceId`、`dataMode`、`observedAt`、`ingestedAt`、`availableAt`、`ageSeconds`、`freshness`和`status`；`STALE`/`UNKNOWN`不等价READY。Fixture引用版本/Hash和REAL来源身份随任务保留。Market Data仍是报价事实唯一所有者；Monitor只保存报价引用和自身质量/异常结论。
+
+| 消费者 | 唯一触发与最低输入 | 缺失/门禁行为 |
+|---|---|---|
+| Monitor | `ON_QUOTE_AVAILABLE`；消费完成快照任务的报价引用和质量字段 | executor `CONFIGURED`；策略默认关闭，只有显式启用后才消费事务Outbox。只对引用字段确定质量，STALE/UNKNOWN保留异常；不调用模型、不发单 |
+| 日线完成 | `AFTER_SESSION_CLOSE`；仅消费独立`DAILY_BAR`来源、完成标志、数据版本和`availableAt` | 当前executor `NOT_IMPLEMENTED`；快照不能合成日线/分钟线；来源授权或完整性不足时不发布READY |
+| 策略评估 | `ON_DAILY_BAR_READY`；消费已完成日线版本及引用 | 当前executor `NOT_IMPLEMENTED`且受OD-007审批；快照或未完成日线不能触发 |
+| 订单执行 | `C5_EXECUTION_WINDOW`；消费已批准的策略/执行授权与风险输入 | 当前executor `NOT_IMPLEMENTED`且受C5批准；本阶段不得创建订单 |
+
+Monitor、日线、策略、订单策略记录默认均为`enabled=false`。快照20/30分钟策略版本变化只影响快照，不改变其他策略版本或触发消费者。Monitor允许在V2.1验收页显式启停；其余日线/策略/订单仍保持关闭且未实现。
+
+2026-10-19 C2-C第一块实现为`services/market-monitor-service/src/stockquant_market_monitor/domain/quote_quality.py`纯领域函数：按预期证券计算FRESH覆盖、最大有效年龄，并将缺失/STALE/UNKNOWN形成为确定性异常；重复证券/观测拒绝。四个标准库测试通过。它不读库、不写质量快照、不接HTTP/调度/Web；这些仍是C2-C待办。DAILY_BAR输入属于Market Data；独立来源/收盘完成领域校验见[Market Data服务记录](./market-data-service.md)和对应审计，不由Market Monitor复制行情事实。
+
+
+## 11. V2.1 C2-C quote-quality persistence implementation (2026-10-19)
+
+`services/market-monitor-service` now provides an authenticated FastAPI service and a Monitor-owned PostgreSQL schema. `POST /v1/quote-quality/evaluations` accepts only a completed-task projection supplied by Platform, persists deterministic coverage/freshness/anomaly results with the Market Data quote references (IDs, source/data mode, source/availability time, age and state), and is idempotent by exact scope plus task ID. Reusing that key with different input returns `409 QUALITY_TASK_INPUT_CONFLICT`. `GET /v1/quote-quality/latest` reads only the requested market/owner/account/namespace/TestRun scope. The `platform-api-service` identity uses its own bearer; the separate `market-data-service` identity and bearer are accepted only for quote evaluation delivery.
+
+Platform obtains the latest sampling task from Market Data and rejects missing, non-terminal or out-of-scope tasks before its explicit evaluation route. The V2.1 acceptance page can read back the current scope's quality and explicitly enable or disable the independent ON_QUOTE_AVAILABLE policy. The projection does not store prices or mutate Market Data facts; it does not trigger strategy evaluation or order placement. The service has an independent `market_monitor` database/User, migration ledger, health probes, pinned lock files and Compose service. An idempotent one-shot provisioner creates/updates the role and database before Monitor starts, including when the shared PostgreSQL volume predates this service.
+
+Evidence for migration/idempotency/restart/scope isolation, API unit tests and Web E2E is recorded in [the 2026-10-19 C2 Monitor persistence audit](../../evidence/audits/2026-10-19-v21-c2-monitor-persistence.md). The Market Data v17 outbox and lease-based dispatcher now persist completed scoped quote handoffs atomically with the sampling lifecycle finish. Delivery is idempotent by task/consumer, retries after failure, and waits while the Monitor policy is disabled. The projection excludes prices. Isolated PostgreSQL/HTTP restart smoke verifies disabled retention, one delivery after explicit enablement, scope and service identity; see [the 2026-10-20 Monitor Outbox audit](../../evidence/audits/2026-10-20-v21-c2-monitor-outbox-consumer.md). Full Compose-to-Compose persistence/recovery, real-source acceptance and complete C2-C/C2 stage remain unverified.

@@ -4,7 +4,8 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { Client } from "pg";
+import { Client, Pool } from "pg";
+import { MinuteUploadRepository } from "../dist/adapters/postgres-minute-upload-repository.js";
 import { marketDataSmokeAuthEnv, marketDataSmokeAuthHeaders } from "./minute-upload-test-auth.mjs";
 
 const adminUrl = new URL(process.env.STOCKQUANT_MINUTE_UPLOAD_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
@@ -78,7 +79,21 @@ try {
   assert.equal(lastPut.status, 200); assert.deepEqual(lastPut.body.receivedChunks, [0, 1]);
   const preview = await request(`/v2/minute/csv/uploads/${uploadId}/preview`, { method: "POST", owner, body: {} });
   assert.equal(preview.status, 200); assert.equal(preview.body.totalRows, 16_000); assert.equal(preview.body.acceptedRows, 16_000); assert.equal(preview.body.errors.length, 0);
-  const imported = await request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", owner, body: {} });
+  const finalizationPool = new Pool({ connectionString: databaseUrl.toString() });
+  try {
+    const claimed = await new MinuteUploadRepository(finalizationPool).beginFinalization(owner, uploadId);
+    assert.equal(claimed.alreadyCompleted, null);
+    assert.equal((await request(`/v2/minute/csv/uploads/${uploadId}`, { owner })).body.status, "FINALIZING", "the durable finalization claim must exist before the process is interrupted");
+  } finally { await finalizationPool.end(); }
+  await stopService(); output = ""; await startService();
+  const interrupted = await request(`/v2/minute/csv/uploads/${uploadId}`, { owner });
+  assert.equal(interrupted.status, 200); assert.equal(interrupted.body.status, "FINALIZING", "the finalization claim must survive service restart");
+  let imported;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    imported = await request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", owner, body: {} });
+    if (imported.status !== 429 || imported.body.code !== "MINUTE_IMPORT_BUSY") break;
+    await delay(1000);
+  }
   assert.equal(imported.status, 201); assert.equal(imported.body.status, "PUBLISHED"); assert.equal(imported.body.accepted, 16_000); assert.equal(imported.body.sha256, expectedSha256); assert.equal(imported.body.uploadStatus, "COMPLETED");
   const completed = await request(`/v2/minute/csv/uploads/${uploadId}`, { owner });
   assert.equal(completed.body.receivedBytes, content.length); assert.equal(completed.body.status, "COMPLETED");
@@ -125,7 +140,7 @@ try {
   assert.equal(cancelled.body.status, "CANCELLED"); assert.equal(cancelled.body.receivedBytes, 0);
   const admitted = await request("/v2/minute/csv/uploads", { method: "POST", owner: quotaOwner, body: { uploadId: quotaIds[2], expectedSha256: tinyHash, expectedBytes: 1, metadata } });
   assert.equal(admitted.status, 201, "cancellation releases the per-owner active upload quota");
-  console.log(JSON.stringify({ status: "PASS", uploadId, bytes: content.length, sha256: expectedSha256, rows: imported.body.accepted, chunks: 2, serviceRestartResume: true, missingChunkRefused: true, parserFailureReleasesFinalization: released.body.status === "OPEN", parserFailureRollsBackStagedBatch: true, wrongOwnerRefused: true, duplicateChunkIdempotent: true, cancellationReleasesQuota: true, finalStatus: completed.body.status, importVersion: imported.body.version }));
+  console.log(JSON.stringify({ status: "PASS", uploadId, bytes: content.length, sha256: expectedSha256, rows: imported.body.accepted, chunks: 2, serviceRestartResume: true, finalizationClaimRecoveredAfterRestart: interrupted.body.status === "FINALIZING" && imported.body.status === "PUBLISHED", missingChunkRefused: true, parserFailureReleasesFinalization: released.body.status === "OPEN", parserFailureRollsBackStagedBatch: true, wrongOwnerRefused: true, duplicateChunkIdempotent: true, cancellationReleasesQuota: true, finalStatus: completed.body.status, importVersion: imported.body.version }));
 } finally {
   await stopService();
   if (created) {

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 /** Remove only image tags owned by a registered isolated Compose project. */
 export function removeIsolatedProjectImages(project, run = spawnSync) {
-  if (typeof project !== "string" || !/^sq-v(?:11-stack|12-e2e|13-web|14-stack|15-stack)-[a-f0-9]{20}$/u.test(project)) {
+  if (typeof project !== "string" || !/^sq-v(?:11-stack|12-e2e|13-web|14-stack|15-stack|21-stack)-[a-f0-9]{20}$/u.test(project)) {
     return { status: 2, error: "invalid isolated project name", removed: [] };
   }
 

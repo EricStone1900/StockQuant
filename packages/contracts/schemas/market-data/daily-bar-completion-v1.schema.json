@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/daily-bar-completion-v1.schema.json",
+  "title": "MarketDataDailyBarCompletion",
+  "type": "object",
+  "required": ["status", "reason", "completionId", "dataVersion", "fixtureVersion", "sessionDate", "sourceId", "dataMode", "scope", "availableAt", "bars"],
+  "properties": {
+    "status": { "enum": ["COMPLETED_FIXTURE", "COMPLETED_REAL", "BLOCKED_SOURCE_AUTHORIZATION", "REJECTED"] },
+    "reason": { "type": ["string", "null"] },
+    "completionId": { "type": ["string", "null"] },
+    "dataVersion": { "type": "string" },
+    "fixtureVersion": { "type": ["string", "null"] },
+    "sessionDate": { "type": "string", "format": "date" },
+    "sourceId": { "type": "string" },
+    "dataMode": { "enum": ["FIXTURE", "REAL"] },
+    "scope": { "type": "object", "required": ["market", "ownerId", "accountId", "namespace", "testRunId"], "properties": { "market": { "const": "CN_A" }, "ownerId": { "type": "string", "minLength": 1 }, "accountId": { "type": ["string", "null"] }, "namespace": { "type": ["string", "null"] }, "testRunId": { "type": ["string", "null"] } }, "additionalProperties": false },
+    "availableAt": { "type": ["string", "null"], "format": "date-time" },
+    "bars": { "type": "array", "items": { "type": "object", "required": ["securityId", "sessionDate", "open", "high", "low", "close", "volume", "amount"], "properties": { "securityId": { "type": "string" }, "sessionDate": { "type": "string", "format": "date" }, "open": { "type": "string" }, "high": { "type": "string" }, "low": { "type": "string" }, "close": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 }, "amount": { "type": "string" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": false
+}

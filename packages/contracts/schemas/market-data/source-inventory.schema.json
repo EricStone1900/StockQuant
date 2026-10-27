@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["sources", "checkedAt"],
   "properties": {
-    "sources": {"type": "array", "items": {"type": "object", "required": ["sourceId", "kind", "status", "circuit"], "properties": {"sourceId": {"type": "string"}, "kind": {"enum": ["QUOTE", "NEWS"]}, "url": {"type": "string"}, "status": {"type": "string"}, "license": {"type": "string"}, "circuit": {"type": "string"}}, "additionalProperties": true}},
+    "sources": {"type": "array", "items": {"type": "object", "required": ["sourceId", "kind", "status", "circuit", "samplingHealth"], "properties": {"sourceId": {"type": "string"}, "kind": {"enum": ["QUOTE", "NEWS"]}, "url": {"type": "string"}, "status": {"type": "string"}, "license": {"type": "string"}, "circuit": {"type": "string"}, "samplingHealth": {"type": ["object", "null"], "required": ["sourceId", "state", "lastAttemptAt", "lastSuccessAt", "lastFailureAt", "lastErrorCode"], "properties": {"sourceId": {"type": "string"}, "state": {"enum": ["NEVER_RUN", "UNAVAILABLE", "QUEUED", "RUNNING", "RETRY_WAIT", "BLOCKED_SOURCE_AUTHORIZATION", "HEALTHY", "FAILED"]}, "lastAttemptAt": {"type": ["string", "null"], "format": "date-time"}, "lastSuccessAt": {"type": ["string", "null"], "format": "date-time"}, "lastFailureAt": {"type": ["string", "null"], "format": "date-time"}, "lastErrorCode": {"type": ["string", "null"]}}, "additionalProperties": false}}, "additionalProperties": true}},
     "checkedAt": {"type": "string", "format": "date-time"},
     "note": {"type": "string"}
   },

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/daily-bar-completion-task-v1.schema.json",
+  "title": "MarketDataDailyBarCompletionTask",
+  "type": "object",
+  "required": ["taskId", "state", "scope", "fixtureVersion", "fixtureSha256", "attempt", "maxAttempts", "leaseOwner", "leaseUntil", "nextAttemptAt", "lastError", "completionId", "createdAt", "updatedAt"],
+  "properties": {
+    "taskId": { "type": "string" },
+    "state": { "enum": ["QUEUED", "CLAIMED", "RETRY_WAIT", "COMPLETED", "FAILED"] },
+    "scope": { "type": "object", "required": ["market", "ownerId", "accountId", "namespace", "testRunId"], "properties": { "market": { "const": "CN_A" }, "ownerId": { "type": "string" }, "accountId": { "type": ["string", "null"] }, "namespace": { "type": ["string", "null"] }, "testRunId": { "type": ["string", "null"] } }, "additionalProperties": false },
+    "fixtureVersion": { "type": ["string", "null"] },
+    "fixtureSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "sourceRequest": { "type": "object", "required": ["sourceId", "sessionDate", "securityIds", "dataVersion"], "properties": { "sourceId": { "const": "eastmoney-daily" }, "sessionDate": { "type": "string", "format": "date" }, "securityIds": { "type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": { "type": "string", "pattern": "^[0-9]{6}\\.(SH|SZ)$" } }, "dataVersion": { "type": "string", "minLength": 1 } }, "additionalProperties": false },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "leaseOwner": { "type": ["string", "null"] },
+    "leaseUntil": { "type": ["string", "null"], "format": "date-time" },
+    "nextAttemptAt": { "type": ["string", "null"], "format": "date-time" },
+    "lastError": { "type": ["string", "null"] },
+    "completionId": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

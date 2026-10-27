@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { externalSourceUseAuthorized, missingSourceAuthorizationConfig, shouldEnableCollectionExecutor, shouldEnableCollectionScheduler } from "../../src/application/external-source-authorization.js";
+import { externalSourceUseAuthorized, isHistoricalResearchSourceAuthorized, missingSourceAuthorizationConfig, shouldEnableCollectionExecutor, shouldEnableCollectionScheduler } from "../../src/application/external-source-authorization.js";
 
 describe("external Market Data source authorization gate", () => {
   it("fails closed by default for quote, news, collection, and historical research", () => {
@@ -12,6 +12,7 @@ describe("external Market Data source authorization gate", () => {
   it("requires an exact true flag, authorization reference, data version, and source allowlist for each use", () => {
     const quote = { STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED: "true", STOCKQUANT_MARKET_QUOTE_SOURCE_AUTHORIZATION_REF: "evidence/source-authorization.json", STOCKQUANT_MARKET_QUOTE_DATA_VERSION: "quote-v1", STOCKQUANT_MARKET_QUOTE_AUTHORIZED_SOURCE_IDS: "tencent-quote" };
     expect(externalSourceUseAuthorized("QUOTE", ["tencent-quote"], quote)).toBe(true);
+    expect(externalSourceUseAuthorized("DAILY_BAR", ["eastmoney-daily"], quote)).toBe(false);
     expect(externalSourceUseAuthorized("NEWS", ["eastmoney-news"], quote)).toBe(false);
     expect(externalSourceUseAuthorized("QUOTE", ["sina-quote"], quote)).toBe(false);
     expect(externalSourceUseAuthorized("QUOTE", ["tencent-quote"], { ...quote, STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED: "1" })).toBe(false);
@@ -43,5 +44,9 @@ describe("external Market Data source authorization gate", () => {
     expect(externalSourceUseAuthorized("HISTORICAL_RESEARCH", ["baostock"], research)).toBe(true);
     expect(externalSourceUseAuthorized("MINUTE_COLLECTION", ["baostock"], research)).toBe(false);
     expect(externalSourceUseAuthorized("HISTORICAL_RESEARCH", ["sina"], research)).toBe(false);
+    expect(isHistoricalResearchSourceAuthorized("baostock", research)).toBe(true);
+    expect(isHistoricalResearchSourceAuthorized("sina", research)).toBe(false);
+    expect(isHistoricalResearchSourceAuthorized("BaoStock", research)).toBe(false);
+    expect(isHistoricalResearchSourceAuthorized(undefined, research)).toBe(false);
   });
 });

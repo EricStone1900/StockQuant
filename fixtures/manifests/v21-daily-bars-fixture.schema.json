@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v21-daily-bars-fixture.schema.json",
+  "title": "V21DailyBarsCompletionFixture",
+  "type": "object",
+  "required": ["fixtureId", "fixtureVersion", "dataMode", "market", "barType", "adjustment", "sourceId", "dataVersion", "sessionDate", "sessionCloseAt", "completionRequestedAt", "availableAt", "expectedSecurityIds", "bars"],
+  "properties": {
+    "fixtureId": { "const": "v2.1-daily-bar-completion" },
+    "fixtureVersion": { "const": "v2.1-daily-bars-1" },
+    "dataMode": { "const": "FIXTURE" },
+    "market": { "const": "CN_A" },
+    "barType": { "const": "DAILY_BAR" },
+    "adjustment": { "const": "RAW" },
+    "sourceId": { "const": "fixture:v2.1-daily-bars-1" },
+    "dataVersion": { "type": "string", "minLength": 1 },
+    "sessionDate": { "type": "string", "format": "date" },
+    "sessionCloseAt": { "type": "string", "format": "date-time" },
+    "completionRequestedAt": { "type": "string", "format": "date-time" },
+    "availableAt": { "type": "string", "format": "date-time" },
+    "expectedSecurityIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+    "bars": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["securityId", "sessionDate", "open", "high", "low", "close", "volume", "amount"], "properties": { "securityId": { "type": "string" }, "sessionDate": { "type": "string", "format": "date" }, "open": { "type": "string" }, "high": { "type": "string" }, "low": { "type": "string" }, "close": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 }, "amount": { "type": "string" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": false
+}

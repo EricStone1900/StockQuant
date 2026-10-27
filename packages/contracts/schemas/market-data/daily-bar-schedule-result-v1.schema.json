@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/market-data/daily-bar-schedule-result-v1.schema.json",
+  "title": "Daily Bar Schedule Result V1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["scope", "enabled", "enabledScopes", "fixture", "externalRequests", "placeOrders"],
+  "properties": {
+    "scope": { "type": "object", "additionalProperties": false, "required": ["market", "ownerId", "accountId", "namespace", "testRunId"], "properties": { "market": { "const": "CN_A" }, "ownerId": { "type": "string" }, "accountId": { "type": "string", "format": "uuid" }, "namespace": { "type": "string" }, "testRunId": { "type": "string", "format": "uuid" } } },
+    "enabled": { "type": "boolean" },
+    "enabledScopes": { "type": "integer", "minimum": 0 },
+    "fixture": { "type": ["object", "null"], "required": ["version", "sessionDate", "dataMode"], "properties": { "version": { "type": "string" }, "sessionDate": { "type": "string", "format": "date" }, "dataMode": { "const": "FIXTURE" } } },
+    "externalRequests": { "const": 0 },
+    "placeOrders": { "const": false }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-12",
+  "stageId": "V1.3",
+  "requirementId": "V1.3-S2-L16",
+  "kind": "diagnostic-invalid-web-scenario-matrix",
+  "isolatedProject": "sq-v13-web-68c61b3c6217409eeb2e",
+  "attemptedCommand": "STOCKQUANT_V13_E2E_GREP='V1.3 L16 seed 202610' pnpm test:e2e:v13-isolated",
+  "result": "FAIL: six harness scenarios stopped at cancel-request with HTTP 409 before event injection",
+  "diagnosis": "The harness requested cancellation before any applied partial Fill. V1.3 L07 correctly requires an already persisted seq=1 partial Fill (or the full 100/50 Fill sequence) before a cancellation request. These attempts do not test or contradict the six event-reducer permutations; retain as invalid-scenario diagnostics.",
+  "resourceCleanup": "Harness removed the exact randomized project containers, volume, network and project images; cleanup assertions completed before the expected nonzero exit.",
+  "runs": [
+    {
+      "seed": 20261015,
+      "testRunId": "b28cb83d-1267-4167-a495-742820bf63d8",
+      "attemptedArrivalOrder": "1-2-3",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/b28cb83d-1267-4167-a495-742820bf63d8/evidence.json",
+      "bundleSha256": "0e36555a802c07822d54449c5faeadfe8fe343446e4024117dac50f2f1f56a9b",
+      "bundleManifestSidecar": "evidence/local/V1.3/b28cb83d-1267-4167-a495-742820bf63d8/manifest.sha256"
+    },
+    {
+      "seed": 20261016,
+      "testRunId": "40593dd4-b066-41aa-b07b-406ef90aa95e",
+      "attemptedArrivalOrder": "1-3-2",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/40593dd4-b066-41aa-b07b-406ef90aa95e/evidence.json",
+      "bundleSha256": "b4a27bfcbeaa15753fd358798d150e7dae02a70700ba9125afd8d12e6d73a78b",
+      "bundleManifestSidecar": "evidence/local/V1.3/40593dd4-b066-41aa-b07b-406ef90aa95e/manifest.sha256"
+    },
+    {
+      "seed": 20261017,
+      "testRunId": "074b5713-750c-4beb-b0ca-001e2d51c9cc",
+      "attemptedArrivalOrder": "2-1-3",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/074b5713-750c-4beb-b0ca-001e2d51c9cc/evidence.json",
+      "bundleSha256": "8760987f5d37a0280373cc7b6fa1428486ee4d12d4337e06fb23a6a49fde4026",
+      "bundleManifestSidecar": "evidence/local/V1.3/074b5713-750c-4beb-b0ca-001e2d51c9cc/manifest.sha256"
+    },
+    {
+      "seed": 20261018,
+      "testRunId": "00eddfcb-9cf0-4480-b6e9-25cfb8ee2b36",
+      "attemptedArrivalOrder": "2-3-1",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/00eddfcb-9cf0-4480-b6e9-25cfb8ee2b36/evidence.json",
+      "bundleSha256": "21e8b437fb412d2a02236e007cf80c2db1b40f9340240b88a19db6de05c416f5",
+      "bundleManifestSidecar": "evidence/local/V1.3/00eddfcb-9cf0-4480-b6e9-25cfb8ee2b36/manifest.sha256"
+    },
+    {
+      "seed": 20261019,
+      "testRunId": "8be7ecd1-60d1-4dd4-bfdf-9a8db960fd71",
+      "attemptedArrivalOrder": "3-1-2",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/8be7ecd1-60d1-4dd4-bfdf-9a8db960fd71/evidence.json",
+      "bundleSha256": "768b7c4a975967bd3f892dc9e76a586dcbe738f3d3971ad19ba0757047c3429a",
+      "bundleManifestSidecar": "evidence/local/V1.3/8be7ecd1-60d1-4dd4-bfdf-9a8db960fd71/manifest.sha256"
+    },
+    {
+      "seed": 20261020,
+      "testRunId": "9cbd241d-d0b7-43e0-a1ed-563abf3ecaa8",
+      "attemptedArrivalOrder": "3-2-1",
+      "testRunStatus": "WAITING",
+      "manualConclusion": "NOT_RUN",
+      "bundlePath": "evidence/local/V1.3/9cbd241d-d0b7-43e0-a1ed-563abf3ecaa8/evidence.json",
+      "bundleSha256": "06f5a56d70a77bf113004678b4661329e61bb9c9d7ca07ba3c1a19d1b40e9d6b",
+      "bundleManifestSidecar": "evidence/local/V1.3/9cbd241d-d0b7-43e0-a1ed-563abf3ecaa8/manifest.sha256"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/quote-quality-result-v1.schema.json",
+  "title": "MarketMonitorQuoteQualityResult",
+  "type": "object",
+  "required": ["scope", "taskId", "expectedCount", "freshCount", "coverageRatio", "status", "maxAgeSeconds", "anomalies", "quoteRefs", "evaluationId", "evaluatedAt"],
+  "properties": {
+    "scope": { "$ref": "https://stockquant.local/contracts/market-data/quote-quality-scope-v1.schema.json" },
+    "taskId": { "type": "string" }, "expectedCount": { "type": "integer", "minimum": 0 }, "freshCount": { "type": "integer", "minimum": 0 }, "coverageRatio": { "type": "number", "minimum": 0, "maximum": 1 }, "status": { "enum": ["READY", "PARTIAL", "UNAVAILABLE"] }, "maxAgeSeconds": { "type": ["integer", "null"], "minimum": 0 },
+    "anomalies": { "type": "array", "items": { "type": "object", "required": ["securityId", "code", "snapshotId"], "properties": { "securityId": { "type": "string" }, "code": { "enum": ["QUOTE_MISSING", "QUOTE_STALE", "QUOTE_TIME_UNKNOWN"] }, "snapshotId": { "type": ["string", "null"] } }, "additionalProperties": false } },
+    "quoteRefs": { "type": "array", "items": { "type": "object", "required": ["securityId", "snapshotId", "sourceId", "dataMode", "observedAt", "ingestedAt", "availableAt", "ageSeconds", "freshness", "status"], "properties": { "securityId": { "type": "string" }, "snapshotId": { "type": "string" }, "sourceId": { "type": "string" }, "dataMode": { "enum": ["FIXTURE", "REAL"] }, "observedAt": { "type": ["string", "null"] }, "ingestedAt": { "type": ["string", "null"] }, "availableAt": { "type": ["string", "null"] }, "ageSeconds": { "type": ["integer", "null"], "minimum": 0 }, "freshness": { "enum": ["FRESH", "STALE", "UNKNOWN"] }, "status": { "enum": ["READY", "STALE", "UNKNOWN"] } }, "additionalProperties": false } },
+    "evaluationId": { "type": "string" }, "evaluatedAt": { "type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

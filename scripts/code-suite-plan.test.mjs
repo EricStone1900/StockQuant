@@ -146,7 +146,7 @@ test("V2.3 retains all shared code and database checks before its scoped compone
 
 test("V2.4 runs isolated observation persistence, Paper execution/recovery, Web/CLI, and Linux container boundary smokes", () => {
   const commands = codeSuiteCommands("V2.4");
-  assert.deepEqual(commands.slice(0, 12).map(([, args]) => args), codeSuiteCommands("V2.1").map(([, args]) => args));
+  assert.deepEqual(commands.slice(0, 12).map(([, args]) => args), codeSuiteCommands("V2.1").slice(0, 12).map(([, args]) => args));
   assert.deepEqual(commands.slice(-2), [
     [process.execPath, ["scripts/run-isolated-postgres-command.mjs", "--url-env", "TRADE_EXECUTION_TEST_DATABASE_URL:trade_execution_test:trade_execution_test", "--", "pnpm", "--filter", "@stockquant/trade-execution-service", "test:v24-readiness"]],
     ["pnpm", ["--filter", "@stockquant/trade-execution-service", "test:v24-readiness:container"]]

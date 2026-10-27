@@ -54,9 +54,28 @@ export class GeneratedMarketDataMinuteClient {
     return this.call<Contracts.MinuteImportRecord>(`/v2/minute/imports/${encodeURIComponent(version)}`, "GET");
   }
 
-  async pageMarketDataMinuteImportBars(version: string, query: { cursor?: string; pageSize?: string; securityId?: string }): Promise<unknown> {
+  async pageMarketDataMinuteImportBars(version: string, query: { cursor?: string; pageSize?: string; securityId?: string; fromBarStart?: string; toBarStart?: string }): Promise<Contracts.MinuteBarPage> {
     const params = new URLSearchParams(Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string] => entry[1] !== undefined)));
-    return this.call<unknown>(`/v2/minute/imports/${encodeURIComponent(version)}/bars?${params.toString()}`, "GET");
+    return this.call<Contracts.MinuteBarPage>(`/v2/minute/imports/${encodeURIComponent(version)}/bars?${params.toString()}`, "GET");
+  }
+
+  async checkMarketDataMinuteDailyAggregate(version: string, body: { securityId: string; tradingDate: string; frequency: "1m" | "5m"; reference: { open: number; high: number; low: number; close: number; volume: number; amount: number }; referenceSource: string; sourceReference: string }): Promise<unknown> {
+    return this.call<unknown>(`/v2/minute/imports/${encodeURIComponent(version)}/daily-aggregate-check`, "POST", body);
+  }
+
+  async calculateMarketDataMinuteCoverage(body: { securityIds: string[]; fromDate: string; toDate: string; windowMinutes: 1 | 5; bars: Array<{ securityId: string; barStart: string; barEnd: string; open: number; high: number; low: number; close: number; volume: number; amount: number | null }> }): Promise<unknown> {
+    const response = await this.request(this.baseUrl + "/v2/minute/coverage", { method: "POST", headers: { ...this.headers(), "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+    const value = await response.json().catch(() => ({}));
+    if (![200, 422].includes(response.status)) throw new MarketDataMinuteHttpError(response.status, value);
+    return value;
+  }
+
+  async checkMarketDataMinuteImportReplayReadiness(version: string): Promise<{ status: "READY" | "BLOCKED"; reasons: string[]; from: string | null; to: string | null; securities: string[] }> {
+    return this.call(`/v2/minute/imports/${encodeURIComponent(version)}/replay-readiness`, "GET");
+  }
+
+  async registerMarketDataHistoricalContextVersion(body: { kind: "SECURITY_UNIVERSE" | "MARKET_RULE_SET" | "CORPORATE_ACTIONS"; version: string; content: Record<string, unknown>; sha256: string; validFrom: string; validTo: string; sourceReference: string; attestedBy: string }): Promise<unknown> {
+    return this.call("/v2/historical-context/versions", "POST", body);
   }
 
   private async call<T>(path: string, method: "GET" | "POST" | "PUT", body?: unknown, ownerId?: string): Promise<T> {

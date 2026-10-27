@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/paper-reconciliation-alert-request-v1.schema.json",
+  "title": "PaperReconciliationAlertRequestV1",
+  "type": "object",
+  "required": ["ownerId", "testRunId", "status", "discrepancies"],
+  "properties": {
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["MATCH", "DISCREPANCY"] },
+    "discrepancies": { "type": "array", "maxItems": 100, "items": { "type": "object" } }
+  },
+  "additionalProperties": false
+}

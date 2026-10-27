@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "stockquant.v11-web-runtime-response-schema-e2e.v2",
+  "date": "2026-10-11",
+  "command": "pnpm test:integration:v11-stage-storage",
+  "commandExitCode": 0,
+  "codeSuite": "PASS",
+  "webUnit": {
+    "command": "pnpm --filter @stockquant/web test",
+    "status": "PASS",
+    "files": 3,
+    "tests": 6,
+    "schemaDriftCases": [
+      "wrong stageId",
+      "unexpected property",
+      "invalid testRunId UUID"
+    ]
+  },
+  "webTypecheck": "PASS",
+  "webProductionBuild": "PASS",
+  "chromium": {
+    "passed": 3,
+    "failed": 0,
+    "scenarios": [
+      "normal",
+      "rejection",
+      "recovery"
+    ],
+    "malformedResponseBrowserTest": {
+      "httpStatus": 200,
+      "mutation": "added unrecognizedField to a real completed V1.1 TestRun response",
+      "assertedAlertContains": [
+        "Invalid V1.1 acceptance run response",
+        "must NOT have additional properties"
+      ],
+      "result": "PASS"
+    }
+  },
+  "schema": "packages/contracts/schemas/common/v11-acceptance-run.schema.json",
+  "runs": [
+    {
+      "scenarioId": "normal",
+      "testRunId": "71b2fa1e-0272-4cf2-99f5-e6742d9ba32d",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V1.1-ACCOUNT-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V1.1-ACCOUNT-INIT-001",
+          "status": "PASS"
+        }
+      ],
+      "evidenceJsonSha256": "e6209f2ae52f8af0d3a01af878debb8587fef1886e17e27dc832c7a6d7627da3",
+      "manifestSha256": "e6209f2ae52f8af0d3a01af878debb8587fef1886e17e27dc832c7a6d7627da3",
+      "manifestMatches": true,
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "scenarioId": "rejection",
+      "testRunId": "1f8f4533-76c9-4d9f-8813-b2284697d384",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V1.1-ACCOUNT-AUTHORIZATION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V1.1-ACCOUNT-CONFLICT-001",
+          "status": "PASS"
+        }
+      ],
+      "evidenceJsonSha256": "61921821a2b15a5f994e873b0932107fdba7ad324e063d5acc2db4e226ceca6e",
+      "manifestSha256": "61921821a2b15a5f994e873b0932107fdba7ad324e063d5acc2db4e226ceca6e",
+      "manifestMatches": true,
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "scenarioId": "recovery",
+      "testRunId": "ed07fbc9-ecc0-48e5-a5d0-926c3aab0fee",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "assertionId": "V1.1-RECOVERY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V1.1-RUN-ISOLATION-001",
+          "status": "PASS"
+        }
+      ],
+      "evidenceJsonSha256": "b63ee991e8a01d3081b5f1176dc3e0d1de81673101108d558b0214ea133df1fe",
+      "manifestSha256": "b63ee991e8a01d3081b5f1176dc3e0d1de81673101108d558b0214ea133df1fe",
+      "manifestMatches": true,
+      "manualConclusion": "NOT_RUN"
+    }
+  ],
+  "isolatedEnvironment": {
+    "dockerProject": "sq-v11-stage-54faf5f2941def6d0010",
+    "host": "Mac ARM64",
+    "containerPlatform": "linux/amd64 emulation",
+    "activeServices": "NOT_CONNECTED",
+    "recoveryRestartTargetVerified": true,
+    "resourcesRemoved": [
+      "containers",
+      "volume",
+      "network",
+      "images"
+    ],
+    "cleanupVerified": true
+  },
+  "sourceSha256": {
+    "apps/web/src/main.tsx": "716adc60354f5966061af886d139fb8fdfb280c6ec2ab81c637d521d6dbbf7ca",
+    "apps/web/src/v11-acceptance-run-contract.ts": "7220e81425da5b7f4c2009c0bdf74a5135b6609b6b341b041d0f0aab75f67ccc",
+    "apps/web/src/v11-acceptance-run-contract.test.ts": "a8f27cad17310472b641ee286c7fa656eb8fc0dfa81ab660320aafed021a9b56",
+    "apps/web/tests/e2e/v11-acceptance.spec.ts": "147946668af54b3e469c9fc9b1de85d1c1ca7a280950d36333f9d3a949518690",
+    "apps/web/package.json": "d5ee48111c15f047385fa0bcd50f8d649cff8b75eb76a922e488296c7e2244d3",
+    "pnpm-lock.yaml": "06dc7a4f14c4f6c777d8ea32739967c8b54621397827a8a1beed462487652e90"
+  },
+  "limitations": [
+    "Malformed responses were injected by Playwright interception; this validates browser handling but not a backend regression.",
+    "Four owner-scoped Run reads share the validator; the end-to-end interception directly exercised the resume read.",
+    "All three Run manualConclusion values remain NOT_RUN; this is not user acceptance or Ubuntu evidence."
+  ]
+}

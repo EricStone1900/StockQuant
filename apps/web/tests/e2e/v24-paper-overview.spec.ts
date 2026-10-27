@@ -11,7 +11,13 @@ test("Paper overview keeps data use blocked and permits only explicit alert ackn
   if (integration) {
     expect(ownerId).not.toBe("overview-owner");
     expect(baseURL).toBeTruthy();
-    await context.addCookies([{ name: "sq_session", value: ownerId, url: baseURL! }]);
+    const apiUrl = process.env.STOCKQUANT_PLATFORM_API_URL;
+    expect(apiUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/u);
+    const issuedSession = await fetch(`${apiUrl}/api/v1/session`);
+    expect(issuedSession.status).toBe(200);
+    const sessionCookie = issuedSession.headers.get("set-cookie")?.split(";")[0];
+    expect(sessionCookie).toMatch(/^sq_session=/u);
+    await context.addCookies([{ name: "sq_session", value: sessionCookie!.slice("sq_session=".length), url: baseURL! }]);
   }
   await page.route("**/api/v1/session", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ userId: "overview-owner" }) }));
   await page.route("**/api/v1/acceptance/v2/v2.4/paper-readiness*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ schemaVersion: "v24-paper-execution-readiness-v1", market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", liveTradingEnabled: false, status: "BLOCKED", policyReadiness: { status: "BLOCKED", reason: "POLICY_PREPARATION_ONLY", configurationGaps: ["STRATEGY_VERSION"] }, mandateReadiness: { status: "BLOCKED", reason: "MANDATE_PREPARATION_ONLY", configurationGaps: ["MANDATE_ID"] }, riskEvaluation: { status: "NOT_RUN", reason: "NO_REQUEST_SCOPED_ORDER_AND_SNAPSHOT" }, resourceReservation: { status: "NOT_RUN", reason: "MANDATE_OR_ACCOUNT_UNSET" }, orderSubmissionEnabled: false }) }));

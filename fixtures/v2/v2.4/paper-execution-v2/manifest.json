@@ -1,42 +1,39 @@
 {
   "$schema": "../../../manifests/fixture-manifest.schema.json",
-  "fixtureId": "v24-isolated-snapshot-paper-normal",
-  "fixtureVersion": "2.0.0",
+  "fixtureId": "v24-sampled-paper-composition",
+  "fixtureVersion": "v24-sampled-paper-composition-1",
   "stageId": "V2.4",
   "status": "FROZEN",
   "dataMode": "FIXTURE",
   "usageEligibility": "SIMULATION_ONLY",
   "source": {
     "kind": "SYNTHETIC",
-    "description": "Isolated CN_A PAPER/FAKE end-to-end scenario with a frozen daily signal, approved test Mandate, post-acceptance snapshot, fee and exact account assertions",
+    "description": "Synthetic V2.4 composition metadata bound to the frozen V2.1 sampling Fixture output; it is not market data.",
     "license": "Internal synthetic fixture",
     "retrievedAt": null
   },
-  "createdAt": "2026-09-27T00:00:00Z",
+  "createdAt": "2026-10-24T00:00:00Z",
+  "semantics": {
+    "markets": ["CN_A"],
+    "currencies": ["CNY"],
+    "timezone": "Asia/Shanghai",
+    "prices": "The execution quote is read from the persisted v2.1-snapshot-sampling-1 observation; expected price is fixed at 10.2500 CNY.",
+    "sessions": { "count": 1, "start": "2026-10-16", "end": "2026-10-16", "calendar": "sse-cn-a-share-2026-1" },
+    "securities": { "600000.SH": 1 },
+    "qualityCases": ["fresh 20-minute Fixture tick", "stale 31-minute Fixture delivery", "same-scope duplicate tick idempotency", "same TestRun FakeBroker execution"]
+  },
   "files": [
     {
-      "path": "fixtures/v2/v2.4/paper-execution-v2/v24-paper-execution-scenario-v2.json",
-      "sha256": "713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821",
+      "path": "fixtures/v2/v2.4/paper-execution-v2/v24-sampled-paper-composition-v1.json",
+      "sha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
       "mediaType": "application/json",
-      "schemaRef": "packages/contracts/schemas/common/v24-paper-execution-scenario.schema.json"
+      "schemaRef": "v24-sampled-paper-composition-v1"
     }
   ],
   "expectedAssertions": [
-    {
-      "assertionId": "V2.4-PAPER-V2-001",
-      "description": "A run-scoped test Mandate is bound to the exact owner, TestRun, account, namespace, strategy and policy versions"
-    },
-    {
-      "assertionId": "V2.4-PAPER-V2-002",
-      "description": "The first qualifying post-acceptance Fixture SNAPSHOT is used for a persistent FakeBroker fill"
-    },
-    {
-      "assertionId": "V2.4-PAPER-V2-003",
-      "description": "A 100-share fill at CNY 10.0000 with CNY 5.0000 fee moves a CNY 10,000.0000 account to CNY 8,995.0000 cash and 100 shares"
-    },
-    {
-      "assertionId": "V2.4-PAPER-V2-004",
-      "description": "FakeBroker outbox and Portfolio ledger reconcile idempotently; liquidity participation remains NOT_VERIFIED"
-    }
+    { "assertionId": "V2.4-C5-SAMPLING-001", "description": "A persisted fresh scoped sampling observation is consumed as the same TestRun Paper snapshot." },
+    { "assertionId": "V2.4-C5-IDEMPOTENCY-001", "description": "Repeating the same scoped fixture tick returns the original task and does not create another sampling result." },
+    { "assertionId": "V2.4-C5-REJECTION-001", "description": "A persisted stale observation is rejected before FakeBroker order, fill or ledger side effects." },
+    { "assertionId": "V2.4-C5-RECOVERY-001", "description": "A lost order acceptance response is recovered by the original clientOrderId and the same sampled snapshot." }
   ]
 }

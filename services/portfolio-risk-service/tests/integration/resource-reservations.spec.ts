@@ -221,6 +221,63 @@ run("persistent account resource reservations", () => {
     }
   });
 
+  it("keeps a V2.4-scoped SELL receivable unavailable until the next frozen settlement session", async () => {
+    const v24RunId = randomUUID();
+    const v24Namespace = `v24-paper-v2-${v24RunId}`;
+    const v24Owner = `v24-crossday-owner-${v24RunId}`;
+    const initialized = await repository.initialize({
+      fixtureAccountRef: `v24-crossday-${v24RunId}`, ownerId: v24Owner, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE",
+      initialCash: { amount: "10000.0000", currency: "CNY" }, namespace: v24Namespace, testRunId: v24RunId, idempotencyKey: "v24-crossday-initialize",
+    });
+    const v24AccountId = initialized.snapshot.accountId;
+    try {
+      const buy = await repository.reserveResource({
+        accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner,
+        idempotencyKey: "v24-crossday-buy", clientOrderId: "v24-crossday-buy", side: "BUY", currency: "CNY", cashAmount: "1005.0000", security: null, quantity: null,
+      });
+      const buyFillId = randomUUID();
+      await repository.recordFill({
+        accountId: v24AccountId, namespace: v24Namespace, externalFillId: buyFillId, security: "600000.SH", quantity: 100,
+        price: "10.0000", fee: "5.0000", currency: "CNY", effectiveAt: "2024-01-04T01:00:00.000Z", side: "BUY",
+        reservation: { reservationId: buy.reservation.reservationId, ownerId: v24Owner, testRunId: v24RunId, clientOrderId: "v24-crossday-buy" },
+      });
+      await repository.resolveReservation({ accountId: v24AccountId, reservationId: buy.reservation.reservationId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, outcome: "FILLED", evidenceRef: `fill:${buyFillId}` });
+
+      const sell = await repository.reserveResource({
+        accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner,
+        idempotencyKey: "v24-crossday-sell", clientOrderId: "v24-crossday-sell", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 100,
+        asOf: "2024-01-05T01:00:00.000Z",
+      });
+      const sellFillId = randomUUID();
+      await repository.recordFill({
+        accountId: v24AccountId, namespace: v24Namespace, externalFillId: sellFillId, security: "600000.SH", quantity: 100,
+        price: "10.2500", fee: "5.0000", currency: "CNY", effectiveAt: "2024-01-05T01:01:00.000Z", side: "SELL",
+        settlement: { tradeDate: "2024-01-05", settlementDate: "2024-01-08", calendarVersion: "v1.4-synthetic-settlement-3", settlementErrorCode: null },
+        reservation: { reservationId: sell.reservation.reservationId, ownerId: v24Owner, testRunId: v24RunId, clientOrderId: "v24-crossday-sell" },
+      });
+      await repository.resolveReservation({ accountId: v24AccountId, reservationId: sell.reservation.reservationId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, outcome: "FILLED", evidenceRef: `fill:${sellFillId}` });
+
+      await expect(repository.snapshot(v24AccountId, v24Owner)).resolves.toMatchObject({
+        cash: { amount: "8995.0000", currency: "CNY" }, positions: [],
+        unsettledReceivables: [{ fillId: sellFillId, amount: "1020.0000", tradeDate: "2024-01-05", settlementDate: "2024-01-08", status: "PENDING" }],
+      });
+      const nextBuy = { accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, side: "BUY" as const, currency: "CNY", cashAmount: "9500.0000", security: null, quantity: null };
+      await expect(repository.reserveResource({ ...nextBuy, idempotencyKey: "v24-before-settlement", clientOrderId: "v24-before-settlement" })).rejects.toThrow("INSUFFICIENT_AVAILABLE_CASH");
+      await expect(repository.settleDue(v24AccountId, "2024-01-08T01:29:59.999Z")).resolves.toEqual({ settledFillIds: [] });
+      await expect(repository.settleDue(v24AccountId, "2024-01-08T01:30:00.000Z")).resolves.toEqual({ settledFillIds: [sellFillId] });
+      await expect(repository.snapshot(v24AccountId, v24Owner)).resolves.toMatchObject({ cash: { amount: "10015.0000", currency: "CNY" }, positions: [], unsettledReceivables: [{ fillId: sellFillId, status: "SETTLED" }] });
+      const available = await repository.reserveResource({ ...nextBuy, idempotencyKey: "v24-after-settlement", clientOrderId: "v24-after-settlement" });
+      await repository.resolveReservation({ accountId: v24AccountId, reservationId: available.reservation.reservationId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, outcome: "CANCELLED", evidenceRef: "cleanup:v24-after-settlement" });
+    } finally {
+      await pool.query("DELETE FROM resource_reservations WHERE account_id=$1", [v24AccountId]);
+      await pool.query("DELETE FROM sell_settlements WHERE account_id=$1", [v24AccountId]);
+      await pool.query("DELETE FROM recorded_fills WHERE account_id=$1", [v24AccountId]);
+      await pool.query("DELETE FROM account_positions WHERE account_id=$1", [v24AccountId]);
+      await pool.query("DELETE FROM ledger_entries WHERE account_id=$1", [v24AccountId]);
+      await pool.query("DELETE FROM accounts WHERE account_id=$1", [v24AccountId]);
+    }
+  });
+
   it("posts reserved partial BUY and SELL fills atomically and decrements the remaining hold", async () => {
     const buy = await repository.reserveResource({ accountId, namespace, testRunId, ownerId, idempotencyKey: "capture-buy", clientOrderId: "capture-buy-order", side: "BUY", currency: "CNY", cashAmount: "5000.0000", security: null, quantity: null });
     await expect(repository.resolveReservation({ accountId, reservationId: buy.reservation.reservationId, namespace, testRunId, ownerId, outcome: "FILLED", evidenceRef: "fill:missing" })).rejects.toThrow("RESERVATION_FILL_REQUIRED");

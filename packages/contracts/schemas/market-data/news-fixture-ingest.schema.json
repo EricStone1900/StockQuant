@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/news-fixture-ingest-v1.schema.json",
+  "title": "MarketDataNewsFixtureIngest",
+  "type": "object",
+  "required": ["fixtureVersion", "dataMode", "records"],
+  "properties": {
+    "fixtureVersion": { "const": "v2.1-news-revisions-1" },
+    "dataMode": { "const": "FIXTURE" },
+    "records": { "type": "array", "items": { "type": "object", "required": ["sourceId", "sourceItemId", "revision", "created"], "properties": { "sourceId": { "type": "string" }, "sourceItemId": { "type": "string" }, "revision": { "type": "integer", "minimum": 1 }, "created": { "type": "boolean" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": false
+}

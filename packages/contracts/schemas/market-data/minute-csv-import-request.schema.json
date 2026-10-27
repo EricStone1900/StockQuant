@@ -34,6 +34,7 @@
         "acquiredAt": {"type": "string", "format": "date-time"}
       }
     },
+    "historicalContext": {"type":"object","additionalProperties":false,"required":["securityUniverseVersion","marketRuleSetVersion","corporateActionVersion"],"properties":{"securityUniverseVersion":{"type":["string","null"],"maxLength":120},"marketRuleSetVersion":{"type":["string","null"],"maxLength":120},"corporateActionVersion":{"type":["string","null"],"maxLength":120}}},
     "market": {"const": "CN_A"},
     "frequency": {"enum": ["1m", "5m"]},
     "adjustment": {"const": "RAW"},
@@ -50,6 +51,7 @@
       "properties": {
         "mapping": { "$ref": "#/properties/mapping" },
         "provenance": { "$ref": "#/properties/provenance" },
+        "historicalContext": {"type":"object","additionalProperties":false,"required":["securityUniverseVersion","marketRuleSetVersion","corporateActionVersion"],"properties":{"securityUniverseVersion":{"type":["string","null"],"maxLength":120},"marketRuleSetVersion":{"type":["string","null"],"maxLength":120},"corporateActionVersion":{"type":["string","null"],"maxLength":120}}},
         "market": { "$ref": "#/properties/market" },
         "frequency": { "$ref": "#/properties/frequency" },
         "adjustment": { "$ref": "#/properties/adjustment" },

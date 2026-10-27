@@ -68,4 +68,10 @@ describe("trade execution service identity and route scopes", () => {
     expect(request("GET", "/internal/v1/v24/paper-readiness", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
     expect(request("POST", "/internal/v1/v24/paper-readiness", "platform-api-service", tokens["platform-api-service"])).toBe(false);
   });
+  it("allows scoped in-flight order reads only for the authenticated platform API", () => {
+    expect(request("GET", "/internal/v1/accounts/a1/in-flight-orders", "platform-api-service", tokens["platform-api-service"])).toBe(true);
+    expect(request("GET", "/internal/v1/accounts/a1/in-flight-orders", "historical-replay-worker", tokens["historical-replay-worker"])).toBe(false);
+    expect(request("POST", "/internal/v1/accounts/a1/in-flight-orders", "platform-api-service", tokens["platform-api-service"])).toBe(false);
+    expect(request("GET", "/internal/v1/accounts/a1/in-flight-orders/other", "platform-api-service", tokens["platform-api-service"])).toBe(false);
+  });
 });

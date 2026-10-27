@@ -22,7 +22,7 @@ domain：证券、日历、Bar/PIT、质量与发布规则；application：导�
 
 ## 3. 数据与一致性
 
-逻辑持久化：securities/security_aliases、calendars/sessions、data_versions/artifact_refs、import_runs、quality_reports、corporate_action_revisions、rule_versions。分钟行情按市场/频率/日期/证券分区Artifact，不默认逐Bar写关系表。
+逻辑持久化：securities/security_aliases、calendars/sessions、data_versions/artifact_refs、import_runs、quality_reports、corporate_action_revisions、rule_versions、historical_context_versions。`historical_context_versions`按类型/版本不可变保存股票池成员及各自上市/退市有效期、MarketRuleSet内容、公司行动覆盖/记录、规范内容SHA-256、整体有效期、来源引用和登记用户。分钟导入只保存引用；回放预检必须重新解析引用、核对内容Hash、导入时间范围、逐证券覆盖及精确历史研究用途门禁。登记用户的声明和来源引用不等于官方事实或许可证明。分钟行情按市场/频率/日期/证券分区Artifact，不默认逐Bar写关系表。
 
 事务/幂等：历史标识按有效区间查询；导入幂等键绑定来源/载荷Hash/run；重复同内容返回原结果、冲突409；发布元数据与Outbox同事务。
 
@@ -64,6 +64,8 @@ Python / FastAPI + 导入与采集Worker组件按已启用能力部署；API和�
 分钟来源默认顺序为 `sina,baostock`：Sina 是当前已验证的盘中优先来源，BaoStock 用于盘后/历史读取及有界半开恢复探测。`tdx` 通过可选 easy-tdx extra 提供候选分钟能力，但尚未进入默认顺序；Ashare 只是新浪/腾讯接口封装，不视为独立来源。每次运行必须保留实际来源、尝试序列、服务器和熔断状态；只有真实交易时段成功切回并经过独立证据验证，才能调整该顺序或宣称任何候选源盘中能力通过。
 
 ## 8. Web与验证
+
+2026-10-21 C2文章获取：HTTP adapter只从注册origin及文章路径发现候选，禁止重定向、限定字节/超时并按源缓存/合并请求；应用层`collectV21News`经端口聚合文章并逐源写入现有修订仓储，再生成跨源去重展示。源失败独立返回，不清除历史事实；GET live路由仍先检查来源授权。实际子进程故障验证使用生产SamplingTaskWorker/持久仓储与Fixture执行适配器，证明领取后及结果提交后崩溃可在租约过期后续接，Outbox身份不重复。详见[本轮审计](../../evidence/audits/2026-10-21-v21-c2-news-and-crash-recovery.md)。这些是本地工程结果，实源条款/能力及全部阶段验收待完成。
 
 导入预览/错误行、日线和分钟浏览、质量/覆盖、来源与版本差异；VT04坏行/中断，VT05真实源/限流。
 
@@ -130,7 +132,40 @@ Docker Desktop ARM64复验（2026-09-26）：当前源码Market Data镜像`sha25
 
 2026-10-02边界维护：V2.1 Tencent行情预览、新闻页面读取和来源Smoke的外发HTTP传输现封装于`adapters/PublicSourceHttpAdapter`，bootstrap保留逐用途来源授权门禁并只在授权后调用该adapter。通过注入fetch/clock的单测覆盖请求头、有限超时、来源错误STALE结果和稳定新闻ID；没有实际Provider请求。源许可仍未确认，相关真实来源能力和V2.1验收保持NOT_RUN。
 
+2026-10-17 V2.1 C1在线池增量：Market Data拥有owner/account/TestRun范围的在线池快照，使用`market_data_watchlists` PostgreSQL表保存必需持仓、在途订单、候选、最终有序集合及省略候选。schema迁移v2兼容v1；更新以scope advisory lock序列化，namespace冲突拒绝且保留原配置。Platform在写入前负责从Portfolio/Trade读取并校验领域事实；Market Data只负责确定性排序、100只门限和持久化，不接受浏览器伪造的事实。隔离迁移、作用域与恢复证据见[2026-10-17 C1证据](../../evidence/audits/2026-10-17-v21-c1-watchlist.md)。该配置尚不构成真实来源授权或行情采集证据。
+
+2026-10-18 V2.1 C2增量：`market_data_sampling_settings` schema v3持久化20/30分钟配置；schema v5保存任务、schema v6增加合成Fixture结果与观测。普通Run Clock tick按配置和版本化2026日历判断并以settingsVersion+UTC Instant幂等记录；授权NONE时状态为`BLOCKED_SOURCE_AUTHORIZATION`，不触发Provider。独立的`tick-fixture`端点核对Manifest/文件SHA后，将两条合成观测作为`COMPLETED_FIXTURE`持久化；PG/服务进程重启均可恢复。行情预览按配置标记age/freshness；监控、收盘日线、策略和执行的独立调度当前如实报告`NOT_CONFIGURED`。新闻标题聚合仍保留源状态、未知发布时间与实体歧义。schema v4稳定sourceItemId账本由冻结Fixture导入API写入，并可经Platform/Web读取历史；`v2.1-news-revisions-1`覆盖修订、时间语义和实体状态且重放幂等。实时首页title适配器无稳定sourceItemId和文章URL，仍不能写入修订账本，实时新闻标`UNVERIFIED_NO_STABLE_SOURCE_ID`。schema v1–v6迁移、HTTP重启、Fixture采样与C2 Web E2E均通过；D1真实源、实际采集、独立调度和人工验收仍未完成。证据：[C2 Fixture采样增量审计](../../evidence/audits/2026-10-18-v21-c2-fixture-sampling.md)。
+
 告警事件生命周期与运维UI增量（2026-10-03）：PostgreSQL adapter以部分唯一索引保证每个`alertKey`最多一个`OPEN/ACKNOWLEDGED`事件；重复异常更新`last_seen_at`与载荷，`GET /v2/alerts`列出活动事件，`POST /v2/alerts/{incidentId}/acknowledge`记录首次确认人且幂等。采集完成回调关闭对应订阅/窗口事件，后续再次失败生成新事件；OPEN/RESOLVED通知事件与Incident状态在同一PostgreSQL事务提交并进入本地outbox。Platform通过登录会话代理读取/确认，Web `/paper`展示告警并提供显式确认。除Mock页面回归外，V2.4隔离HTTP/Chromium Harness现启动临时Market Data PostgreSQL/服务及Platform/Web，浏览器对真实Market Data incident执行读取/确认，并校验数据库持久状态和确认人来自登录Cookie；采集执行器/调度器关闭、行情请求0、活动服务未触碰，详见[W3告警浏览器集成审计](../../evidence/audits/2026-10-03-v24-paper-smoke-alert-integration-bd05a5f4f8464a03aeccc172bc3f1ead.json)及[SHA-256](../../evidence/audits/2026-10-03-w3-alert-browser-integration.sha256)。尚无通知dispatcher、真实外发或完整交易日终对账接线；来源授权为NONE时采集执行器继续关闭。本切片不代表W3完成。隔离生命周期行为见[W3告警生命周期审计](../../evidence/audits/2026-10-03-w3-alert-incident-lifecycle.md)。
 
 
 2026-10-09 V1数据库迁移增量：Market Data八组PostgreSQL schema现由`market_data_schema_migrations`服务专属ledger统一登记，既有initializer在同一事务内执行并由transaction advisory lock串行化；拒绝未知较新版本。隔离PostgreSQL先以旧版无ledger方式建表并插入采集run，再执行并发baseline纳管，记录保留；双进程、重复启动、未知版本拒绝均通过。28项Market Data集成和Project Delivery HTTP/PG smoke通过，见[迁移测试](../../evidence/audits/2026-10-09-v12-market-data-migration-a03.log)及[完整集成](../../evidence/audits/2026-10-09-v12-market-data-migration-integration-a02.log)。没有活动库升级、降级脚本或部署前独立迁移CLI。
+
+V2.1 C2-B Provider增量（2026-10-19）：新增应用层快照采样Provider端口和Tencent Adapter，Fixture继续由同一后台Worker执行；Worker对REAL任务在领取后按`sourceId`复核QUOTE授权，并要求独立`STOCKQUANT_SNAPSHOT_REAL_PROVIDER_ENABLED=true`才允许调用。结果批次需完整覆盖任务证券、不得重复/串源，价格必须为正数；源时间未知保留UNKNOWN，错误进入有界重试/失败记录。schema v14支持`COMPLETED_REAL`及带来源/时间/新鲜度的观测持久化，幂等提交拒绝换源冲突。当前运行开关未设置且OD-008为NONE；验证使用Stub与合成输入，未调用真实Provider，也未验证真实报价能力/许可。证据见[2026-10-19 C2-B采样Provider审计](../../evidence/audits/2026-10-19-v21-c2-provider-port.md)。
+
+2026-10-19 V2.1 Sina快照候选增量：新增GB18030兼容解码、`hq_str_{exchange}{code}`字段解析和共享采样Provider实现，固定响应覆盖CN证券代码、正价格、严格北京时间时间戳、畸形/不完整结果；Worker仅在精确QUOTE来源授权及独立REAL运行开关均开启后派发。OD-008仍OPEN且授权NONE，两个开关均未启用；未访问Sina端点。该实现仅证明本地解析/端口行为，不证明端点可用性、响应稳定性、许可、限流或持久采集资格。见[V2.1 Sina候选审计](../../evidence/audits/2026-10-19-v21-c2-sina-adapter.md)。
+
+2026-10-19 V2.1 C2-C增量：新增独立合成`DAILY_BAR` Fixture（`v2.1-daily-bars-1`）与收盘完成门禁；source与快照分离、source/data版本、收盘和availableAt顺序、完整覆盖、session、OHLCV均校验，REAL授权状态单独传入且未授权阻断。完成身份按scope/source/version/session/规范化内容生成稳定Hash。schema v15保存结果，v16新增`market_data_daily_bar_completion_jobs`持久队列；固定Fixture POST只入队并立即返回QUEUED，后台Worker领取任务后重新读取及校验冻结Manifest/内容，通过租约、到期接管、有限重试后在同一事务写结果并完成任务。latest GET返回任务和结果，Platform以已认证owner及Bearer身份代理，Web展示状态/尝试次数/结果。隔离PG与真实HTTP服务重启验证幂等、租约接管、延迟及上限重试、结果读回和owner/TestRun隔离，`externalRequests=0`。Monitor质量结果持久化/API消费、REAL日线来源及完整C2-C验收仍未完成。详见[质量与日线领域审计](../../evidence/audits/2026-10-19-v21-c2-quality-dailybar-domain.md)及[日线持久Worker审计](../../evidence/audits/2026-10-19-v21-c2-dailybar-persistence.md)。
+
+
+## V2.1 scoped DAILY_BAR close scheduler
+
+Market Data schema v18 stores opt-in close schedules keyed by market/owner/account/namespace/TestRun. The policy defaults disabled; Web registration requires an existing matching scoped online watchlist. A run-scoped Clock and the versioned Asia/Shanghai calendar gate scheduling to known trading sessions after 15:00. The scheduler enqueues the independent DAILY_BAR Fixture through the durable queue; task identity and last-triggered session make duplicate polls and restart retries idempotent. The currently frozen Fixture covers only 2026-10-16. Other dates return `NO_FIXTURE_FOR_SESSION`; this local slice does not fabricate bars or imply a real daily source. Strategy and order consumers remain separate, disabled and unimplemented.
+
+
+## V2.1 C2 current completion boundary (2026-10-21)
+
+Schema v19 adds durable snapshot registrations keyed by full scope/source and independent REAL daily-bar jobs with source_request_json. Fixture version/hash are nullable only for validated REAL source requests; the exclusive-input check prevents mixed provenance. Workers accept either a verified immutable Fixture or the registered current-session DAILY_BAR provider, preserving leases, bounded retries, scope and idempotency. A reclaimed final-attempt sampling job without a committed result becomes FAILED; one with a committed result may finish without another provider call.
+
+Snapshot timer scheduling uses an injected Clock, 20/30-minute calendar decisions and explicitly registered scoped watchlists. Monitor evaluation consumes transactional quote-available Outbox facts under its own identity. Daily completion independently reads eastmoney-daily RAW daily klines for the current known session after close; integer lots are converted to shares, exact coverage/OHLCV/session/availability are validated, and no snapshot becomes a daily/minute bar. All REAL execution/timer switches default off. Strategy/order executors remain C5/OD-007.
+
+News source inventory/circuit/adapter IDs consistently use eastmoney-news and cls-news. Registered same-origin article paths, verification-page rejection and per-source errors apply before revision persistence; process-local caching is not a global durable rate limiter. Unknown publication time stays null/UNKNOWN. Bounded actual-source evidence, deterministic HTTP replacements and actual process faults are separately labelled in the [C2 audit](../../evidence/audits/2026-10-21-v21-c2-closeout.md); engineering readiness does not sign human acceptance.
+
+## V2.2 minute/daily aggregate comparison (2026-10-23)
+
+Market Data exposes `POST /v2/minute/imports/{version}/daily-aggregate-check` behind the platform service identity. It reads one security and one Shanghai trading date from the immutable RAW minute version, with a 500-Bar bound, and calculates open/maximum high/minimum low/final close/volume sum/amount sum. The caller supplies all six daily reference values plus a source name and source reference; the response retains DataVersion and import SHA-256 and labels the reference as not independently verified. This endpoint compares values only. It does not determine whether the minute window is complete; callers must use the independent coverage report. Invalid date, wrong import frequency/adjustment, duplicate or out-of-scope bars and invalid OHLC values fail closed. A real isolated PostgreSQL + Platform + Market Data + Chromium smoke passed on synthetic input; this is software evidence, not source-fact validation.
+
+
+## V2.2 MinuteBar applicability and limit references (2026-10-23)
+
+The canonical `MinuteBar` contract carries `tradingStatus` and `tradingStatusReference`, plus a `limitPriceReference` object with status, upper/lower prices, MarketRuleSet version and source reference. Missing facts are represented as `UNKNOWN` with null values/references. `TRADING`/`SUSPENDED` requires a non-empty citation; `AVAILABLE` limit prices require both bounds, a rule-set version and a source citation; `NOT_APPLICABLE` also requires a citation. New CSV/Parquet/Fixture rows default to unknown. Legacy PostgreSQL JSONB rows are normalized when paged, without rewriting stored records. Quality validation enforces cited statuses and available bounds; absence of references does not imply a pass against real market limits.

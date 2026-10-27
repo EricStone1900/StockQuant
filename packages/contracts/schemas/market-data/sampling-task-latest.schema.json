@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/sampling-task-latest-v1.schema.json",
+  "title": "MarketDataLatestSamplingTask",
+  "type": "object",
+  "required": [
+    "task"
+  ],
+  "properties": {
+    "execution": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "taskId",
+        "state",
+        "attempt",
+        "maxAttempts",
+        "leaseOwner",
+        "leaseUntil",
+        "nextAttemptAt",
+        "lastError",
+        "updatedAt"
+      ],
+      "properties": {
+        "taskId": { "type": "string" },
+        "state": { "enum": ["QUEUED", "CLAIMED", "RETRY_WAIT", "BLOCKED_SOURCE_AUTHORIZATION", "COMPLETED", "FAILED"] },
+        "attempt": { "type": "integer", "minimum": 0 },
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "leaseOwner": { "type": ["string", "null"] },
+        "leaseUntil": { "type": ["string", "null"], "format": "date-time" },
+        "nextAttemptAt": { "type": ["string", "null"], "format": "date-time" },
+        "lastError": { "type": ["string", "null"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "taskId",
+        "sourceId",
+        "scheduledAt",
+        "intervalMinutes",
+        "settingsVersion",
+        "calendarVersion",
+        "window",
+        "status",
+        "fixtureVersion",
+        "fixtureSha256",
+        "observations",
+        "created",
+        "dataMode",
+        "scope",
+        "securityIds"
+      ],
+      "properties": {
+        "taskId": {
+          "type": "string"
+        },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "scheduledAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "intervalMinutes": {
+          "enum": [
+            20,
+            30
+          ]
+        },
+        "settingsVersion": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "calendarVersion": {
+          "type": "string"
+        },
+        "window": {
+          "enum": [
+            "morning",
+            "afternoon"
+          ]
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "BLOCKED_SOURCE_AUTHORIZATION",
+            "COMPLETED_FIXTURE",
+            "COMPLETED_REAL",
+            "FAILED"
+          ]
+        },
+        "fixtureVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fixtureSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "snapshotId",
+              "securityId",
+              "sourceId",
+              "dataMode",
+              "observedAt",
+              "ingestedAt",
+              "availableAt",
+              "ageSeconds",
+              "freshness",
+              "price",
+              "status"
+            ],
+            "properties": {
+              "snapshotId": {
+                "type": "string"
+              },
+              "securityId": {
+                "type": "string"
+              },
+              "sourceId": { "type": "string", "minLength": 1 },
+              "dataMode": { "enum": ["FIXTURE", "REAL"] },
+              "observedAt": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "ingestedAt": { "type": ["string", "null"], "format": "date-time" },
+              "availableAt": { "type": ["string", "null"], "format": "date-time" },
+              "ageSeconds": { "type": ["integer", "null"] },
+              "freshness": { "enum": ["FRESH", "STALE", "UNKNOWN"] },
+              "price": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{4}$"
+              },
+              "status": { "enum": ["READY", "STALE", "UNKNOWN"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "created": {
+          "type": "boolean"
+        },
+        "dataMode": {
+          "enum": [
+            "FIXTURE",
+            "REAL"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "market",
+            "ownerId",
+            "accountId",
+            "namespace",
+            "testRunId"
+          ],
+          "properties": {
+            "market": {
+              "const": "CN_A"
+            },
+            "ownerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "accountId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "testRunId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "securityIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

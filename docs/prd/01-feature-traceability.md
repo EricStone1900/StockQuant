@@ -10,6 +10,10 @@
 
 ## 1. 优先级与适用范围
 
+2026-10-24 V2.4/C5增量：候选A参数获准用于实现和隔离验证，新增冻结两日日线、不可变日频目标、同Run原订单身份及恢复核对。定向测试见`services/platform-api-service/tests/unit/v24-daily-direction.spec.ts`、`tests/integration/v24-daily-target-postgres.spec.ts`；现有Web/API/CLI场景加入`V2.4-C5-DAILY-TARGET-001`和`V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001`。它只推进确定性Fixture BUY子链，不将连续Paper、真实源、SELL/持续风险或整行长期需求自动标PASS。当前状态以[V2.4阶段](./v2-data-and-replay/04-continuous-paper-trading.md)为准。
+
+2026-10-21 V2.1 C2：DV-05、NEW-01/02/05/06、MON-01/02/04的本地采样/新闻/质量子项已完成实源小样本与真实组件验证；T28/38追加五种实际进程故障，Web四场景及同Run CLI/export通过。独立DAILY_BAR与QUOTE分离，schema v19/生成契约对齐。见[收口审计](../../evidence/audits/2026-10-21-v21-c2-closeout.md)及[阶段手册](./v2-data-and-replay/01-free-data-and-news.md)。C1/C2当前本地学习范围已人工验收PASS（签署见[记录](../../evidence/audits/2026-10-21-v21-c2-closeout/human-acceptance.json)）；长期数据、双市场实源和连续Paper等广泛需求仍按原行状态，不整行自动PASS。
+
 本轮V1～V3按[三版共同规则](./05-three-version-delivery.md)交付；下表原124条仍为长期目标，原R1真实账户、R2实盘和未纳入R3增强不在本轮，不可因模拟子项通过而整行标完成。新增需求如下，全部NOT_RUN；原共124条计数不包含本表7条增量需求。
 
 | 新需求ID | 行为及验收 | 责任域 | 本轮阶段 | 测试 | 状态 |
@@ -184,3 +188,5 @@ P0→R0基础，P1→R1真实数据/日常能力，P2→R2双市场自动实盘�
 # 共享数据采集扩展追踪（2026-09-12，计划）
 
 新增需求DC-R01～DC-R08、工作包DC-00～DC-08（08细分A/B）和测试DC-T01～DC-T25见[共享数据采集计划](./v2-data-and-replay/06-shared-data-collection-plan.md)。DC-T25验证DC-R02/03/05/06/08的短期真实运行交付。用例输入/步骤/预期见[测试手册](./v2-data-and-replay/07-data-collection-tests.md)，实际状态见[进度记录](./v2-data-and-replay/08-data-collection-progress.md)。本扩展尚未实现，不改变上述历史需求或验收结论。
+
+2026-10-24 DV-04/DAT-03～06的V2.2切片按[C3本地学习范围决定](../decisions/2026-10-24-v22-c3-local-learning-closeout-scope.md)收口PASS；仅覆盖导入/质量/恢复与已执行的受限回放，完整历史事实补证延期且UNKNOWN。跨版本研究与回放要求不因此整体通过。

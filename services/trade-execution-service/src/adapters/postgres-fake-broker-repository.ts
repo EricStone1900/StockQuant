@@ -174,6 +174,7 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
         !Number.isSafeInteger(command.requestedQuantity) || command.requestedQuantity <= 0 ||
         !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.price) || !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/u.test(command.fee) ||
         !/^[A-Z]{3}$/u.test(command.currency) || !command.snapshotId || command.fixtureVersion !== "2.0.0" ||
+        (command.side !== "BUY" && command.side !== "SELL") ||
         !/(?:Z|[+-]\d{2}:\d{2})$/u.test(command.effectiveAt) || !command.policyVersion) throw new Error("INVALID_SNAPSHOT_PAPER_EXECUTION");
     const fingerprint = createHash("sha256").update(JSON.stringify({ ...command, reservation: { ...command.reservation } })).digest("hex");
     const client = await this.pool.connect();
@@ -190,13 +191,34 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
       }
       const orderId = randomUUID();
       const externalFillId = randomUUID();
+      const settlement = command.side === "SELL" ? resolvePaperSettlement(command.currency, command.effectiveAt) : undefined;
+      await client.query(`INSERT INTO fake_broker_account_assets(namespace,account_id,owner_id,test_run_id,currency,initial_cash,current_cash)
+        VALUES($1,$2,$3,$4,$5,$6,$6) ON CONFLICT(namespace,account_id) DO NOTHING`, [command.namespace, command.accountId, command.ownerId, command.testRunId, command.currency, command.initialAccountCash]);
+      const asset = await client.query<any>("SELECT owner_id,test_run_id,currency,current_cash::text FROM fake_broker_account_assets WHERE namespace=$1 AND account_id=$2 FOR UPDATE", [command.namespace, command.accountId]);
+      if (asset.rows[0]?.owner_id !== command.ownerId || asset.rows[0]?.test_run_id !== command.testRunId || asset.rows[0]?.currency.trim() !== command.currency) throw new Error("FAKEBROKER_ASSET_SCOPE_MISMATCH");
+      if (command.side === "BUY") {
+        const affordability = await client.query<{ allowed: boolean }>("SELECT $1::numeric >= ($2::numeric*$3::numeric+$4::numeric) AS allowed", [asset.rows[0].current_cash, command.requestedQuantity, command.price, command.fee]);
+        if (affordability.rows[0]?.allowed !== true) throw new Error("FAKEBROKER_INSUFFICIENT_ASSETS");
+      } else {
+        const position = await client.query<{ quantity: string }>("SELECT quantity::text FROM fake_broker_positions WHERE namespace=$1 AND account_id=$2 AND security=$3 FOR UPDATE", [command.namespace, command.accountId, command.security]);
+        if (!position.rows[0] || BigInt(position.rows[0].quantity) < BigInt(command.requestedQuantity)) throw new Error("FAKEBROKER_INSUFFICIENT_SELLABLE_ASSETS");
+      }
       const result: HistoricalExecutionResult = { orderId, status: "FILLED", brokerMode: "FAKE", fill: { externalFillId, quantity: command.requestedQuantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt } };
       await client.query(`INSERT INTO fake_broker_orders(order_id,namespace,account_id,client_order_id,security,requested_quantity,status,request_fingerprint)
         VALUES($1,$2,$3,$4,$5,$6,'LEDGER_PENDING',$7)`, [orderId, command.namespace, command.accountId, command.clientOrderId, command.security, command.requestedQuantity, fingerprint]);
       await client.query("INSERT INTO fake_broker_order_events(event_id,order_id,status,reason) VALUES($1,$2,'ACCEPTED','SNAPSHOT_PAPER_ORDER')", [randomUUID(), orderId]);
       await client.query("INSERT INTO fake_broker_fills(external_fill_id,order_id,quantity,price,fee,original_fee,effective_at) VALUES($1,$2,$3,$4,$5,$5,$6)", [externalFillId, orderId, command.requestedQuantity, command.price, command.fee, command.effectiveAt]);
       await client.query("INSERT INTO fake_broker_order_events(event_id,order_id,status,reason) VALUES($1,$2,'LEDGER_PENDING','FIRST_QUALIFYING_SNAPSHOT')", [randomUUID(), orderId]);
-      await client.query("INSERT INTO fake_broker_outbox(event_id,order_id,event_type,payload) VALUES($1,$2,'FILL_POST',$3::jsonb)", [randomUUID(), orderId, JSON.stringify({ accountId: command.accountId, namespace: command.namespace, security: command.security, externalFillId, quantity: command.requestedQuantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt, side: "BUY", currency: command.currency, reservation: command.reservation, reservationOutcome: "FILLED", snapshotId: command.snapshotId, policyVersion: command.policyVersion, fixtureVersion: command.fixtureVersion, quoteAgeSeconds: command.quoteAgeSeconds, deviationBps: command.deviationBps, testRunId: command.testRunId, ownerId: command.ownerId, mandateId: command.mandateId, mandateVersion: command.mandateVersion, strategyVersion: command.strategyVersion })]);
+      const cashDelta = await client.query<{ amount: string }>("SELECT CASE WHEN $4::text='BUY' THEN -($1::numeric*$2::numeric+$3::numeric) ELSE ($1::numeric*$2::numeric-$3::numeric) END::numeric(20,4)::text AS amount", [command.requestedQuantity, command.price, command.fee, command.side]);
+      if (command.side === "BUY") await client.query("UPDATE fake_broker_account_assets SET current_cash=current_cash+$3::numeric,updated_at=now() WHERE namespace=$1 AND account_id=$2", [command.namespace, command.accountId, cashDelta.rows[0].amount]);
+      else await client.query(`INSERT INTO fake_broker_sell_receivables(external_fill_id,namespace,account_id,amount,currency,trade_date,settlement_date,calendar_version,settlement_error_code,status)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'PENDING')`, [externalFillId, command.namespace, command.accountId, cashDelta.rows[0].amount, command.currency, settlement!.tradeDate, settlement!.settlementDate, settlement!.calendarVersion, settlement!.settlementErrorCode]);
+      if (command.side === "BUY") await client.query(`INSERT INTO fake_broker_positions(namespace,account_id,security,quantity) VALUES($1,$2,$3,$4)
+        ON CONFLICT(namespace,account_id,security) DO UPDATE SET quantity=fake_broker_positions.quantity+EXCLUDED.quantity`, [command.namespace, command.accountId, command.security, command.requestedQuantity]);
+      else await client.query("UPDATE fake_broker_positions SET quantity=quantity-$4 WHERE namespace=$1 AND account_id=$2 AND security=$3", [command.namespace, command.accountId, command.security, command.requestedQuantity]);
+      await client.query(`INSERT INTO fake_broker_asset_events(event_id,namespace,account_id,external_fill_id,currency,cash_delta,security,quantity_delta,effective_at,evidence_ref)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, [randomUUID(), command.namespace, command.accountId, externalFillId, command.currency, command.side === "SELL" ? "0.0000" : cashDelta.rows[0].amount, command.security, command.side === "SELL" ? -command.requestedQuantity : command.requestedQuantity, command.effectiveAt, `snapshot:${command.clientOrderId}`]);
+      await client.query("INSERT INTO fake_broker_outbox(event_id,order_id,event_type,payload) VALUES($1,$2,'FILL_POST',$3::jsonb)", [randomUUID(), orderId, JSON.stringify({ accountId: command.accountId, namespace: command.namespace, security: command.security, externalFillId, quantity: command.requestedQuantity, price: command.price, fee: command.fee, effectiveAt: command.effectiveAt, side: command.side, currency: command.currency, ...(settlement ? { settlement } : {}), reservation: command.reservation, reservationOutcome: "FILLED", snapshotId: command.snapshotId, policyVersion: command.policyVersion, fixtureVersion: command.fixtureVersion, quoteAgeSeconds: command.quoteAgeSeconds, deviationBps: command.deviationBps, testRunId: command.testRunId, ownerId: command.ownerId, mandateId: command.mandateId, mandateVersion: command.mandateVersion, strategyVersion: command.strategyVersion })]);
       await client.query("COMMIT");
       return { result, replayed: false };
     } catch (error) { await client.query("ROLLBACK"); throw error; }
@@ -453,6 +475,17 @@ export class PostgresFakeBrokerRepository implements FakeBrokerOutboxPort {
   }
 
   async find(orderId: string) { const result = await this.pool.query<any>("SELECT order_id,status,rejection_reason FROM fake_broker_orders WHERE order_id=$1", [orderId]); return result.rows[0] ?? null; }
+  async listInFlightOrders(scope: { accountId: string; namespace: string; ownerId: string; testRunId: string }) {
+    const result = await this.pool.query<{ security: string; status: string }>(
+      `SELECT security,status FROM fake_broker_orders
+       WHERE account_id=$1 AND namespace=$2
+         AND execution_context->>'ownerId'=$3 AND execution_context->>'testRunId'=$4
+         AND status NOT IN ('FILLED','CANCELLED','REJECTED','EXPIRED')
+       ORDER BY created_at,order_id`,
+      [scope.accountId, scope.namespace, scope.ownerId, scope.testRunId],
+    );
+    return result.rows;
+  }
   async findHistoricalOrderById(orderId: string, namespace: string) {
     const result = await this.pool.query<any>("SELECT order_id,status,rejection_reason FROM fake_broker_orders WHERE order_id=$1 AND namespace=$2", [orderId, namespace]);
     return result.rows[0] ?? null;

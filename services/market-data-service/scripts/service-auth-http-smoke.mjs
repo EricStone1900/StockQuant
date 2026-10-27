@@ -120,8 +120,9 @@ try {
   assert.equal(unauthenticatedSampling.status, 401);
   assert.equal(bearerSampling.status, 200);
   assert.equal(unauthenticatedSamplingChange.status, 401);
-  assert.equal(authenticatedSamplingChange.status, 200);
-  assert.equal(restoredSampling.status, 200);
+  assert.equal(authenticatedSamplingChange.status, 503, "sampling writes require PostgreSQL even with valid credentials");
+  assert.equal((await authenticatedSamplingChange.json()).code, "SAMPLING_PERSISTENCE_UNAVAILABLE");
+  assert.equal(restoredSampling.status, 503);
   assert.equal(unauthenticatedNewsPreview.status, 401);
   assert.equal(bearerNewsPreview.status, 200);
   assert.equal(unauthenticatedWatchlistWrite.status, 401);

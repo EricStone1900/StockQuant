@@ -28,7 +28,7 @@ describe("Market Data internal minute-upload identity", () => {
     expect(isProtectedPlatformApiRequest("GET", "/v2/minute/preview")).toBe(true);
     expect(isProtectedPlatformApiRequest("POST", "/v2/minute/quality")).toBe(true);
     expect(isProtectedPlatformApiRequest("POST", "/v2/minute/coverage")).toBe(true);
-    for (const [method, path] of [["GET", "/v2/watchlist"], ["PUT", "/v2/watchlist"], ["GET", "/v2/sources"], ["GET", "/v2/sampling"], ["PUT", "/v2/sampling"], ["GET", "/v2/quote/preview"], ["GET", "/v2/news/preview"], ["GET", "/v2/news/live"], ["GET", "/v2/sources/smoke"], ["POST", "/v2/sources/tencent-quote/fail"]]) expect(isProtectedPlatformApiRequest(method, path)).toBe(true);
+    for (const [method, path] of [["GET", "/v2/watchlist"], ["PUT", "/v2/watchlist"], ["GET", "/v2/sources"], ["GET", "/v2/sampling"], ["PUT", "/v2/sampling"], ["PUT", "/v2/sampling/monitor-policy"], ["POST", "/v2/sampling/tasks/tick"], ["POST", "/v2/sampling/tasks/tick-fixture"], ["GET", "/v2/sampling/tasks/latest"], ["POST", "/v2/daily-bars/fixture/complete"], ["GET", "/v2/daily-bars/completions/latest"], ["PUT", "/v2/daily-bars/schedules"], ["GET", "/v2/quote/preview"], ["GET", "/v2/news/preview"], ["GET", "/v2/news/live"], ["POST", "/v2/news/fixture/ingest"], ["GET", "/v2/news/fixture/history"], ["GET", "/v2/sources/smoke"], ["POST", "/v2/sources/tencent-quote/fail"]]) expect(isProtectedPlatformApiRequest(method, path)).toBe(true);
     expect(isProtectedPlatformApiRequest("POST", "/v2/watchlist")).toBe(true, "unsupported methods on a protected resource still require identity before 404");
   });
 

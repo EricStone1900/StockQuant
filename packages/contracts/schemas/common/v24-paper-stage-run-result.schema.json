@@ -4,90 +4,467 @@
   "title": "V24PaperStageRunResult",
   "type": "object",
   "additionalProperties": false,
-  "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "ownerId", "namespace", "status", "seed", "assertions", "evidence", "createdAt", "completedAt"],
+  "required": [
+    "testRunId",
+    "stageId",
+    "scenarioId",
+    "scenarioVersion",
+    "ownerId",
+    "namespace",
+    "status",
+    "seed",
+    "assertions",
+    "evidence",
+    "createdAt",
+    "completedAt"
+  ],
   "properties": {
-    "testRunId": { "type": "string", "format": "uuid" },
-    "stageId": { "const": "V2.4" },
-    "scenarioId": { "enum": ["normal", "rejection", "recovery", "external-reconciliation"] },
-    "scenarioVersion": { "type": "string", "minLength": 1 },
-    "ownerId": { "type": "string", "minLength": 1 },
-    "namespace": { "type": "string", "minLength": 1 },
-    "status": { "const": "WAITING" },
-    "seed": { "type": "integer" },
+    "testRunId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stageId": {
+      "const": "V2.4"
+    },
+    "scenarioId": {
+      "enum": [
+        "normal",
+        "rejection",
+        "recovery",
+        "external-reconciliation",
+        "crossday-settlement",
+        "candidate-binding"
+      ]
+    },
+    "scenarioVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ownerId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "namespace": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "WAITING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "seed": {
+      "type": "integer"
+    },
     "assertions": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["assertionId", "status", "expected", "actual"],
+        "required": [
+          "assertionId",
+          "status",
+          "expected",
+          "actual"
+        ],
         "properties": {
-          "assertionId": { "type": "string", "minLength": 1 },
-          "status": { "const": "WAITING" },
+          "assertionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "WAITING",
+              "PASS",
+              "FAIL"
+            ]
+          },
           "expected": {},
           "actual": {}
         }
       }
     },
     "evidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["testRunId", "stageId", "scenarioId", "scenarioVersion", "seed", "status", "environmentMode", "dataMode", "brokerMode", "executionPolicy", "executionGate", "mandate", "source", "orders", "fills", "reconciliation", "observationDays", "assertions"],
-      "properties": {
-        "testRunId": { "type": "string", "format": "uuid" },
-        "stageId": { "const": "V2.4" },
-        "scenarioId": { "enum": ["normal", "rejection", "recovery", "external-reconciliation"] },
-        "scenarioVersion": { "type": "string", "minLength": 1 },
-        "seed": { "type": "integer" },
-        "status": { "const": "WAITING" },
-        "environmentMode": { "const": "PAPER" },
-        "dataMode": { "const": "NOT_CONNECTED" },
-        "brokerMode": { "const": "FAKE" },
-        "executionPolicy": { "const": "PREPARATION_ONLY" },
-        "executionGate": {
+      "oneOf": [
+        {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "reason", "liveTradingEnabled"],
-          "properties": { "status": { "const": "BLOCKED" }, "reason": { "type": "string", "minLength": 1 }, "liveTradingEnabled": { "const": false } }
-        },
-        "mandate": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["schemaVersion", "status", "mandateId", "strategyVersion", "approvalEvidenceRef"],
+          "required": [
+            "testRunId",
+            "stageId",
+            "scenarioId",
+            "scenarioVersion",
+            "seed",
+            "status",
+            "environmentMode",
+            "dataMode",
+            "brokerMode",
+            "executionPolicy",
+            "executionGate",
+            "mandate",
+            "source",
+            "orders",
+            "fills",
+            "reconciliation",
+            "observationDays",
+            "assertions"
+          ],
           "properties": {
-            "schemaVersion": { "const": "v24-paper-mandate-v1" }, "status": { "const": "PREPARATION_ONLY" },
-            "mandateId": { "const": "UNSET" }, "strategyVersion": { "const": "UNSET" }, "approvalEvidenceRef": { "const": "UNSET" }
+            "testRunId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "stageId": {
+              "const": "V2.4"
+            },
+            "scenarioId": {
+              "enum": [
+                "normal",
+                "rejection",
+                "recovery",
+                "external-reconciliation",
+                "crossday-settlement",
+        "candidate-binding"
+              ]
+            },
+            "scenarioVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "status": {
+              "const": "WAITING"
+            },
+            "environmentMode": {
+              "const": "PAPER"
+            },
+            "dataMode": {
+              "const": "NOT_CONNECTED"
+            },
+            "brokerMode": {
+              "const": "FAKE"
+            },
+            "executionPolicy": {
+              "const": "PREPARATION_ONLY"
+            },
+            "executionGate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "reason",
+                "liveTradingEnabled"
+              ],
+              "properties": {
+                "status": {
+                  "const": "BLOCKED"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "liveTradingEnabled": {
+                  "const": false
+                }
+              }
+            },
+            "mandate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "status",
+                "mandateId",
+                "strategyVersion",
+                "approvalEvidenceRef"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "v24-paper-mandate-v1"
+                },
+                "status": {
+                  "const": "PREPARATION_ONLY"
+                },
+                "mandateId": {
+                  "const": "UNSET"
+                },
+                "strategyVersion": {
+                  "const": "UNSET"
+                },
+                "approvalEvidenceRef": {
+                  "const": "UNSET"
+                }
+              }
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "sourceId",
+                "observedAt"
+              ],
+              "properties": {
+                "status": {
+                  "const": "NOT_RUN"
+                },
+                "sourceId": {
+                  "type": "null"
+                },
+                "observedAt": {
+                  "type": "null"
+                }
+              }
+            },
+            "orders": {
+              "type": "array",
+              "maxItems": 0
+            },
+            "fills": {
+              "type": "array",
+              "maxItems": 0
+            },
+            "reconciliation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status",
+                "differences"
+              ],
+              "properties": {
+                "status": {
+                  "const": "NOT_RUN"
+                },
+                "differences": {
+                  "type": "array",
+                  "maxItems": 0
+                }
+              }
+            },
+            "observationDays": {
+              "const": 0
+            },
+            "assertions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "assertionId",
+                  "status",
+                  "expected",
+                  "actual"
+                ],
+                "properties": {
+                  "assertionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "const": "WAITING"
+                  },
+                  "expected": {},
+                  "actual": {}
+                }
+              }
+            }
           }
         },
-        "source": {
-          "type": "object", "additionalProperties": false,
-          "required": ["status", "sourceId", "observedAt"],
-          "properties": { "status": { "const": "NOT_RUN" }, "sourceId": { "type": "null" }, "observedAt": { "type": "null" } }
-        },
-        "orders": { "type": "array", "maxItems": 0 },
-        "fills": { "type": "array", "maxItems": 0 },
-        "reconciliation": {
-          "type": "object", "additionalProperties": false,
-          "required": ["status", "differences"],
-          "properties": { "status": { "const": "NOT_RUN" }, "differences": { "type": "array", "maxItems": 0 } }
-        },
-        "observationDays": { "const": 0 },
-        "assertions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["assertionId", "status", "expected", "actual"],
-            "properties": {
-              "assertionId": { "type": "string", "minLength": 1 },
-              "status": { "const": "WAITING" },
-              "expected": {},
-              "actual": {}
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "schemaVersion",
+            "testRunId",
+            "scenarioId",
+            "scenarioVersion",
+            "environmentMode",
+            "dataMode",
+            "brokerMode",
+            "namespace",
+            "executionPolicy",
+            "observationDays",
+            "humanAcceptance"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "v24-paper-execution-evidence-v2"
+            },
+            "testRunId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "scenarioId": {
+              "enum": [
+                "normal",
+                "rejection",
+                "recovery",
+                "external-reconciliation",
+                "crossday-settlement",
+        "candidate-binding"
+              ]
+            },
+            "scenarioVersion": {
+              "type": "string",
+              "minLength": 1
+            },
+            "environmentMode": {
+              "const": "PAPER"
+            },
+            "dataMode": {
+              "const": "FIXTURE"
+            },
+            "brokerMode": {
+              "const": "FAKE"
+            },
+            "namespace": {
+              "type": "string",
+              "minLength": 1
+            },
+            "executionPolicy": {
+              "type": "object",
+              "required": [
+                "status",
+                "liveTradingEnabled"
+              ],
+              "properties": {
+                "status": {
+                  "const": "ISOLATED_FIXTURE_ONLY"
+                },
+                "liveTradingEnabled": {
+                  "const": false
+                }
+              }
+            },
+            "observationDays": {
+              "const": 0
+            },
+            "humanAcceptance": {
+              "const": "NOT_RUN"
+            },
+            "dailyTarget": {
+              "type": "object",
+              "required": [
+                "targetId",
+                "testRunId",
+                "ownerId",
+                "accountId",
+                "namespace",
+                "strategyVersion",
+                "strategySha256",
+                "fixtureSha256",
+                "dataMode",
+                "sessionDate",
+                "evaluationAt",
+                "decision",
+                "clientOrderId",
+                "targetQuantity"
+              ],
+              "properties": {
+                "targetId": {
+                  "type": "string",
+                  "pattern": "^c5-target-[a-f0-9]{64}$"
+                },
+                "testRunId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "ownerId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "accountId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "namespace": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "strategyVersion": {
+                  "const": "c5-daily-direction-v1"
+                },
+                "strategySha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "fixtureSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "dataMode": {
+                  "const": "FIXTURE"
+                },
+                "sessionDate": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "evaluationAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "decision": {
+                  "type": "object",
+                  "required": [
+                    "action",
+                    "quantity",
+                    "reason"
+                  ],
+                  "properties": {
+                    "action": {
+                      "enum": [
+                        "BUY",
+                        "SELL",
+                        "HOLD",
+                        "PAUSED"
+                      ]
+                    },
+                    "quantity": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "clientOrderId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "targetQuantity": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              }
             }
           }
         }
-      }
+      ]
     },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "completedAt": { "type": "null" }
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
   }
 }

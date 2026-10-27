@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/common/v24-sampled-paper-composition.schema.json",
+  "title": "V24SampledPaperComposition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixtureId", "fixtureVersion", "dataMode", "market", "currency", "sampling", "dailyBar", "signal", "execution"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "fixtureId": { "const": "v24-sampled-paper-composition" },
+    "fixtureVersion": { "const": "v24-sampled-paper-composition-1" },
+    "dataMode": { "const": "FIXTURE" },
+    "market": { "const": "CN_A" },
+    "currency": { "const": "CNY" },
+    "sampling": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceFixtureVersion", "scheduledAt", "acceptanceIntervalMinutes", "security", "watchlistSecurities", "expectedPrice"],
+      "properties": {
+        "sourceFixtureVersion": { "const": "v2.1-snapshot-sampling-1" },
+        "scheduledAt": { "const": "2026-10-16T09:50:00+08:00" },
+        "acceptanceIntervalMinutes": { "const": 20 },
+        "security": { "const": "600000.SH" },
+        "watchlistSecurities": { "const": ["600000.SH", "000001.SZ", "600519.SH"] },
+        "expectedPrice": { "const": "10.2500" }
+      }
+    },
+    "dailyBar": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceFixtureVersion", "sessionDate", "expectedSecurityIds"],
+      "properties": {
+        "sourceFixtureVersion": { "const": "v24-c5-daily-bars-1" },
+        "sessionDate": { "const": "2026-10-16" },
+        "expectedSecurityIds": { "const": ["600000.SH", "000001.SZ", "600519.SH"] }
+      }
+    },
+    "signal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["signalId", "asOf", "action", "quantity", "referencePrice"],
+      "properties": {
+        "signalId": { "const": "fixture-v24-sampled-signal-600000-20261016" },
+        "asOf": { "const": "2026-10-15T15:00:00+08:00" },
+        "action": { "const": "BUY" },
+        "quantity": { "const": 100 },
+        "referencePrice": { "const": "10.2500" }
+      }
+    },
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["windowStart", "windowEnd", "acceptedAt", "maxOrderNotional", "fee", "expectedCashAfterFill", "expectedReservation"],
+      "properties": {
+        "windowStart": { "const": "2026-10-16T09:49:00+08:00" },
+        "windowEnd": { "const": "2026-10-16T09:55:00+08:00" },
+        "acceptedAt": { "const": "2026-10-16T09:49:00+08:00" },
+        "maxOrderNotional": { "const": "1100.0000" },
+        "fee": { "const": "5.0000" },
+        "expectedCashAfterFill": { "const": "8970.0000" },
+        "expectedReservation": { "const": "1030.0000" }
+      }
+    }
+  }
+}

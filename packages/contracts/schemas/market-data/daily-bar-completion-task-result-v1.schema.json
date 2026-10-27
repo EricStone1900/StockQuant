@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/daily-bar-completion-task-result-v1.schema.json",
+  "title": "MarketDataDailyBarCompletionTaskResult",
+  "type": "object",
+  "required": ["task", "created", "dataMode", "externalRequests", "placeOrders"],
+  "properties": { "task": { "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-task-v1.schema.json" }, "created": { "type": "boolean" }, "dataMode": { "enum": ["FIXTURE", "REAL"] }, "externalRequests": { "const": 0 }, "placeOrders": { "const": false } },
+  "additionalProperties": false
+}

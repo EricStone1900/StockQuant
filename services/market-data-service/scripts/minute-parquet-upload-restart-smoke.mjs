@@ -136,7 +136,12 @@ try {
   }
   const preview = await request(`/v2/minute/parquet/uploads/${uploadId}/preview`, { method: "POST", owner, body: {} });
   assert.equal(preview.status, 200); assert.equal(preview.body.totalRows, 100_000); assert.equal(preview.body.acceptedRows, 100_000); assert.equal(preview.body.errors.length, 0);
-  const finalized = await request(`/v2/minute/parquet/uploads/${uploadId}/finalize`, { method: "POST", owner, body: {} });
+  let finalized;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    finalized = await request(`/v2/minute/parquet/uploads/${uploadId}/finalize`, { method: "POST", owner, body: {} });
+    if (finalized.status !== 429 || finalized.body.code !== "MINUTE_IMPORT_BUSY") break;
+    await delay(1000);
+  }
   assert.ok([200, 201].includes(finalized.status), JSON.stringify(finalized.body).slice(0, 1500));
   assert.equal(finalized.body.status, "PUBLISHED"); assert.equal(finalized.body.accepted, 100_000); assert.equal(finalized.body.sha256, expectedSha256);
   const completed = await request(`/v2/minute/parquet/uploads/${uploadId}`, { owner });

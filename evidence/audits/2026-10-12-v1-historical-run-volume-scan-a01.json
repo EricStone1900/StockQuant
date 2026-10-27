@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "stockquant.v1.historical-run-volume-scan.v1",
+  "date": "2026-10-12",
+  "status": "NO_MATCH_FOUND_HEURISTIC",
+  "testRunIds": {
+    "V1.2": ["5dc2a5a7-28f1-4c9f-a867-3a676994f5b4"],
+    "V1.5": [
+      "25fe0718-5a76-4477-a02b-5e954f621dde",
+      "48e32a09-4901-424f-8585-7b01ab9f83f7",
+      "113fea95-5fee-42ee-b702-f8423b8a173c"
+    ]
+  },
+  "method": {
+    "operation": "Read-only scan of every file in selected existing PostgreSQL Docker volumes for each UUID's ASCII and 16-byte packed representations",
+    "scanner": "python:3.11-slim",
+    "network": "none",
+    "mountMode": "read-only",
+    "databaseStarted": false,
+    "writesPerformed": false
+  },
+  "volumes": [
+    {"name": "stockquant-v12_postgres-v11", "bytesScanned": 632624211, "matches": []},
+    {"name": "sq-v12-e2e-64f8c9634fffae76b514_v12-integration-postgres", "bytesScanned": 144686973, "matches": []},
+    {"name": "sq-v12-e2e-94a9da6dceb6cb0d2b92_v12-integration-postgres", "bytesScanned": 143994793, "matches": []},
+    {"name": "sq-v15-e2e-5e34ef6e657c461057de_v14-integration-postgres", "bytesScanned": 145600273, "matches": []},
+    {"name": "sq-v15-e2e-31e12d43a1e0e8d659d6_v14-integration-postgres", "bytesScanned": 145600273, "matches": []},
+    {"name": "sq-v15-e2e-633c1e1c41c0da2b63f2_v14-integration-postgres", "bytesScanned": 145600273, "matches": []},
+    {"name": "sq-v15-stack-bd6742505479a4cd8f94_v14-integration-postgres", "bytesScanned": 145297169, "matches": []}
+  ],
+  "limitations": [
+    "A raw page-file byte scan is a heuristic, not a logical PostgreSQL query or a recovered structured export.",
+    "It does not establish whether dead, vacuumed, truncated, archived, compressed or otherwise unavailable historical records once existed.",
+    "The four historical TestRun evidence packages remain missing and cannot be replaced with new TestRuns."
+  ],
+  "nextRecoverySource": "An original structured export or authorized historical database backup containing these exact immutable TestRun IDs."
+}

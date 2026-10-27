@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/monitor-evaluation-policy-result-v1.schema.json",
+  "title": "MarketDataMonitorEvaluationPolicyResult",
+  "type": "object",
+  "required": ["policy", "consumer", "pendingEventsRetained", "placeOrders"],
+  "properties": {
+    "policy": { "type": "object", "required": ["policyId", "version", "enabled", "trigger", "executor"], "properties": { "policyId": { "const": "monitorEvaluation" }, "version": { "type": "integer", "minimum": 1 }, "enabled": { "type": "boolean" }, "trigger": { "const": "ON_QUOTE_AVAILABLE" }, "executor": { "const": "CONFIGURED" } }, "additionalProperties": true },
+    "consumer": { "const": "monitorOutboxWorker" },
+    "pendingEventsRetained": { "const": true },
+    "placeOrders": { "const": false }
+  },
+  "additionalProperties": false
+}

@@ -1,12 +1,14 @@
-export type SourceUse = "QUOTE" | "NEWS" | "MINUTE_COLLECTION" | "HISTORICAL_RESEARCH";
+export type SourceUse = "QUOTE" | "NEWS" | "DAILY_BAR" | "MINUTE_COLLECTION" | "HISTORICAL_RESEARCH";
 
 const CONFIG = {
+  DAILY_BAR: ["STOCKQUANT_MARKET_DAILY_SOURCE_USE_AUTHORIZED", "STOCKQUANT_MARKET_DAILY_SOURCE_AUTHORIZATION_REF", "STOCKQUANT_MARKET_DAILY_DATA_VERSION", "STOCKQUANT_MARKET_DAILY_AUTHORIZED_SOURCE_IDS"],
   QUOTE: ["STOCKQUANT_MARKET_QUOTE_SOURCE_USE_AUTHORIZED", "STOCKQUANT_MARKET_QUOTE_SOURCE_AUTHORIZATION_REF", "STOCKQUANT_MARKET_QUOTE_DATA_VERSION", "STOCKQUANT_MARKET_QUOTE_AUTHORIZED_SOURCE_IDS"],
   NEWS: ["STOCKQUANT_MARKET_NEWS_SOURCE_USE_AUTHORIZED", "STOCKQUANT_MARKET_NEWS_SOURCE_AUTHORIZATION_REF", "STOCKQUANT_MARKET_NEWS_DATA_VERSION", "STOCKQUANT_MARKET_NEWS_AUTHORIZED_SOURCE_IDS"],
   MINUTE_COLLECTION: ["STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED", "STOCKQUANT_COLLECTION_SOURCE_AUTHORIZATION_REF", "STOCKQUANT_COLLECTION_DATA_VERSION", "STOCKQUANT_COLLECTION_AUTHORIZED_SOURCE_IDS"],
   HISTORICAL_RESEARCH: ["STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED", "STOCKQUANT_MARKET_RESEARCH_SOURCE_AUTHORIZATION_REF", "STOCKQUANT_MARKET_RESEARCH_DATA_VERSION", "STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS"],
 } as const satisfies Record<SourceUse, readonly [string, string, string, string]>;
 const DEFAULT_SOURCES: Record<SourceUse, readonly string[]> = {
+  DAILY_BAR: ["eastmoney-daily"],
   QUOTE: ["tencent-quote", "sina-quote"],
   NEWS: ["eastmoney-news", "cls-news"],
   MINUTE_COLLECTION: ["sina", "baostock"],
@@ -46,4 +48,10 @@ export function missingSourceAuthorizationConfig(use: SourceUse, requiredSourceI
     ...(env[dataVersion]?.trim() ? [] : [dataVersion]),
     ...(required.every((sourceId) => allowed.has(sourceId)) ? [] : [authorizedSourceIds]),
   ];
+}
+
+/** Historical file imports may replay only when the exact source ID is enabled for historical research. */
+export function isHistoricalResearchSourceAuthorized(sourceId: string | null | undefined, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!sourceId || !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(sourceId)) return false;
+  return externalSourceUseAuthorized("HISTORICAL_RESEARCH", [sourceId], env);
 }

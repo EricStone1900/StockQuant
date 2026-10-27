@@ -12,6 +12,8 @@ import { completeV15NoTrade, prepareV15NoTrade, verifyV15NoTradeSession } from "
 import { startTemporalRuntime } from "./integration/temporal-runtime.js";
 import { startV15NatsDispatch } from "./integration/v15-nats-dispatch.js";
 import { isV24QuoteSourceUseConfigured } from "./application/v24-live-observation.js";
+import { isV24PaperApprovalConfigured } from "./application/v24-paper-approval.js";
+import { SystemClock } from "./application/v24-scheduler.js";
 
 async function bootstrap() {
   if (process.env.STOCKQUANT_LIVE_TRADING_ENABLED !== "false" || process.env.STOCKQUANT_BROKER_MODE !== "FAKE") {
@@ -23,6 +25,9 @@ async function bootstrap() {
     dataVersion: process.env.STOCKQUANT_V24_QUOTE_DATA_VERSION ?? "",
   })) {
     throw new Error("V2.4 scheduler auto-start requires explicit quote-source approval, authorization reference, and data version");
+  }
+  if (process.env.STOCKQUANT_V24_AUTO_START === "true" && !isV24PaperApprovalConfigured(process.env, new SystemClock().now())) {
+    throw new Error("V2.4 scheduler auto-start requires complete OD-007 references and a future effective-until timestamp");
   }
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ["error", "warn", "log"], bodyParser: false });
   app.useBodyParser("json", { limit: "1mb" });

@@ -1,190 +1,153 @@
 # V2.1 免费行情、新闻聚合与在线股票池
 
-状态：PARTIALLY_IMPLEMENTED（2026-09-09历史用户验收范围保留；当前免费源许可/实时能力验证、两个可用新闻源、≤100证券在线池与时间字段追溯未完成；能力矩阵文档已建立，未验证项保留UNVERIFIED；用户当前确认为NO_TRADE且无线源授权）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+状态：**PASS（2026-10-21；C1/C2当前本地学习范围完成，项目所有者已人工验收）**。此结论绑定[本轮候选源码清单](../../../evidence/audits/2026-10-21-v21-c2-closeout/source-manifest.json)Hash `aa8ac2e88285d70b4f73976ed7977b000787ad0476d88dc8eb278f5399f15f32`与[人工验收记录](../../../evidence/audits/2026-10-21-v21-c2-closeout/human-acceptance.json)。本阶段已签范围和已知限制记录如下；V2整版状态单独评估。版本入口：[README](./README.md)，规则：[三版共同规则](../05-three-version-delivery.md)，当前证据：[C2收口审计](../../../evidence/audits/2026-10-21-v21-c2-closeout.md)。历史失败、旧签署及逐次开发记录完整保留在[收口前阶段快照](../../../evidence/audits/2026-10-21-v21-c2-closeout/stage-before.md)及其引用中。
 
 ## 1. 前置与范围
 
-V1通过；数据/时间/质量契约可用。
+V1批准的Mac本地主要范围已完成。C1在线池工程证据复用；本包完成C2采样、质量、独立日线、新闻及Web/CLI验收链。所有账户、订单和成交只用FakeBroker；本包不创建订单、不调用模型。策略批准/执行器属OD-007/C5，连续交易日观察属后续V2.4/采集包，不从本包自动启动。
 
-本阶段所有订单、券商资产和成交均来自隔离模拟环境。真实业务数据库、Qlib或RD-Agent在声明“已验证”时必须真正执行；替身需独立标注。
+OD-008按项目所有者明确的个人、本地、非商业学习用途复核；至少一个行情源、两个新闻源和独立当前交易日日线已有有界实测。广义OD-008仍PARTIAL，未验证用途和来源保持UNVERIFIED；不承诺免费源长期稳定、分钟/历史覆盖或共享权利。[逐源边界](../../../evidence/audits/2026-10-21-od008-local-learning-review.md)不能由配置开关代替。
 
 ## 2. 开发任务
 
-- [x] 建立免费来源能力报告：许可、认证、批量能力、限流、延迟、历史覆盖、时间字段、状态字段和实测错误；未验证来源标UNVERIFIED，不承诺免费数据完整性。矩阵汇总历史探针、本地代码限制与官方公开资料；所有当前未有授权/当前实测支持的来源均明确标记UNVERIFIED，详见[来源能力矩阵](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.md)及[机器结果](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.json)。该文档交付不等于任何Provider通过或授权。
-- [ ] 实现至少一个实际可用行情来源与两个可用新闻来源的Adapter；新闻可为允许使用的公告/RSS，按来源独立熔断、去重、实体关联及修订。若来源不足，相关验收保持NOT_RUN。
-- [ ] 在线池去重≤100只，优先持仓与在途证券、再候选和关注；硬必需证券超过上限时阻塞并提示调整，不静默丢弃。支持批量则批量，否则受控分批，禁止先全市场抓取后假称≤100请求。
-- [ ] 默认交易时段30分钟采样，可配置20分钟；采样、监控评估、日频策略和执行窗口各自配置。收盘后补齐已完成日线，盘中快照不可冒充最终日线/分钟Bar。
-- [ ] 保存source/observedAt/publishedAt/ingestedAt/availableAt及适用的延迟；新闻先展示和确定性关联，不成为默认Alpha触发器。来源切换产生可追溯版本。
+- [x] 来源能力与限制有记录；腾讯QUOTE、东方财富/财联社NEWS、东方财富当前日DAILY_BAR有本次小样本事实，其余来源不外推通过。
+- [x] 实际1行情源+2新闻源：真实HTTP→生产Adapter/Worker→隔离PostgreSQL持久化；新闻保留稳定文章路径/URL、标题Hash、来源和revision，不保存正文。未解析到发布时间时保持UNKNOWN，不推断页面不存在发布时间。
+- [x] 在线池按唯一证券≤100，持仓/在途优先，超限明确拒绝；owner/account/namespace/TestRun隔离。复用[C1证据](../../../evidence/audits/2026-10-17-v21-c1-watchlist.md)，不重复未受影响容量测试。
+- [x] 默认30分钟、可选20分钟；独立快照注册、Monitor政策、收盘日线及策略/执行门禁。快照按已知交易日/午休/时点入持久队列，HTTP不等待Provider；注册与来源开关默认关闭。
+- [x] 保存source/observedAt/ingestedAt/availableAt、age/freshness；Monitor持久化质量和异常。独立DAILY_BAR来源核对session、收盘、OHLCV、单位及覆盖，不从快照拼造日线/分钟。schema v19支持非Fixture日线任务。
+- [x] 新闻发现→受限同源文章读取→持久修订，重放幂等、转载保留出处、确定性实体LINKED/AMBIGUOUS/UNMATCHED；故障不清除历史。真实文章当前未得到可验证发布时间，真实修订/实体准确率未作长期观察，不用作历史Alpha证据。
+- [x] Worker租约、有界重试及五种实际进程故障收敛；最后一次领取后崩溃进入FAILED，已提交结果后崩溃恢复同结果且只发一次Outbox。保留失败记录。
 
 ## 3. 同步 Web 开发
 
-正式页：来源健康与能力、股票池、最近快照年龄、新闻列表/来源/修订。验收页：50/80/100/101容量、限流/超时、重复新闻与行情陈旧场景。
+正式功能与验收入口均为 `/acceptance/v2/v2.1`，从“开发验收中心→V2→V2.1”进入。展示来源/政策、在线池、任务与时间质量、日线、新闻修订和可读业务断言；原始JSON收在“查看原始核对数据”。页面调用Platform会话代理，同业务API，不由浏览器判定领域事实。
 
-验收中心路径：`/acceptance/v2/v2.1`（目标路由）。场景参数提交到后端TestRun编排接口，后端调用业务API并汇集证据。浏览器不直接写领域数据，不自行判定成交。该阶段至少提供正常、拒绝/异常场景；适用时增加重试/恢复场景。
+`normal/rejection/recovery/stale`使用场景版本`1.2.0-fixture`；实际容器Web→Platform→Market Data/Monitor→PostgreSQL通过，同Run CLI及导出通过。Fixture场景不伪装成实际来源，实源证据独立关联。
 
 ## 4. 人工验收步骤
 
-1. 配置免费来源并采集小股票池，查看真实数据/时间/来源；模拟来源在页面明确区分。
-2. 分别设置20与30分钟，查看实际请求日志、交易日/午休行为；确认不因采样而强制下单。
-3. 提交重复新闻、修订、同名公司，核对去重与实体纠正；单源失败不抹掉旧来源证据。
-4. 将池扩到101，核对上限及持仓优先；过期数据展示陈旧而非实时正常。
-
-每次保存testRunId、场景版本、代码/镜像、数据/规则版本、种子及注入事件序列、实际/预期、截图/Trace。判定依据必须是后端事实和独立检查，不能只看Toast成功提示。
+1. 按第8节启动隔离栈，打开实际Web URL，依次点击“运行正常”“运行容量拒绝”“运行任务恢复”“运行陈旧拒绝”。
+2. 正常7项PASS；拒绝3项PASS且在线池不被改写；恢复2项PASS且同任务幂等；陈旧7项PASS但质量必须UNAVAILABLE、新鲜覆盖0/2、两条QUOTE_STALE。
+3. 查看第8.5节真实来源及故障恢复报告，确认真实/合成、未知发布时间和盘后陈旧边界。
+4. 对页面同一testRunId只读核对/导出；审阅后由用户确认当前候选。自动PASS不代填人工签署。
 
 ## 5. 异常与替身边界
 
-免费来源失效可继续用明确Fixture验收逻辑，但不能代替真实来源通过；无历史公开时间的新闻不得用于证明历史策略有效。
+报价错误/缺源时间不返回伪造零价或READY。新闻验证页/错误页拒绝入库，来源熔断按实际sourceId阻止调用。Adapter超时5秒、响应限额、禁止重定向；新闻缓存为单进程30分钟，不能当作跨进程全局限额。人工熔断不是持久故障状态，重启后需重新配置；持久采样健康单独展示。
+
+Linux容器实际运行于Mac arm64，Qlib既有镜像可为amd64仿真；本包没有启动研究作业。未知/超出2026版日历拒绝；本次无24小时或长期真实交易窗口观察，不替代V2.4/Ubuntu验收。来源权限/限流变化会导致失败；禁止绕过访问控制或无限重试。
 
 ## 6. 产物与验证
 
-目标产物：providers Adapter、news-intelligence-service基本采集、market-monitor-service、来源能力表、股票池与新闻Web。
+需求映射：DAT-07/08/10、NEW-01～03/05/06、MON-01/02/04；T07/15～17/28/38，DV-05、VT05。广泛需求行不因本包小样本自动PASS。
 
-自动验证：Adapter契约与真实来源烟测、分批限流/缓存/去重、50/80/100容量和101拒绝、时间戳/陈旧/新闻注入浏览器测试。
+`pnpm verify:stage -- --stage V2.1 --suite code`退出0；完整命令、工作目录、测试文件输出见[日志](../../../evidence/audits/2026-10-21-v21-c2-closeout/code-complete.log)。真实PG迁移/幂等/恢复、契约、单元与各服务锁定环境检查均运行，不把空套件/跳过计PASS。浏览器及实源单独见8.5节。新业务源码、依赖、镜像、资源与证据SHA在[本轮源码清单](../../../evidence/audits/2026-10-21-v21-c2-closeout/source-manifest.json)及[审计索引](../../../evidence/audits/2026-10-21-v21-c2-closeout.md)。
 
-需求/测试追踪：DAT-07/08/10、NEW-01～03/05/06、MON-01/02/04；T07/15～17/38；DV-05、VT05。
-
-契约客户端实现增量（2026-10-01）：Platform的V2.1来源元数据、采样配置/更新、在线观察池/更新、固定新闻预览、source smoke、live quote、live news及Circuit fail/recover现通过`market-data-calendar.v1`中的ServiceBearer OpenAPI及生成客户端访问。外部请求类路由与状态写入仅用mock验证代理边界，没有实际调用Provider或活动服务，不证明来源许可、行情/新闻实效或阶段验收；证据见[实施审计](../../../evidence/audits/2026-10-01-w1-v21-market-read-client.md)。
-
-2026-10-02外部HTTP适配器边界增量：V2.1 Tencent行情预览、新闻读取与来源Smoke传输移入Market Data `PublicSourceHttpAdapter`，bootstrap的逐用途授权判断先于adapter调用。70项Market Data单测通过，新增3项对注入HTTP/Clock的隔离验证；未请求任何外部来源。此增量不验证来源许可/可用性，不勾选第2节真实行情来源或新闻来源条目，NO_TRADE及无线源授权继续有效。
-
-退出条件：开发任务完成、Web真实可操作、全部适用检查PASS、人工签署、已知限制写入证据。填写[本版验收表](./99-acceptance.md)，未完成项不得勾选通过。
+退出条件：当前开发、手册、自动检查完成；当前范围用户验收后才签署阶段。V2其他阶段不随C2自动完成。
 
 ## 7. 阶段交付待办（完成后勾选）
 
-以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
-
-- [ ] 契约、数据结构、场景定义和预期结果已冻结。
-- [ ] 第2节后端任务完成，真实依赖与替身明确。
-- [ ] 正式Web功能页及验收中心正常/异常场景完成。
-- [ ] 命令、实际URL、Fixture路径/Hash和配置说明已补齐，待实现占位已消除或明确列为范围外。
-- [ ] 开发者按第8节从准备到导出亲自执行，保存代码版本、退出码、截图/Trace和断言证据。
-- [ ] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
-- [ ] 用户已通过Web及命令证据完成人工验收，记录确认时间/结论。
-- [ ] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
+- [x] 契约、数据结构、场景定义和预期结果已冻结。
+- [x] 第2节当前本地学习范围后端任务完成，真实依赖与替身明确。
+- [x] 正式Web及正常/拒绝/恢复/陈旧场景完成。
+- [x] 第8节目录、URL获取、按钮、Fixture/Hash、配置、命令、预期与恢复步骤已补齐。
+- [x] 开发者从启动到四场景、同Run核对/导出亲自执行，留存源码/镜像、退出码、截图和断言。
+- [x] 重复/恢复与本包适用故障通过；长期观察、Sina实源等未覆盖项如实记录。
+- [x] 用户已对当前候选和本轮新增范围完成人工验收；本对话确认日期及候选Hash见[签署记录](../../../evidence/audits/2026-10-21-v21-c2-closeout/human-acceptance.json)。
+- [x] 操作说明、限制及[本版验收表](./99-acceptance.md)同步。
 
 ## 8. 阶段验收操作手册
 
-### 8.1 当前可执行性与验收准备
+### 8.1 可执行性与环境
 
-手册状态：VERIFIED_EXECUTABLE（2026-09-09；Docker Compose、API 和 Web E2E 已实测）。
+手册状态：**VERIFIED_EXECUTABLE（2026-10-21；本地C1/C2当前范围已实测并由用户验收）**。
 
-实测入口：`docker compose -f infra/compose/docker-compose.yml --profile web up -d market-data-service platform-api-service web`；Web `http://127.0.0.1:8080/acceptance/v2/v2.1`；来源 `GET http://127.0.0.1:3000/api/v1/acceptance/v2/v2.1/sources/smoke`；场景 `POST /api/v1/acceptance/v2/v2.1/runs`，参数 `normal|rejection|recovery`；代码 `pnpm build && pnpm test`；浏览器 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 pnpm --filter @stockquant/web test:e2e`。
+根目录 `/Users/huangbosong/Documents/ChatGPT/StockQuant`。Node v24.1.0、pnpm 10.34.5；Python服务各用自身锁定环境，Monitor使用自身`.venv`；Mac arm64、Docker Desktop Linux。实际镜像ID、目标架构、CPU/内存限制与采样用量见[容器记录](../../../evidence/audits/2026-10-21-v21-c2-closeout/containers.json)及[资源采样](../../../evidence/audits/2026-10-21-v21-c2-closeout/container-usage.txt)。无显式容器资源上限的项记录为0（Docker未限制），不声称有预算约束。
 
-前置服务：核心服务、数据源Adapter、新闻服务、市场监控；至少一个实测行情和两个实测新闻源。
+本次项目 `sq-v21-stack-fed767f1d971220028b5`，最终Web `http://127.0.0.1:49922/acceptance/v2/v2.1`、Platform `http://127.0.0.1:49351`、Market Data `http://127.0.0.1:49462`。端口为当次追溯值，重建会变化；复验采用启动输出的当前地址。打开页面由`/api/v1/session`建立`acceptance-owner-1`会话，Cookie仅本地使用，不保存到证据。
 
-固定输入：在线池50/80/100与101只测试名单，优先持仓/在途；20/30分钟配置；真实来源与注入样本分开。
+### 8.2 启动、配置与固定输入
 
-| 开发交付时必须填写 | 当前值 |
-|---|---|
-| 实测代码Commit或工作区Hash/验证日期 | 待实现后填写 |
-| 项目根目录、Node/pnpm/Python/uv及Docker版本 | 待实现后填写 |
-| Web基础URL/身份登录或会话建立方式 | 待实现后填写；不记录密码/token |
-| 本阶段Web路由 | `/acceptance/v2/v2.1`（目标） |
-| 正式页面的真实入口/跳转链接 | 待实现后填写，按8.3逐项核实 |
-| Fixture文件/数据版本/确切日期/Hash、规则与成本版本 | 待实现后填写；不能只写“小样本” |
-| 配置文件及必需环境变量名/非秘密测试值 | 待实现后填写；凭证只记录引用方式 |
-| 外部故障目标及可执行命令、恢复/隔离清理入口 | 待实现后填写；不适用项注明理由 |
-| 预期耗时、轮询超时、实际观察期/预算 | 待实现后填写，不用无限等待或假成功 |
-
-### 8.2 初始化与启动（目标命令，待实现）
-
-在上表填写的项目根目录运行；工具版本按锁文件/项目说明准备。首次开发由开发者生成锁文件和脚本，验收者不负责补建环境。环境变量按上表配置；保持FAKE券商与模拟账户，真实模型仅在本阶段明确要求且预算已配置的场景调用。
+在根目录执行：
 
 ```bash
-# 终端A：先确认实际执行目录为项目根目录
-pwd
-pnpm install --frozen-lockfile
 pnpm stack:up -- --stage V2.1
-
-# 终端B：同一项目根目录，保持开发服务器运行
-pnpm dev:web
 ```
 
-预期：安装与stack入口退出0；stack输出本阶段服务、端口、健康/迁移及持久卷状态。依赖不可用应非零并说明原因；不能删除旧业务卷重试。Web服务器持续运行并输出基础URL，尚在运行不要求退出码0。若已使用容器化Web，则填写已验证入口并避免重复占用端口。Ubuntu部署必须补齐实际镜像拉取/启动/迁移命令，不能仅用dev:web代替发布验证。
+保持该进程运行，复制输出动态Web/API地址和项目名。健康失败保存错误，不碰共享卷；构建/启动有界超时由脚本负责，未成功不能继续算PASS。全部外部来源、REAL执行和自动注册缺省关闭，本地Fixture验收无需填写来源授权。
 
-初始化在验收中心“准备隔离运行”完成；CLI场景入口也负责同样的准备，两者调用同一业务API。准备后记录testRunId、accountId、namespace及Fixture/DataVersion；初始化业务本身是测试对象时不得预先完成被测动作。缺源/凭证/历史数据时显示缺项，不静默换成Fake并报真实场景通过。
+| 输入 | 版本与SHA-256 |
+|---|---|
+| `fixtures/v2/v2.1-snapshot-sampling/snapshots.json` | `v2.1-snapshot-sampling-1`，`9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c` |
+| `fixtures/v2/v2.1-snapshot-stale/snapshots.json` | `v2.1-snapshot-stale-1`，`00fb666501ac866dccb4a29eba85a701cac8ec5ceaa752e7a62bc1b9be4fa040` |
+| `fixtures/v2/v2.1-news-revisions/news-revisions.json` | `v2.1-news-revisions-1`，`5feb697b6d517aeae2ff7de85b324c97b95d153a7cb60cf08cfb516748f7d05b` |
+| `fixtures/v2/v2.1-daily-bar-completion/bars.json` | `v2.1-daily-bars-1`，`b98309c9be021c2117d9b3b53276b4ddb313de290413f6bfea5b7040361ae6c4` |
 
-### 8.3 Web逐步操作及预期结果
+Manifest与数据同目录。快照/日线证券`600000.SH,000001.SZ`，Fixture session `2026-10-16`，快照09:50；normal可用延迟10分钟，stale31分钟。`sse-cn-a-share-2026-1`、seed `20260907`；本包无费用/成交变更。
 
-1. 登录上表实际Web地址，进入“开发验收中心→V2→V2.1”；检查页面版本、模拟模式、服务能力与固定输入。
-2. 每个场景点击“准备隔离运行”，核对参数后记下testRunId；正常/异常/恢复使用独立运行，场景内部的重复或恢复操作继续使用原运行及业务幂等键。
-3. 按下表执行。操作按钮为目标交互，交付时开发者必须换成实际页面名称/按钮及路由；预期必须从业务明细读取，不能只看“任务完成”。
+### 8.3 Web操作、超时与恢复
 
-| 场景ID（阶段内唯一） | 场景 | 点击顺序/输入 | 预期结果与核对点 |
-|---|---|---|---|
-| normal | 实际采集 | 选择已验证来源→导入50只在线池→设30分钟→启动采集；查看请求范围、快照年龄和新闻原文链接，再测20分钟配置。 | 实际请求可查且仅限池范围；来源、时间和延迟可见；新闻聚合不强制交易，最终日线与快照分开。 |
-| rejection | 容量与新闻冲突 | 尝试101只池；在独立异常场景提交同一新闻转载、更正、同名实体及来源超时。 | 超限明确拒绝/阻塞且不漏掉持仓；转载去重、更正有链、歧义可纠正；源失败保留旧证据并标陈旧。 |
-| recovery | 断源恢复 | 暂停一个测试来源后恢复，检查重试日志、去重和窗口；刷新页面重读历史请求。 | 有限重试、无重复发布；实际与Fixture标识不混用；不同来源时间不伪装同步。 |
+按第4节运行四场景，记录testRunId与断言。页面异步轮询，Playwright单次全流程上限120秒；若一直非终态，查Platform任务和Market Data `/ready` Worker状态、对应scope与日志，保留失败。刷新读取原Run，不通过新建Run冒充恢复。
 
-4. 从运行详情打开关联正式页面，执行一次刷新/关闭再打开；核对长任务后台状态、历史证据和加载/失败/陈旧提示。
-5. 每项记录实际结果、截图与业务ID。异常场景“预期拒绝”被正确验证时断言可PASS，但被测业务操作仍显示拒绝；若意外接受则断言FAIL。
+在“当前账户在线池”填当前Run证据中的accountId、namespace、testRunId，点击“读取已保存在线池”。持仓/在途由服务端读取，不填伪造持仓。默认无DAILY_BAR门禁时“提交当前交易日日线任务”返回403及`DAILY_BAR_SOURCE_AUTHORIZATION_REQUIRED`；自动快照总开关关闭时“启用当前运行快照调度”返回409；“停止当前运行快照调度”允许执行。均不调用Provider、不发单。
 
-### 8.4 命令行复验与相同运行核对（已实现）
+“读取当前运行最近采样任务”“读取当前运行行情质量”“读取当前运行最近日线任务”查询同scope；重复入队使用原任务身份。固定Fixture日线完成读取应2根，REAL完成另显数据模式、source/dataVersion且Fixture引用为空。
 
-在项目根目录执行以下已实现命令。stage/scenario必须匹配8.3定义；CLI与Web共用场景版本、Fixture和断言。每条命令执行后立即查看退出码，任何非零先保存错误再定位，不能继续假定本阶段通过。
+源开关只在有明确用途记录的独立环境开启：QUOTE与NEWS各自四项`STOCKQUANT_MARKET_<用途>_SOURCE_USE_AUTHORIZED/SOURCE_AUTHORIZATION_REF/DATA_VERSION/AUTHORIZED_SOURCE_IDS`；当前日线用独立`STOCKQUANT_MARKET_DAILY_*`且来源`eastmoney-daily`，绝不借QUOTE权限。`STOCKQUANT_SNAPSHOT_REAL_PROVIDER_ENABLED`、`STOCKQUANT_SNAPSHOT_SCHEDULER_ENABLED`、`STOCKQUANT_DAILY_REAL_PROVIDER_ENABLED`和`STOCKQUANT_DAILY_BAR_SOURCE_MODE=REAL`分别控制执行/调度，默认关闭。每日补齐还要求显式scope注册及独立收盘调度政策；已知当前交易日15:00后才入队。未设置活动配置不视为已运行。
+
+### 8.4 命令与同Run只读核对
+
+下面环境变量填启动输出地址；浏览器测试自己建立本地会话，并在子进程中传递Cookie、不打印凭证。此条已在真实容器运行，1个完整测试包含四场景，没有Mock或跳过：
 
 ```bash
-pnpm verify:stage -- --stage V2.1 --scenario normal --seed 20260907
-# 紧接上一命令执行；0表示全部场景断言通过
- echo $?
-pnpm verify:stage -- --stage V2.1 --scenario rejection --seed 20260907
- echo $?
-pnpm verify:stage -- --stage V2.1 --scenario recovery --seed 20260907
- echo $?
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:49922 \
+STOCKQUANT_V21_CLOSEOUT_API_URL=http://127.0.0.1:49351 \
+pnpm --filter @stockquant/web exec playwright test tests/e2e/v21-c2-closeout.spec.ts --reporter=line
 pnpm verify:stage -- --stage V2.1 --suite code
- echo $?
-pnpm test:e2e -- --stage V2.1
- echo $?
 ```
 
-预期：各场景输出testRunId、实际数据/模型/券商模式、断言expected/actual及证据位置；预期内拒绝场景验证成功退出0，意外副作用/缺脚本/缺必需依赖/未满观察条件非零。恢复场景需外部动作时输出已核实目标和步骤，停留WAITING；完成动作后复验原run，不伪称Web可重启宿主。浏览器测试必须实际运行本阶段用例，零用例/全跳过不能退出0。
+预期均exit 0，报告四个新Run、全PASS断言、刷新同Run、8次CLI核对/导出；stale业务质量为UNAVAILABLE而场景断言PASS。默认未给明确隔离URL的浏览器测试会SKIP，该SKIP不算本条验收通过。
 
-再对Web中已运行的同一testRunId执行只读核对，避免仅创建新样本掩盖页面问题：
+单独复核已有Web Run，需在本地终端设置`STOCKQUANT_PLATFORM_API_URL`为该栈API、`STOCKQUANT_SESSION_COOKIE`和`STOCKQUANT_EVIDENCE_SESSION_COOKIE`为该浏览器本地会话`sq_session=...`（不写入Git/日志），再执行：
 
 ```bash
-# 粘贴Web运行详情中的实际testRunId，再按回车；这是普通ID，不是凭证
 read -r acceptance_run_id
 pnpm verify:stage -- --stage V2.1 --run "$acceptance_run_id" --check-only
- echo $?
 pnpm evidence:export -- --stage V2.1 --run "$acceptance_run_id"
- echo $?
 ```
 
-check-only仅查询此运行后端事实并追加检查证据，不创建新订单、不重放成交或发起模型调用；空ID/错误stage/越权run必须拒绝。导出只含脱敏数据，输出实际目录和Manifest Hash，不自动勾选人工验收。端到端正常/异常/恢复运行产生不同ID，导出时分别保存。
+预期exit 0、导出`evidence/local/V2.1/<run>/evidence.json`及`manifest.sha256`。缺Cookie应exit 2，不补签；check-only不初始化、不采集、不重放、不调用模型，浏览器测试核对前后Run对象完全相等。
 
-本阶段代码测试覆盖要求：Adapter契约与真实来源烟测、分批限流/缓存/去重、50/80/100容量和101拒绝、时间戳/陈旧/新闻注入浏览器测试。 在交付时把映射到的实际Domain/DB/契约/服务内测试命令补入本节，注明执行目录、测试文件或套件、退出码和报告；verify:stage必须展示实际调用的测试清单，不能空壳返回0。Python服务使用自身锁定环境，不串用其他服务虚拟环境。
+### 8.5 实源、故障与实际记录
 
-### 8.5 交叉核对、失败定位与恢复
+| 验证 | 当前结果与证据 |
+|---|---|
+| 完整代码套件 | exit 0；[命令与输出](../../../evidence/audits/2026-10-21-v21-c2-closeout/code-complete.log) |
+| 容器Web四场景、同Run CLI/导出 | [报告与截图](../../../evidence/local/V2.1/cd34da7a-9c0b-419a-bb38-63f266869dfb/web-closeout.json)：normal `aaf9d591-3a40-44a5-9a0f-5f6cf3000a64` 7/7；rejection `81d65be4-c610-4c85-9218-23f6129f89d0` 3/3；recovery `ff98e407-a887-417c-84f9-23657d1a7223` 2/2；stale `79e74f07-64cb-432a-9549-4d3599c36ac3` 7/7 |
+| 真实服务/合成HTTP流水线 | [报告](../../../evidence/local/V2.1/c55600d7-fdad-4802-b632-1c4add175206/source-pipeline.json)，6项PASS、外部0，含真实Monitor Outbox与服务重启；仅测试进程固定2026-10-21收盘后时钟 |
+| 实际来源→Worker→Monitor/PG | [报告](../../../evidence/local/V2.1/9d695430-01e6-4566-b932-7f9272d7bb0e/source-pipeline.json)，6项PASS、7次实际HTTP（1行情、2日线、4新闻）；盘后报价STALE/Monitor UNAVAILABLE；当前交易日独立REAL日线2根；重放/熔断缓存不新增请求 |
+| 实际SIGKILL/故障序列 | [报告](../../../evidence/local/V2.1/6abc6d36-1f42-4709-88de-66ff9a06dd83/crash-recovery.json)，5种、30事件，保留故障计划、代码/Fixture SHA |
+| 两源新闻修订与失败隔离 | [报告](../../../evidence/local/V2.1/65a0df01-1e77-4dc0-b673-3888f6b36e4d/news-collection.json)，合成HTTP/真实PG，通过；真实公开文章未观察到修订，不混用证明 |
 
-交叉核对：Web池数量与实际请求股票集合、采样时间戳、源记录Hash及新闻去重/修订数量对照；真实时间等待不能用加速记录代替。
+故障、新闻及合成流水线已纳入上述code套件；需要定向复跑时从`scripts/code-suite-plan.mjs`使用同一隔离PG runner及其显式数据库映射，不向活动数据库注入故障。真实流水线仅在当前已知交易日15:00后、有界调用预算和逐用途记录满足时运行；不是普通代码检查的一部分：
 
-先检查Web与CLI的testRunId、输入/策略/代码版本和模式是否一致，再按Trace查平台、领域、适配器与持久化证据。页面错误而CLI正确，记录Web失败；二者都错则保留领域断言失败。缺能力先查健康/迁移/数据与日志，不修改余额或订单状态使断言通过。
+```bash
+node scripts/run-isolated-postgres-command.mjs \
+  --url-env MARKET_DATA_DATABASE_URL:market_data_test:market_data_test \
+  --url-env MARKET_MONITOR_DATABASE_URL:monitor_test:monitor_test -- \
+  pnpm --filter @stockquant/market-data-service exec node scripts/c2-source-pipeline-smoke.mjs --live
+```
 
-独立复跑创建新run；测试幂等/检查点/重启恢复则使用原run和原幂等键。故障发生后保留旧证据，修复后新增运行或检查记录；不得清空账本、随机更换seed直到通过。真实观察窗口、来源验证和实际模型调用与加速/录制测试分别记录。
+测试持久化实际元数据、价格结果Hash及业务ID；临时库清理后不承诺重放原来源价格。当前未验证长期稳定/覆盖、真实新闻发布时间/修订质量、Sina实源、分钟历史、US实源、Ubuntu。后续对应阶段处理，不以小样本证明这些能力。
 
-### 8.6 验收记录与收尾
+### 8.6 停止与签署
 
-| 场景/检查 | Web实际结果与截图 | 命令/退出码/报告 | testRunId/业务ID | 结论 |
-|---|---|---|---|---|
-| normal | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| rejection（含全部子场景） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| recovery（含实际外部动作） | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| Web同run只读核对与证据导出 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 本阶段代码测试/实际观察适用项 | 待执行 | 待执行 | 待执行 | NOT_RUN |
-| 用户人工验收 | 待用户确认 | 不由脚本代签 | 确认人/日期待填 | NOT_RUN |
+先保存导出和截图，再仅停止启动输出的本次隔离项目：
 
-记录不适用子项的范围依据，不能将必需项改为不适用绕过门禁。归档后在[本版验收表](./99-acceptance.md)填写证据链接和结论。清理只针对本轮已结束的隔离运行，默认保留证据；停止测试不能删除数据库卷或取消无关任务。
+```bash
+pnpm stack:down -- --project sq-v21-stack-fed767f1d971220028b5
+```
 
-2026-10-01运行门禁补充：来源Smoke、实时行情/新闻和分钟采集必须有逐用途来源授权引用、数据版本及精确source ID白名单；未具备时不得发出Provider请求。当前`NO_TRADE`、暂无来源授权，故外部路径保持`NOT_AUTHORIZED`，此项实现不计为来源能力或数据观察通过。OD-008关闭和来源授权证据仍为V2.1后续前置条件。
+预期`STOPPED_AND_PURGED`，精确项目容器、卷、网络、项目镜像及临时凭证清零；不得对共享栈执行prune/删卷。下次使用新项目名。环境回收事实见本轮审计，不将失效旧URL当作当前运行服务。
 
-门禁完整性补充（2026-10-01）：分钟采集的Node执行器和独立Python网络适配器均在外部请求前校验授权。适配器直调也无法绕过门禁；拒绝是不可重试的配置状态，不会触发故障切换或外部探测。
-
-来源探针门禁补充（2026-10-01）：手工运维能力/稳定性探针同样受逐来源用途门禁保护；无授权时返回`BLOCKED`，不发送探测请求或写入诊断证据。来源许可待确认期间，本阶段这些真实来源能力项保持NOT_RUN。
-
-历史行情用途补充（2026-10-01）：日线、分钟历史导入和PIT能力探针使用独立`HISTORICAL_RESEARCH`门禁；分钟数据落地还需独立分钟采集授权。无授权时不打开BaoStock session、不读源manifest驱动Provider调用、不写部分数据或Manifest，结论为BLOCKED/NOT_RUN。
-
-外发HTTP adapter边界补充（2026-10-02）：V2.1 Tencent quote、来源Smoke和新闻页面请求移到`PublicSourceHttpAdapter`，逐用途授权检查仍先于网络调用。Market Data 70项单测、PostgreSQL 23项集成和完整V2.1 code suite均通过；全程没有外部来源请求。审计见[W3 Market Data adapter](../../../evidence/audits/2026-10-02-w3-market-data-provider-adapter.md)及[SHA-256](../../../evidence/audits/2026-10-02-w3-market-data-provider-adapter.sha256)。来源许可/数据版本及真实行情新闻实测保持NOT_RUN。
-
-2026-10-03候选行情源许可桌面复核：财富趋势官网把国内行情授权指向交易所授权渠道；其“个人行情数据”仅明确个人版PC端盘后客户端日线包，没有给`easy-tdx`在线TCP协议/分钟采集、服务端使用或长期留存授权。BaoStock现行官方数据条款未能取得；PyPI客户端包BSD只覆盖软件包许可，不代表行情许可。没有任何新外部请求；当前`NO_TRADE`/source authorization `NONE`，BaoStock/TDX许可与能力仍`UNVERIFIED`。仅在取得书面数据授权并固化引用后才允许对应用途门禁开启。详见[W4来源权利复核](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.md)、[机器摘要](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.json)和[SHA-256](../../../evidence/audits/2026-10-03-w4-data-source-rights-review.sha256)。
-
-2026-10-03来源能力矩阵收敛：将Tencent、Sina、BaoStock、TDX/easy-tdx、Eastmoney News、CLS News逐一列出许可/授权、认证、批量、源限额与本地限额、历史样本/时延、时间及状态字段、失败证据；每行区分旧样本和源码行为，未验证项保留UNVERIFIED。未请求外部数据、不改变NO_TRADE/authorization NONE。矩阵见[审计说明](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.md)与[SHA-256](../../../evidence/audits/2026-10-03-v21-source-capability-matrix.sha256)。
+当前签署：**项目所有者人工验收PASS，2026-10-21**。确认绑定上方源码集合Hash及四个Web TestRun；证据报告原有`humanAcceptance=NOT_RUN`表示运行时尚未人工签署，保持不可变，由[独立签署记录](../../../evidence/audits/2026-10-21-v21-c2-closeout/human-acceptance.json)绑定本次用户确认。

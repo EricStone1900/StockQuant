@@ -27,6 +27,15 @@
             "acquiredAt": { "type": "string", "format": "date-time" }
           }
         },
+        "historicalContext": {
+          "type": "object", "additionalProperties": false,
+          "required": ["securityUniverseVersion", "marketRuleSetVersion", "corporateActionVersion"],
+          "properties": {
+            "securityUniverseVersion": {"type": ["string", "null"], "maxLength": 120},
+            "marketRuleSetVersion": {"type": ["string", "null"], "maxLength": 120},
+            "corporateActionVersion": {"type": ["string", "null"], "maxLength": 120}
+          }
+        },
         "market": { "const": "CN_A" }, "frequency": { "enum": ["1m", "5m"] }, "adjustment": { "const": "RAW" },
         "timezone": { "const": "Asia/Shanghai" }, "timestampSemantics": { "enum": ["BAR_START", "BAR_END"] },
         "volumeUnit": { "const": "SHARES" }, "amountUnit": { "const": "CNY" }

@@ -1,0 +1,1038 @@
+{
+  "schemaVersion": "stockquant.w1-v12-isolated-web-e2e.v1",
+  "stageId": "V1.2",
+  "status": "PASS",
+  "isolatedProject": "sq-v12-e2e-831d9c52898ae1786720",
+  "apiPort": 47938,
+  "webPort": 50933,
+  "testRunId": "b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+  "testRunIds": [
+    "b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+    "1da4e9fa-61a8-4dcd-ae73-8a65a2863d12",
+    "4c8796db-9d0c-4bbd-8dee-222e093dd62e",
+    "eabce66b-1b3f-4b31-ac58-19eefe85f091"
+  ],
+  "testRunSummaries": [
+    {
+      "testRunId": "b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": {
+            "quality": "READY",
+            "barCount": 6,
+            "securityCount": 2
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "normal fixture"
+          },
+          "expected": {
+            "quality": "READY",
+            "barCount": 6,
+            "securityCount": 2
+          },
+          "assertionId": "V1.2-DATA-NORMAL-001"
+        },
+        {
+          "actual": "READY",
+          "status": "PASS",
+          "evidence": {
+            "source": "qlib probe"
+          },
+          "expected": "READY",
+          "assertionId": "V1.2-QLIB-001"
+        },
+        {
+          "actual": {
+            "errors": [],
+            "status": "COMPLETED",
+            "artifactId": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+            "marketFits": [
+              {
+                "market": "CN_A",
+                "version": "0.9.6",
+                "inputRows": 347,
+                "modelSha256": "227c8968f26bc821ed5998af0e4ccdb527edf7fdfc4aa6c8e3e4053ad3461d09",
+                "modelTraining": "PASS",
+                "temporalValidation": "PASS",
+                "testPredictionCount": 85,
+                "testPredictionsSha256": "dfa28e1df7ea896a045aadd75cadcdf2640d83c676704865f29bc3a6cf98f624"
+              },
+              {
+                "market": "US_EQUITY",
+                "version": "0.9.6",
+                "inputRows": 111,
+                "modelSha256": "9bac8d2b39ba1c80e0fb3f1564bb8d8e44ad5dee2c410910d005ef6b4eb0c2c9",
+                "modelTraining": "PASS",
+                "temporalValidation": "PASS",
+                "testPredictionCount": 27,
+                "testPredictionsSha256": "43dda54097a748b16ad3a81a3309576de76889564402878df3a92a5f3c04c938"
+              }
+            ],
+            "strategies": [
+              {
+                "asOf": "2024-03-22",
+                "mode": "TOPK",
+                "reason": "select the highest Qlib predicted next-session close return independently within each market",
+                "targets": [
+                  {
+                    "market": "CN_A",
+                    "reason": "highest predicted next-session close return in this market's fixed Top-1 cross-section",
+                    "ticker": "000006.SZ",
+                    "currency": "CNY"
+                  },
+                  {
+                    "market": "US_EQUITY",
+                    "reason": "highest predicted next-session close return in this market's fixed Top-1 cross-section",
+                    "ticker": "AAPL",
+                    "currency": "USD"
+                  }
+                ],
+                "strategyId": "v1.2-qlib-topk-1",
+                "strategyHash": "cec0efd3d67eea772f0f7bccc0d46887440fd7710f9bb9034a207d851eb3c026"
+              },
+              {
+                "asOf": "2024-03-22",
+                "mode": "NO_TRADE",
+                "reason": "explicit empty-target baseline; no order intent is emitted",
+                "targets": [],
+                "strategyId": "v1.2-no-trade-1",
+                "strategyHash": "9329f25203262b8d70a2a65d02cf1ad898d27b5272b089da75bdec69fb1ea260"
+              }
+            ],
+            "marketTargets": [
+              {
+                "market": "CN_A",
+                "ticker": "000006.SZ",
+                "currency": "CNY"
+              },
+              {
+                "market": "US_EQUITY",
+                "ticker": "AAPL",
+                "currency": "USD"
+              }
+            ],
+            "modelTraining": "PASS",
+            "artifactSha256": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+            "predictionCount": 112,
+            "temporalValidation": "PASS"
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "locked Qlib workers over separate CN_A/US_EQUITY time axes in v1.2-market-data-5",
+            "fixtureVersion": "v1.2-market-data-5",
+            "dailyBarsSha256": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688"
+          },
+          "expected": "locked Qlib fits, per-market test-segment TOPK targets, and explicit NO_TRADE output",
+          "assertionId": "V1.2-FACTOR-PREVIEW-001"
+        },
+        {
+          "actual": {
+            "status": "RECEIVED",
+            "receipts": [
+              {
+                "status": "RECEIVED",
+                "replayed": false,
+                "snapshotId": "8509ef12-c671-4b26-814d-4a8b1087ed0d",
+                "strategyId": "v1.2-qlib-topk-1"
+              },
+              {
+                "status": "RECEIVED",
+                "replayed": false,
+                "snapshotId": "6d90b002-df7e-4685-93e3-b39f768cec65",
+                "strategyId": "v1.2-no-trade-1"
+              }
+            ]
+          },
+          "status": "PASS",
+          "evidence": {
+            "artifactId": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67"
+          },
+          "expected": "Governance durably receives both exact strategy snapshots without execution side effects",
+          "assertionId": "V1.2-GOVERNANCE-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "codeProbe": {
+            "value": 42,
+            "result": "fixed-probe-ok",
+            "status": "READY",
+            "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+          },
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0",
+          "dockerSocketMounted": false
+        },
+        "qlibFit": {
+          "errors": [],
+          "inputRows": 458,
+          "artifactId": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+          "marketFits": [
+            {
+              "model": "qlib.contrib.model.gbdt.LGBModel",
+              "market": "CN_A",
+              "splits": {
+                "test": {
+                  "end": 347,
+                  "rows": 85,
+                  "start": 262
+                },
+                "train": {
+                  "end": 192,
+                  "rows": 192,
+                  "start": 0
+                },
+                "valid": {
+                  "end": 262,
+                  "rows": 70,
+                  "start": 192
+                }
+              },
+              "inputRows": 347,
+              "inputSha256": "8e3224f3efcfa1d6b1d9537b7b5c983dcdf514a394e87f44b963b802795b587b",
+              "modelSha256": "227c8968f26bc821ed5998af0e4ccdb527edf7fdfc4aa6c8e3e4053ad3461d09",
+              "qlibVersion": "0.9.6",
+              "featureCount": 3,
+              "modelTraining": "PASS",
+              "lightgbmVersion": "4.7.0",
+              "modelValidation": "NOT_RUN",
+              "temporalValidation": "PASS",
+              "testPredictionCount": 85,
+              "testPredictionsSha256": "dfa28e1df7ea896a045aadd75cadcdf2640d83c676704865f29bc3a6cf98f624"
+            },
+            {
+              "model": "qlib.contrib.model.gbdt.LGBModel",
+              "market": "US_EQUITY",
+              "splits": {
+                "test": {
+                  "end": 111,
+                  "rows": 27,
+                  "start": 84
+                },
+                "train": {
+                  "end": 63,
+                  "rows": 63,
+                  "start": 0
+                },
+                "valid": {
+                  "end": 84,
+                  "rows": 21,
+                  "start": 63
+                }
+              },
+              "inputRows": 111,
+              "inputSha256": "9a3b2ad97d872a6e03c1e6e651283992f21b22c250626460ef7c65e458807ae8",
+              "modelSha256": "9bac8d2b39ba1c80e0fb3f1564bb8d8e44ad5dee2c410910d005ef6b4eb0c2c9",
+              "qlibVersion": "0.9.6",
+              "featureCount": 3,
+              "modelTraining": "PASS",
+              "lightgbmVersion": "4.7.0",
+              "modelValidation": "NOT_RUN",
+              "temporalValidation": "PASS",
+              "testPredictionCount": 27,
+              "testPredictionsSha256": "43dda54097a748b16ad3a81a3309576de76889564402878df3a92a5f3c04c938"
+            }
+          ],
+          "strategies": [
+            {
+              "asOf": "2024-03-22",
+              "mode": "TOPK",
+              "reason": "select the highest Qlib predicted next-session close return independently within each market",
+              "targets": [
+                {
+                  "market": "CN_A",
+                  "reason": "highest predicted next-session close return in this market's fixed Top-1 cross-section",
+                  "ticker": "000006.SZ",
+                  "currency": "CNY"
+                },
+                {
+                  "market": "US_EQUITY",
+                  "reason": "highest predicted next-session close return in this market's fixed Top-1 cross-section",
+                  "ticker": "AAPL",
+                  "currency": "USD"
+                }
+              ],
+              "strategyId": "v1.2-qlib-topk-1",
+              "strategyHash": "cec0efd3d67eea772f0f7bccc0d46887440fd7710f9bb9034a207d851eb3c026"
+            },
+            {
+              "asOf": "2024-03-22",
+              "mode": "NO_TRADE",
+              "reason": "explicit empty-target baseline; no order intent is emitted",
+              "targets": [],
+              "strategyId": "v1.2-no-trade-1",
+              "strategyHash": "9329f25203262b8d70a2a65d02cf1ad898d27b5272b089da75bdec69fb1ea260"
+            }
+          ],
+          "artifactRef": {
+            "kind": "MODEL_PREDICTIONS",
+            "sha256": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+            "status": "PUBLISHED",
+            "ownerId": "acceptance-owner-1",
+            "mediaType": "application/vnd.stockquant.qlib-fixture-model+json",
+            "namespace": "research/b1549d21-04d7-4f29-88c4-856baeb3d8c6/qlib-fixture",
+            "sourceRef": "platform-api-service:v1.2:b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+            "testRunId": "b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+            "artifactId": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+            "schemaVersion": "artifact-ref.v1"
+          },
+          "artifactUrl": "/api/v1/acceptance/v1/v1.2/runs/b1549d21-04d7-4f29-88c4-856baeb3d8c6/artifacts/21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+          "inputSha256": "48b9079181796f3cb64c92dbe7e20f32d4f4f47f6c752ecf17d815108994e635",
+          "qlibVersion": "0.9.6",
+          "modelTraining": "PASS",
+          "artifactSha256": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67",
+          "fixtureVersion": "v1.2-market-data-5",
+          "dailyBarsSha256": "28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688",
+          "lightgbmVersion": "4.7.0",
+          "governanceHandoff": "RECEIVED",
+          "governanceReceipts": [
+            {
+              "status": "RECEIVED",
+              "replayed": false,
+              "snapshotId": "8509ef12-c671-4b26-814d-4a8b1087ed0d",
+              "strategyId": "v1.2-qlib-topk-1"
+            },
+            {
+              "status": "RECEIVED",
+              "replayed": false,
+              "snapshotId": "6d90b002-df7e-4685-93e3-b39f768cec65",
+              "strategyId": "v1.2-no-trade-1"
+            }
+          ],
+          "temporalValidation": "PASS",
+          "testPredictionCount": 112,
+          "artifactSchemaVersion": "v1.2-qlib-strategy-artifact-v1"
+        },
+        "dataMode": "FIXTURE",
+        "qlibTask": {
+          "phase": "COMPLETED",
+          "qlibProbe": {
+            "smoke": "qlib-model-import-ok",
+            "status": "READY",
+            "version": "0.9.6",
+            "codeProbe": {
+              "value": 42,
+              "result": "fixed-probe-ok",
+              "status": "READY",
+              "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+            },
+            "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+            "lightgbmVersion": "4.7.0",
+            "dockerSocketMounted": false
+          },
+          "updatedAt": "2026-10-12T06:57:23.216Z",
+          "completedAt": "2026-10-12T06:57:23.247Z",
+          "currentMarket": "US_EQUITY",
+          "modelFitCount": 2,
+          "cancelRequested": false,
+          "predictionCount": 112,
+          "completedMarkets": [
+            "CN_A"
+          ],
+          "artifactPublished": true
+        },
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "row": 2,
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-5",
+        "environmentMode": "BACKTEST"
+      }
+    },
+    {
+      "testRunId": "1da4e9fa-61a8-4dcd-ae73-8a65a2863d12",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": {
+            "status": "REJECTED",
+            "futureData": true
+          },
+          "status": "PASS",
+          "evidence": {
+            "source": "bad-future fixture"
+          },
+          "expected": "REJECTED with FUTURE_DATA",
+          "assertionId": "V1.2-DATA-PIT-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "codeProbe": {
+            "value": 42,
+            "result": "fixed-probe-ok",
+            "status": "READY",
+            "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+          },
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0",
+          "dockerSocketMounted": false
+        },
+        "qlibFit": {
+          "status": "NOT_RUN"
+        },
+        "dataMode": "FIXTURE",
+        "qlibTask": {
+          "phase": "COMPLETED",
+          "qlibProbe": {
+            "smoke": "qlib-model-import-ok",
+            "status": "READY",
+            "version": "0.9.6",
+            "codeProbe": {
+              "value": 42,
+              "result": "fixed-probe-ok",
+              "status": "READY",
+              "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+            },
+            "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+            "lightgbmVersion": "4.7.0",
+            "dockerSocketMounted": false
+          },
+          "updatedAt": "2026-10-12T06:57:24.025Z",
+          "completedAt": "2026-10-12T06:57:24.027Z",
+          "cancelRequested": false,
+          "artifactPublished": false
+        },
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "row": 2,
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-5",
+        "environmentMode": "BACKTEST"
+      }
+    },
+    {
+      "testRunId": "4c8796db-9d0c-4bbd-8dee-222e093dd62e",
+      "status": "COMPLETED",
+      "assertions": [
+        {
+          "actual": "READY",
+          "status": "PASS",
+          "evidence": {
+            "source": "qlib probe after recovery preparation"
+          },
+          "expected": "READY",
+          "assertionId": "V1.2-QLIB-PROBE-001"
+        }
+      ],
+      "evidence": {
+        "qlib": {
+          "smoke": "qlib-model-import-ok",
+          "status": "READY",
+          "version": "0.9.6",
+          "codeProbe": {
+            "value": 42,
+            "result": "fixed-probe-ok",
+            "status": "READY",
+            "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+          },
+          "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+          "lightgbmVersion": "4.7.0",
+          "dockerSocketMounted": false
+        },
+        "qlibFit": {
+          "status": "NOT_RUN"
+        },
+        "dataMode": "FIXTURE",
+        "qlibTask": {
+          "phase": "COMPLETED",
+          "qlibProbe": {
+            "smoke": "qlib-model-import-ok",
+            "status": "READY",
+            "version": "0.9.6",
+            "codeProbe": {
+              "value": 42,
+              "result": "fixed-probe-ok",
+              "status": "READY",
+              "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+            },
+            "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+            "lightgbmVersion": "4.7.0",
+            "dockerSocketMounted": false
+          },
+          "updatedAt": "2026-10-12T06:57:24.323Z",
+          "completedAt": "2026-10-12T06:57:24.325Z",
+          "cancelRequested": false,
+          "artifactPublished": false
+        },
+        "artifacts": {
+          "bad": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2099-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              }
+            ],
+            "quality": {
+              "errors": [
+                {
+                  "row": 2,
+                  "code": "FUTURE_DATA",
+                  "date": "2099-01-02",
+                  "ticker": "000001.SZ"
+                }
+              ],
+              "status": "REJECTED"
+            },
+            "dataMode": "FIXTURE",
+            "fixtureVersion": "v1.2-market-data-1"
+          },
+          "factor": {
+            "asOf": "2024-01-04",
+            "reason": "V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker",
+            "status": "NOT_RUN",
+            "noTrade": true,
+            "ranking": [],
+            "qlibStatus": "READY",
+            "dataVersion": "v1.2-market-data-1",
+            "lookbackBars": 0,
+            "factorVersion": "v1.2-sma-factor-1"
+          },
+          "normal": {
+            "bars": [
+              {
+                "low": 9.9,
+                "date": "2024-01-02",
+                "high": 10.2,
+                "open": 10,
+                "close": 10.1,
+                "ticker": "000001.SZ",
+                "volume": 1000000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10,
+                "date": "2024-01-03",
+                "high": 10.3,
+                "open": 10.1,
+                "close": 10.2,
+                "ticker": "000001.SZ",
+                "volume": 1100000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 10.1,
+                "date": "2024-01-04",
+                "high": 10.4,
+                "open": 10.2,
+                "close": 10.3,
+                "ticker": "000001.SZ",
+                "volume": 1200000,
+                "adjustment": "raw",
+                "securityId": "cn-000001"
+              },
+              {
+                "low": 19.8,
+                "date": "2024-01-02",
+                "high": 20.4,
+                "open": 20,
+                "close": 20.2,
+                "ticker": "000002.SZ",
+                "volume": 800000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20,
+                "date": "2024-01-03",
+                "high": 20.5,
+                "open": 20.2,
+                "close": 20.3,
+                "ticker": "000002.SZ",
+                "volume": 850000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              },
+              {
+                "low": 20.1,
+                "date": "2024-01-04",
+                "high": 20.6,
+                "open": 20.3,
+                "close": 20.5,
+                "ticker": "000002.SZ",
+                "volume": 900000,
+                "adjustment": "raw",
+                "securityId": "cn-000002"
+              }
+            ],
+            "quality": {
+              "errors": [],
+              "status": "READY"
+            },
+            "barCount": 6,
+            "dataMode": "FIXTURE",
+            "securityCount": 2,
+            "fixtureVersion": "v1.2-market-data-1"
+          }
+        },
+        "brokerMode": "FAKE",
+        "dataVersion": "v1.2-market-data-5",
+        "environmentMode": "BACKTEST"
+      }
+    }
+  ],
+  "governanceDatabaseAssertion": [
+    2,
+    0,
+    0,
+    0
+  ],
+  "artifactExportSummary": {
+    "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+    "manifestHash": "944fe03a6b827b1615f0c4ff22b7ad85780238afb9d16e3ecb5ef004adf42fa9",
+    "artifact": {
+      "filename": "v12-qlib-b1549d21-04d7-4f29-88c4-856baeb3d8c6-21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67.json",
+      "sizeBytes": 44248
+    },
+    "manualConclusion": "NOT_RUN"
+  },
+  "evidenceExportSummaries": [
+    {
+      "testRunId": "b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+      "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/b1549d21-04d7-4f29-88c4-856baeb3d8c6",
+      "manifestHash": "944fe03a6b827b1615f0c4ff22b7ad85780238afb9d16e3ecb5ef004adf42fa9",
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "testRunId": "1da4e9fa-61a8-4dcd-ae73-8a65a2863d12",
+      "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/1da4e9fa-61a8-4dcd-ae73-8a65a2863d12",
+      "manifestHash": "064d2b9bc03ddeb46a6e38d5324528ba51e830f0c61f7e0c0dbdd1fd81cb23b8",
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "testRunId": "4c8796db-9d0c-4bbd-8dee-222e093dd62e",
+      "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/4c8796db-9d0c-4bbd-8dee-222e093dd62e",
+      "manifestHash": "800f812b51de93013a4187436d02a5955e2debc2497213284df69b27cbf5ebf1",
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "testRunId": "eabce66b-1b3f-4b31-ac58-19eefe85f091",
+      "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/eabce66b-1b3f-4b31-ac58-19eefe85f091",
+      "manifestHash": "ec4227a87eecf278c18b5c44b26a8c8586b3d12501c32b0112c82b83e7f61b78",
+      "manualConclusion": "NOT_RUN"
+    },
+    {
+      "testRunId": "bcb3821e-abfb-492f-a013-61cbb1ce5a3f",
+      "outputDirectory": "/Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/local/V1.2/bcb3821e-abfb-492f-a013-61cbb1ce5a3f",
+      "manifestHash": "c989031c92b86637ddc6f0edeab969953913e47255e516477bcf6e65c3b9911a",
+      "manualConclusion": "NOT_RUN"
+    }
+  ],
+  "cancellationTestRunId": "bcb3821e-abfb-492f-a013-61cbb1ce5a3f",
+  "cancellationSummary": {
+    "status": "CANCELLED",
+    "qlibTask": {
+      "phase": "CANCELLED",
+      "qlibProbe": {
+        "smoke": "qlib-model-import-ok",
+        "status": "READY",
+        "version": "0.9.6",
+        "codeProbe": {
+          "value": 42,
+          "result": "fixed-probe-ok",
+          "status": "READY",
+          "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+        },
+        "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+        "lightgbmVersion": "4.7.0",
+        "dockerSocketMounted": false
+      },
+      "updatedAt": "2026-10-12T06:57:24.904Z",
+      "completedAt": "2026-10-12T06:57:35.042Z",
+      "currentMarket": "CN_A",
+      "cancelRequested": true,
+      "completedMarkets": [],
+      "artifactPublished": false,
+      "cancelRequestedAt": "2026-10-12T06:57:24.998Z"
+    },
+    "assertions": [
+      {
+        "actual": {
+          "phase": "CANCELLED",
+          "artifactPublished": false
+        },
+        "status": "PASS",
+        "expected": "Cancellation is acknowledged at a safe worker checkpoint before immutable Artifact publication",
+        "assertionId": "V1.2-QLIB-CANCEL-001"
+      }
+    ]
+  },
+  "restartRecoverySummary": {
+    "testRunId": "eabce66b-1b3f-4b31-ac58-19eefe85f091",
+    "status": "COMPLETED",
+    "qlibTask": {
+      "phase": "COMPLETED",
+      "qlibProbe": {
+        "smoke": "qlib-model-import-ok",
+        "status": "READY",
+        "version": "0.9.6",
+        "codeProbe": {
+          "value": 42,
+          "result": "fixed-probe-ok",
+          "status": "READY",
+          "sourceSha256": "cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275"
+        },
+        "modelBackend": "qlib.contrib.model.gbdt.LGBModel",
+        "lightgbmVersion": "4.7.0",
+        "dockerSocketMounted": false
+      },
+      "resumedAt": "2026-10-12T06:57:46.782Z",
+      "updatedAt": "2026-10-12T06:58:17.351Z",
+      "completedAt": "2026-10-12T06:58:17.369Z",
+      "resumeCount": 1,
+      "currentMarket": "US_EQUITY",
+      "modelFitCount": 2,
+      "previousPhase": "FITTING_US_EQUITY",
+      "cancelRequested": false,
+      "predictionCount": 112,
+      "completedMarkets": [
+        "CN_A"
+      ],
+      "artifactPublished": true
+    },
+    "artifactId": "21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67"
+  },
+  "browserOutput": "\nRunning 1 test using 1 worker\n[V1.2 Web/CLI same-run] testRunId=b1549d21-04d7-4f29-88c4-856baeb3d8c6\n[V1.2 persisted readback] {\"testRunId\":\"b1549d21-04d7-4f29-88c4-856baeb3d8c6\",\"stageId\":\"V1.2\",\"scenarioId\":\"normal\",\"scenarioVersion\":\"1.0.0\",\"ownerId\":\"acceptance-owner-1\",\"namespace\":\"v1-2-normal-b1549d21-04d7-4f29-88c4-856baeb3d8c6\",\"status\":\"COMPLETED\",\"seed\":20260907,\"assertions\":[{\"actual\":{\"quality\":\"READY\",\"barCount\":6,\"securityCount\":2},\"status\":\"PASS\",\"evidence\":{\"source\":\"normal fixture\"},\"expected\":{\"quality\":\"READY\",\"barCount\":6,\"securityCount\":2},\"assertionId\":\"V1.2-DATA-NORMAL-001\"},{\"actual\":\"READY\",\"status\":\"PASS\",\"evidence\":{\"source\":\"qlib probe\"},\"expected\":\"READY\",\"assertionId\":\"V1.2-QLIB-001\"},{\"actual\":{\"errors\":[],\"status\":\"COMPLETED\",\"artifactId\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"marketFits\":[{\"market\":\"CN_A\",\"version\":\"0.9.6\",\"inputRows\":347,\"modelSha256\":\"227c8968f26bc821ed5998af0e4ccdb527edf7fdfc4aa6c8e3e4053ad3461d09\",\"modelTraining\":\"PASS\",\"temporalValidation\":\"PASS\",\"testPredictionCount\":85,\"testPredictionsSha256\":\"dfa28e1df7ea896a045aadd75cadcdf2640d83c676704865f29bc3a6cf98f624\"},{\"market\":\"US_EQUITY\",\"version\":\"0.9.6\",\"inputRows\":111,\"modelSha256\":\"9bac8d2b39ba1c80e0fb3f1564bb8d8e44ad5dee2c410910d005ef6b4eb0c2c9\",\"modelTraining\":\"PASS\",\"temporalValidation\":\"PASS\",\"testPredictionCount\":27,\"testPredictionsSha256\":\"43dda54097a748b16ad3a81a3309576de76889564402878df3a92a5f3c04c938\"}],\"strategies\":[{\"asOf\":\"2024-03-22\",\"mode\":\"TOPK\",\"reason\":\"select the highest Qlib predicted next-session close return independently within each market\",\"targets\":[{\"market\":\"CN_A\",\"reason\":\"highest predicted next-session close return in this market's fixed Top-1 cross-section\",\"ticker\":\"000006.SZ\",\"currency\":\"CNY\"},{\"market\":\"US_EQUITY\",\"reason\":\"highest predicted next-session close return in this market's fixed Top-1 cross-section\",\"ticker\":\"AAPL\",\"currency\":\"USD\"}],\"strategyId\":\"v1.2-qlib-topk-1\",\"strategyHash\":\"cec0efd3d67eea772f0f7bccc0d46887440fd7710f9bb9034a207d851eb3c026\"},{\"asOf\":\"2024-03-22\",\"mode\":\"NO_TRADE\",\"reason\":\"explicit empty-target baseline; no order intent is emitted\",\"targets\":[],\"strategyId\":\"v1.2-no-trade-1\",\"strategyHash\":\"9329f25203262b8d70a2a65d02cf1ad898d27b5272b089da75bdec69fb1ea260\"}],\"marketTargets\":[{\"market\":\"CN_A\",\"ticker\":\"000006.SZ\",\"currency\":\"CNY\"},{\"market\":\"US_EQUITY\",\"ticker\":\"AAPL\",\"currency\":\"USD\"}],\"modelTraining\":\"PASS\",\"artifactSha256\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"predictionCount\":112,\"temporalValidation\":\"PASS\"},\"status\":\"PASS\",\"evidence\":{\"source\":\"locked Qlib workers over separate CN_A/US_EQUITY time axes in v1.2-market-data-5\",\"fixtureVersion\":\"v1.2-market-data-5\",\"dailyBarsSha256\":\"28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688\"},\"expected\":\"locked Qlib fits, per-market test-segment TOPK targets, and explicit NO_TRADE output\",\"assertionId\":\"V1.2-FACTOR-PREVIEW-001\"},{\"actual\":{\"status\":\"RECEIVED\",\"receipts\":[{\"status\":\"RECEIVED\",\"replayed\":false,\"snapshotId\":\"8509ef12-c671-4b26-814d-4a8b1087ed0d\",\"strategyId\":\"v1.2-qlib-topk-1\"},{\"status\":\"RECEIVED\",\"replayed\":false,\"snapshotId\":\"6d90b002-df7e-4685-93e3-b39f768cec65\",\"strategyId\":\"v1.2-no-trade-1\"}]},\"status\":\"PASS\",\"evidence\":{\"artifactId\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\"},\"expected\":\"Governance durably receives both exact strategy snapshots without execution side effects\",\"assertionId\":\"V1.2-GOVERNANCE-001\"}],\"evidence\":{\"qlib\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"qlibFit\":{\"errors\":[],\"inputRows\":458,\"artifactId\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"marketFits\":[{\"model\":\"qlib.contrib.model.gbdt.LGBModel\",\"market\":\"CN_A\",\"splits\":{\"test\":{\"end\":347,\"rows\":85,\"start\":262},\"train\":{\"end\":192,\"rows\":192,\"start\":0},\"valid\":{\"end\":262,\"rows\":70,\"start\":192}},\"inputRows\":347,\"inputSha256\":\"8e3224f3efcfa1d6b1d9537b7b5c983dcdf514a394e87f44b963b802795b587b\",\"modelSha256\":\"227c8968f26bc821ed5998af0e4ccdb527edf7fdfc4aa6c8e3e4053ad3461d09\",\"qlibVersion\":\"0.9.6\",\"featureCount\":3,\"modelTraining\":\"PASS\",\"lightgbmVersion\":\"4.7.0\",\"modelValidation\":\"NOT_RUN\",\"temporalValidation\":\"PASS\",\"testPredictionCount\":85,\"testPredictionsSha256\":\"dfa28e1df7ea896a045aadd75cadcdf2640d83c676704865f29bc3a6cf98f624\"},{\"model\":\"qlib.contrib.model.gbdt.LGBModel\",\"market\":\"US_EQUITY\",\"splits\":{\"test\":{\"end\":111,\"rows\":27,\"start\":84},\"train\":{\"end\":63,\"rows\":63,\"start\":0},\"valid\":{\"end\":84,\"rows\":21,\"start\":63}},\"inputRows\":111,\"inputSha256\":\"9a3b2ad97d872a6e03c1e6e651283992f21b22c250626460ef7c65e458807ae8\",\"modelSha256\":\"9bac8d2b39ba1c80e0fb3f1564bb8d8e44ad5dee2c410910d005ef6b4eb0c2c9\",\"qlibVersion\":\"0.9.6\",\"featureCount\":3,\"modelTraining\":\"PASS\",\"lightgbmVersion\":\"4.7.0\",\"modelValidation\":\"NOT_RUN\",\"temporalValidation\":\"PASS\",\"testPredictionCount\":27,\"testPredictionsSha256\":\"43dda54097a748b16ad3a81a3309576de76889564402878df3a92a5f3c04c938\"}],\"strategies\":[{\"asOf\":\"2024-03-22\",\"mode\":\"TOPK\",\"reason\":\"select the highest Qlib predicted next-session close return independently within each market\",\"targets\":[{\"market\":\"CN_A\",\"reason\":\"highest predicted next-session close return in this market's fixed Top-1 cross-section\",\"ticker\":\"000006.SZ\",\"currency\":\"CNY\"},{\"market\":\"US_EQUITY\",\"reason\":\"highest predicted next-session close return in this market's fixed Top-1 cross-section\",\"ticker\":\"AAPL\",\"currency\":\"USD\"}],\"strategyId\":\"v1.2-qlib-topk-1\",\"strategyHash\":\"cec0efd3d67eea772f0f7bccc0d46887440fd7710f9bb9034a207d851eb3c026\"},{\"asOf\":\"2024-03-22\",\"mode\":\"NO_TRADE\",\"reason\":\"explicit empty-target baseline; no order intent is emitted\",\"targets\":[],\"strategyId\":\"v1.2-no-trade-1\",\"strategyHash\":\"9329f25203262b8d70a2a65d02cf1ad898d27b5272b089da75bdec69fb1ea260\"}],\"artifactRef\":{\"kind\":\"MODEL_PREDICTIONS\",\"sha256\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"status\":\"PUBLISHED\",\"ownerId\":\"acceptance-owner-1\",\"mediaType\":\"application/vnd.stockquant.qlib-fixture-model+json\",\"namespace\":\"research/b1549d21-04d7-4f29-88c4-856baeb3d8c6/qlib-fixture\",\"sourceRef\":\"platform-api-service:v1.2:b1549d21-04d7-4f29-88c4-856baeb3d8c6\",\"testRunId\":\"b1549d21-04d7-4f29-88c4-856baeb3d8c6\",\"artifactId\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"schemaVersion\":\"artifact-ref.v1\"},\"artifactUrl\":\"/api/v1/acceptance/v1/v1.2/runs/b1549d21-04d7-4f29-88c4-856baeb3d8c6/artifacts/21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"inputSha256\":\"48b9079181796f3cb64c92dbe7e20f32d4f4f47f6c752ecf17d815108994e635\",\"qlibVersion\":\"0.9.6\",\"modelTraining\":\"PASS\",\"artifactSha256\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\",\"fixtureVersion\":\"v1.2-market-data-5\",\"dailyBarsSha256\":\"28b43c921efac9661ca6209911d9e98496ef311aa752b3ca00fec5cb70390688\",\"lightgbmVersion\":\"4.7.0\",\"governanceHandoff\":\"RECEIVED\",\"governanceReceipts\":[{\"status\":\"RECEIVED\",\"replayed\":false,\"snapshotId\":\"8509ef12-c671-4b26-814d-4a8b1087ed0d\",\"strategyId\":\"v1.2-qlib-topk-1\"},{\"status\":\"RECEIVED\",\"replayed\":false,\"snapshotId\":\"6d90b002-df7e-4685-93e3-b39f768cec65\",\"strategyId\":\"v1.2-no-trade-1\"}],\"temporalValidation\":\"PASS\",\"testPredictionCount\":112,\"artifactSchemaVersion\":\"v1.2-qlib-strategy-artifact-v1\"},\"dataMode\":\"FIXTURE\",\"qlibTask\":{\"phase\":\"COMPLETED\",\"qlibProbe\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"updatedAt\":\"2026-10-12T06:57:23.216Z\",\"completedAt\":\"2026-10-12T06:57:23.247Z\",\"currentMarket\":\"US_EQUITY\",\"modelFitCount\":2,\"cancelRequested\":false,\"predictionCount\":112,\"completedMarkets\":[\"CN_A\"],\"artifactPublished\":true},\"artifacts\":{\"bad\":{\"bars\":[{\"low\":9.9,\"date\":\"2099-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"}],\"quality\":{\"errors\":[{\"row\":2,\"code\":\"FUTURE_DATA\",\"date\":\"2099-01-02\",\"ticker\":\"000001.SZ\"}],\"status\":\"REJECTED\"},\"dataMode\":\"FIXTURE\",\"fixtureVersion\":\"v1.2-market-data-1\"},\"factor\":{\"asOf\":\"2024-01-04\",\"reason\":\"V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker\",\"status\":\"NOT_RUN\",\"noTrade\":true,\"ranking\":[],\"qlibStatus\":\"READY\",\"dataVersion\":\"v1.2-market-data-1\",\"lookbackBars\":0,\"factorVersion\":\"v1.2-sma-factor-1\"},\"normal\":{\"bars\":[{\"low\":9.9,\"date\":\"2024-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10,\"date\":\"2024-01-03\",\"high\":10.3,\"open\":10.1,\"close\":10.2,\"ticker\":\"000001.SZ\",\"volume\":1100000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10.1,\"date\":\"2024-01-04\",\"high\":10.4,\"open\":10.2,\"close\":10.3,\"ticker\":\"000001.SZ\",\"volume\":1200000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":19.8,\"date\":\"2024-01-02\",\"high\":20.4,\"open\":20,\"close\":20.2,\"ticker\":\"000002.SZ\",\"volume\":800000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20,\"date\":\"2024-01-03\",\"high\":20.5,\"open\":20.2,\"close\":20.3,\"ticker\":\"000002.SZ\",\"volume\":850000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20.1,\"date\":\"2024-01-04\",\"high\":20.6,\"open\":20.3,\"close\":20.5,\"ticker\":\"000002.SZ\",\"volume\":900000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"}],\"quality\":{\"errors\":[],\"status\":\"READY\"},\"barCount\":6,\"dataMode\":\"FIXTURE\",\"securityCount\":2,\"fixtureVersion\":\"v1.2-market-data-1\"}},\"brokerMode\":\"FAKE\",\"dataVersion\":\"v1.2-market-data-5\",\"environmentMode\":\"BACKTEST\"},\"createdAt\":\"2026-10-12T06:57:00.850Z\",\"completedAt\":\"2026-10-12T06:57:23.247Z\"}\n[V1.2 browser screenshot] {\"scenario\":\"normal\",\"testRunId\":\"b1549d21-04d7-4f29-88c4-856baeb3d8c6\",\"path\":\"evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720/v12-normal-b1549d21-04d7-4f29-88c4-856baeb3d8c6.png\",\"sha256\":\"d473966ce8c7895f5833e8c440712320bbe7604ca1a6195fae079e1505bd659f\"}\n[V1.2 Web/CLI same-run] testRunId=1da4e9fa-61a8-4dcd-ae73-8a65a2863d12\n[V1.2 persisted readback] {\"testRunId\":\"1da4e9fa-61a8-4dcd-ae73-8a65a2863d12\",\"stageId\":\"V1.2\",\"scenarioId\":\"rejection\",\"scenarioVersion\":\"1.0.0\",\"ownerId\":\"acceptance-owner-1\",\"namespace\":\"v1-2-rejection-1da4e9fa-61a8-4dcd-ae73-8a65a2863d12\",\"status\":\"COMPLETED\",\"seed\":20260907,\"assertions\":[{\"actual\":{\"status\":\"REJECTED\",\"futureData\":true},\"status\":\"PASS\",\"evidence\":{\"source\":\"bad-future fixture\"},\"expected\":\"REJECTED with FUTURE_DATA\",\"assertionId\":\"V1.2-DATA-PIT-001\"}],\"evidence\":{\"qlib\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"qlibFit\":{\"status\":\"NOT_RUN\"},\"dataMode\":\"FIXTURE\",\"qlibTask\":{\"phase\":\"COMPLETED\",\"qlibProbe\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"updatedAt\":\"2026-10-12T06:57:24.025Z\",\"completedAt\":\"2026-10-12T06:57:24.027Z\",\"cancelRequested\":false,\"artifactPublished\":false},\"artifacts\":{\"bad\":{\"bars\":[{\"low\":9.9,\"date\":\"2099-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"}],\"quality\":{\"errors\":[{\"row\":2,\"code\":\"FUTURE_DATA\",\"date\":\"2099-01-02\",\"ticker\":\"000001.SZ\"}],\"status\":\"REJECTED\"},\"dataMode\":\"FIXTURE\",\"fixtureVersion\":\"v1.2-market-data-1\"},\"factor\":{\"asOf\":\"2024-01-04\",\"reason\":\"V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker\",\"status\":\"NOT_RUN\",\"noTrade\":true,\"ranking\":[],\"qlibStatus\":\"READY\",\"dataVersion\":\"v1.2-market-data-1\",\"lookbackBars\":0,\"factorVersion\":\"v1.2-sma-factor-1\"},\"normal\":{\"bars\":[{\"low\":9.9,\"date\":\"2024-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10,\"date\":\"2024-01-03\",\"high\":10.3,\"open\":10.1,\"close\":10.2,\"ticker\":\"000001.SZ\",\"volume\":1100000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10.1,\"date\":\"2024-01-04\",\"high\":10.4,\"open\":10.2,\"close\":10.3,\"ticker\":\"000001.SZ\",\"volume\":1200000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":19.8,\"date\":\"2024-01-02\",\"high\":20.4,\"open\":20,\"close\":20.2,\"ticker\":\"000002.SZ\",\"volume\":800000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20,\"date\":\"2024-01-03\",\"high\":20.5,\"open\":20.2,\"close\":20.3,\"ticker\":\"000002.SZ\",\"volume\":850000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20.1,\"date\":\"2024-01-04\",\"high\":20.6,\"open\":20.3,\"close\":20.5,\"ticker\":\"000002.SZ\",\"volume\":900000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"}],\"quality\":{\"errors\":[],\"status\":\"READY\"},\"barCount\":6,\"dataMode\":\"FIXTURE\",\"securityCount\":2,\"fixtureVersion\":\"v1.2-market-data-1\"}},\"brokerMode\":\"FAKE\",\"dataVersion\":\"v1.2-market-data-5\",\"environmentMode\":\"BACKTEST\"},\"createdAt\":\"2026-10-12T06:57:24.015Z\",\"completedAt\":\"2026-10-12T06:57:24.027Z\"}\n[V1.2 browser screenshot] {\"scenario\":\"rejection\",\"testRunId\":\"1da4e9fa-61a8-4dcd-ae73-8a65a2863d12\",\"path\":\"evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720/v12-rejection-1da4e9fa-61a8-4dcd-ae73-8a65a2863d12.png\",\"sha256\":\"100b858555f73e41b482af0ee1b8cb4ddf23415c86b3a840b9c1f24e4621818b\"}\n[V1.2 Web/CLI same-run] testRunId=4c8796db-9d0c-4bbd-8dee-222e093dd62e\n[V1.2 persisted readback] {\"testRunId\":\"4c8796db-9d0c-4bbd-8dee-222e093dd62e\",\"stageId\":\"V1.2\",\"scenarioId\":\"recovery\",\"scenarioVersion\":\"1.0.0\",\"ownerId\":\"acceptance-owner-1\",\"namespace\":\"v1-2-recovery-4c8796db-9d0c-4bbd-8dee-222e093dd62e\",\"status\":\"COMPLETED\",\"seed\":20260907,\"assertions\":[{\"actual\":\"READY\",\"status\":\"PASS\",\"evidence\":{\"source\":\"qlib probe after recovery preparation\"},\"expected\":\"READY\",\"assertionId\":\"V1.2-QLIB-PROBE-001\"}],\"evidence\":{\"qlib\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"qlibFit\":{\"status\":\"NOT_RUN\"},\"dataMode\":\"FIXTURE\",\"qlibTask\":{\"phase\":\"COMPLETED\",\"qlibProbe\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"updatedAt\":\"2026-10-12T06:57:24.323Z\",\"completedAt\":\"2026-10-12T06:57:24.325Z\",\"cancelRequested\":false,\"artifactPublished\":false},\"artifacts\":{\"bad\":{\"bars\":[{\"low\":9.9,\"date\":\"2099-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"}],\"quality\":{\"errors\":[{\"row\":2,\"code\":\"FUTURE_DATA\",\"date\":\"2099-01-02\",\"ticker\":\"000001.SZ\"}],\"status\":\"REJECTED\"},\"dataMode\":\"FIXTURE\",\"fixtureVersion\":\"v1.2-market-data-1\"},\"factor\":{\"asOf\":\"2024-01-04\",\"reason\":\"V1.2 factor output is not yet computed from the versioned daily-bar Fixture through the Qlib worker\",\"status\":\"NOT_RUN\",\"noTrade\":true,\"ranking\":[],\"qlibStatus\":\"READY\",\"dataVersion\":\"v1.2-market-data-1\",\"lookbackBars\":0,\"factorVersion\":\"v1.2-sma-factor-1\"},\"normal\":{\"bars\":[{\"low\":9.9,\"date\":\"2024-01-02\",\"high\":10.2,\"open\":10,\"close\":10.1,\"ticker\":\"000001.SZ\",\"volume\":1000000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10,\"date\":\"2024-01-03\",\"high\":10.3,\"open\":10.1,\"close\":10.2,\"ticker\":\"000001.SZ\",\"volume\":1100000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":10.1,\"date\":\"2024-01-04\",\"high\":10.4,\"open\":10.2,\"close\":10.3,\"ticker\":\"000001.SZ\",\"volume\":1200000,\"adjustment\":\"raw\",\"securityId\":\"cn-000001\"},{\"low\":19.8,\"date\":\"2024-01-02\",\"high\":20.4,\"open\":20,\"close\":20.2,\"ticker\":\"000002.SZ\",\"volume\":800000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20,\"date\":\"2024-01-03\",\"high\":20.5,\"open\":20.2,\"close\":20.3,\"ticker\":\"000002.SZ\",\"volume\":850000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"},{\"low\":20.1,\"date\":\"2024-01-04\",\"high\":20.6,\"open\":20.3,\"close\":20.5,\"ticker\":\"000002.SZ\",\"volume\":900000,\"adjustment\":\"raw\",\"securityId\":\"cn-000002\"}],\"quality\":{\"errors\":[],\"status\":\"READY\"},\"barCount\":6,\"dataMode\":\"FIXTURE\",\"securityCount\":2,\"fixtureVersion\":\"v1.2-market-data-1\"}},\"brokerMode\":\"FAKE\",\"dataVersion\":\"v1.2-market-data-5\",\"environmentMode\":\"BACKTEST\"},\"createdAt\":\"2026-10-12T06:57:24.313Z\",\"completedAt\":\"2026-10-12T06:57:24.325Z\"}\n[V1.2 browser screenshot] {\"scenario\":\"recovery\",\"testRunId\":\"4c8796db-9d0c-4bbd-8dee-222e093dd62e\",\"path\":\"evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720/v12-recovery-4c8796db-9d0c-4bbd-8dee-222e093dd62e.png\",\"sha256\":\"99bcac9ce3f1883e3521d5d0cbf325beb517faf9b42bc15c5c48f373d67cbbeb\"}\n[V1.2 cancellation readback] {\"testRunId\":\"bcb3821e-abfb-492f-a013-61cbb1ce5a3f\",\"stageId\":\"V1.2\",\"scenarioId\":\"normal\",\"scenarioVersion\":\"1.0.0\",\"ownerId\":\"acceptance-owner-1\",\"namespace\":\"v1-2-normal-bcb3821e-abfb-492f-a013-61cbb1ce5a3f\",\"status\":\"CANCELLED\",\"seed\":20260907,\"assertions\":[{\"actual\":{\"phase\":\"CANCELLED\",\"artifactPublished\":false},\"status\":\"PASS\",\"expected\":\"Cancellation is acknowledged at a safe worker checkpoint before immutable Artifact publication\",\"assertionId\":\"V1.2-QLIB-CANCEL-001\"}],\"evidence\":{\"dataMode\":\"FIXTURE\",\"qlibTask\":{\"phase\":\"CANCELLED\",\"qlibProbe\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"updatedAt\":\"2026-10-12T06:57:24.904Z\",\"completedAt\":\"2026-10-12T06:57:35.042Z\",\"currentMarket\":\"CN_A\",\"cancelRequested\":true,\"completedMarkets\":[],\"artifactPublished\":false,\"cancelRequestedAt\":\"2026-10-12T06:57:24.998Z\"},\"brokerMode\":\"FAKE\",\"dataVersion\":\"v1.2-market-data-5\",\"environmentMode\":\"BACKTEST\"},\"createdAt\":\"2026-10-12T06:57:24.879Z\",\"completedAt\":\"2026-10-12T06:57:35.042Z\"}\n[V1.2 browser screenshot] {\"scenario\":\"cancelled\",\"testRunId\":\"bcb3821e-abfb-492f-a013-61cbb1ce5a3f\",\"path\":\"evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720/v12-cancelled-bcb3821e-abfb-492f-a013-61cbb1ce5a3f.png\",\"sha256\":\"6d08d8cd59b12ba0e9586a059d29e4a339cc4537295e11211b6c054a739a9724\"}\n[V1.2 Web/CLI same-run] testRunId=eabce66b-1b3f-4b31-ac58-19eefe85f091\n[V1.2 Platform restart recovery] {\"testRunId\":\"eabce66b-1b3f-4b31-ac58-19eefe85f091\",\"status\":\"COMPLETED\",\"qlibTask\":{\"phase\":\"COMPLETED\",\"qlibProbe\":{\"smoke\":\"qlib-model-import-ok\",\"status\":\"READY\",\"version\":\"0.9.6\",\"codeProbe\":{\"value\":42,\"result\":\"fixed-probe-ok\",\"status\":\"READY\",\"sourceSha256\":\"cde1b2bf6bf9ac2567f67dc78d7c482949a342fd28845f3fd94397e689c7a275\"},\"modelBackend\":\"qlib.contrib.model.gbdt.LGBModel\",\"lightgbmVersion\":\"4.7.0\",\"dockerSocketMounted\":false},\"resumedAt\":\"2026-10-12T06:57:46.782Z\",\"updatedAt\":\"2026-10-12T06:58:17.351Z\",\"completedAt\":\"2026-10-12T06:58:17.369Z\",\"resumeCount\":1,\"currentMarket\":\"US_EQUITY\",\"modelFitCount\":2,\"previousPhase\":\"FITTING_US_EQUITY\",\"cancelRequested\":false,\"predictionCount\":112,\"completedMarkets\":[\"CN_A\"],\"artifactPublished\":true},\"artifactId\":\"21c39c2b8ba5df84ce39392c31053838fadb1c2ebdee2050811bcb8b5d8cae67\"}\n[V1.2 browser screenshot] {\"scenario\":\"platform-restart-recovery\",\"testRunId\":\"eabce66b-1b3f-4b31-ac58-19eefe85f091\",\"path\":\"evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720/v12-platform-restart-eabce66b-1b3f-4b31-ac58-19eefe85f091.png\",\"sha256\":\"6780d4eff97db780478937463742e2db66c975da036079cee997d579e000f020\"}\n[V1.2 browser traces] /Users/huangbosong/Documents/ChatGPT/StockQuant/evidence/audits/2026-10-12-v12-browser-captures-sq-v12-e2e-831d9c52898ae1786720\n·\n  1 passed (1.3m)\n",
+  "browserError": "(node:17554) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "platformIdentityBoundary": {
+    "routes": [
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/scenarios"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/data/normal"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/data/bad-future"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/data/research"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/quant/probe"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/quant/factors"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/quant/rdagent-probe"
+      },
+      {
+        "method": "POST",
+        "route": "/api/v1/acceptance/v1/v1.2/runs"
+      },
+      {
+        "method": "POST",
+        "route": "/api/v1/acceptance/v1/v1.2/runs/00000000-0000-4000-8000-000000000001/cancel"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/runs/00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/acceptance/v1/v1.2/runs/00000000-0000-4000-8000-000000000001/artifacts/00000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "anonymousRejected": 11,
+    "forgedOwnerRejected": 11,
+    "expectedStatuses": {
+      "anonymous": 401,
+      "forgedOwner": 403
+    }
+  },
+  "platformModeInjectionBoundary": {
+    "rejectedModes": [
+      {
+        "environmentMode": "PAPER",
+        "brokerMode": "FAKE"
+      },
+      {
+        "environmentMode": "PAPER",
+        "brokerMode": "REAL"
+      },
+      {
+        "environmentMode": "LIVE",
+        "brokerMode": "FAKE"
+      },
+      {
+        "environmentMode": "BACKTEST",
+        "brokerMode": "FAKE"
+      },
+      {
+        "environmentMode": "BACKTEST",
+        "brokerMode": "REAL"
+      },
+      {
+        "environmentMode": "LIVE",
+        "brokerMode": "REAL"
+      }
+    ],
+    "status": 422,
+    "testRunCountUnchanged": true
+  },
+  "isolatedContainersVolumesNetworksAndImagesRemoved": true,
+  "marketSourceAuthorization": "NONE",
+  "marketSourceCalls": 0,
+  "qlibFitCalls": 2,
+  "externalModelCalls": 0,
+  "brokerCalls": 0,
+  "liveTradingEnabled": false,
+  "humanAcceptance": "NOT_CHANGED"
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/scoped-watchlist-update-v1.schema.json",
+  "title": "ScopedWatchlistUpdate",
+  "type": "object",
+  "required": ["ownerId", "accountId", "namespace", "testRunId", "holdings", "inFlightOrders", "candidates"],
+  "properties": {
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "holdings": { "type": "array", "maxItems": 5000, "items": { "type": "string", "minLength": 1, "maxLength": 64 } },
+    "inFlightOrders": { "type": "array", "maxItems": 5000, "items": { "type": "string", "minLength": 1, "maxLength": 64 } },
+    "candidates": { "type": "array", "maxItems": 5000, "items": { "type": "string", "minLength": 1, "maxLength": 64 } }
+  },
+  "additionalProperties": false
+}

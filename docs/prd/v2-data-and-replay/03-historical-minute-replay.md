@@ -6,6 +6,8 @@
 
 状态：PARTIALLY_IMPLEMENTED（历史回放/模拟撮合的2026-09-19人工确认保留；V2.3合成Fixture研究链路现已通过实际Qlib fit、owner-scoped持久TestRun、Web/CLI同Run和脱敏导出自动验收。新能力仍无授权真实市场输入/PIT，模型独立验证为`NOT_RUN`；Qlib Artifact字节已写入Platform与Research Automation共用的内容卷，Platform PostgreSQL保存owner/TestRun引用元数据并提供owner-scoped读取。真实市场数据/PIT及独立模型验证仍未完成，新增研究范围需用户验收）。版本入口：[README](./README.md)。共同约束：[三版规则](../05-three-version-delivery.md)。详见[Qlib训练就绪审计](../../../evidence/audits/2026-09-26-qlib-training-readiness.md)和[边界更正审计](../../../evidence/audits/2026-09-27-v23-qlib-boundary-correction.md)。
 
+2026-10-21导入分钟回放门禁增量：新增`POST /api/v1/acceptance/v2/v2.3/runs/from-minute-import`及正式Web入口。入口在创建TestRun/Worker前调用Market Data回放就绪检查；只接受已发布V2.2版本，并要求三类不可变上下文在Hash、导入时间区间及证券范围上均有效，操作者声明研究用途和精确来源ID的`HISTORICAL_RESEARCH`配置均通过。缺项通过隔离Platform→Market Data→PostgreSQL→Chromium smoke得到422，Worker未触发。允许来源下的正向回放尚未执行；此切片只处理600000.SH最多120根Bar，研究摘要标记为USER_ARCHIVE，不能替代Qlib训练或独立模型验证。历史来源许可/用途仍按[OD-008](../../decisions/open-decisions.md)保持关闭，详见[C3历史上下文门禁审计](../../../evidence/audits/2026-10-21-v22-c3-history-context-gate.md)。
+
 2026-09-27 工程进展：新增受限 `POST /v1/research/qlib/fit-fixture` 及 Worker 实际 Qlib 0.9.6 `LGBModel.fit/predict` 路由，使用 1 MiB 上限、固定 FIXTURE 模式与独立服务 Bearer；真实隔离 HTTP/PG 代理测试及无网络 amd64 Qlib 容器冒烟通过。当前只在确定性合成内存数据上证明模型调用和重复运行哈希一致，`modelValidation=NOT_RUN`、候选代码未执行、无市场数据来源/PIT证明、无持久业务 TestRun。V2.3 阶段状态仍为 `PARTIALLY_IMPLEMENTED`，必须按本阶段 Web/CLI/真实数据和人工验收门槛重新验证研究能力；历史回放人工记录不覆盖此新增研究子范围。详见[Qlib Fixture Fit endpoint 审计](../../../evidence/audits/2026-09-27-v23-qlib-fit-endpoint.md)。
 
 2026-09-27 契约补齐切片：Historical Replay Worker 的单Bar/多Bar同步及异步提交、运行读取、暂停/继续/取消和UNKNOWN恢复入口新增JSON Schema、OpenAPI及兼容矩阵规则；运行时命令解析校验拒绝额外字段、无效UUID、非法场景/时间戳/价格精度及负成交量。Platform消费端HTTP client现由OpenAPI生成，已替换回放提交与状态/生命周期手写请求，并由`contracts:check`校验漂移；契约检查（89 Schema、75兼容规则、16 OpenAPI组）、Platform build/76单测、Worker build/17单测和完整V2.3 code suite均通过。跨所有者负向集成覆盖与其余契约盘点仍待完成；此次不代表新增Web/CLI端到端验收，V2.3研究子能力及人工验收状态不变。详见[Historical Replay契约审计](../../../evidence/audits/2026-09-27-p0-2-historical-replay-contract.md)。
@@ -24,6 +26,10 @@
 
 2026-10-02 W4 Qlib完整合成链复验：固定V2.3 `qlib-fixture` Web场景经Platform、Quant Research和linux/amd64 Qlib Worker执行，生成24条有限预测、Artifact SHA-256 `24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8`；owner读取200、异主403，同TestRun CLI `--check-only`退出0且无写入，脱敏导出有TestRun和Artifact两个Manifest条目。TestRun `41b4e5b2-e865-4a5a-8cc2-acd11b2aedbe`，导出Manifest SHA-256 `d1bf43e322162055f4bc71f75b12f0ecc493322647716507849d074ef9402cea`。临时数据库/网络/镜像/内容目录均清理；数据为合成FIXTURE、外部来源0、FakeBroker、Mac ARM上的amd64仿真。独立模型验证、真实市场/PIT和人工新范围验收仍未完成。详见[本次W4 Qlib完整链审计](../../../evidence/audits/2026-10-02-w4-v23-qlib-fixture-rerun.md)。
 
+2026-10-24 C4范围决定前的输入/缺口复核：V2.3继续`PARTIALLY_IMPLEMENTED`。现有锁版Qlib证据仅为`SIMULATION_ONLY`合成Fixture fit/predict；C3归档用途限一次FakeBroker回放，不适用于Qlib训练；大型BaoStock日线归档仅通过文件完整性核验，授权元数据及PIT质量不足。真实研究输入不满足；逐项证据见[C4输入/缺口审计](../../../evidence/audits/2026-10-24-v23-c4-input-gap-review.md)。该范围决定前快照由下方C4 Fixture验收记录更新。
+
+2026-10-24 C4范围与验收更新：所有者选择并人工验收通过Fixture限定本地学习范围。锁版Qlib容器使用Manifest绑定的冻结合成输入，Artifact Hash校验及重新加载模型后的24条独立预测复算通过，详见[范围决定](../../decisions/2026-10-24-v23-c4-fixture-learning-scope.md)、[自动验收记录](../../../evidence/audits/2026-10-24-v23-c4-fixture-validation.md)和[人工签署](../../../evidence/audits/2026-10-24-v23-c4-fixture-human-acceptance.json)。该复算只证明推理可复现，API/TestRun的`modelValidation`仍为`NOT_RUN`；真实市场/PIT保持`NOT_RUN`，V2.3整体仍`PARTIALLY_IMPLEMENTED`。
+
 ## 1. 前置与范围
 
 V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
@@ -38,7 +44,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 - [x] 已支持限价 DAY、下一可用 Bar、窗口成交、滑点、参与率、部分成交、过期和撤单；费用随历史有效规则，未知路径采用版本化保守模型。
 - [x] 成交量作为模拟容量假设，不作为订单提交前可见信息；整 Bar OHLCV/amount 依赖 Bar 结束后的完整信息，窗口 VWAP 仅作为事后执行模型。
 - [x] V2.3 TestRun、断言和证据已持久化；`historical-replay-worker` 在独立数据库保存游标/时钟/种子/待处理订单，并在进程重启后按同一运行键返回已持久结果；多 Bar 端点已逐 Bar 推进并验证检查点幂等恢复。独立 FakeBroker 服务按客户订单幂等持久订单/成交并写入隔离 BACKTEST 组合账本；治理授权、费用、取消、DAY 过期、UNKNOWN 标记、原订单查询、成交事务外盒、后台重试扫描、UNKNOWN 安全恢复及 `COMPENSATION_REQUIRED` Saga 状态机已实现，并完成真实账本故障注入与补偿演练。
-- [x] Qlib Worker 提供仅接收显式 FIXTURE 的实际 `LGBModel.fit/predict` 工程入口，平台代理路由只允许平台服务身份；Worker 的 `/probe`、`/train`、`/validate`、`/qlib/fit-fixture` 全部要求独立 quant-research-service Bearer 和匹配身份。容器重复训练确定性及坏切分拒绝已验证。该证据仅限合成内存样本，不等于市场数据、候选独立验证或阶段验收。
+- [x] Qlib Worker 提供仅接收显式 FIXTURE 的实际 `LGBModel.fit/predict` 工程入口，平台代理路由只允许平台服务身份；Worker 的 `/probe`、`/train`、`/validate`、`/qlib/fit-fixture` 全部要求独立 quant-research-service Bearer 和匹配身份。冻结Fixture容器重复训练确定性、Artifact Hash、重新加载模型后的24条测试预测独立复算（`rtol=0, atol=1e-12`）及坏切分拒绝已验证。该证据只证明合成数据上的工程路径和已保存模型推理可复现，不等于独立算法/模型质量验证、市场数据或阶段人工验收。详见[C4 Fixture验收记录](../../../evidence/audits/2026-10-24-v23-c4-fixture-validation.md)。
 
 ## 3. 同步 Web 开发
 
@@ -81,6 +87,7 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 - [x] 重复/恢复及适用观察期验证完成，未覆盖项如实记录。
 - [x] 历史人工验收记录已保留（2026-09-09）；用户已于 2026-09-19 对本页定义的完整跨域技术收口范围人工确认通过。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步。
+- [x] C4批准的Fixture本地学习范围已完成自动验收和项目所有者人工验收（2026-10-24）；签署仅覆盖该Fixture子范围，见[人工验收记录](../../../evidence/audits/2026-10-24-v23-c4-fixture-human-acceptance.json)。
 
 2026-09-15 V2.3 生命周期切片：historical-replay-worker 新增受服务身份保护的运行查询、暂停、恢复、取消接口；多 Bar 推进在每个 Bar 前读取持久状态，暂停时不推进虚拟游标，取消时保留检查点并以 `CANCELLED` 终态收口。新增生命周期状态机单测（5/5），全仓 V2.3 code 套件通过；完整跨服务 Runner、历史执行模型和 Web 实际操作仍保持未完成。
 
@@ -99,6 +106,16 @@ V2.2与V1.4通过；历史Clock、状态机、账本领域规则可复用。
 2026-09-30 W3/W4隔离复验：完整`pnpm verify:stage -- --stage V2.3 --suite code`在受控本机回环环境退出0；合同/Fixture检查、全仓构建/lint/typecheck/test、Portfolio/Trade/Market Data隔离PG/HTTP集成、Python Adapter 61项及Ops脚本测试通过；Qlib Worker实际`LGBModel.fit/predict`Fixture容器复跑生成相同模型与预测Hash并拒绝重叠切分。同期修正授权HTTP Smoke：同一命令的并发消费允许一次首次消费和一次带`replayed=true`的安全幂等重试，数据库授权最终为`CONSUMED`。这些仍是Fixture/隔离工程证据；没有真实来源授权、市场数据Qlib TestRun、独立模型验证或当前范围人工验收。
 
 ## 8. 阶段验收操作手册
+
+### 8.0 C4 Fixture本地学习子范围
+
+项目根目录执行：
+
+```bash
+pnpm --filter @stockquant/quant-research-service qlib:fit-smoke
+```
+
+需要Docker Desktop；脚本在无网络、限额的临时`linux/amd64`容器执行，并删除临时镜像。固定输入为`fixtures/v2/v2.3/qlib-fit/qlib-fit-input.json`，预期Manifest SHA-256为`1f99de3fb13b2cd0359a36bc2f202d2ed8359ea93d6b269a8845bc7b7e58c22e`。成功输出`status=PASS`、Qlib 0.9.6、24条测试预测、Artifact哈希、独立重算PASS及相同预测Hash；重叠切分应HTTP 422。详细结果与边界见[C4验收记录](../../../evidence/audits/2026-10-24-v23-c4-fixture-validation.md)及[用户人工签署](../../../evidence/audits/2026-10-24-v23-c4-fixture-human-acceptance.json)。人工签署已完成，只覆盖此Fixture范围；此项不更新API的`modelValidation`，真实研究用途保持`NOT_RUN`。
 
 ### 8.1 当前可执行性与验收准备
 

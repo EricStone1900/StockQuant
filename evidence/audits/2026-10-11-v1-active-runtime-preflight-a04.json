@@ -1,0 +1,45 @@
+{
+  "name": "/stockquant-v12-platform-api-service-1",
+  "status": "running",
+  "health": "healthy",
+  "restartPolicy": "unless-stopped",
+  "mounts": [],
+  "selectedConfig": [
+    "STOCKQUANT_V11_RUN_STORAGE=legacy"
+  ]
+}
+{
+  "name": "/stockquant-v12-postgres-1",
+  "status": "running",
+  "health": "healthy",
+  "restartPolicy": "unless-stopped",
+  "mounts": [
+    {
+      "type": "bind",
+      "name": null,
+      "destination": "/docker-entrypoint-initdb.d/10-init.sql"
+    },
+    {
+      "type": "volume",
+      "name": "stockquant-v12_postgres-v11",
+      "destination": "/var/lib/postgresql/data"
+    }
+  ],
+  "selectedConfig": []
+}
+{
+  "name": "/stockquant-v12-research-automation-service-1",
+  "status": "running",
+  "health": "healthy",
+  "restartPolicy": "unless-stopped",
+  "mounts": [
+    {
+      "type": "volume",
+      "name": "stockquant-v12_research-artifacts-v1",
+      "destination": "/var/lib/stockquant/research-artifacts"
+    }
+  ],
+  "selectedConfig": [
+    "STOCKQUANT_RESEARCH_ARTIFACT_ROOT=/var/lib/stockquant/research-artifacts"
+  ]
+}

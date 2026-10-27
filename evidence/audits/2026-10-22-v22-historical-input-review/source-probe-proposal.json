@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "decisionId": "OD008-C3-LOCAL-HISTORY-20261022-PROPOSED",
+  "status": "PROPOSED_NOT_APPROVED",
+  "sourceId": "baostock",
+  "purpose": "One-off personal/local/noncommercial historical input verification for C3; no model training, strategy activation, continuous collection or redistribution",
+  "sdk": "baostock==0.9.3 from services/market-data-adapter/uv.lock",
+  "endpoint": { "transport": "TCP", "host": "public-api.baostock.com", "port": 10030 },
+  "securities": ["sh.600000", "sh.600004", "sh.600006"],
+  "sampleFrom": "2024-01-02",
+  "sampleTo": "2024-01-08",
+  "operations": [
+    { "method": "query_stock_basic", "perSecurity": true, "maxCalls": 3, "fields": ["code", "code_name", "ipoDate", "outDate", "type", "status"] },
+    { "method": "query_history_k_data_plus", "frequency": "d", "adjustflag": "3", "perSecurity": true, "maxCalls": 3, "fields": ["date", "code", "open", "high", "low", "close", "volume", "amount", "adjustflag", "tradestatus", "isST"] },
+    { "method": "query_history_k_data_plus", "frequency": "5", "adjustflag": "3", "perSecurity": true, "maxCalls": 3, "fields": ["date", "time", "code", "open", "high", "low", "close", "volume", "amount", "adjustflag"] },
+    { "method": "query_dividend_data", "years": [2023, 2024], "yearType": "operate", "perSecurity": true, "maxCalls": 6, "fields": "provider-declared structured corporate-action fields; save returned schema and coverage limits" },
+    { "method": "query_adjust_factor", "perSecurity": true, "maxCalls": 3, "from": "2023-12-29", "to": "2024-01-08", "fields": "provider-declared adjustment dates/factors; no inference that unchanged factors prove all corporate actions absent" }
+  ],
+  "budget": { "maxDataCalls": 18, "maxSessionCalls": 2, "maxRpcRequestsIncludingPagination": 20, "concurrency": 1, "minIntervalSeconds": 1, "maxAttempts": 1, "perOperationTimeoutSeconds": 15, "totalTimeoutSeconds": 360, "maxBytesReceived": 2000000, "sdkPaginationCountsTowardBudget": true },
+  "stopOn": ["authentication or paid access required", "explicit prohibition or access restriction", "rate limiting", "budget exceeded", "schema mismatch", "source error or timeout"],
+  "retention": { "rawStructuredResponses": "local only, maximum 30 days; new versioned directory and manifest; no automatic deletion of existing archives", "gitEvidence": "request parameters, returned schemas/counts, response hashes, comparisons and capability limits only; no raw market archive", "sharing": "none" },
+  "runtime": "temporary per-process opt-in only after owner source/use confirmation; leave .env.local, Compose and automations unchanged",
+  "limitations": ["stock_basic is not full historical universe/PIT membership", "daily tradestatus cannot establish absence of intraday suspension", "dividend/factor endpoints may not cover all corporate actions", "this proposal does not authorize source use or positive replay"],
+  "futureOutputDirectory": "data/local/baostock-c3-context-2024-01-02-2024-01-08-v1"
+}

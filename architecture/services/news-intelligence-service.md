@@ -73,3 +73,5 @@ Python / FastAPI + 来源采集Worker组件按已启用能力部署；API和长�
 - [ ] 场景参数/Clock/资源限制/健康探针和运行权限已配置，未知配置保持UNSET。
 - [ ] Web、代码测试、故障恢复和人工手册引用同一规则/场景版本。
 - [ ] 变更同步PRD/契约/阶段计划/追踪/测试与验收，实测后更新架构证据，不提前勾选。
+
+2026-10-17 V2.1 C2边界核对：当前Market Data `PublicSourceHttpAdapter`仅抓取网页`<title>`，不能提供稳定文章URL/sourceItemId；不能据此建立真实文章修订链。新增冻结合成Fixture `v2.1-news-revisions-1`覆盖稳定ID、修订、来源副本、四种时间字段和实体歧义，并已接入Market Data持久账本与Platform/Web历史展示；它验证本地流程，不表示独立`news-intelligence-service`已实现，也不证明真实来源能力/许可。真实来源仍受OD-008阻断；未来实时Adapter需在来源条款允许的前提下提供稳定文章ID、URL及发布时间语义。
