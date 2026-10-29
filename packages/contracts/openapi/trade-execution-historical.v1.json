@@ -288,6 +288,26 @@
         }
       }
     },
+    "/internal/v1/c5-local/paper-orders/execute": {
+      "post": {
+        "operationId": "executeC5LocalPaperOrder",
+        "summary": "Verify a local C5 Mandate reservation and execute through account resources and FakeBroker",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "../schemas/trade-execution/c5-local-paper-execution-command-v1.schema.json" } } } },
+        "responses": { "201": { "description": "FakeBroker order and Fill committed and the ledger outbox delivered" }, "200": { "description": "Idempotent replay of the same local command" }, "403": { "description": "Service identity rejected" }, "409": { "description": "Mandate reservation or order facts conflict" }, "422": { "description": "Command is outside the frozen C5 Fixture" }, "503": { "description": "Outcome or ledger delivery requires same-identity retry" } }
+      }
+    },
+    "/internal/v1/c5-local/accounts/settlements": {
+      "post": {
+        "operationId": "settleC5LocalPaperSession",
+        "summary": "Settle due FakeBroker and Portfolio receivables before a fixed C5 local evaluation session",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": false, "schema": { "const": "platform-api-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "../schemas/trade-execution/c5-local-session-settlement-command-v1.schema.json" } } } },
+        "responses": { "200": { "description": "No prior FakeBroker account or scoped session settlement completed" }, "403": { "description": "Service identity or account scope rejected" }, "422": { "description": "Invalid settlement scope" }, "503": { "description": "Settlement must be retried for the same session" } }
+      }
+    },
     "/internal/v1/fake-broker/external-orders": {
       "post": {
         "operationId": "recordSimulatedFakeBrokerExternalOrder",

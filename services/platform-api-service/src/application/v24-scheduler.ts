@@ -100,7 +100,10 @@ export class ContinuousPaperScheduler {
   private async run(kind: SchedulerEventKind, scheduledFor: string | null): Promise<void> {
     const now = this.clock.now(); const previousSampleAt = this.state.lastSampleAt;
     if (this.handler) await this.handler.handleTick({ now, previousSampleAt, kind, scheduledFor, samplingIntervalMinutes: this.state.samplingIntervalMinutes });
-    this.state.lastSampleAt = now.toISOString(); this.state.tickCount += 1; await this.persist();
+    // Recovery, execution and close are separate events, not scheduled samples.
+    // Preserve the prior sample time so they cannot hide a missing slot.
+    if (kind === "SAMPLING_SLOT") this.state.lastSampleAt = now.toISOString();
+    this.state.tickCount += 1; await this.persist();
   }
   private async runScheduled(kind: SchedulerEventKind, scheduledAt: Date): Promise<void> {
     const delayMs = this.clock.now().getTime() - scheduledAt.getTime();

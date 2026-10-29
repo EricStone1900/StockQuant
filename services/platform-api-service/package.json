@@ -27,6 +27,7 @@
     "v24:revision-container-smoke": "node scripts/v24-observation-revision-web-http-smoke.mjs --containerized",
     "v24:waiting-http-smoke": "pnpm --filter @stockquant/trade-execution-service build && pnpm build && node scripts/v24-waiting-http-smoke.mjs",
     "v22:upload-web-http-smoke": "pnpm --filter @stockquant/market-data-service build && pnpm build && node scripts/v22-upload-web-http-smoke.mjs",
+    "v25:minute-import-run-smoke": "pnpm --filter @stockquant/market-data-service build && pnpm build && pnpm --filter @stockquant/web build && node ../../scripts/run-isolated-postgres-command.mjs --admin-env STOCKQUANT_V25_MINUTE_IMPORT_ADMIN_DATABASE_URL -- node scripts/v25-minute-import-run-http-smoke.mjs",
     "v24:paper-http-smoke": "pnpm --filter @stockquant/decision-governance-service build && pnpm --filter @stockquant/portfolio-risk-service build && pnpm --filter @stockquant/trade-execution-service build && pnpm --filter @stockquant/market-data-service build && pnpm build && node scripts/v24-paper-http-smoke.mjs",
     "v23:qlib-fixture-testrun-smoke": "pnpm --filter @stockquant/quant-research-service build && pnpm build && node scripts/v23-qlib-fixture-testrun-http-smoke.mjs",
     "v23:local-historical-replay-smoke": "node scripts/v23-local-historical-replay-http-smoke.mjs",

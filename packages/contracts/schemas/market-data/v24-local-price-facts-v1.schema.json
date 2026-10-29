@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v24-local-price-facts-v1.schema.json",
+  "title": "V24LocalPriceFactsV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "target",
+    "intent",
+    "selection"
+  ],
+  "properties": {
+    "target": {
+      "type": "object",
+      "required": [
+        "ownerId",
+        "accountId",
+        "namespace",
+        "testRunId",
+        "targetId",
+        "clientOrderId",
+        "dataMode",
+        "fixtureSha256",
+        "strategySha256",
+        "sessionDate",
+        "evaluationAt",
+        "input",
+        "decision",
+        "dailyBarProvenance"
+      ],
+      "properties": {
+        "ownerId": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "testRunId": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "clientOrderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataMode": {
+          "type": "string"
+        },
+        "fixtureSha256": {
+          "type": "string"
+        },
+        "strategySha256": {
+          "type": "string"
+        },
+        "sessionDate": {
+          "type": "string"
+        },
+        "evaluationAt": {
+          "type": "string"
+        },
+        "input": {
+          "type": "object",
+          "required": [
+            "referencePrice"
+          ],
+          "properties": {
+            "referencePrice": {
+              "type": "string"
+            }
+          }
+        },
+        "decision": {
+          "type": "object",
+          "required": [
+            "action",
+            "quantity"
+          ],
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer"
+            }
+          }
+        },
+        "dailyBarProvenance": {
+          "type": "object",
+          "required": [
+            "completionIds"
+          ],
+          "properties": {
+            "completionIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "ownerId",
+        "accountId",
+        "namespace",
+        "testRunId",
+        "clientOrderId",
+        "targetId",
+        "security",
+        "side",
+        "quantity",
+        "acceptedAt",
+        "status"
+      ],
+      "properties": {
+        "ownerId": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "testRunId": {
+          "type": "string"
+        },
+        "clientOrderId": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "security": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer"
+        },
+        "acceptedAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "selection": {
+      "$ref": "https://stockquant.local/contracts/market-data/v24-local-snapshot-selection-result-v1.schema.json"
+    }
+  }
+}

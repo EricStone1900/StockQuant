@@ -1583,6 +1583,22 @@ V32ReadinessRunResult = TypedDict("V32ReadinessRunResult", {
   "evidence": Required[dict[str, object]],
 })
 
+V24C5LocalReservationVerificationV1 = TypedDict("V24C5LocalReservationVerificationV1", {
+  "reservationId": Required[str],
+  "mandateId": Required[str],
+  "mandateVersion": Required[int],
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+  "clientOrderId": Required[str],
+  "commandHash": Required[str],
+  "proposalId": Required[str],
+  "proposalVersion": Required[int],
+  "proposalHash": Required[str],
+  "amount": Required[str],
+})
+
 MarketDataAlertAcknowledgeRequest = TypedDict("MarketDataAlertAcknowledgeRequest", {
   "actorId": Required[str],
 })
@@ -1666,7 +1682,7 @@ MarketDataLatestDailyBarCompletion = TypedDict("MarketDataLatestDailyBarCompleti
 
 MarketDataDailyBarCompletionRequest = TypedDict("MarketDataDailyBarCompletionRequest", {
   "scope": Required[dict[str, object]],
-  "fixtureVersion": NotRequired[Literal['v2.1-daily-bars-1', 'v24-c5-daily-bars-1']],
+  "fixtureVersion": NotRequired[Literal['v2.1-daily-bars-1', 'v24-c5-daily-bars-1', 'v24-c5-prior-20261014-1', 'v24-c5-prior-20261015-1', 'v24-c5-local-daily-20240102-1', 'v24-c5-local-daily-20240103-1', 'v24-c5-local-daily-20240104-1', 'v24-c5-local-daily-20240105-1', 'v24-c5-local-daily-20240108-1', 'v24-c5-local-daily-20240109-1', 'v24-c5-local-daily-20240110-1']],
 })
 
 MarketDataDailyBarCompletionTaskResult = TypedDict("MarketDataDailyBarCompletionTaskResult", {
@@ -2070,6 +2086,45 @@ V22StageRunRequest = TypedDict("V22StageRunRequest", {
   "fileFormat": NotRequired[Literal['CSV', 'PARQUET']],
 })
 
+V24LocalPriceAuthorizationRequestV1 = TypedDict("V24LocalPriceAuthorizationRequestV1", {
+  "mandateId": Required[str],
+  "mandateVersion": Required[int],
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+  "targetId": Required[str],
+  "clientOrderId": Required[str],
+  "evaluatedAt": Required[str],
+})
+
+V24LocalPriceFactsV1 = TypedDict("V24LocalPriceFactsV1", {
+  "target": Required[dict[str, object]],
+  "intent": Required[dict[str, object]],
+  "selection": Required[V24LocalSnapshotSelectionResultV1],
+})
+
+V24LocalSnapshotEnqueueResultV1 = TypedDict("V24LocalSnapshotEnqueueResultV1", {
+  "planId": Required[str],
+  "taskId": Required[str],
+  "created": Required[bool],
+  "externalRequests": Required[Literal[0]],
+  "placeOrders": Required[Literal[False]],
+})
+
+V24LocalSnapshotRequestV1 = TypedDict("V24LocalSnapshotRequestV1", {
+  "scope": Required[dict[str, object]],
+  "sessionDate": Required[Literal['2024-01-04', '2024-01-05']],
+})
+
+V24LocalSnapshotSelectionResultV1 = TypedDict("V24LocalSnapshotSelectionResultV1", {
+  "status": Required[Literal['WAITING', 'REJECTED', 'SELECTED']],
+  "reason": NotRequired[str],
+  "planId": NotRequired[str],
+  "taskId": NotRequired[str],
+  "observation": NotRequired[dict[str, object]],
+})
+
 MarketDataWatchlistUpdate = TypedDict("MarketDataWatchlistUpdate", {
   "securities": Required[list[str]],
 })
@@ -2146,6 +2201,18 @@ V12RDagentProbePreview = TypedDict("V12RDagentProbePreview", {
   "codeProbe": Required[dict[str, object]],
   "modelCalls": Required[str],
   "reason": NotRequired[str],
+})
+
+C5LocalFakeBrokerExecutionCommand = TypedDict("C5LocalFakeBrokerExecutionCommand", {
+  "authorization": Required[dict[str, object]],
+})
+
+C5LocalSessionSettlementCommand = TypedDict("C5LocalSessionSettlementCommand", {
+  "ownerId": Required[str],
+  "accountId": Required[str],
+  "namespace": Required[str],
+  "testRunId": Required[str],
+  "asOf": Required[str],
 })
 
 FakeBrokerCancellationResult = TypedDict("FakeBrokerCancellationResult", {

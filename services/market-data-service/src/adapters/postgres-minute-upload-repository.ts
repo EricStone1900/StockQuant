@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { MINUTE_UPLOAD_CHUNK_BYTES, MINUTE_UPLOAD_MAX_BYTES, MINUTE_UPLOAD_MAX_OPEN_PER_OWNER, MINUTE_UPLOAD_MAX_RESERVED_BYTES_PER_OWNER, MinuteUploadConflict, MinuteUploadQuotaExceeded, type MinuteUploadMetadata, type MinuteUploadProgress, type MinuteUploadStatus } from "../domain/minute-upload.js";
 import type { MinuteUploadPort } from "../ports/minute-upload.js";
+import type { MinuteUploadJob, MinuteUploadJobClaim } from "../ports/minute-upload.js";
 export { MINUTE_UPLOAD_CHUNK_BYTES, MINUTE_UPLOAD_MAX_BYTES, MinuteUploadConflict, MinuteUploadQuotaExceeded } from "../domain/minute-upload.js";
 export type { MinuteUploadMetadata, MinuteUploadProgress, MinuteUploadStatus } from "../domain/minute-upload.js";
 
@@ -25,7 +26,7 @@ export class MinuteUploadRepository implements MinuteUploadPort {
         expected_bytes INTEGER NOT NULL CHECK (expected_bytes BETWEEN 1 AND ${MINUTE_UPLOAD_MAX_BYTES}),
         expected_chunks INTEGER NOT NULL CHECK (expected_chunks BETWEEN 1 AND 128),
         metadata JSONB NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('OPEN','FINALIZING','COMPLETED','CANCELLED')),
+        status TEXT NOT NULL CHECK (status IN ('OPEN','QUEUED','FINALIZING','COMPLETED','CANCELLED')),
         completed_result JSONB,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -38,6 +39,21 @@ export class MinuteUploadRepository implements MinuteUploadPort {
         content BYTEA NOT NULL,
         PRIMARY KEY(upload_id,chunk_index)
       );
+      ALTER TABLE market_data_minute_uploads DROP CONSTRAINT IF EXISTS market_data_minute_uploads_status_check;
+      ALTER TABLE market_data_minute_uploads ADD CONSTRAINT market_data_minute_uploads_status_check CHECK (status IN ('OPEN','QUEUED','FINALIZING','COMPLETED','CANCELLED'));
+      CREATE TABLE IF NOT EXISTS market_data_minute_upload_jobs (
+        upload_id UUID PRIMARY KEY REFERENCES market_data_minute_uploads(upload_id) ON DELETE CASCADE,
+        owner_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('QUEUED','RUNNING','COMPLETED','FAILED','CANCELLED')),
+        attempt INTEGER NOT NULL DEFAULT 0 CHECK (attempt >= 0),
+        lease_owner TEXT,
+        lease_until TIMESTAMPTZ,
+        error TEXT,
+        result JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS market_data_minute_upload_jobs_queue_idx ON market_data_minute_upload_jobs(status,created_at);
     `);
   }
 
@@ -57,7 +73,7 @@ export class MinuteUploadRepository implements MinuteUploadPort {
         await client.query("COMMIT");
         return { progress: await this.progress(input.ownerId, input.uploadId), idempotent: true };
       }
-      const quota = await client.query<{ open_count: string; reserved_bytes: string }>("SELECT count(*) AS open_count, COALESCE(sum(expected_bytes),0) AS reserved_bytes FROM market_data_minute_uploads WHERE owner_id=$1 AND status IN ('OPEN','FINALIZING')", [input.ownerId]);
+      const quota = await client.query<{ open_count: string; reserved_bytes: string }>("SELECT count(*) AS open_count, COALESCE(sum(expected_bytes),0) AS reserved_bytes FROM market_data_minute_uploads WHERE owner_id=$1 AND status IN ('OPEN','QUEUED','FINALIZING')", [input.ownerId]);
       if (Number(quota.rows[0].open_count) >= MINUTE_UPLOAD_MAX_OPEN_PER_OWNER || Number(quota.rows[0].reserved_bytes) + input.expectedBytes > MINUTE_UPLOAD_MAX_RESERVED_BYTES_PER_OWNER) throw new MinuteUploadQuotaExceeded("owner minute-upload quota exceeded");
       await client.query("INSERT INTO market_data_minute_uploads(upload_id,owner_id,expected_sha256,expected_bytes,expected_chunks,metadata,status) VALUES($1,$2,$3,$4,$5,$6::jsonb,'OPEN')", [input.uploadId,input.ownerId,input.expectedSha256,input.expectedBytes,expectedChunks,JSON.stringify(input.metadata)]);
       await client.query("COMMIT");
@@ -157,10 +173,73 @@ export class MinuteUploadRepository implements MinuteUploadPort {
       if (upload.status === "OPEN") {
         await client.query("DELETE FROM market_data_minute_upload_chunks WHERE upload_id=$1", [uploadId]);
         await client.query("UPDATE market_data_minute_uploads SET status='CANCELLED',updated_at=now() WHERE upload_id=$1", [uploadId]);
+      } else if (upload.status === "QUEUED") {
+        const cancelled = await client.query("UPDATE market_data_minute_upload_jobs SET status='CANCELLED',updated_at=now() WHERE upload_id=$1 AND owner_id=$2 AND status='QUEUED'", [uploadId,ownerId]);
+        if (cancelled.rowCount !== 1) throw new MinuteUploadConflict("queued finalization could not be cancelled");
+        await client.query("DELETE FROM market_data_minute_upload_chunks WHERE upload_id=$1", [uploadId]);
+        await client.query("UPDATE market_data_minute_uploads SET status='CANCELLED',updated_at=now() WHERE upload_id=$1", [uploadId]);
       } else if (upload.status !== "CANCELLED") throw new MinuteUploadConflict(`cannot cancel upload while it is ${upload.status}`);
       await client.query("COMMIT");
       return await this.progress(ownerId,uploadId);
     } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; }
     finally { client.release(); }
+  }
+
+  async enqueueFinalization(ownerId: string, uploadId: string): Promise<MinuteUploadJob> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<UploadRow>("SELECT * FROM market_data_minute_uploads WHERE upload_id=$1 AND owner_id=$2 FOR UPDATE", [uploadId,ownerId]);
+      const upload = result.rows[0];
+      if (!upload) throw new MinuteUploadConflict("minute upload was not found for this owner");
+      const prior = await client.query("SELECT upload_id FROM market_data_minute_upload_jobs WHERE upload_id=$1 AND status IN ('QUEUED','RUNNING','COMPLETED')", [uploadId]);
+      if (prior.rowCount) { await client.query("COMMIT"); return (await this.finalizationJob(ownerId,uploadId))!; }
+      if (upload.status !== "OPEN") throw new MinuteUploadConflict(`cannot enqueue upload while it is ${upload.status}`);
+      const chunks = await client.query<{ count: string; bytes: string; min_index: number | null; max_index: number | null }>("SELECT count(*) AS count,COALESCE(sum(octet_length(content)),0) AS bytes,min(chunk_index) AS min_index,max(chunk_index) AS max_index FROM market_data_minute_upload_chunks WHERE upload_id=$1", [uploadId]);
+      if (Number(chunks.rows[0].count) !== upload.expected_chunks || Number(chunks.rows[0].bytes) !== upload.expected_bytes || chunks.rows[0].min_index !== 0 || chunks.rows[0].max_index !== upload.expected_chunks - 1) throw new MinuteUploadConflict("upload is missing one or more chunks");
+      await client.query("INSERT INTO market_data_minute_upload_jobs(upload_id,owner_id,status) VALUES($1,$2,'QUEUED') ON CONFLICT(upload_id) DO UPDATE SET owner_id=EXCLUDED.owner_id,status='QUEUED',attempt=0,lease_owner=NULL,lease_until=NULL,error=NULL,result=NULL,updated_at=now()", [uploadId,ownerId]);
+      await client.query("UPDATE market_data_minute_uploads SET status='QUEUED',updated_at=now() WHERE upload_id=$1", [uploadId]);
+      await client.query("COMMIT");
+      return (await this.finalizationJob(ownerId,uploadId))!;
+    } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; }
+    finally { client.release(); }
+  }
+
+  async claimFinalization(workerId: string, leaseMs: number): Promise<MinuteUploadJobClaim | null> {
+    if (!workerId.trim() || workerId.length > 128 || !Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 900_000) throw new Error("INVALID_MINUTE_UPLOAD_WORKER_LEASE");
+    const result = await this.pool.query<MinuteUploadJob & { upload_id: string; owner_id: string; lease_until: Date | string }>(`WITH candidate AS (
+      SELECT upload_id FROM market_data_minute_upload_jobs
+      WHERE status='QUEUED' OR (status='RUNNING' AND lease_until<=now())
+      ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1
+    ) UPDATE market_data_minute_upload_jobs job SET status='RUNNING',attempt=attempt+1,lease_owner=$1,lease_until=now()+($2::text||' milliseconds')::interval,error=NULL,updated_at=now()
+      FROM candidate WHERE job.upload_id=candidate.upload_id
+      RETURNING job.upload_id,job.owner_id,job.status,job.attempt,job.error,job.result,job.lease_until`, [workerId,leaseMs]);
+    const row = result.rows[0];
+    if (!row) return null;
+    await this.pool.query("UPDATE market_data_minute_uploads SET status='FINALIZING',updated_at=now() WHERE upload_id=$1 AND status='QUEUED'", [row.upload_id]);
+    return { uploadId: row.upload_id, ownerId: row.owner_id, status: "RUNNING", attempt: row.attempt, error: row.error, result: row.result, workerId, leaseUntil: new Date(row.lease_until).toISOString() };
+  }
+
+  async completeFinalizationJob(uploadId: string, workerId: string, result: unknown): Promise<void> {
+    const updated = await this.pool.query("UPDATE market_data_minute_upload_jobs SET status='COMPLETED',result=$3::jsonb,lease_owner=NULL,lease_until=NULL,updated_at=now() WHERE upload_id=$1 AND status='RUNNING' AND lease_owner=$2 AND lease_until>now()", [uploadId,workerId,JSON.stringify(result)]);
+    if (updated.rowCount !== 1) throw new MinuteUploadConflict("minute upload finalization lease was lost");
+  }
+
+  async failFinalizationJob(uploadId: string, workerId: string, reason: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const updated = await client.query("UPDATE market_data_minute_upload_jobs SET status='FAILED',error=$3,lease_owner=NULL,lease_until=NULL,updated_at=now() WHERE upload_id=$1 AND status='RUNNING' AND lease_owner=$2 RETURNING upload_id", [uploadId,workerId,reason.slice(0,1000)]);
+      if (updated.rowCount !== 1) throw new MinuteUploadConflict("minute upload finalization lease was lost");
+      await client.query("UPDATE market_data_minute_uploads SET status='OPEN',updated_at=now() WHERE upload_id=$1 AND status='FINALIZING'", [uploadId]);
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; }
+    finally { client.release(); }
+  }
+
+  async finalizationJob(ownerId: string, uploadId: string): Promise<MinuteUploadJob | null> {
+    const result = await this.pool.query<{ upload_id: string; owner_id: string; status: MinuteUploadJob["status"]; attempt: number; error: string | null; result: unknown | null }>("SELECT upload_id,owner_id,status,attempt,error,result FROM market_data_minute_upload_jobs WHERE upload_id=$1 AND owner_id=$2", [uploadId,ownerId]);
+    const row = result.rows[0];
+    return row ? { uploadId: row.upload_id, ownerId: row.owner_id, status: row.status, attempt: row.attempt, error: row.error, result: row.result } : null;
   }
 }

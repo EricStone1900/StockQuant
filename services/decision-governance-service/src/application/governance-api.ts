@@ -8,6 +8,7 @@ import type { ProposalInput, ProposalRepository } from "../ports/proposal-reposi
 import type { AutoMandateCreate, AutoMandateRepository } from "../ports/auto-mandate-repository.js";
 import type { StrategySnapshotInput, StrategySnapshotRepository } from "../ports/strategy-snapshot-repository.js";
 import { authorizeGovernanceRequest, type GovernanceTokens } from "./service-auth.js";
+import { authorizeV24LocalPriceOrder } from "./v24-local-price-authorizer.js";
 
 const stable = (value: unknown): unknown => Array.isArray(value)
   ? value.map(stable)
@@ -21,7 +22,7 @@ export type GovernanceRequest = { method: string; pathname: string; serviceId?: 
 export type GovernanceResponse = { status: number; body: unknown };
 
 export class GovernanceApi {
-  constructor(private readonly repository: ExecutionAuthorizationRepository, private readonly tokens: GovernanceTokens, private readonly registry: ApprovedRegistryClient, private readonly proposals?: ProposalRepository, private readonly mandates?: AutoMandateRepository, private readonly strategySnapshots?: StrategySnapshotRepository) {}
+  constructor(private readonly repository: ExecutionAuthorizationRepository, private readonly tokens: GovernanceTokens, private readonly registry: ApprovedRegistryClient, private readonly proposals?: ProposalRepository, private readonly mandates?: AutoMandateRepository, private readonly strategySnapshots?: StrategySnapshotRepository, private readonly localPriceFacts?: { platformUrl: string; governanceToken: string }) {}
 
   async ready(): Promise<boolean> {
     try { await this.repository.ready(); return true; } catch { return false; }
@@ -33,6 +34,8 @@ export class GovernanceApi {
 
   async handle(request: GovernanceRequest): Promise<GovernanceResponse> {
     if (!this.authorized(request)) return { status: 403, body: { error: "service identity or route scope is not allowed" } };
+    if (request.method === "POST" && request.pathname === "/internal/v1/c5-local/orders/authorize") return this.authorizeLocalPriceOrder(request.rawBody ?? "");
+    if (request.method === "POST" && request.pathname === "/internal/v1/c5-local/orders/reservations/verify") return this.verifyLocalReservation(request.rawBody ?? "");
     if (request.pathname === "/internal/v1/candidate-mandates/readiness") return this.assessCandidateMandate(request.rawBody ?? "");
     if (this.strategySnapshots && request.method === "POST" && request.pathname === "/internal/v1/v12/strategy-snapshots") return this.receiveStrategySnapshot(request.rawBody ?? "");
     const proposalRead = request.pathname.match(/^\/internal\/v1\/proposals\/([0-9a-f-]{36})$/iu);
@@ -81,6 +84,34 @@ export class GovernanceApi {
       if (request.method === "POST" && request.pathname === "/internal/v1/authorizations/validate") return this.validateReplay(body);
       return { status: 404, body: { error: "not found" } };
     } catch (error) { return { status: 422, body: { error: error instanceof Error ? error.message : "invalid request" } }; }
+  }
+
+  private async authorizeLocalPriceOrder(raw: string): Promise<GovernanceResponse> {
+    if (Buffer.byteLength(raw, "utf8") > 16384) return { status: 413, body: { error: "C5 local authorization request exceeds 16 KiB" } };
+    let value: unknown; try { value = JSON.parse(raw); } catch { return { status: 422, body: { error: "invalid C5 local authorization JSON" } }; }
+    const allowed = ["mandateId","mandateVersion","ownerId","accountId","namespace","testRunId","targetId","clientOrderId","evaluatedAt"];
+    if (!isRecord(value) || Object.keys(value).some((key) => !allowed.includes(key)) || !/^[0-9a-f-]{36}$/iu.test(String(value.mandateId ?? "")) || !Number.isSafeInteger(value.mandateVersion) || Number(value.mandateVersion) < 1 || !String(value.ownerId ?? "").trim() || !/^[0-9a-f-]{36}$/iu.test(String(value.accountId ?? "")) || !/^[0-9a-f-]{36}$/iu.test(String(value.testRunId ?? "")) || value.namespace !== `v24-paper-v2-${String(value.testRunId)}` || !String(value.targetId ?? "").trim() || !String(value.clientOrderId ?? "").trim() || !Number.isFinite(Date.parse(String(value.evaluatedAt))) || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(String(value.evaluatedAt))) return { status: 422, body: { error: "exact C5 local mandate, scope and injected clock are required; price fields are forbidden" } };
+    if (!this.mandates || !this.localPriceFacts?.platformUrl || this.localPriceFacts.governanceToken.length < 32) return { status: 503, body: { error: "C5 local price authorization is not configured" } };
+    try {
+      const result = await authorizeV24LocalPriceOrder({ ...this.localPriceFacts, mandates: this.mandates, mandateId: String(value.mandateId), mandateVersion: Number(value.mandateVersion), ownerId: String(value.ownerId), accountId: String(value.accountId), namespace: String(value.namespace), testRunId: String(value.testRunId), targetId: String(value.targetId), clientOrderId: String(value.clientOrderId), evaluatedAt: String(value.evaluatedAt) });
+      return { status: result.decision.status === "AUTHORIZED" ? 200 : 409, body: result };
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "C5_LOCAL_AUTHORIZATION_FAILED";
+      const status = code === "C5_PRICE_FACTS_UNAVAILABLE" ? 409 : code === "C5_LOCAL_MANDATE_SCOPE_INVALID" || code === "C5_PRICE_SCOPE_MISMATCH" ? 403 : code.startsWith("C5_") ? 422 : 503;
+      return { status, body: { error: code } };
+    }
+  }
+
+  private async verifyLocalReservation(raw: string): Promise<GovernanceResponse> {
+    if (Buffer.byteLength(raw,"utf8")>8192) return {status:413,body:{error:"C5 local reservation verification exceeds 8 KiB"}};
+    let value:unknown; try {value=JSON.parse(raw);} catch {return {status:422,body:{error:"invalid C5 local reservation verification JSON"}};}
+    const keys=["reservationId","mandateId","mandateVersion","ownerId","accountId","namespace","testRunId","clientOrderId","commandHash","proposalId","proposalVersion","proposalHash","amount"];
+    if(!isRecord(value)||Object.keys(value).sort().join(",")!==keys.sort().join(",")||!["reservationId","mandateId","accountId","testRunId","proposalId"].every((key)=>/^[0-9a-f-]{36}$/iu.test(String(value[key]??"")))||!Number.isSafeInteger(value.mandateVersion)||Number(value.mandateVersion)<1||!Number.isSafeInteger(value.proposalVersion)||Number(value.proposalVersion)<1||!["commandHash","proposalHash"].every((key)=>/^[a-f0-9]{64}$/u.test(String(value[key]??"")))||typeof value.ownerId!=="string"||!value.ownerId.trim()||value.namespace!==`v24-paper-v2-${String(value.testRunId)}`||typeof value.clientOrderId!=="string"||!value.clientOrderId.trim()||typeof value.amount!=="string"||!/^\d+\.\d{2}$/u.test(value.amount)) return {status:422,body:{error:"exact C5 local reservation identity and amount are required"}};
+    if(!this.mandates?.readLocalOrderReservation)return {status:503,body:{error:"C5 local reservation verification is not configured"}};
+    try {
+      const row=await this.mandates.readLocalOrderReservation({reservationId:String(value.reservationId),mandateId:String(value.mandateId),mandateVersion:Number(value.mandateVersion),ownerId:String(value.ownerId),accountId:String(value.accountId),testRunId:String(value.testRunId),clientOrderId:String(value.clientOrderId),commandHash:String(value.commandHash),proposalId:String(value.proposalId),proposalVersion:Number(value.proposalVersion),proposalHash:String(value.proposalHash),amount:String(value.amount)});
+      return row?{status:200,body:{status:"VERIFIED",reservationId:row.reservationId,amount:row.amount,reservationStatus:row.status}}:{status:409,body:{status:"MISMATCH"}};
+    } catch {return {status:503,body:{error:"C5 local reservation storage unavailable"}};}
   }
 
   private async receiveStrategySnapshot(raw: string): Promise<GovernanceResponse> {

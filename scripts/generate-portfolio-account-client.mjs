@@ -57,7 +57,7 @@ const verbs = new Set(["get", "post", "put", "patch", "delete"]);
 const operations = Object.entries(document.paths ?? {}).flatMap(([path, item]) => Object.entries(item)
   .filter(([verb]) => verbs.has(verb))
   .map(([verb, operation]) => ({ path, verb, operation })));
-if (operations.length !== 7) throw new Error(`Expected seven Portfolio Account operations, found ${operations.length}`);
+if (operations.length !== 8) throw new Error(`Expected eight Portfolio Account operations, found ${operations.length}`);
 
 const lines = [
   "// GENERATED FILE. DO NOT EDIT. Source: packages/contracts/openapi/portfolio-account.v1.json",
@@ -85,6 +85,7 @@ for (const { path, verb, operation } of operations) {
   const parameters = operation.parameters ?? [];
   const pathParams = parameters.filter((item) => item.in === "path");
   const headerParams = parameters.filter((item) => item.in === "header");
+  const queryParams = parameters.filter((item) => item.in === "query");
   const body = operation.requestBody?.content?.["application/json"]?.schema;
   const successResponses = Object.entries(operation.responses ?? {}).filter(([status]) => status.startsWith("2"));
   const responseSchemas = successResponses.map(([, response]) => response.content?.["application/json"]?.schema).filter(Boolean);
@@ -93,12 +94,13 @@ for (const { path, verb, operation } of operations) {
   const methodArgs = [
     ...pathParams.map((item) => `${item.name}: ${tsType(item.schema ?? {})}`),
     ...headerParams.map((item) => `${item.name === "x-stockquant-owner-id" ? "ownerId" : item.name}: ${tsType(item.schema ?? {})}`),
+    ...queryParams.map((item) => `${item.name}: ${tsType(item.schema ?? {})}`),
     ...(body ? [`body: ${tsType(body)}`] : []),
   ];
   const route = path.replace(/\{([A-Za-z0-9_]+)\}/gu, (_, key) => `\${encodeURIComponent(${key})}`);
   const headers = headerParams.length ? `, { ${headerParams.map((item) => `"${item.name}": ${item.name === "x-stockquant-owner-id" ? "ownerId" : item.name}`).join(", ")} }` : "";
   lines.push(`  async ${operation.operationId}(${methodArgs.join(", ")}): Promise<${responseType}> {`);
-  lines.push(`    const path = \`${route}\`;`);
+  lines.push(`    const path = \`${route}\`${queryParams.length ? ` + "?" + new URLSearchParams({ ${queryParams.map((item) => item.name).join(", ")} }).toString()` : ""};`);
   lines.push(`    return this.send<${responseType}>("${verb.toUpperCase()}", path${body ? ", body" : ", undefined"}${headers});`);
   lines.push("  }");
   lines.push("");

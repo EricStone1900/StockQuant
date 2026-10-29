@@ -2,6 +2,8 @@ import type { Pool, PoolClient } from "pg";
 import { withMinuteBarContextDefaults, type MinuteBarPage, type MinuteImportBar, type MinuteImportRecord, type PersistedMinuteImport, type PublishMinuteImportInput, type PublishMinuteImportStreamInput, type StreamingMinuteImportParse } from "../domain/minute-import.js";
 import type { MinuteImportPort } from "../ports/minute-import.js";
 import { checkHistoricalContext, historicalContentSha256, type HistoricalContextKind, type HistoricalContextVersion } from "../domain/historical-context.js";
+import { MinuteImportStorageQuotaExceeded } from "../domain/minute-import.js";
+export const MINUTE_IMPORT_MAX_PUBLISHED_ROWS = 1_440_000;
 export type { MinuteBarPage, MinuteImportBar, MinuteImportRecord, PersistedMinuteImport, StreamingMinuteImportParse } from "../domain/minute-import.js";
 
 type MinuteImportRow = {
@@ -125,6 +127,7 @@ export class MinuteImportRepository implements MinuteImportPort {
         await client.query("COMMIT");
         return { record: mapRow(existing.rows[0]), idempotent: true };
       }
+      await this.reservePublishedRows(client, input.bars.length);
       const version = `v2.2-import-${importKeySha256.slice(0, 12)}`;
       const record = {
         importId: `minute-import-${importKeySha256.slice(0, 24)}`,
@@ -234,6 +237,7 @@ export class MinuteImportRepository implements MinuteImportPort {
         await client.query("COMMIT");
         return { record: mapRow(existing.rows[0]), idempotent: true };
       }
+      await this.reservePublishedRows(client, status === "PUBLISHED" ? stagedRows : 0);
       const record = {
         importId: `minute-import-${importKeySha256.slice(0, 24)}`,
         version: `v2.2-import-${importKeySha256.slice(0, 12)}`,
@@ -256,6 +260,17 @@ export class MinuteImportRepository implements MinuteImportPort {
       await client.query("ROLLBACK").catch(() => undefined);
       throw error;
     } finally { client.release(); }
+  }
+
+  private async reservePublishedRows(client: PoolClient, incoming: number): Promise<void> {
+    if (incoming <= 0) return;
+    // Serialize quota checks across all import paths and service instances.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", ["minute-import-published-row-quota"]);
+    const current = await client.query<{ used: string }>("SELECT COALESCE(sum(accepted),0)::text AS used FROM market_data_minute_imports WHERE status='PUBLISHED'");
+    const used = Number(current.rows[0]?.used ?? 0);
+    if (!Number.isSafeInteger(used) || used + incoming > MINUTE_IMPORT_MAX_PUBLISHED_ROWS) {
+      throw new MinuteImportStorageQuotaExceeded(`published minute storage quota exceeded (${used}+${incoming}>${MINUTE_IMPORT_MAX_PUBLISHED_ROWS} bars)`);
+    }
   }
 
   async find(version: string): Promise<MinuteImportRecord | null> {

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v24-local-snapshot-request-v1.schema.json",
+  "title": "V24LocalSnapshotRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scope",
+    "sessionDate"
+  ],
+  "properties": {
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "market",
+        "ownerId",
+        "accountId",
+        "namespace",
+        "testRunId"
+      ],
+      "properties": {
+        "market": {
+          "const": "CN_A"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "accountId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "testRunId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "sessionDate": {
+      "enum": [
+        "2024-01-04",
+        "2024-01-05"
+      ]
+    }
+  }
+}

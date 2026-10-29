@@ -45,7 +45,8 @@ test("V2.2 large CSV resumes missing chunks after page reload", async ({ page })
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ uploadId: activeUploadId, status: "OPEN", expectedBytes: 848055, expectedChunks: 2, receivedBytes: acceptedChunks.size * 524288, receivedChunks: [...acceptedChunks], result: null }) });
     }
     if (method === "POST" && url.pathname.endsWith("/preview")) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ totalRows: 16000, acceptedRows: 16000, errors: [], bars: [] }) });
-    if (method === "POST" && url.pathname.endsWith("/finalize")) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "PUBLISHED", accepted: 16000, version: "large-fixture-v1", uploadStatus: "COMPLETED" }) });
+    if (method === "POST" && url.pathname.endsWith("/finalize-queued")) return route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ uploadId: activeUploadId, ownerId: "test-user", status: "QUEUED", attempt: 0, error: null, result: null }) });
+    if (method === "GET" && url.pathname.endsWith("/finalization")) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ uploadId: activeUploadId, ownerId: "test-user", status: "COMPLETED", attempt: 1, error: null, result: { status: 201, body: { status: "PUBLISHED", accepted: 16000, version: "large-fixture-v1", uploadStatus: "COMPLETED" } } }) });
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ uploadId: activeUploadId, status: "CANCELLED", expectedBytes: 848055, expectedChunks: 2, receivedBytes: 0, receivedChunks: [], result: null }) });
   });
   const rows = ["securityId,timestamp,open,high,low,close,volume,amount"];
@@ -78,8 +79,10 @@ test("V2.2 large CSV resumes missing chunks after page reload", async ({ page })
   expect(calls.filter((call) => call.includes("/chunks/0"))).toHaveLength(1);
   expect(calls.filter((call) => call.includes("/chunks/1"))).toHaveLength(2);
   await page.getByRole("button", { name: "确认并导入" }).click();
+  await expect(page.getByTestId("v22-upload-finalization-state")).toContainText("QUEUED");
+  await page.getByTestId("v22-read-upload-finalization").click();
   await expect(page.getByTestId("v22-evidence")).toContainText("large-fixture-v1");
-  expect(calls.filter((call) => call.endsWith("/finalize"))).toHaveLength(1);
+  expect(calls.filter((call) => call.endsWith("/finalize-queued"))).toHaveLength(1);
 });
 
 

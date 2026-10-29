@@ -36,6 +36,7 @@ base = `http://127.0.0.1:${port}`;
 try {
   await start(port);
   const ready = await read("/ready"); const readyBody = await ready.json();
+
   assert.equal(readyBody.samplingTaskWorker.enabled, true, "sampling lifecycle worker should poll after database migration");
   assert.equal(readyBody.dailyBarCompletionWorker.enabled, true, "daily-bar completion worker should poll after queue migration");
   assert.equal(readyBody.dailyBarCloseScheduler.enabled, true, "close scheduler should poll after schema v18 migration");
@@ -127,6 +128,49 @@ try {
   assert.equal(body.policies.find((policy) => policy.policyId === "orderExecution").enabled, false);
   const restoredDaily = await read(dailyLatestPath); const restoredDailyBody = await restoredDaily.json();
   assert.equal(restoredDaily.status, 200); assert.equal(restoredDailyBody.task.taskId, dailyBarCompletionBody.task.taskId); assert.equal(restoredDailyBody.task.state, "COMPLETED"); assert.equal(restoredDailyBody.completion.completionId, dailyCompletedBeforeRestart.completion.completionId); assert.equal(restoredDailyBody.completion.bars.length, 2, "daily-bar completion result must survive service restart");
+  const sessionsQuery = new URLSearchParams({ ownerId: scope.ownerId, accountId: scope.accountId, namespace: scope.namespace, testRunId: scope.testRunId, sourceId: restoredDailyBody.completion.sourceId, dataVersion: restoredDailyBody.completion.dataVersion, dataMode: "FIXTURE", asOf: "2026-10-17T00:00:00Z" });
+  sessionsQuery.append("sessionDate", "2026-10-15"); sessionsQuery.append("sessionDate", "2026-10-16");
+  const sessionsPath = `/v2/daily-bars/completions/sessions?${sessionsQuery}`;
+  assert.equal((await fetch(`${base}${sessionsPath}`)).status, 401, "session read requires service identity");
+  const sessionsResponse = await read(sessionsPath); assert.equal(sessionsResponse.status, 200); assert.deepEqual(await sessionsResponse.json(), { completions: null }, "one session cannot satisfy a two-session query");
+  sessionsQuery.delete("sessionDate"); sessionsQuery.append("sessionDate", "2026-10-16"); sessionsQuery.append("sessionDate", "2026-10-15");
+  assert.equal((await read(`/v2/daily-bars/completions/sessions?${sessionsQuery}`)).status, 422, "reversed sessions fail closed");
+  const pairScope = { market: "CN_A", ownerId: scope.ownerId, accountId: "11111111-1111-4111-8111-111111111114", namespace: "c5-pair-fixture", testRunId: "11111111-1111-4111-8111-111111111115" };
+  const pairWatchlist = await put("/v2/watchlist/scoped", { ownerId: pairScope.ownerId, accountId: pairScope.accountId, namespace: pairScope.namespace, testRunId: pairScope.testRunId, holdings: [], inFlightOrders: [], candidates: ["600000.SH"] }); assert.equal(pairWatchlist.status, 200);
+  for (const fixtureVersion of ["v24-c5-prior-20261014-1", "v24-c5-prior-20261015-1"]) {
+    const queued = await post("/v2/daily-bars/fixture/complete", { scope: pairScope, fixtureVersion }); assert.equal(queued.status, 200);
+  }
+  const pairQuery = new URLSearchParams({ ownerId: pairScope.ownerId, accountId: pairScope.accountId, namespace: pairScope.namespace, testRunId: pairScope.testRunId, sourceId: "fixture:v24-c5-prior-daily-1", dataVersion: "v24-c5-prior-daily-1", dataMode: "FIXTURE", asOf: "2026-10-15T15:10:00+08:00" });
+  pairQuery.append("sessionDate", "2026-10-14"); pairQuery.append("sessionDate", "2026-10-15");
+  let pair; for (let i = 0; i < 50; i += 1) { pair = await (await read(`/v2/daily-bars/completions/sessions?${pairQuery}`)).json(); if (pair.completions) break; await delay(100); }
+  assert.deepEqual(pair.completions?.map((completion) => [completion.sessionDate, completion.bars[0].close]), [["2026-10-14", "10.0000"], ["2026-10-15", "10.2500"]]);
+  pairQuery.set("asOf", "2026-10-15T15:04:30+08:00");
+  assert.equal((await (await read(`/v2/daily-bars/completions/sessions?${pairQuery}`)).json()).completions, null, "future completion must not be returned");
+  const localScope = { market: "CN_A", ownerId: scope.ownerId, accountId: "11111111-1111-4111-8111-111111111116", namespace: "c5-local-multiday-fixture", testRunId: "11111111-1111-4111-8111-111111111117" };
+  assert.equal((await put("/v2/watchlist/scoped", { ownerId: localScope.ownerId, accountId: localScope.accountId, namespace: localScope.namespace, testRunId: localScope.testRunId, holdings: [], inFlightOrders: [], candidates: ["600000.SH"] })).status, 200);
+  const localDates = ["20240102", "20240103", "20240104", "20240105", "20240108", "20240109", "20240110"];
+  for (const date of localDates) {
+    const fixtureVersion = `v24-c5-local-daily-${date}-1`;
+    const queued = await post("/v2/daily-bars/fixture/complete", { scope: localScope, fixtureVersion });
+    assert.equal(queued.status, 200, `local daily task ${date}: ${await queued.text()}`);
+  }
+  const localDb = new Pool({ connectionString: process.env.MARKET_DATA_DATABASE_URL });
+  let localRows;
+  try {
+    for (let i = 0; i < 150; i += 1) {
+      localRows = await localDb.query("SELECT session_date::text AS date,result_json->'bars'->0->>'close' AS close,completion_id FROM market_data_daily_bar_completion_tasks WHERE scope_json->>'testRunId'=$1 AND source_id='fixture:v24-c5-local-daily-1' ORDER BY session_date", [localScope.testRunId]);
+      if (localRows.rowCount === 7) break;
+      await delay(100);
+    }
+  } finally { await localDb.end(); }
+  assert.deepEqual(localRows.rows.map(({ date, close }) => [date, close]), [["2024-01-02", "10.0000"], ["2024-01-03", "10.2500"], ["2024-01-04", "10.0000"], ["2024-01-05", "10.0000"], ["2024-01-08", "10.0000"], ["2024-01-09", "10.0000"], ["2024-01-10", "10.0000"]]);
+  assert.equal(new Set(localRows.rows.map((row) => row.completion_id)).size, 7);
+  const localQuery = new URLSearchParams({ ownerId: localScope.ownerId, accountId: localScope.accountId, namespace: localScope.namespace, testRunId: localScope.testRunId, sourceId: "fixture:v24-c5-local-daily-1", dataVersion: "v24-c5-local-daily-1", dataMode: "FIXTURE", asOf: "2024-01-05T15:10:00+08:00" });
+  localQuery.append("sessionDate", "2024-01-04"); localQuery.append("sessionDate", "2024-01-05");
+  const localPair = await (await read(`/v2/daily-bars/completions/sessions?${localQuery}`)).json();
+  assert.deepEqual(localPair.completions?.map((item) => item.completionId), localRows.rows.slice(2, 4).map((row) => row.completion_id));
+  localQuery.set("asOf", "2024-01-05T15:04:59+08:00");
+  assert.equal((await (await read(`/v2/daily-bars/completions/sessions?${localQuery}`)).json()).completions, null);
   const otherDailyScope = new URLSearchParams({ ownerId: scope.ownerId, accountId: scope.accountId, namespace: scope.namespace, testRunId: "11111111-1111-4111-8111-111111111199" });
   assert.equal((await (await read(`/v2/daily-bars/completions/latest?${otherDailyScope}`)).json()).completion, null, "daily-bar result must remain isolated to the current TestRun");
   const latestQuery = new URLSearchParams({ ownerId: scope.ownerId, accountId: scope.accountId, namespace: scope.namespace, testRunId: scope.testRunId });
@@ -183,8 +227,34 @@ try {
   assert.equal(sourceInventoryResponse.status, 200); assert.equal(tencentSource.samplingHealth.state, "BLOCKED_SOURCE_AUTHORIZATION");
   assert.equal(tencentSource.samplingHealth.lastErrorCode, "SOURCE_AUTHORIZATION_REQUIRED");
   assert.equal(tencentSource.circuit, "HEALTHY", "manual breaker state must remain separate from durable provider authorization health");
-  assert.equal(sourceInventory.sources.find((source) => source.sourceId === "eastmoney-rss").samplingHealth, null, "news inventory must not report quote sampling health");
+  assert.equal(sourceInventory.sources.find((source) => source.sourceId === "eastmoney-news").samplingHealth, null, "news inventory must not report quote sampling health");
   const repeatedIngest = await post("/v2/news/fixture/ingest", {}); const repeatedIngestBody = await repeatedIngest.json();
   assert.equal(repeatedIngestBody.records.filter((item) => item.created).length, 0, "restarting and replaying a Fixture must not duplicate revisions");
+  const c5RunId = "11111111-1111-4111-8111-111111111141";
+  const c5Scope = { market: "CN_A", ownerId: "c5-snapshot-http-owner", accountId: "11111111-1111-4111-8111-111111111142", namespace: `v24-paper-v2-${c5RunId}`, testRunId: c5RunId };
+  const c5Query = new URLSearchParams({ ownerId: c5Scope.ownerId, accountId: c5Scope.accountId, namespace: c5Scope.namespace, testRunId: c5Scope.testRunId, sessionDate: "2024-01-04", evaluatedAt: "2024-01-04T09:31:50+08:00" });
+  const c5Path = `/v2/sampling/c5-local/selection?${c5Query}`;
+  const c5Unauthorized = await fetch(`${base}${c5Path}`); assert.equal(c5Unauthorized.status, 401);
+  const c5WriteUnauthorized = await fetch(`${base}/v2/sampling/c5-local/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: c5Scope, sessionDate: "2024-01-04" }) }); assert.equal(c5WriteUnauthorized.status, 401);
+  const c5Initial = await read(c5Path); assert.equal((await c5Initial.json()).status, "WAITING");
+  const c5Created = await post("/v2/sampling/c5-local/plan", { scope: c5Scope, sessionDate: "2024-01-04" }); const c5CreatedBody = await c5Created.json();
+  assert.equal(c5Created.status, 200); assert.equal(c5CreatedBody.externalRequests, 0); assert.equal(c5CreatedBody.placeOrders, false);
+  const c5Replay = await post("/v2/sampling/c5-local/plan", { scope: c5Scope, sessionDate: "2024-01-04" }); assert.equal((await c5Replay.json()).created, false);
+  let c5Selected;
+  for (let i = 0; i < 50; i += 1) { const response = await read(c5Path); c5Selected = await response.json(); if (c5Selected.status === "SELECTED") break; await delay(100); }
+  assert.equal(c5Selected?.status, "SELECTED", `C5 local Worker did not complete: ${JSON.stringify(c5Selected)} ${output}`);
+  assert.equal(c5Selected.observation.price, "10.2500"); assert.equal(c5Selected.taskId, c5CreatedBody.taskId);
+  const c5SellQuery = new URLSearchParams(c5Query); c5SellQuery.set("sessionDate", "2024-01-05"); c5SellQuery.set("evaluatedAt", "2024-01-05T09:31:50+08:00");
+  const c5SellPath = `/v2/sampling/c5-local/selection?${c5SellQuery}`;
+  const c5Sell = await post("/v2/sampling/c5-local/plan", { scope: c5Scope, sessionDate: "2024-01-05" }); const c5SellBody = await c5Sell.json(); assert.equal(c5Sell.status, 200);
+  let c5SellSelected;
+  for (let i = 0; i < 50; i += 1) { c5SellSelected = await (await read(c5SellPath)).json(); if (c5SellSelected.status === "SELECTED") break; await delay(100); }
+  assert.equal(c5SellSelected?.status, "SELECTED"); assert.equal(c5SellSelected.observation.price, "10.0000"); assert.equal(c5SellSelected.taskId, c5SellBody.taskId);
+  const foreignC5 = new URLSearchParams(c5Query); foreignC5.set("ownerId", "foreign");
+  assert.equal((await (await read(`/v2/sampling/c5-local/selection?${foreignC5}`)).json()).status, "WAITING");
+
+  await stop(); output = ""; await start(port);
+  const c5AfterRestart = await (await read(c5Path)).json(); assert.equal(c5AfterRestart.status, "SELECTED"); assert.equal(c5AfterRestart.taskId, c5CreatedBody.taskId); assert.equal(c5AfterRestart.observation.price, "10.2500");
+  const c5SellAfterRestart = await (await read(c5SellPath)).json(); assert.equal(c5SellAfterRestart.status, "SELECTED"); assert.equal(c5SellAfterRestart.taskId, c5SellBody.taskId); assert.equal(c5SellAfterRestart.observation.price, "10.0000");
   console.log(JSON.stringify({ status: "PASS", defaultIntervalMinutes: 30, updatedIntervalMinutes: 20, invalidInterval: 422, processRestartRecovery: true, taskIdempotency: true, samplingTaskWorker: readyBody.samplingTaskWorker, sourceHealth: tencentSource.samplingHealth, manualCircuit: tencentSource.circuit, blockedTask: restoredBlockedTickBody.execution, fixtureTask: { task: restoredTaskBody.task, execution: restoredTaskBody.execution }, persistence: body.persistence, independentPolicies: body.policies, independentPoliciesDeclared: body.scheduleSeparation, monitorConsumer: { enabledByDefault: false, policyEnableDisable: [true, false], deliveredEvents: monitorEvents.length, serviceId: monitorEvents[0].serviceId, taskId: monitorEvents[0].payload.taskId, scoped: true, observations: monitorEvents[0].payload.observations.length, restartRecovery: true }, dailyBars: { closeScheduler: { closeTick, repeat: closeRetry, autoCompleted: scheduledLatest.task.state }, taskId: restoredDailyBody.task.taskId, completionId: restoredDailyBody.completion.completionId, state: restoredDailyBody.task.state, bars: restoredDailyBody.completion.bars.length, idempotency: true, worker: readyBody.dailyBarCompletionWorker, restartRecovery: true, scopeIsolation: true }, newsFixture: { version: newsIngestBody.fixtureVersion, revisions: newsHistoryBody.histories.length, repeatedIngestIdempotent: true }, liveNewsAndQuote: "BLOCKED_403", externalRequests: 0 }));
 } finally { await stop(); await new Promise((resolve) => monitor.close(resolve)); }

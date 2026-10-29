@@ -32,6 +32,12 @@ V1.2双市场研究样本的当前版本为[`v1.2-market-data-5`](./v1/v1.2/v1.2
 
 V2.4 C5的[`v24-sampled-paper-composition-1`](./v2/v2.4/paper-execution-v2/manifest.json)将V2.1冻结快照采样Fixture与测试专用信号/执行窗口组合；它只用于FIXTURE/PAPER/FAKE同Run验收，证券池保留V2.1源Fixture要求的三只证券范围，实际Paper信号只针对600000.SH。配套的[`v24-c5-daily-bars-1`](./v2/v2.4/c5-daily-bar-completion/manifest.json)为同一三证券范围提供独立合成`DAILY_BAR`完成输入，并验证持久任务重放；两者均不启用真实来源、策略或常驻调度。
 
+本地范围新增[`v24-c5-local-engineering-1`](./v2/v2.4/c5-local-engineering-v1/manifest.json)，两日预热及五日合成评估，固定BUY/SELL/HOLD、费用与卖出款次会话结算，单独冻结快照与故障类型。它是未来同Run后台链的输入合同，纯规则与金额预期已检查，尚不证明链路已执行或真实市场能力。
+
+[`v24-c5-local-mandate-schedule-1`](./v2/v2.4/c5-local-mandate-schedule-v1/manifest.json)为上述输入补充五个逐会话授权时间窗口，引用原输入哈希；原输入中跨日的 `mandate.validFrom` / `expiresAt` 仅为早期纯规则测试字段，不能直接用于治理服务。本地后台链使用此单独冻结的逐日窗口，逐日授权必须由治理服务独立创建并激活，上一份必须先暂停；时间表本身不构成授权。样本仍为合成数据，未证明完整链路。
+
+本地BUY、SELL会话分别使用独立合成点快照 [`20240104`](./v2/v2.4/c5-local-snapshot-20240104/manifest.json) 和 [`20240105`](./v2/v2.4/c5-local-snapshot-20240105/manifest.json)，各固定观察时间、价格和Hash；它们不是分钟K线。Market Data 的本地计划及完成凭据仅覆盖这两个冻结Fixture，不代表实时观察或来源授权。
+
 ## 场景可复现性
 
 每个场景固定输入、规则版本、Clock、seed、故障计划和预期断言。并发故障还要保存实际注入顺序；seed 不能替代事件序列。重新运行创建新 testRunId/namespace，但引用相同 Fixture 版本和 Hash。

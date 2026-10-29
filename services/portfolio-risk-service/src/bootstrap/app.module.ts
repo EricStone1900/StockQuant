@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Headers, HttpCode, Injectable, Module, NotFoundException, Param, Post, Query, ServiceUnavailableException, UnauthorizedException, UnprocessableEntityException } from "@nestjs/common";
 import { Pool } from "pg";
 import { arePortfolioServiceCredentialsValid, authorizePortfolioRequest, loadPortfolioCredentials } from "../application/service-auth.js";
 import { AccountService } from "../application/account-service.js";
@@ -184,6 +184,23 @@ export class AccountController {
       if (error instanceof Error && error.message.startsWith("INVALID_") || error instanceof Error && error.message === "RESOLUTION_EVIDENCE_REQUIRED") throw new BadRequestException(error.message);
       if (error instanceof Error && error.message === "ACCOUNT_SCOPE_MISMATCH") throw new ForbiddenException(error.message);
       if (error instanceof Error && ["RESERVATION_ALREADY_RESOLVED", "RESERVATION_FILL_REQUIRED"].includes(error.message)) throw new ConflictException(error.message);
+      throw error;
+    }
+  }
+
+  @Get(":accountId/sellable")
+  async sellable(@Headers("x-stockquant-service-id") serviceId: string | undefined, @Headers("authorization") authorization: string | undefined, @Headers("x-stockquant-owner-id") ownerId: string | undefined, @Param("accountId") accountId: string, @Query() query: Record<string, unknown>) {
+    assertService(serviceId, authorization, "GET", `/internal/v1/accounts/${accountId}/sellable`);
+    if (!ownerId) throw new ForbiddenException("owner scope is required");
+    if (Object.keys(query).sort().join(",") !== "asOf,namespace,security,testRunId" || [query.asOf, query.namespace, query.security, query.testRunId].some((v) => typeof v !== "string" || !v)) throw new BadRequestException("invalid sellable query");
+    try {
+      const quantity = await this.container.accounts.sellable({ accountId, ownerId, namespace: query.namespace as string, testRunId: query.testRunId as string, security: query.security as string, asOf: query.asOf as string });
+      if (quantity === null) throw new NotFoundException("account was not found");
+      return { accountId, ownerId, namespace: query.namespace, testRunId: query.testRunId, security: query.security, asOf: query.asOf, sellableQuantity: quantity };
+    } catch (error) {
+      if (error instanceof Error && error.message === "INVALID_SELLABLE_QUERY") throw new BadRequestException(error.message);
+      if (error instanceof Error && error.message === "ACCOUNT_SCOPE_MISMATCH") throw new ForbiddenException(error.message);
+      if (error instanceof Error && error.message === "SELLABLE_HISTORICAL_STATE_UNAVAILABLE") throw new ConflictException(error.message);
       throw error;
     }
   }

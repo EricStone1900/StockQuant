@@ -243,11 +243,18 @@ run("persistent account resource reservations", () => {
       });
       await repository.resolveReservation({ accountId: v24AccountId, reservationId: buy.reservation.reservationId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, outcome: "FILLED", evidenceRef: `fill:${buyFillId}` });
 
+      const sellableScope = { accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, security: "600000.SH" };
+      await expect(repository.sellable({ ...sellableScope, asOf: "2024-01-03T01:00:00Z" })).rejects.toThrow("SELLABLE_HISTORICAL_STATE_UNAVAILABLE");
+      await expect(repository.sellable({ ...sellableScope, ownerId: "foreign", asOf: "2024-01-05T01:00:00Z" })).rejects.toThrow("ACCOUNT_SCOPE_MISMATCH");
+      await expect(repository.sellable({ ...sellableScope, asOf: "2024-01-04T02:00:00Z" })).resolves.toBe(0);
+      await expect(repository.sellable({ ...sellableScope, asOf: "2024-01-05T01:00:00Z" })).resolves.toBe(100);
       const sell = await repository.reserveResource({
         accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner,
         idempotencyKey: "v24-crossday-sell", clientOrderId: "v24-crossday-sell", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 100,
         asOf: "2024-01-05T01:00:00.000Z",
       });
+      await expect(repository.sellable({ ...sellableScope, asOf: "2024-01-05T01:00:00Z" })).resolves.toBe(0);
+      await expect(repository.reserveResource({ accountId: v24AccountId, namespace: v24Namespace, testRunId: v24RunId, ownerId: v24Owner, idempotencyKey: "concurrent-sell", clientOrderId: "concurrent-sell", side: "SELL", currency: "CNY", cashAmount: null, security: "600000.SH", quantity: 100, asOf: "2024-01-05T01:00:00Z" })).rejects.toThrow("INSUFFICIENT_SELLABLE_QUANTITY");
       const sellFillId = randomUUID();
       await repository.recordFill({
         accountId: v24AccountId, namespace: v24Namespace, externalFillId: sellFillId, security: "600000.SH", quantity: 100,

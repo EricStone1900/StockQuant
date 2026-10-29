@@ -90,6 +90,18 @@ test("existing run export keeps its route but rejects filesystem traversal ids",
   assert.equal(request.url, `http://127.0.0.1:3000/api/v1/acceptance/v2/v2.2/runs/${testRunId}`);
 });
 
+test("V2.4 C5 local engineering export uses its own route and rejects incomplete or misbound runs", () => {
+  const selection = parseEvidenceExportArgs(["--stage", "V2.4", "--scenario", "c5-local-engineering", "--run", testRunId]);
+  assert.deepEqual(selection, { stage: "V2.4", runId: testRunId, scenario: "c5-local-engineering" });
+  const request = evidenceRequest({ ...selection, baseUrl: "http://127.0.0.1:3000", sessionCookie: "sq_session=local-owner" });
+  assert.equal(request.url, `http://127.0.0.1:3000/api/v1/acceptance/v2/v2.4/local-engineering/runs/${testRunId}`);
+  assert.equal(request.outputDirectory, `evidence/local/V2.4/${testRunId}`);
+  const responseBody = { stageId: "V2.4", testRunId, scenarioId: "c5-local-engineering", scenarioVersion: "1.0.0", status: "COMPLETED", assertions: [{ status: "PASS" }], evidence: { scopeId: "C5_LOCAL_ENGINEERING_V1", humanAcceptance: "NOT_RUN" } };
+  assert.equal(buildEvidenceBundle({ ...selection, responseBody }).businessValidation, "PASS");
+  assert.throws(() => buildEvidenceBundle({ ...selection, responseBody: { ...responseBody, status: "WAITING" } }), /completed passing assertions/u);
+  assert.throws(() => parseEvidenceExportArgs(["--stage", "V2.4", "--scenario", "normal", "--run", testRunId]), /only supported/u);
+});
+
 test("V1 stage exports are stored under the stage-scoped version-gate directory", () => {
   for (const stage of ["V1.1", "V1.2", "V1.5"]) {
     const request = evidenceRequest({ stage, runId: testRunId, baseUrl: "http://127.0.0.1:3000", sessionCookie: "sq_session=local-owner" });

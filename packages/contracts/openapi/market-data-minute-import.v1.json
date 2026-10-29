@@ -505,6 +505,7 @@
               "enum": [
                 "preview",
                 "finalize",
+                "finalize-queued",
                 "cancel"
               ]
             }
@@ -522,6 +523,9 @@
           }
         },
         "responses": {
+          "202": {
+            "description": "Upload finalization queued durably"
+          },
           "200": {
             "description": "Action result",
             "content": {
@@ -547,6 +551,25 @@
           "422": {
             "description": "Action rejected"
           }
+        }
+      }
+    },
+    "/v2/minute/{format}/uploads/{uploadId}/finalization": {
+      "get": {
+        "operationId": "getMarketDataMinuteUploadFinalization",
+        "summary": "Read owner-scoped durable upload finalization status",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "type": "string", "const": "platform-api-service" } },
+          { "name": "x-stockquant-owner-id", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "format", "in": "path", "required": true, "schema": { "type": "string", "enum": ["csv", "parquet"] } },
+          { "name": "uploadId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Durable job state and result", "content": { "application/json": { "schema": { "type": "object", "required": ["uploadId", "ownerId", "status", "attempt"], "properties": { "uploadId": { "type": "string", "format": "uuid" }, "ownerId": { "type": "string" }, "status": { "type": "string", "enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"] }, "attempt": { "type": "integer", "minimum": 0 }, "error": { "type": ["string", "null"] }, "result": {} } } } } },
+          "401": { "description": "Service identity required" },
+          "403": { "description": "Owner scope rejected" },
+          "404": { "description": "Upload not found" }
         }
       }
     },

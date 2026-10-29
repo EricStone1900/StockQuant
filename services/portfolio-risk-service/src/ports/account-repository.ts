@@ -3,6 +3,7 @@ import type { AccountSnapshot, CorrectFillFeeCommand, InitializeAccountCommand, 
 export interface AccountRepository {
   initialize(command: InitializeAccountCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }>;
   snapshot(accountId: string, ownerId: string): Promise<AccountSnapshot | null>;
+  sellable(input: { accountId: string; ownerId: string; namespace: string; testRunId: string; security: string; asOf: string }): Promise<number | null>;
   accountExists(accountId: string): Promise<boolean>;
   settleDue(accountId: string, asOf: string): Promise<{ settledFillIds: string[] }>;
   recordFill(command: RecordFillCommand): Promise<{ snapshot: AccountSnapshot; replayed: boolean }>;

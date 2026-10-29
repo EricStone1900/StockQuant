@@ -1,0 +1,85 @@
+{
+  "testRunId": "81d65be4-c610-4c85-9218-23f6129f89d0",
+  "stageId": "V2.1",
+  "scenarioId": "rejection",
+  "scenarioVersion": "1.2.0-fixture",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v2-1-rejection-81d65be4-c610-4c85-9218-23f6129f89d0",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": [
+        {
+          "task": null,
+          "decision": "CLOSED",
+          "expected": "CLOSED",
+          "scheduledAt": "2026-10-16T04:00:00.000Z"
+        },
+        {
+          "task": null,
+          "decision": "CLOSED",
+          "expected": "CLOSED",
+          "scheduledAt": "2026-10-17T01:30:00.000Z"
+        },
+        {
+          "task": null,
+          "decision": "UNKNOWN_CALENDAR",
+          "expected": "UNKNOWN_CALENDAR",
+          "scheduledAt": "2027-01-04T01:30:00.000Z"
+        }
+      ],
+      "status": "PASS",
+      "expected": "lunch, closed day and unknown calendar create no task",
+      "assertionId": "V2.1-CALENDAR-REJECTION-001"
+    },
+    {
+      "actual": {
+        "status": 422,
+        "errorCode": "REQUIRED_SECURITIES_EXCEED_LIMIT"
+      },
+      "status": "PASS",
+      "expected": {
+        "code": "REQUIRED_SECURITIES_EXCEED_LIMIT",
+        "status": 422
+      },
+      "assertionId": "V2.1-WATCHLIST-REJECTION-001"
+    },
+    {
+      "actual": {
+        "max": 100,
+        "count": 0,
+        "ownerId": "acceptance-owner-1",
+        "accountId": "ed9abe28-2c3c-43d2-b54a-10ca9148d9f8",
+        "namespace": "v2-1-rejection-81d65be4-c610-4c85-9218-23f6129f89d0",
+        "testRunId": "81d65be4-c610-4c85-9218-23f6129f89d0",
+        "updatedAt": null,
+        "securities": [],
+        "requiredCount": 0,
+        "omittedCandidates": []
+      },
+      "status": "PASS",
+      "expected": "rejected candidates do not create or replace a watchlist",
+      "assertionId": "V2.1-WATCHLIST-ATOMICITY-001"
+    }
+  ],
+  "evidence": {
+    "scope": {
+      "market": "CN_A",
+      "ownerId": "acceptance-owner-1",
+      "accountId": "ed9abe28-2c3c-43d2-b54a-10ca9148d9f8",
+      "namespace": "v2-1-rejection-81d65be4-c610-4c85-9218-23f6129f89d0",
+      "testRunId": "81d65be4-c610-4c85-9218-23f6129f89d0"
+    },
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE",
+    "rejectionCode": "REQUIRED_SECURITIES_EXCEED_LIMIT",
+    "environmentMode": "PAPER",
+    "humanAcceptance": "NOT_RUN",
+    "rejectionStatus": 422,
+    "businessValidation": "PASS",
+    "rejectedRequiredSecurityCount": 101
+  },
+  "createdAt": "2026-10-21T13:00:10.857Z",
+  "completedAt": "2026-10-21T13:00:10.862Z"
+}

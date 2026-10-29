@@ -478,6 +478,124 @@
         }
       }
     },
+    "/v2/sampling/c5-local/plan": {
+      "post": {
+        "operationId": "enqueueV24LocalSnapshot",
+        "summary": "Queue a frozen isolated local C5 snapshot task",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/v24-local-snapshot-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan and task are persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v24-local-snapshot-enqueue-result-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service credential required"
+          },
+          "422": {
+            "description": "Invalid fixture scope"
+          }
+        }
+      }
+    },
+    "/v2/sampling/c5-local/selection": {
+      "get": {
+        "operationId": "getV24LocalSnapshotSelection",
+        "summary": "Read scoped C5 Fixture barrier selection as of injected clock",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sessionDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "evaluatedAt",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read-only scoped selection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v24-local-snapshot-selection-result-v1.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Service credential required"
+          },
+          "422": {
+            "description": "Invalid fixture scope"
+          }
+        }
+      }
+    },
     "/v2/sampling/tasks/tick-fixture": {
       "post": {
         "operationId": "evaluateV21SnapshotSamplingFixtureTick",
@@ -1455,6 +1573,32 @@
           "503": {
             "description": "Persistence unavailable"
           }
+        }
+      }
+    },
+    "/v2/daily-bars/completions/sessions": {
+      "get": {
+        "operationId": "getV24DailyBarSessions",
+        "summary": "Read two exact scoped DAILY_BAR sessions available at a supplied run clock",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [
+          { "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "platform-api-service" } },
+          { "name": "ownerId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "accountId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "namespace", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } },
+          { "name": "testRunId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "sessionDate", "in": "query", "required": true, "style": "form", "explode": true, "schema": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string", "format": "date" } } },
+          { "name": "sourceId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "dataVersion", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "dataMode", "in": "query", "required": true, "schema": { "enum": ["FIXTURE", "REAL"] } },
+          { "name": "asOf", "in": "query", "required": true, "schema": { "type": "string", "format": "date-time" } }
+        ],
+        "responses": {
+          "200": { "description": "Two ordered completions or null when unavailable", "content": { "application/json": { "schema": { "type": "object", "required": ["completions"], "properties": { "completions": { "oneOf": [{ "type": "null" }, { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "https://stockquant.local/contracts/market-data/daily-bar-completion-v1.schema.json" } }] } }, "additionalProperties": false } } } },
+          "401": { "description": "Platform service bearer required" },
+          "409": { "description": "Ambiguous completion versions" },
+          "422": { "description": "Invalid scope or query" },
+          "503": { "description": "Persistence unavailable" }
         }
       }
     },

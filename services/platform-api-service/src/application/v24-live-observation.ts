@@ -11,14 +11,14 @@ export function isV24QuoteSourceUseConfigured({ approved, authorizationRef, data
   return approved && authorizationRef.trim().length > 0 && dataVersion.trim().length > 0;
 }
 
-export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[]; quality?: ObservationDayQuality }): boolean {
+export function shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality, candidateChainConnected }: { actualTradingDay: boolean; kind: string; reconciliationStatus: ObservationRecord["reconciliationStatus"]; errors: string[]; quality?: ObservationDayQuality; candidateChainConnected: boolean }): boolean {
   const expectedSamplingEvents = quality?.samplingIntervalMinutes === 20 ? 14 : quality?.samplingIntervalMinutes === 30 ? 10 : -1;
   const qualityPass = quality !== undefined
     && expectedSamplingEvents > 0 && quality.samplingEvents === expectedSamplingEvents && quality.uniqueSamplingWindows === expectedSamplingEvents && quality.missingSamplingWindows.length === 0
     && quality.uniqueExecutionWindows === 1 && quality.invalidSamplingEvents === 0 && quality.invalidExecutionEvents === 0
     && quality.invalidSecuritySamples === 0 && quality.expectedSecuritySamples > 0
     && quality.validSecuritySamples === quality.expectedSecuritySamples && quality.errors.length === 0;
-  return actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0 && qualityPass;
+  return candidateChainConnected && actualTradingDay && kind === "END_OF_DAY" && reconciliationStatus === "PASS" && errors.length === 0 && qualityPass;
 }
 
 export function hasMissedV24SamplingWindow({ previousSampleAt, now, samplingIntervalMinutes, scheduledFor }: { previousSampleAt: string | null; now: Date; samplingIntervalMinutes: number; scheduledFor: string | null }): boolean {
@@ -156,7 +156,8 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
       evidence: {
         recordedAt: now.toISOString(), eventKind: kind, scheduledFor, scheduledDelaySeconds, previousSampleAt, samplingIntervalMinutes, timeZone: "Asia/Shanghai",
         actualTradingDay: calendar.status ?? "UNKNOWN", calendarVersion: calendar.calendarVersion ?? null, calendarReason: calendar.reason ?? null,
-        observationCounted: shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality }),
+        observationCounted: shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality, candidateChainConnected: false }),
+        candidateChain: { status: "NOT_CONNECTED", reason: "CANDIDATE_A_CONTINUOUS_CHAIN_NOT_CONNECTED" },
         observationQuality: quality ?? null,
         ...(enteredExecutionWindow ? { executionGate: gate } : {}),
         dataMode: this.sourceUseConfigured ? "LIVE_SOURCE" : "NOT_CONNECTED",
@@ -171,7 +172,7 @@ export class V24LiveObservationHandler implements SchedulerTickHandler {
         noBackfill: true
       }
     });
-    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality })) await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true, observationQuality: quality });
+    if (kind === "END_OF_DAY" && actualTradingDay && testRunId && shouldCountDailyObservation({ actualTradingDay, kind, reconciliationStatus, errors, quality, candidateChainConnected: false })) await this.repository.completeDailyTestRun(observationDate, testRunId, { reconciliation, observationCounted: true, observationQuality: quality });
   }
 
   private async calendar(date: string, errors: string[]): Promise<Calendar> {

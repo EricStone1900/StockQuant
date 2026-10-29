@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v24-c5-local-daily-fixture.schema.json",
+  "title": "V24C5LocalDailyFixture",
+  "type": "object", "additionalProperties": false,
+  "required": ["fixtureId", "fixtureVersion", "dataMode", "market", "barType", "adjustment", "sourceId", "dataVersion", "sessionDate", "sessionCloseAt", "completionRequestedAt", "availableAt", "expectedSecurityIds", "bars"],
+  "properties": {
+    "fixtureId": { "type": "string", "pattern": "^v24-c5-local-daily-202401(02|03|04|05|08|09|10)$" },
+    "fixtureVersion": { "type": "string", "pattern": "^v24-c5-local-daily-202401(02|03|04|05|08|09|10)-1$" },
+    "dataMode": { "const": "FIXTURE" }, "market": { "const": "CN_A" }, "barType": { "const": "DAILY_BAR" }, "adjustment": { "const": "RAW" },
+    "sourceId": { "const": "fixture:v24-c5-local-daily-1" }, "dataVersion": { "const": "v24-c5-local-daily-1" },
+    "sessionDate": { "enum": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08", "2024-01-09", "2024-01-10"] },
+    "sessionCloseAt": { "type": "string", "format": "date-time" }, "completionRequestedAt": { "type": "string", "format": "date-time" }, "availableAt": { "type": "string", "format": "date-time" },
+    "expectedSecurityIds": { "const": ["600000.SH"] },
+    "bars": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["securityId", "sessionDate", "open", "high", "low", "close", "volume", "amount"], "properties": { "securityId": { "const": "600000.SH" }, "sessionDate": { "type": "string", "format": "date" }, "open": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "high": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "low": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "close": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" }, "volume": { "type": "integer", "minimum": 0 }, "amount": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" } } } }
+  }
+}

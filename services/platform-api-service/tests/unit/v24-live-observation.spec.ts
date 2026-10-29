@@ -73,6 +73,29 @@ describe.each(["CLOSED", "UNKNOWN"] as const)("V2.4 %s calendar fail-closed beha
 });
 
 describe("V2.4 live quote evidence", () => {
+  it("does not count an otherwise complete HOLD-only day before the candidate chain is connected", async () => {
+    const quality = { samplingIntervalMinutes: 30, samplingEvents: 10, uniqueSamplingWindows: 10, missingSamplingWindows: [], duplicateSamplingEvents: 0, executionEvents: 1, uniqueExecutionWindows: 1, invalidSamplingEvents: 0, invalidExecutionEvents: 0, expectedSecuritySamples: 20, validSecuritySamples: 20, errors: [] };
+    const repository = {
+      ensureDailyTestRun: vi.fn(async () => "00000000-0000-4000-8000-000000000001"),
+      errorsForDate: vi.fn(async () => []), qualityForDate: vi.fn(async () => quality),
+      upsertObservation: vi.fn(async () => undefined), completeDailyTestRun: vi.fn(async () => undefined),
+    } as unknown as PostgresV24ObservationRepository;
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/v2/calendar/")) return Response.json({ status: "TRADING", calendarVersion: "test" });
+      if (url.includes("reconciliation")) return Response.json({ unresolved_order_count: 0, pending_outbox_count: 0 });
+      throw new Error(`unexpected URL: ${url}`);
+    }));
+    const handler = new V24LiveObservationHandler(repository, "http://market.test", "http://execution.test", "p".repeat(40));
+    const now = new Date("2026-10-16T07:10:00.000Z");
+    await handler.handleTick({ now, previousSampleAt: null, kind: "END_OF_DAY", scheduledFor: now.toISOString() });
+    expect(repository.upsertObservation).toHaveBeenCalledWith(expect.objectContaining({
+      reconciliationStatus: "PASS", errors: [],
+      evidence: expect.objectContaining({ observationCounted: false, candidateChain: { status: "NOT_CONNECTED", reason: "CANDIDATE_A_CONTINUOUS_CHAIN_NOT_CONNECTED" } }),
+    }));
+    expect(repository.completeDailyTestRun).not.toHaveBeenCalled();
+  });
+
   it("fails closed without source-use authorization and never requests the quote endpoint", async () => {
     const { handler, now, records } = fixtureHandler({ quoteSourceUseApproved: false });
     await handler.handleTick({ now, previousSampleAt: null, kind: "SAMPLING_SLOT", scheduledFor: now.toISOString() });

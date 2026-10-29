@@ -4,8 +4,7 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { Client, Pool } from "pg";
-import { MinuteUploadRepository } from "../dist/adapters/postgres-minute-upload-repository.js";
+import { Client } from "pg";
 import { marketDataSmokeAuthEnv, marketDataSmokeAuthHeaders } from "./minute-upload-test-auth.mjs";
 
 const adminUrl = new URL(process.env.STOCKQUANT_MINUTE_UPLOAD_ADMIN_DATABASE_URL ?? "postgresql://postgres@127.0.0.1:5433/postgres");
@@ -14,12 +13,12 @@ assert.equal(adminUrl.username, "postgres");
 const databaseName = `stockquant_upload_${randomUUID().replaceAll("-", "")}`;
 const databaseUrl = new URL(adminUrl); databaseUrl.pathname = `/${databaseName}`;
 const admin = new Client({ connectionString: adminUrl.toString() });
-let service; let created = false; let port; let base; let output = ""; let databaseReady = false;
+let service; let created = false; let port; let base; let output = ""; let databaseReady = false; let minuteWorkerEnabled = false;
 const uploadIds = [];
 
 function capture(child) { for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => { if (output.length < 12000) output += chunk.toString().slice(0, 12000 - output.length); }); }
 async function startService() {
-  const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", STOCKQUANT_PROJECT_ROOT: resolve("../.."), STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_SCHEDULER_WORKER: "0", STOCKQUANT_COLLECTION_EXECUTOR: "0", ...marketDataSmokeAuthEnv };
+  const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/tmp", STOCKQUANT_PROJECT_ROOT: resolve("../.."), STOCKQUANT_BIND_HOST: "127.0.0.1", STOCKQUANT_PORT: String(port), STOCKQUANT_DATABASE_URL: databaseUrl.toString(), STOCKQUANT_SCHEDULER_WORKER: "0", STOCKQUANT_COLLECTION_EXECUTOR: "0", STOCKQUANT_MINUTE_UPLOAD_WORKER: minuteWorkerEnabled ? "1" : "0", ...marketDataSmokeAuthEnv };
   service = spawn(process.execPath, [resolve("dist/main.js")], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] }); capture(service);
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (service.exitCode !== null) throw new Error(`market-data-service exited: ${output}`);
@@ -79,32 +78,37 @@ try {
   assert.equal(lastPut.status, 200); assert.deepEqual(lastPut.body.receivedChunks, [0, 1]);
   const preview = await request(`/v2/minute/csv/uploads/${uploadId}/preview`, { method: "POST", owner, body: {} });
   assert.equal(preview.status, 200); assert.equal(preview.body.totalRows, 16_000); assert.equal(preview.body.acceptedRows, 16_000); assert.equal(preview.body.errors.length, 0);
-  const finalizationPool = new Pool({ connectionString: databaseUrl.toString() });
-  try {
-    const claimed = await new MinuteUploadRepository(finalizationPool).beginFinalization(owner, uploadId);
-    assert.equal(claimed.alreadyCompleted, null);
-    assert.equal((await request(`/v2/minute/csv/uploads/${uploadId}`, { owner })).body.status, "FINALIZING", "the durable finalization claim must exist before the process is interrupted");
-  } finally { await finalizationPool.end(); }
+  const queued = await request(`/v2/minute/csv/uploads/${uploadId}/finalize-queued`, { method: "POST", owner, body: {} });
+  assert.equal(queued.status, 202); assert.equal(queued.body.status, "QUEUED");
+  assert.equal((await request(`/v2/minute/csv/uploads/${uploadId}/finalization`, { owner })).body.status, "QUEUED", "queued finalization state must be durable and owner scoped");
   await stopService(); output = ""; await startService();
   const interrupted = await request(`/v2/minute/csv/uploads/${uploadId}`, { owner });
-  assert.equal(interrupted.status, 200); assert.equal(interrupted.body.status, "FINALIZING", "the finalization claim must survive service restart");
-  let imported;
+  assert.equal(interrupted.status, 200); assert.equal(interrupted.body.status, "QUEUED", "queued state must survive service restart");
+  const simulateWorkerCrash = new Client({ connectionString: databaseUrl.toString() }); await simulateWorkerCrash.connect();
+  await simulateWorkerCrash.query("UPDATE market_data_minute_upload_jobs SET status='RUNNING',attempt=1,lease_owner='crashed-worker',lease_until=now()-interval '1 second' WHERE upload_id=$1", [uploadId]);
+  await simulateWorkerCrash.query("UPDATE market_data_minute_uploads SET status='FINALIZING' WHERE upload_id=$1", [uploadId]);
+  await simulateWorkerCrash.end();
+  minuteWorkerEnabled = true;
+  await stopService(); output = ""; await startService();
+  let finalization;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    imported = await request(`/v2/minute/csv/uploads/${uploadId}/finalize`, { method: "POST", owner, body: {} });
-    if (imported.status !== 429 || imported.body.code !== "MINUTE_IMPORT_BUSY") break;
-    await delay(1000);
+    finalization = await request(`/v2/minute/csv/uploads/${uploadId}/finalization`, { owner });
+    if (finalization.body?.status === "COMPLETED") break;
+    await delay(500);
   }
-  assert.equal(imported.status, 201); assert.equal(imported.body.status, "PUBLISHED"); assert.equal(imported.body.accepted, 16_000); assert.equal(imported.body.sha256, expectedSha256); assert.equal(imported.body.uploadStatus, "COMPLETED");
+  assert.equal(finalization.body.status, "COMPLETED"); assert.equal(finalization.body.attempt, 2, "worker must reclaim the expired RUNNING lease after process restart");
+  const imported = finalization.body.result.body;
+  assert.equal(imported.status, "PUBLISHED"); assert.equal(imported.accepted, 16_000); assert.equal(imported.sha256, expectedSha256); assert.equal(imported.uploadStatus, "COMPLETED");
   const completed = await request(`/v2/minute/csv/uploads/${uploadId}`, { owner });
   assert.equal(completed.body.receivedBytes, content.length); assert.equal(completed.body.status, "COMPLETED");
   const cancelAfterComplete = await request(`/v2/minute/csv/uploads/${uploadId}/cancel`, { method: "POST", owner, body: {} });
   assert.equal(cancelAfterComplete.status, 409);
   await stopService(); output = ""; await startService();
-  const persisted = await request(`/v2/minute/imports/${encodeURIComponent(imported.body.version)}/bars?pageSize=1000`);
+  const persisted = await request(`/v2/minute/imports/${encodeURIComponent(imported.version)}/bars?pageSize=1000`);
   assert.equal(persisted.body.items.length, 1000); assert.equal(persisted.body.nextCursor, "1000");
   const verify = new Client({ connectionString: databaseUrl.toString() }); await verify.connect();
   try {
-    const staged = await verify.query("SELECT count(*)::integer AS rows FROM market_data_minute_import_bars_by_day WHERE version=$1", [imported.body.version]);
+    const staged = await verify.query("SELECT count(*)::integer AS rows FROM market_data_minute_import_bars_by_day WHERE version=$1", [imported.version]);
     assert.equal(staged.rows[0].rows, 16_000, "streamed batches must be atomically published with the exact accepted row count");
   } finally { await verify.end(); }
 
@@ -132,6 +136,18 @@ try {
   const cancelledAfterFailure = await request(`/v2/minute/csv/uploads/${invalidUploadId}/cancel`, { method: "POST", owner, body: {} });
   assert.equal(cancelledAfterFailure.body.status, "CANCELLED");
 
+  const quotaSeed = new Client({ connectionString: databaseUrl.toString() }); await quotaSeed.connect();
+  const quotaSeedKey = sha(Buffer.from("published-minute-quota-seed")); const quotaSeedSource = sha(Buffer.from("published-minute-quota-seed-source"));
+  await quotaSeed.query("INSERT INTO market_data_minute_imports(import_key_sha256,source_sha256,import_id,version,status,accepted,errors,import_manifest) VALUES($1,$2,$3,$4,'PUBLISHED',1440000,'[]'::jsonb,'{}'::jsonb)", [quotaSeedKey,quotaSeedSource,"quota-seed-import","quota-seed-version"]);
+  const quotaBefore = Number((await quotaSeed.query("SELECT count(*) AS count FROM market_data_minute_imports")).rows[0].count);
+  await quotaSeed.end();
+  const oneBarCsv = "securityId,timestamp,open,high,low,close,volume,amount\n600000.SH,2026-09-21 09:30,10,10.2,9.9,10.1,100,1000\n";
+  const quotaAttempt = await request("/v2/minute/csv/import", { method: "POST", owner, body: { content: oneBarCsv, mapping: { securityId: "securityId", timestamp: "timestamp", open: "open", high: "high", low: "low", close: "close", volume: "volume", amount: "amount" }, provenance, market: "CN_A", frequency: "1m", adjustment: "RAW", timezone: "Asia/Shanghai", timestampSemantics: "BAR_START", volumeUnit: "SHARES", amountUnit: "CNY" } });
+  assert.equal(quotaAttempt.status, 429); assert.equal(quotaAttempt.body.code, "MINUTE_STORAGE_QUOTA_EXCEEDED", "real PostgreSQL accepted-count at capacity must reject the next HTTP import");
+  const quotaAfter = new Client({ connectionString: databaseUrl.toString() }); await quotaAfter.connect();
+  try { assert.equal(Number((await quotaAfter.query("SELECT count(*) AS count FROM market_data_minute_imports")).rows[0].count), quotaBefore, "quota rejection must not publish an import record"); }
+  finally { await quotaAfter.end(); }
+
   const quotaOwner = `${owner}-quota`; const tinyHash = sha(Buffer.from("x")); const quotaIds = [randomUUID(), randomUUID(), randomUUID()]; uploadIds.push(...quotaIds);
   for (const quotaId of quotaIds.slice(0, 2)) assert.equal((await request("/v2/minute/csv/uploads", { method: "POST", owner: quotaOwner, body: { uploadId: quotaId, expectedSha256: tinyHash, expectedBytes: 1, metadata } })).status, 201);
   const denied = await request("/v2/minute/csv/uploads", { method: "POST", owner: quotaOwner, body: { uploadId: quotaIds[2], expectedSha256: tinyHash, expectedBytes: 1, metadata } });
@@ -140,7 +156,14 @@ try {
   assert.equal(cancelled.body.status, "CANCELLED"); assert.equal(cancelled.body.receivedBytes, 0);
   const admitted = await request("/v2/minute/csv/uploads", { method: "POST", owner: quotaOwner, body: { uploadId: quotaIds[2], expectedSha256: tinyHash, expectedBytes: 1, metadata } });
   assert.equal(admitted.status, 201, "cancellation releases the per-owner active upload quota");
-  console.log(JSON.stringify({ status: "PASS", uploadId, bytes: content.length, sha256: expectedSha256, rows: imported.body.accepted, chunks: 2, serviceRestartResume: true, finalizationClaimRecoveredAfterRestart: interrupted.body.status === "FINALIZING" && imported.body.status === "PUBLISHED", missingChunkRefused: true, parserFailureReleasesFinalization: released.body.status === "OPEN", parserFailureRollsBackStagedBatch: true, wrongOwnerRefused: true, duplicateChunkIdempotent: true, cancellationReleasesQuota: true, finalStatus: completed.body.status, importVersion: imported.body.version }));
+  const releaseOne = await request(`/v2/minute/csv/uploads/${quotaIds[1]}/cancel`, { method: "POST", owner: quotaOwner, body: {} }); assert.equal(releaseOne.body.status, "CANCELLED");
+  const queuedCancelId = randomUUID(); uploadIds.push(queuedCancelId);
+  const queuedCancelCreate = await request("/v2/minute/csv/uploads", { method: "POST", owner: quotaOwner, body: { uploadId: queuedCancelId, expectedSha256: tinyHash, expectedBytes: 1, metadata } }); assert.equal(queuedCancelCreate.status, 201);
+  const queuedCancelChunk = await request(`/v2/minute/csv/uploads/${queuedCancelId}/chunks/0`, { method: "PUT", owner: quotaOwner, body: { contentBase64: "eA==", sha256: tinyHash } }); assert.equal(queuedCancelChunk.status, 200);
+  const queuedCancelJob = await request(`/v2/minute/csv/uploads/${queuedCancelId}/finalize-queued`, { method: "POST", owner: quotaOwner, body: {} }); assert.equal(queuedCancelJob.body.status, "QUEUED");
+  const queuedCancel = await request(`/v2/minute/csv/uploads/${queuedCancelId}/cancel`, { method: "POST", owner: quotaOwner, body: {} }); assert.equal(queuedCancel.body.status, "CANCELLED");
+  assert.equal((await request(`/v2/minute/csv/uploads/${queuedCancelId}/finalization`, { owner: quotaOwner })).body.status, "CANCELLED");
+  console.log(JSON.stringify({ status: "PASS", uploadId, bytes: content.length, sha256: expectedSha256, rows: imported.accepted, chunks: 2, serviceRestartResume: true, queuedFinalizationRecoveredAfterRestart: interrupted.body.status === "QUEUED" && finalization.body.status === "COMPLETED", expiredRunningLeaseReclaimedAfterRestart: finalization.body.attempt === 2, queuedCancellation: queuedCancel.body.status === "CANCELLED", wrongOwnerQueueHidden: (await request(`/v2/minute/csv/uploads/${queuedCancelId}/finalization`, { owner: `${quotaOwner}-other` })).status === 404, publishedCapacityHttpRefusal: quotaAttempt.status === 429 && quotaAttempt.body.code === "MINUTE_STORAGE_QUOTA_EXCEEDED", quotaRefusalIsAtomic: true, missingChunkRefused: true, parserFailureReleasesFinalization: released.body.status === "OPEN", parserFailureRollsBackStagedBatch: true, wrongOwnerRefused: true, duplicateChunkIdempotent: true, cancellationReleasesQuota: true, finalStatus: completed.body.status, importVersion: imported.version }));
 } finally {
   await stopService();
   if (created) {

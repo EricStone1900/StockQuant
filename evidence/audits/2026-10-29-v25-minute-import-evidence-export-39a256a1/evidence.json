@@ -1,0 +1,114 @@
+{
+  "testRunId": "39a256a1-0e6f-41d4-a852-1f7f4f649099",
+  "stageId": "V2.5",
+  "scenarioId": "minute-import-query",
+  "scenarioVersion": "1.0.0",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v2-5-minute-import-39a256a1-0e6f-41d4-a852-1f7f4f649099",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": {
+        "sha256": "a1f0428bf02f834e84d3b398d32d45d4fa5b9f471cb98eb74cdc31b677a6fcb5",
+        "status": "PUBLISHED",
+        "accepted": 6,
+        "shaValid": true
+      },
+      "status": "PASS",
+      "expected": "published import metadata has a valid SHA-256 and accepted rows",
+      "assertionId": "V2.5-IMPORT-PERSISTED-001"
+    },
+    {
+      "actual": {
+        "rows": 6,
+        "lastBar": {
+          "barStart": "2024-01-02T13:00:00+08:00",
+          "securityId": "000001.SZ"
+        },
+        "version": "v2.2-import-a1f0428bf02f",
+        "firstBar": {
+          "barStart": "2024-01-02T09:30:00+08:00",
+          "securityId": "600000.SH"
+        },
+        "nextCursorPresent": false
+      },
+      "status": "PASS",
+      "expected": "bounded first page is read back from the persisted Market Data import",
+      "assertionId": "V2.5-IMPORT-QUERY-002"
+    }
+  ],
+  "evidence": {
+    "import": {
+      "sha256": "a1f0428bf02f834e84d3b398d32d45d4fa5b9f471cb98eb74cdc31b677a6fcb5",
+      "status": "PUBLISHED",
+      "accepted": 6,
+      "importId": "minute-import-a1f0428bf02f834e84d3b398",
+      "sourceName": null,
+      "dataVersion": "v2.2-import-a1f0428bf02f",
+      "licenseVerification": "UNCONFIRMED"
+    },
+    "dataMode": "IMPORTED_MINUTE_BAR",
+    "brokerMode": "FAKE",
+    "evidenceMode": "PERSISTED_MARKET_DATA_IMPORT_QUERY",
+    "modelTraining": "NOT_RUN",
+    "persistedQuery": {
+      "rows": 6,
+      "lastBar": {
+        "low": 11.01,
+        "high": 11.04,
+        "open": 11.02,
+        "close": 11.03,
+        "amount": 6618,
+        "barEnd": "2024-01-02T13:01:00+08:00",
+        "market": "CN",
+        "volume": 600,
+        "barStart": "2024-01-02T13:00:00+08:00",
+        "frequency": "1m",
+        "adjustment": "raw",
+        "securityId": "000001.SZ",
+        "availableAt": "2024-01-02T13:01:05+08:00",
+        "tradingStatus": "UNKNOWN",
+        "limitPriceReference": {
+          "status": "UNKNOWN",
+          "lowerLimit": null,
+          "upperLimit": null,
+          "sourceReference": null,
+          "marketRuleSetVersion": null
+        },
+        "tradingStatusReference": null
+      },
+      "firstBar": {
+        "low": 9.99,
+        "high": 10.02,
+        "open": 10,
+        "close": 10.01,
+        "amount": 10010,
+        "barEnd": "2024-01-02T09:31:00+08:00",
+        "market": "CN",
+        "volume": 1000,
+        "barStart": "2024-01-02T09:30:00+08:00",
+        "frequency": "1m",
+        "adjustment": "raw",
+        "securityId": "600000.SH",
+        "availableAt": "2024-01-02T09:31:05+08:00",
+        "tradingStatus": "UNKNOWN",
+        "limitPriceReference": {
+          "status": "UNKNOWN",
+          "lowerLimit": null,
+          "upperLimit": null,
+          "sourceReference": null,
+          "marketRuleSetVersion": null
+        },
+        "tradingStatusReference": null
+      },
+      "pageSize": 100,
+      "nextCursor": null
+    },
+    "environmentMode": "BACKTEST",
+    "observationGate": "V2.4_20_TRADING_DAYS_PENDING",
+    "researchUseAllowed": false
+  },
+  "createdAt": "2026-10-29T12:27:07.378Z",
+  "completedAt": "2026-10-29T12:27:07.378Z"
+}

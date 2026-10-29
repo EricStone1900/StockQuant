@@ -439,6 +439,28 @@ export class PostgresAccountRepository {
     } finally { client.release(); }
   }
 
+  /** A current-state quote only: the subsequent reservation rechecks under the same account lock. */
+  async sellable(input: { accountId: string; ownerId: string; namespace: string; testRunId: string; security: string; asOf: string }): Promise<number | null> {
+    if (!input.ownerId || !input.namespace || !input.testRunId || !/^[A-Z0-9.]{3,20}$/u.test(input.security) || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(input.asOf) || !Number.isFinite(Date.parse(input.asOf))) throw new Error("INVALID_SELLABLE_QUERY");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<StoredAccount>("SELECT * FROM accounts WHERE account_id=$1 FOR UPDATE", [input.accountId]);
+      const account = result.rows[0];
+      if (!account) { await client.query("COMMIT"); return null; }
+      if (account.owner_id !== input.ownerId || account.namespace !== input.namespace || account.test_run_id !== input.testRunId || account.environment_mode !== "PAPER" || account.broker_mode !== "FAKE") throw new Error("ACCOUNT_SCOPE_MISMATCH");
+      const future = await client.query("SELECT 1 FROM recorded_fills WHERE account_id=$1 AND effective_at > $2::timestamptz LIMIT 1", [input.accountId, input.asOf]);
+      if (future.rowCount) throw new Error("SELLABLE_HISTORICAL_STATE_UNAVAILABLE");
+      const position = await client.query<{ quantity: string }>("SELECT quantity::text AS quantity FROM account_positions WHERE account_id=$1 AND security=$2", [input.accountId, input.security]);
+      const sameDay = account.market === "CN_A" ? await client.query<{ quantity: string }>(`SELECT COALESCE(sum(quantity),0)::text AS quantity FROM recorded_fills WHERE account_id=$1 AND security=$2 AND side='BUY' AND (effective_at AT TIME ZONE 'Asia/Shanghai')::date = ($3::timestamptz AT TIME ZONE 'Asia/Shanghai')::date`, [input.accountId, input.security, input.asOf]) : { rows: [{ quantity: "0" }] };
+      const reserved = await client.query<{ quantity: string }>(`SELECT COALESCE(sum(quantity-captured_quantity),0)::text AS quantity FROM resource_reservations WHERE account_id=$1 AND security=$2 AND side='SELL' AND status IN ('HELD','UNKNOWN')`, [input.accountId, input.security]);
+      const quantities = [position.rows[0]?.quantity ?? "0", sameDay.rows[0]!.quantity, reserved.rows[0]!.quantity].map(Number);
+      if (!quantities.every(Number.isSafeInteger)) throw new Error("SELLABLE_QUANTITY_UNAVAILABLE");
+      const quantity = Math.max(0, quantities[0]! - quantities[1]! - quantities[2]!);
+      await client.query("COMMIT"); return quantity;
+    } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+  }
+
   async reserveResource(command: ReserveResourceCommand): Promise<{ reservation: ResourceReservation; replayed: boolean }> {
     if (!command.idempotencyKey || command.idempotencyKey.length > 128 || !command.clientOrderId || command.clientOrderId.length > 128) throw new Error("INVALID_RESERVATION_IDENTITY");
     if (!command.namespace || !command.testRunId || !command.ownerId) throw new Error("INVALID_RESERVATION_SCOPE");

@@ -221,6 +221,12 @@ async function bootstrap() {
   if (process.env.STOCKQUANT_V24_AUTO_START === "true") {
     await container.scheduler.start();
   }
+  if (process.env.STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED === "true") {
+    container.fixtureTargetWorker().start();
+  }
+  if (process.env.STOCKQUANT_C5_LOCAL_AUTHORIZATION_WORKER_ENABLED === "true") {
+    container.c5LocalAuthorizationWorker().start();
+  }
   await app.listen(Number(process.env.STOCKQUANT_PORT ?? 3000), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
 }
 

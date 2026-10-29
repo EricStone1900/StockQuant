@@ -33,12 +33,24 @@ import { isV24PaperApprovalConfigured } from "../application/v24-paper-approval.
 import { prepareV24FixtureDailyTarget, V24_DAILY_DIRECTION_SHA256 } from "../application/v24-daily-target.js";
 import { V24FixtureDailyTargetWorker } from "../application/v24-fixture-daily-target-worker.js";
 import { evaluateV24DailyDirection } from "../application/v24-daily-direction.js";
-import { initializeV24CandidateRiskState } from "../application/v24-candidate-risk-state.js";
+import { advanceV24CandidateRiskSession, applyV24CandidateRiskFill, initializeV24CandidateRiskState } from "../application/v24-candidate-risk-state.js";
 import { admitV24CandidateExecution } from "../application/v24-candidate-execution-gate.js";
 import { projectV24CandidateRiskFacts } from "../application/v24-candidate-risk-facts.js";
 import { PostgresV24CandidateRiskStateRepository } from "../adapters/postgres-v24-candidate-risk-state-repository.js";
 import { PostgresV24DailyTargetRepository } from "../adapters/postgres-v24-daily-target-repository.js";
+import { PostgresV24LocalDailyTargetRepository } from "../adapters/postgres-v24-local-daily-target-repository.js";
+import { PostgresV24LocalOrderIntentRepository } from "../adapters/postgres-v24-local-order-intent-repository.js";
+import { createV24LocalDailyCoordinator } from "../adapters/v24-local-daily-coordinator-clients.js";
+import { GeneratedPlatformV24LocalPriceAuthorizationClient } from "../contracts/generated-v24-local-price-authorization-client.js";
+import { V24LocalPriceAuthorizationCoordinator } from "../application/v24-local-price-authorization-coordinator.js";
+import { PostgresV24LocalAuthorizationJobs } from "../adapters/postgres-v24-local-authorization-jobs.js";
+import { V24LocalAuthorizationWorker } from "../application/v24-local-authorization-worker.js";
+import { loadV24LocalDailyFixture } from "../adapters/v24-local-daily-coordinator-clients.js";
+import { authorizeV24LocalEvidenceReader } from "../application/v24-local-evidence-auth.js";
 import { loadV24DailyDirectionFixture } from "../adapters/v24-daily-direction-fixture.js";
+import { createV24FixtureDailyCoordinator } from "../adapters/v24-fixture-daily-coordinator-clients.js";
+import { PostgresV24FixtureTargetJobs } from "../adapters/postgres-v24-fixture-target-jobs.js";
+import { V24FixtureTargetWorker } from "../application/v24-fixture-target-worker.js";
 import { PostgresV24ObservationRepository } from "../adapters/postgres-v24-observation-repository.js";
 import { PostgresLocalSessionRepository } from "../adapters/postgres-local-session-repository.js";
 import { V25_SCENARIOS, V25DataScaleEngine, type V25Scenario } from "../application/v25-data-scale.js";
@@ -94,6 +106,17 @@ function canonicalCheckpointState(value: unknown): string {
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalCheckpointState(item)}`).join(",")}}`;
   }
   throw new Error("checkpoint state is not canonical JSON");
+}
+
+function c5MoneyUnits(value: string): bigint {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,4})?$/u.test(value)) throw new Error("C5_LOCAL_RISK_MONEY_INVALID");
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole!) * 10_000n + BigInt(fraction.padEnd(4, "0"));
+}
+
+function c5FormatMoneyUnits(value: bigint): string {
+  if (value < 0n) throw new Error("C5_LOCAL_RISK_MONEY_NEGATIVE");
+  return `${value / 10_000n}.${(value % 10_000n).toString().padStart(4, "0")}`;
 }
 
 function identity(cookie: string | undefined, testHeader: string | undefined): string {
@@ -196,7 +219,24 @@ export class PlatformContainer {
   }
   readonly v24Observation = new PostgresV24ObservationRepository(this.pool);
   readonly v24DailyTargets = new PostgresV24DailyTargetRepository(this.pool);
+  readonly v24LocalDailyTargets = new PostgresV24LocalDailyTargetRepository(this.pool);
+  readonly v24LocalOrderIntents = new PostgresV24LocalOrderIntentRepository(this.pool);
+  readonly v24LocalAuthorizationJobs = new PostgresV24LocalAuthorizationJobs(this.pool);
+  readonly governanceServiceToken = process.env.STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE ?? "";
+  /** C5 local target -> immutable intent -> Governance reservation; no broker submission is performed here. */
+  c5LocalPriceAuthorizationCoordinator() {
+    return new V24LocalPriceAuthorizationCoordinator({
+      daily: createV24LocalDailyCoordinator({ marketDataUrl: this.marketDataUrl, portfolioUrl: this.portfolioApiUrl, governanceUrl: this.governanceUrl, platformToken: this.portfolioToken, targets: this.v24LocalDailyTargets }),
+      intents: this.v24LocalOrderIntents,
+      governance: new GeneratedPlatformV24LocalPriceAuthorizationClient(this.governanceUrl, this.portfolioToken),
+    });
+  }
+  c5LocalAuthorizationWorker() { return new V24LocalAuthorizationWorker(this.v24LocalAuthorizationJobs, this.c5LocalPriceAuthorizationCoordinator(), this.schedulerClock, `c5-local-auth-${randomUUID()}`, new GeneratedPlatformPaperExecutionClient(this.executionUrl,this.portfolioToken)); }
   readonly v24CandidateRiskStates = new PostgresV24CandidateRiskStateRepository(this.pool);
+  readonly v24FixtureTargetJobs = new PostgresV24FixtureTargetJobs(this.pool);
+  /** Lazily constructed for isolated Fixture preparation; does not start scheduling. */
+  fixtureDailyCoordinator() { return createV24FixtureDailyCoordinator({ marketDataUrl: this.marketDataUrl, portfolioUrl: this.portfolioApiUrl, platformToken: this.portfolioToken, targets: this.v24DailyTargets }); }
+  fixtureTargetWorker() { return new V24FixtureTargetWorker(this.v24FixtureTargetJobs, this.fixtureDailyCoordinator(), this.schedulerClock, `fixture-target-${randomUUID()}`); }
   readonly schedulerClock = new SystemClock();
   readonly scheduler = new ContinuousPaperScheduler(this.schedulerClock, this.v24Observation, new V24LiveObservationHandler(
     this.v24Observation,
@@ -240,7 +280,11 @@ export class PlatformContainer {
   async migrateV24(): Promise<void> {
     await this.v24Observation.migrate();
     await this.v24DailyTargets.migrate();
+    await this.v24LocalDailyTargets.migrate();
+    await this.v24LocalOrderIntents.migrate();
+    await this.v24LocalAuthorizationJobs.migrate();
     await this.v24CandidateRiskStates.migrate();
+    await this.v24FixtureTargetJobs.migrate();
   }
 }
 
@@ -1214,6 +1258,64 @@ export class V24AcceptanceController {
   @Post("scheduler/start") @HttpCode(202) async schedulerStart(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); if (!this.container.isV24QuoteSourceUseConfigured()) throw new ForbiddenException("V2.4 scheduler cannot start without explicit quote-source approval, authorization reference, and data version"); if (!this.container.isV24ContinuousPaperUseConfigured()) throw new ForbiddenException("V2.4 scheduler cannot start without an approved OD-007 mandate, strategy, account, risk/cost policy, and effective-until reference"); return { accepted: true, scheduler: await this.scheduler.start() }; }
   @Post("scheduler/stop") async schedulerStop(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); return this.scheduler.stop(); }
   @Post("scheduler/tick") async schedulerTick(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) { identity(cookie, testHeader); if (!this.container.isV24QuoteSourceUseConfigured()) throw new ForbiddenException("V2.4 scheduler tick cannot run without explicit quote-source approval, authorization reference, and data version"); if (!this.container.isV24ContinuousPaperUseConfigured()) throw new ForbiddenException("V2.4 scheduler tick cannot run without an approved OD-007 mandate, strategy, account, risk/cost policy, and effective-until reference"); return this.scheduler.tick(); }
+  @Get("fixture-target/runs") fixtureTargetRuns(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined) {
+    return this.container.v24FixtureTargetJobs.listSetupRuns(identity(cookie, testHeader));
+  }
+  @Post("fixture-target/runs") @HttpCode(202) async createFixtureTargetRun(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body?: unknown) {
+    const ownerId = identity(cookie, testHeader);
+    rejectUnexpectedBody(body, "C5 Fixture target run");
+    const testRunId = this.container.stageRuns.newId(); const namespace = `v24-paper-v2-${testRunId}`; const seed = 20260907;
+    const assertions = [{ assertionId: "V2.4-C5-FIXTURE-TARGET-WAITING", status: "WAITING", expected: "Two frozen daily completions and an inactive target", actual: "QUEUED" }];
+    const evidence: Record<string, unknown> = { schemaVersion: "v24-paper-execution-evidence-v2", testRunId, scenarioId: "candidate-binding", scenarioVersion: "3.0.0", environmentMode: "PAPER", brokerMode: "FAKE", dataMode: "FIXTURE", namespace, orders: [], fills: [], humanAcceptance: "NOT_RUN", workerEnabled: process.env.STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED === "true" };
+    const record = { testRunId, stageId: "V2.4", scenarioId: "candidate-binding", scenarioVersion: "3.0.0", ownerId, namespace, seed, assertions, evidence };
+    await this.container.stageRuns.save({ ...record, status: "RUNNING" });
+    return this.resumeFixtureTargetSetup(testRunId, ownerId);
+  }
+  private async resumeFixtureTargetSetup(testRunId: string, ownerId: string) {
+    const lock = await this.container.pool.connect();
+    let acquired = false;
+    try {
+      const locked = await lock.query<{ acquired: boolean }>("SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired", [`v24-fixture-target-setup:${testRunId}`]);
+      acquired = locked.rows[0].acquired;
+      if (!acquired) throw new ConflictException("Fixture target setup is already running");
+      const run = await this.container.stageRuns.find(testRunId, ownerId);
+      if (!run || run.stageId !== "V2.4" || run.scenarioId !== "candidate-binding" || run.scenarioVersion !== "3.0.0" || run.namespace !== `v24-paper-v2-${testRunId}`) throw new NotFoundException("Fixture target run was not found");
+      if (run.status !== "RUNNING" && run.status !== "WAITING") throw new ConflictException("Fixture target run is no longer resumable");
+      const existing = await this.container.v24FixtureTargetJobs.findForRun(testRunId, ownerId);
+      if (existing) return { accepted: true, testRunId, status: "WAITING", jobId: existing.jobId, workerEnabled: process.env.STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED === "true" };
+      const { namespace } = run;
+      const evidence = { ...run.evidence, workerEnabled: process.env.STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED === "true" };
+      const initialized = await this.portfolioAccountClient().initializeAccount({ fixtureAccountRef: "c5-local-paper-direction-v1", ownerId, market: "CN_A", environmentMode: "PAPER", brokerMode: "FAKE", initialCash: { amount: "10000.0000", currency: "CNY" }, namespace, testRunId, idempotencyKey: `v24-fixture-target-init-${testRunId}` });
+      const accountId = initialized.snapshot.accountId;
+      const scope = { market: "CN_A" as const, ownerId, accountId, namespace, testRunId };
+      await this.marketReadClient().updateV21ScopedWatchlist({ ownerId, accountId, namespace, testRunId, holdings: [], inFlightOrders: [], candidates: ["600000.SH"] });
+      const daily = await Promise.all(["v24-c5-prior-20261014-1", "v24-c5-prior-20261015-1"].map((version) => this.marketReadClient().completeV21DailyBarFixture(scope, version as "v24-c5-prior-20261014-1" | "v24-c5-prior-20261015-1")));
+      await this.container.stageRuns.save({ ...run, evidence: { ...evidence, accountId, dailyTasks: daily.map((item) => item.task.taskId) }, status: "WAITING" });
+      const job = await this.container.v24FixtureTargetJobs.enqueue({ scope: { ownerId, accountId, namespace, testRunId }, sourceId: "fixture:v24-c5-prior-daily-1", dataVersion: "v24-c5-prior-daily-1", asOf: "2026-10-15T15:10:00+08:00", evaluatedAt: "2026-10-16T09:31:00+08:00" });
+      return { accepted: true, testRunId, status: "WAITING", jobId: job.job.jobId, workerEnabled: evidence.workerEnabled };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new ServiceUnavailableException({ message: "Fixture target setup interrupted; resume the same TestRun", testRunId });
+    } finally {
+      if (acquired) await lock.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [`v24-fixture-target-setup:${testRunId}`]).catch(() => undefined);
+      lock.release();
+    }
+  }
+  @Post("fixture-target/runs/:testRunId/resume") @HttpCode(202) async resumeFixtureTargetRun(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string, @Body() body?: unknown) {
+    const ownerId = identity(cookie, testHeader);
+    rejectUnexpectedBody(body, "C5 Fixture target resume");
+    if (!isUuid(testRunId)) throw new NotFoundException("Fixture target run was not found");
+    return this.resumeFixtureTargetSetup(testRunId, ownerId);
+  }
+  @Get("fixture-target/runs/:testRunId/job") async fixtureTargetJob(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") testRunId: string) {
+    const ownerId = identity(cookie, testHeader);
+    if (!isUuid(testRunId)) throw new NotFoundException("Fixture target run was not found");
+    const run = await this.container.stageRuns.find(testRunId, ownerId);
+    if (!run || run.stageId !== "V2.4" || run.scenarioId !== "candidate-binding" || run.scenarioVersion !== "3.0.0") throw new NotFoundException("Fixture target run was not found");
+    const job = await this.container.v24FixtureTargetJobs.findForRun(testRunId, ownerId);
+    const target = job?.targetId ? await this.container.v24DailyTargets.find(job.input.scope, job.targetId) : null;
+    return { testRunId, job, target };
+  }
   @Post("runs") @HttpCode(202) async create(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { scenarioId?: V24Scenario; seed?: number }) {
     const ownerId = identity(cookie, testHeader);
     const scenarioId = body.scenarioId;
@@ -1759,6 +1861,44 @@ export class V25AcceptanceController {
     await this.container.stageRuns.save({ ...result, ownerId });
     return { accepted: true, testRunId: result.testRunId, status: result.status };
   }
+  @Post("runs/from-minute-import") @HttpCode(202) async verifyMinuteImport(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { dataVersion?: string; seed?: number }) {
+    const ownerId = identity(cookie, testHeader);
+    if (typeof body?.dataVersion !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/u.test(body.dataVersion)) throw new UnprocessableEntityException("dataVersion must be a valid published minute import version");
+    const client = new GeneratedMarketDataMinuteClient(this.container.marketDataUrl, () => this.container.marketDataHeaders());
+    let imported: import("../contracts/generated-types.js").MinuteImportRecord;
+    let page: import("../contracts/generated-types.js").MinuteBarPage;
+    try {
+      imported = await client.getMarketDataMinuteImport(body.dataVersion);
+      if (imported.version !== body.dataVersion || imported.status !== "PUBLISHED") throw new UnprocessableEntityException({ code: "MINUTE_IMPORT_NOT_PUBLISHED", dataVersion: body.dataVersion, status: imported.status });
+      page = await client.pageMarketDataMinuteImportBars(body.dataVersion, { cursor: "0", pageSize: "100" });
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      if (error instanceof MarketDataMinuteHttpError) {
+        if (error.status === 404) throw new NotFoundException("minute import was not found");
+        throw new HttpException(error.body as string | Record<string, any>, error.status);
+      }
+      throw error;
+    }
+    const shaValid = /^[0-9a-f]{64}$/u.test(imported.sha256);
+    const assertions = [
+      { assertionId: "V2.5-IMPORT-PERSISTED-001", status: imported.status === "PUBLISHED" && imported.accepted > 0 && shaValid ? "PASS" : "FAIL", expected: "published import metadata has a valid SHA-256 and accepted rows", actual: { status: imported.status, accepted: imported.accepted, sha256: imported.sha256, shaValid } },
+      { assertionId: "V2.5-IMPORT-QUERY-002", status: page.version === imported.version && page.items.length > 0 && page.items.length <= 100 ? "PASS" : "FAIL", expected: "bounded first page is read back from the persisted Market Data import", actual: { version: page.version, rows: page.items.length, nextCursorPresent: page.nextCursor !== null, firstBar: page.items[0] ? { securityId: page.items[0].securityId, barStart: page.items[0].barStart } : null, lastBar: page.items.at(-1) ? { securityId: page.items.at(-1)!.securityId, barStart: page.items.at(-1)!.barStart } : null } },
+    ];
+    const testRunId = this.container.stageRuns.newId();
+    const result = {
+      testRunId, stageId: "V2.5", scenarioId: "minute-import-query", scenarioVersion: "1.0.0", ownerId,
+      namespace: `v2-5-minute-import-${testRunId}`, status: assertions.every((item) => item.status === "PASS") ? "COMPLETED" : "FAILED",
+      seed: body.seed ?? 20260907, assertions,
+      evidence: {
+        evidenceMode: "PERSISTED_MARKET_DATA_IMPORT_QUERY", environmentMode: "BACKTEST", dataMode: "IMPORTED_MINUTE_BAR", brokerMode: "FAKE", modelTraining: "NOT_RUN", researchUseAllowed: imported.manifest.researchUseAllowed,
+        import: { importId: imported.importId, dataVersion: imported.version, status: imported.status, accepted: imported.accepted, sha256: imported.sha256, frequency: imported.manifest.semantics.frequency, adjustment: imported.manifest.semantics.adjustment, sourceName: imported.manifest.provenance?.sourceName ?? null, licenseVerification: imported.manifest.provenance?.licenseVerification ?? "UNCONFIRMED" },
+        persistedQuery: { pageSize: 100, rows: page.items.length, nextCursor: page.nextCursor, firstBar: page.items[0] ?? null, lastBar: page.items.at(-1) ?? null },
+        observationGate: "V2.4_20_TRADING_DAYS_PENDING",
+      },
+    };
+    await this.container.stageRuns.save(result);
+    return { accepted: true, testRunId, status: result.status };
+  }
   @Get("runs/:testRunId") async get(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("testRunId") id: string) {
     const run = await this.container.stageRuns.find(id, identity(cookie, testHeader));
     if (!run || run.stageId !== "V2.5") throw new NotFoundException("V2.5 run was not found");
@@ -2060,7 +2200,8 @@ export class V22AcceptanceController {
   @Post(":format/uploads") @HttpCode(200) async createCsvUpload(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body: { uploadId?: string; expectedSha256?: string; expectedBytes?: number; metadata?: Record<string, unknown> }) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); if (body.uploadId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(body.uploadId)) throw new UnprocessableEntityException("uploadId must be a UUID"); const uploadId = body.uploadId ?? randomUUID(); const request = { ...body, uploadId } as import("../contracts/generated-types.js").MinuteCsvUploadCreateRequest; return this.minuteCall(() => this.minuteClient().createMarketDataMinuteUpload(format as "csv" | "parquet", request, ownerId)); }
   @Put(":format/uploads/:uploadId/chunks/:index") @HttpCode(200) async putCsvUploadChunk(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("uploadId") uploadId: string, @Param("index") index: string, @Body() body: { contentBase64?: string; sha256?: string }) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); return this.minuteCall(() => this.minuteClient().putMarketDataMinuteUploadChunk(format as "csv" | "parquet", uploadId, Number(index), body as import("../contracts/generated-types.js").MinuteCsvUploadChunkRequest, ownerId)); }
   @Get(":format/uploads/:uploadId") async csvUploadProgress(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("uploadId") uploadId: string) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); return this.minuteCall(() => this.minuteClient().getMarketDataMinuteUpload(format as "csv" | "parquet", uploadId, ownerId)); }
-  @Post(":format/uploads/:uploadId/:action") @HttpCode(200) async csvUploadAction(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("uploadId") uploadId: string, @Param("action") action: string) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); if (!["preview", "finalize", "cancel"].includes(action)) throw new NotFoundException("minute upload action not found"); return this.minuteCall(() => this.minuteClient().actOnMarketDataMinuteUpload(format as "csv" | "parquet", uploadId, action as "preview" | "finalize" | "cancel", ownerId)); }
+  @Get(":format/uploads/:uploadId/finalization") async csvUploadFinalization(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("uploadId") uploadId: string) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); return this.minuteCall(() => this.minuteClient().getMarketDataMinuteUploadFinalization(format as "csv" | "parquet", uploadId, ownerId)); }
+  @Post(":format/uploads/:uploadId/:action") @HttpCode(200) async csvUploadAction(@Param("format") format: string, @Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("uploadId") uploadId: string, @Param("action") action: string) { const ownerId = identity(cookie, testHeader); if (!["csv", "parquet"].includes(format)) throw new NotFoundException("minute file format is not supported"); if (!["preview", "finalize", "finalize-queued", "cancel"].includes(action)) throw new NotFoundException("minute upload action not found"); return this.minuteCall(() => this.minuteClient().actOnMarketDataMinuteUpload(format as "csv" | "parquet", uploadId, action as "preview" | "finalize" | "finalize-queued" | "cancel", ownerId)); }
   @Get("imports/:version") importDetails(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("version") version: string) { identity(cookie, testHeader); return this.minuteCall(() => this.minuteClient().getMarketDataMinuteImport(version)); }
   @Get("imports/:version/bars") importBars(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("version") version: string, @Query("cursor") cursor = "0", @Query("pageSize") pageSize = "100", @Query("securityId") securityId?: string, @Query("fromBarStart") fromBarStart?: string, @Query("toBarStart") toBarStart?: string) { identity(cookie, testHeader); return this.minuteCall(() => this.minuteClient().pageMarketDataMinuteImportBars(version, { cursor, pageSize, ...(securityId ? { securityId } : {}), ...(fromBarStart ? { fromBarStart } : {}), ...(toBarStart ? { toBarStart } : {}) })); }
   @Post("imports/:version/coverage") @HttpCode(200) async importCoverage(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Param("version") version: string, @Body() body: { securityId?: string; fromDate?: string; toDate?: string; windowMinutes?: 1 | 5 }) {
@@ -2570,6 +2711,221 @@ export class V31AcceptanceController {
       if (error instanceof ResearchQueueHttpError && error.status === 404) throw new NotFoundException("published Artifact was not found");
       throw new ServiceUnavailableException("published Artifact content is unavailable");
     }
+  }
+}
+
+@Controller("internal/v1/c5-local")
+export class V24LocalEvidenceController {
+  constructor(private readonly container: PlatformContainer) {}
+  @Get("price-facts")
+  async facts(@Headers("authorization") authorization: string | undefined, @Headers("x-stockquant-service-id") serviceId: string | undefined, @Query() query: Record<string, unknown>) {
+    if (!authorizeV24LocalEvidenceReader({ serviceId, authorization, governanceToken: this.container.governanceServiceToken, platformToken: this.container.portfolioToken })) throw new ForbiddenException("decision governance service identity is required");
+    if (Object.keys(query).sort().join(",") !== "accountId,clientOrderId,evaluatedAt,namespace,ownerId,targetId,testRunId" || Object.values(query).some((value) => typeof value !== "string" || !value)) throw new UnprocessableEntityException("exact evidence scope and injected clock are required");
+    const { ownerId, accountId, namespace, testRunId, targetId, clientOrderId, evaluatedAt } = query as Record<string, string>;
+    if (!ownerId || ownerId.length > 128 || !accountId || !isUuid(accountId) || !testRunId || !isUuid(testRunId) || namespace !== `v24-paper-v2-${testRunId}` || !targetId || targetId.length > 128 || !clientOrderId || clientOrderId.length > 128 || !evaluatedAt || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(evaluatedAt) || !Number.isFinite(Date.parse(evaluatedAt))) throw new UnprocessableEntityException("invalid evidence scope or clock");
+    const scope = { ownerId, accountId, namespace, testRunId };
+    const [target, intent] = await Promise.all([this.container.v24LocalDailyTargets.find(scope, targetId), this.container.v24LocalOrderIntents.find(scope, clientOrderId)]);
+    if (!target || !intent || target.clientOrderId !== clientOrderId || intent.targetId !== targetId || !["2024-01-04", "2024-01-05"].includes(target.sessionDate)) throw new NotFoundException("scoped target or intent unavailable");
+    const market = new GeneratedV21MarketDataClient(this.container.marketDataUrl, () => this.container.marketDataHeaders());
+    const selection = await market.getV24LocalSnapshotSelection({ ...scope, sessionDate: target.sessionDate, evaluatedAt });
+    if (selection.status !== "SELECTED" || !selection.observation || !selection.planId || !selection.taskId) throw new ConflictException("scoped snapshot barrier is not selected");
+    return { target, intent, selection };
+  }
+}
+
+@Controller("api/v1/acceptance/v2/v2.4/local-engineering")
+export class V24LocalEngineeringController {
+  constructor(private readonly container: PlatformContainer) {}
+  private marketReadClient() { return new GeneratedV21MarketDataClient(this.container.marketDataUrl,()=>this.container.marketDataHeaders()); }
+  private portfolioAccountClient() { return new GeneratedPortfolioAccountClient(this.container.portfolioApiUrl,"platform-api-service",this.container.portfolioToken); }
+  private autoMandateClient() { return new GeneratedPlatformV13AutoMandateClient(this.container.governanceUrl,this.container.portfolioToken); }
+  private async localRun(testRunId: string, ownerId: string) {
+    const run = await this.container.stageRuns.find(testRunId, ownerId);
+    if (!run || run.stageId !== "V2.4" || run.scenarioId !== "c5-local-engineering" || run.scenarioVersion !== "1.0.0" || run.namespace !== `v24-paper-v2-${testRunId}`) throw new NotFoundException("C5 local engineering run was not found");
+    return run;
+  }
+
+  @Post("runs") @HttpCode(202)
+  async createRun(@Headers("cookie") cookie: string | undefined, @Headers("x-stockquant-user") testHeader: string | undefined, @Body() body?: unknown) {
+    const ownerId = identity(cookie,testHeader); rejectUnexpectedBody(body,"C5 local engineering run");
+    const testRunId=this.container.stageRuns.newId(), namespace=`v24-paper-v2-${testRunId}`;
+    const run={testRunId,stageId:"V2.4",scenarioId:"c5-local-engineering",scenarioVersion:"1.0.0",ownerId,namespace,seed:20260907,status:"RUNNING" as const,assertions:[{assertionId:"C5_LOCAL_SETUP",status:"WAITING",expected:"Isolated account, frozen daily bars and two required snapshot plans",actual:"QUEUED"}],evidence:{schemaVersion:"c5-local-engineering-evidence-v1",scopeId:"C5_LOCAL_ENGINEERING_V1",testRunId,namespace,environmentMode:"PAPER",brokerMode:"FAKE",dataMode:"FIXTURE",orders:[],fills:[],humanAcceptance:"NOT_RUN",setupState:"QUEUED"}};
+    await this.container.stageRuns.save(run);
+    return this.resumeRun(testRunId,ownerId);
+  }
+
+  private async resumeRun(testRunId: string, ownerId: string) {
+    const lock=await this.container.pool.connect(); let acquired=false;
+    try {
+      const locked=await lock.query<{acquired:boolean}>("SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS acquired",[`c5-local-engineering-setup:${testRunId}`]);
+      acquired=locked.rows[0]?.acquired===true; if(!acquired) throw new ConflictException("C5 local run setup is already active");
+      let run=await this.localRun(testRunId,ownerId); if(run.status!=="RUNNING"&&run.status!=="WAITING") throw new ConflictException("C5 local run is no longer resumable");
+      const account=this.portfolioAccountClient();
+      const initialized=await account.initializeAccount({fixtureAccountRef:"c5-local-paper-direction-v1",ownerId,market:"CN_A",environmentMode:"PAPER",brokerMode:"FAKE",initialCash:{amount:"10000.0000",currency:"CNY"},namespace:run.namespace,testRunId,idempotencyKey:`c5-local-account-${testRunId}`});
+      const accountId=initialized.snapshot.accountId, scope={market:"CN_A" as const,ownerId,accountId,namespace:run.namespace,testRunId};
+      const market=this.marketReadClient();
+      await market.updateV21ScopedWatchlist({ownerId,accountId,namespace:run.namespace,testRunId,holdings:[],inFlightOrders:[],candidates:["600000.SH"]});
+      const fixtureVersions=["20240102","20240103","20240104","20240105","20240108","20240109","20240110"].map((date)=>`v24-c5-local-daily-${date}-1`);
+      const daily: Awaited<ReturnType<typeof market.completeV21DailyBarFixture>>[]=[]; for(const version of fixtureVersions) daily.push(await market.completeV21DailyBarFixture(scope,version as Parameters<typeof market.completeV21DailyBarFixture>[1]));
+      const snapshotPlans=[]; for(const sessionDate of ["2024-01-04","2024-01-05"] as const) snapshotPlans.push(await market.enqueueV24LocalSnapshot({scope:{market:"CN_A",ownerId,accountId,namespace:run.namespace,testRunId},sessionDate}));
+      run={...run,status:"WAITING",assertions:[{assertionId:"C5_LOCAL_SETUP",status:"WAITING",expected:"Isolated account, frozen daily bars and two required snapshot plans",actual:"QUEUED"}],evidence:{...run.evidence,accountId,dailyTasks:daily.map(item=>({taskId:item.task.taskId,state:item.task.state,fixtureVersion:item.task.fixtureVersion})),snapshotPlans,setupState:"WAITING_ON_FIXTURE_WORKERS"}};
+      await this.container.stageRuns.save(run);
+      return {testRunId,ownerId,accountId,namespace:run.namespace,status:"WAITING",dailySessions:7,dailyTasks:daily.map(item=>item.task.taskId),snapshotPlans};
+    } catch(error) {
+      if(error instanceof HttpException) throw error;
+      throw new ServiceUnavailableException({message:"C5 local run setup is incomplete; resume the same TestRun",testRunId});
+    } finally { if(acquired) await lock.query("SELECT pg_advisory_unlock(hashtextextended($1,0))",[`c5-local-engineering-setup:${testRunId}`]).catch(()=>undefined); lock.release(); }
+  }
+
+  @Post("runs/:testRunId/resume") @HttpCode(202)
+  async resume(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Body() body?:unknown) {
+    const ownerId=identity(cookie,testHeader); rejectUnexpectedBody(body,"C5 local run resume"); if(!isUuid(testRunId)) throw new NotFoundException("C5 local engineering run was not found"); return this.resumeRun(testRunId,ownerId);
+  }
+
+  @Get("runs/:testRunId")
+  async readRun(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string) {
+    const ownerId=identity(cookie,testHeader); const run=await this.localRun(testRunId,ownerId); return run;
+  }
+
+  @Post("runs/:testRunId/finalize") @HttpCode(200)
+  async finalizeRun(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Body() body?:unknown) {
+    const ownerId=identity(cookie,testHeader); rejectUnexpectedBody(body,"C5 local run finalization"); const run=await this.localRun(testRunId,ownerId);
+    if(run.status==="COMPLETED") return run;
+    if(run.status!=="WAITING"&&run.status!=="RUNNING") throw new ConflictException("C5 local run is not finalizable");
+    const fixture=await loadV24LocalDailyFixture(); const expectedActions=["BUY","SELL","HOLD","HOLD","HOLD"];
+    const jobs=await Promise.all(fixture.mandateSchedule.map((session)=>this.container.v24LocalAuthorizationJobs.find(testRunId,ownerId,session.date)));
+    if(jobs.some((job)=>!job||job.state!=="COMPLETED"||!job.result)) throw new ConflictException("all five C5 evaluation-session jobs must complete before finalization");
+    const sessionResults=jobs.map((job,index)=>{const result=job!.result as Record<string,any>,target=result.target as Record<string,any>|undefined,authorization=result.authorization as Record<string,any>|undefined;return {sessionDate:job!.input.sessionDate,status:result.status,action:target?.decision?.action,quantity:target?.decision?.quantity,targetId:target?.targetId,clientOrderId:target?.clientOrderId,target, snapshotId:authorization?.priceEvidence?.snapshotId??null,execution:result.execution??null,settlement:result.settlement??null};});
+    if(sessionResults.some((item,index)=>item.action!==expectedActions[index]||(index<2&&(item.status!=="AUTHORIZED"||item.execution?.status!=="FILLED"||item.execution?.fillLedgerStatus!=="DELIVERED"||item.execution?.mandateReservationStatus!=="CONSUMED"))||(index>=2&&item.status!=="HOLD"))) throw new ConflictException({message:"C5 local session results do not match the frozen BUY/SELL/HOLD chain",sessionResults});
+    const accountId=String(run.evidence.accountId??""); if(!isUuid(accountId)) throw new ConflictException("C5 local run account is unavailable");
+    const market=this.marketReadClient(),scope={ownerId,accountId,namespace:run.namespace,testRunId};
+    const datePairs:[[string,string],[string,string],[string,string],[string,string]]=[["2024-01-02","2024-01-03"],["2024-01-04","2024-01-05"],["2024-01-08","2024-01-09"],["2024-01-09","2024-01-10"]];
+    const dailyReads=await Promise.all(datePairs.map((sessionDates)=>market.getV24DailyBarSessions({...scope,sessionDates,sourceId:"fixture:v24-c5-local-daily-1",dataVersion:"v24-c5-local-daily-1",dataMode:"FIXTURE",asOf:"2024-01-10T15:20:00+08:00"})));
+    const dailyCompletions=[...new Map(dailyReads.flatMap((read)=>read.completions??[]).map((item)=>[item.sessionDate,item])).values()];
+    const snapshotSelections=await Promise.all(["2024-01-04","2024-01-05"].map((sessionDate)=>market.getV24LocalSnapshotSelection({...scope,sessionDate,evaluatedAt:`${sessionDate}T09:31:50+08:00`})));
+    const dailyCompletionIds=dailyCompletions.map((item)=>item.completionId).filter((value):value is string=>typeof value==="string"),snapshotIds=snapshotSelections.map((item)=>item.observation?.snapshotId).filter((value):value is string=>typeof value==="string");
+    const account=await this.portfolioAccountClient().getAccountSnapshot(accountId,ownerId);
+    const assetsResponse=await new GeneratedPlatformV13ManualTradeClient(this.container.executionUrl,this.container.portfolioToken).readIndependentAssets(run.namespace,accountId);
+    const reconciliationResponse=await new GeneratedPlatformPaperExecutionClient(this.container.executionUrl,this.container.portfolioToken).readV24PaperReconciliationSummary(run.namespace);
+    const assets=assetsResponse.body as Record<string,any>|undefined,reconciliation=await reconciliationResponse.json().catch(()=>undefined) as Record<string,any>|undefined;
+    const sellFillId=sessionResults[1]?.execution?.order?.fill?.externalFillId;
+    const settlement=sessionResults[2]?.settlement as Record<string,any>|undefined;
+    const requiredDailyDates=["2024-01-02","2024-01-03","2024-01-04","2024-01-05","2024-01-08","2024-01-09","2024-01-10"];
+    const setupPass=run.evidence.dataMode==="FIXTURE"&&run.evidence.brokerMode==="FAKE"&&dailyCompletionIds.length===7&&requiredDailyDates.every((date)=>dailyCompletions.some((item)=>item.sessionDate===date&&item.status==="COMPLETED_FIXTURE"&&item.dataMode==="FIXTURE"&&item.sourceId==="fixture:v24-c5-local-daily-1"&&item.scope.ownerId===ownerId&&item.scope.accountId===accountId&&item.scope.testRunId===testRunId&&item.scope.namespace===run.namespace&&item.bars.length===1&&item.bars[0]?.securityId==="600000.SH"))&&snapshotSelections.every((item)=>item.status==="SELECTED"&&item.observation?.status==="READY"&&item.observation.dataMode==="FIXTURE")&&new Set(snapshotIds).size===2;
+    const financialPass=setupPass&&account.cash.amount==="9965.0000"&&account.unsettledReceivables.every((item)=>item.status==="SETTLED")&&account.positionCount===0&&account.reservations?.every((item)=>item.status!=="HELD"&&item.status!=="UNKNOWN")&&assets?.owner_id===ownerId&&assets?.test_run_id===testRunId&&assets?.namespace===run.namespace&&assets?.current_cash==="9965.0000"&&assets?.positions?.length===0&&assets?.unsettledReceivables?.every((item:Record<string,unknown>)=>item.status==="SETTLED")&&settlement?.status==="SETTLED"&&Array.isArray(settlement.settledFillIds)&&settlement.settledFillIds.includes(sellFillId);
+    const reconciliationPass=reconciliationResponse.status===200&&reconciliation?.namespace===run.namespace&&reconciliation?.brokerMode==="FAKE"&&reconciliation?.order_count===2&&reconciliation?.fill_count===2&&reconciliation?.unresolved_order_count===0&&reconciliation?.pending_outbox_count===0&&reconciliation?.externalOnlyOrderCount===0;
+    if(reconciliationResponse.status!==200||reconciliation?.namespace!==run.namespace||reconciliation?.brokerMode!=="FAKE") throw new ServiceUnavailableException("C5 local authoritative reconciliation is unavailable or out of scope");
+    const hasDiscrepancy=!reconciliationPass;
+    const alertRequest={ownerId,testRunId,status:hasDiscrepancy?"DISCREPANCY" as const:"MATCH" as const,discrepancies:Array.isArray(reconciliation.discrepancies)?reconciliation.discrepancies:hasDiscrepancy?[{code:"C5_LOCAL_RECONCILIATION_COUNTS_MISMATCH",orderCount:reconciliation.order_count,fillCount:reconciliation.fill_count,unresolvedOrderCount:reconciliation.unresolved_order_count,pendingOutboxCount:reconciliation.pending_outbox_count,externalOnlyOrderCount:reconciliation.externalOnlyOrderCount}]:[]};
+    const reconciliationAlert=await market.recordPaperReconciliationAlert(alertRequest);
+    const reconciliationAlertReplay=await market.recordPaperReconciliationAlert(alertRequest);
+    const dailyClose={status:alertRequest.status,recordedAt:new Date().toISOString(),reconciliation,alert:reconciliationAlert,idempotentReplay:reconciliationAlertReplay};
+    const priorDailyCloseHistory=Array.isArray(run.evidence.dailyCloseHistory)?run.evidence.dailyCloseHistory as unknown[]:[];
+    const dailyCloseHistory=[...priorDailyCloseHistory,dailyClose];
+    if(reconciliationAlert.status!==alertRequest.status||reconciliationAlertReplay.created!==false) throw new ServiceUnavailableException("C5 local daily reconciliation Incident could not be persisted idempotently");
+    if(hasDiscrepancy){
+      await this.container.stageRuns.save({...run,status:"WAITING",evidence:{...run.evidence,dailyClose,dailyCloseHistory,setupState:"WAITING_ON_RECONCILIATION",reconciliation,humanAcceptance:"NOT_RUN"}});
+      throw new ConflictException({message:"C5 local daily reconciliation found a discrepancy; the run remains resumable and order creation stays blocked",dailyClose});
+    }
+    if(!financialPass||!reconciliationPass) throw new ConflictException({message:"C5 local independent account, settlement or reconciliation assertions failed",financialPass,reconciliationPass,account,assets,reconciliation});
+
+    // Update the persistent risk ledger only after the independently read FakeBroker and Portfolio facts match.
+    // Fill identities make the operation safe to repeat after a Platform restart.
+    const riskScope={testRunId,ownerId,accountId,namespace:run.namespace};
+    const firstDate=fixture.mandateSchedule[0]!.date;
+    const savedRisk=await this.container.v24CandidateRiskStates.find(testRunId,ownerId,accountId,run.namespace);
+    let riskState=savedRisk??(await this.container.v24CandidateRiskStates.saveInitial(initializeV24CandidateRiskState({ ...riskScope,sessionDate:firstDate,initialCash:"10000.0000",maxGrossExposure:"2000.0000",maxDailyTurnover:"2000.0000",cumulativeLossLimit:"200.0000",mandateStatus:"ACTIVE" }))).state;
+    const riskAppliedFillIds:string[]=[];
+    let settledCash=10_000n*10_000n,holdingQuantity=0,unsettledReceivable=0n;
+    for(const item of sessionResults){
+      if(item.sessionDate>="2024-01-08"&&unsettledReceivable>0n){settledCash+=unsettledReceivable;unsettledReceivable=0n;}
+      const close=fixture.sessions.find((session:any)=>session.date===item.sessionDate)?.close;
+      if(typeof close!=="string") throw new ConflictException("C5 local risk valuation price is missing from the frozen Fixture");
+      const mark=c5MoneyUnits(close);
+      const grossExposure=c5FormatMoneyUnits(BigInt(holdingQuantity)*mark);
+      const netValue=settledCash+BigInt(holdingQuantity)*mark+unsettledReceivable;
+      const cumulativeLoss=c5FormatMoneyUnits(netValue<100_000_000n?100_000_000n-netValue:0n);
+      if(item.sessionDate>riskState.sessionDate) riskState=await this.container.v24CandidateRiskStates.advanceSession(riskScope,{nextSessionDate:item.sessionDate,grossExposure,cumulativeLoss,reconciliation:"MATCH"});
+      else if(item.sessionDate<riskState.sessionDate) continue;
+      const fill=item.execution?.order?.fill;
+      if(!fill) continue;
+      const fillPrice=c5MoneyUnits(String(fill.price)),fee=c5MoneyUnits(String(fill.fee)),notional=fillPrice*BigInt(fill.quantity);
+      if(item.action==="BUY"){settledCash-=notional+fee;holdingQuantity+=fill.quantity;}
+      else if(item.action==="SELL"){if(holdingQuantity<fill.quantity) throw new ConflictException("C5 local risk ledger observed a sell beyond held quantity");holdingQuantity-=fill.quantity;unsettledReceivable+=notional-fee;}
+      else throw new ConflictException("C5 local risk ledger received a Fill for a non-trading target");
+      const afterExposure=c5FormatMoneyUnits(BigInt(holdingQuantity)*mark),afterNet=settledCash+BigInt(holdingQuantity)*mark+unsettledReceivable,afterLoss=c5FormatMoneyUnits(afterNet<100_000_000n?100_000_000n-afterNet:0n);
+      riskState=await this.container.v24CandidateRiskStates.applyFill(riskScope,{externalFillId:String(fill.externalFillId),security:"600000.SH",quantity:Number(fill.quantity),price:String(fill.price),currency:"CNY",tradeDate:item.sessionDate,grossExposure:afterExposure,cumulativeLoss:afterLoss,reconciliation:"MATCH"});
+      riskAppliedFillIds.push(String(fill.externalFillId));
+    }
+    if(riskState.sessionDate!==fixture.mandateSchedule.at(-1)!.date||riskState.dailyTurnover!=="0.0000"||riskState.grossExposure!=="0.0000"||riskState.cumulativeLoss!=="35.0000"||riskAppliedFillIds.length!==2||new Set(riskAppliedFillIds).size!==2) throw new ConflictException({message:"C5 local persistent risk totals do not match the independently reconciled Fixture chain",riskState,riskAppliedFillIds});
+    const assertions=[...run.assertions.filter((item:any)=>item.assertionId!=="C5_LOCAL_SETUP"&&!String(item.assertionId??"").startsWith("V2.4-C5-LOCAL-")),
+      {assertionId:"C5_LOCAL_SETUP",status:"PASS",expected:"One owner-scoped PAPER/FAKE account, seven frozen daily sessions and two scoped point-snapshot plans are consumed by this same run",actual:{accountId,namespace:run.namespace,evaluationSessions:sessionResults.map((item)=>item.sessionDate),dailyCompletionIds:[...new Set(sessionResults.flatMap((item:any)=>item.target?.dailyBarProvenance?.completionIds??[]))],snapshotIds:sessionResults.map((item)=>item.snapshotId).filter(Boolean)}},
+      {assertionId:"V2.4-C5-LOCAL-CHAIN-001",status:"PASS",expected:"One isolated run produces BUY, SELL, HOLD with two unique persisted FakeBroker orders and delivered Fill ledger entries",actual:sessionResults},
+      {assertionId:"V2.4-C5-LOCAL-SETTLEMENT-001",status:"PASS",expected:"SELL receivable settles on the next synthetic session; ending settled cash is 9965.0000 CNY",actual:{portfolioCash:account.cash.amount,fakeBrokerCash:assets.current_cash,settlement}},
+      {assertionId:"V2.4-C5-LOCAL-RECONCILIATION-001",status:"PASS",expected:"Two orders, two fills, no unresolved orders, pending outbox or external-only discrepancy",actual:reconciliation},
+      {assertionId:"V2.4-C5-LOCAL-RISK-001",status:"PASS",expected:"Reconciled FakeBroker fills update persistent run-scoped risk exactly once and subsequent sessions roll daily turnover without losing cumulative loss",actual:{riskState,riskAppliedFillIds}},
+      {assertionId:"V2.4-C5-LOCAL-DAILY-CLOSE-001",status:"PASS",expected:"Daily reconciliation resolves any prior scoped Incident, duplicate processing is idempotent, and the matching close remains durable",actual:dailyClose}];
+    const evidence={...run.evidence,setupState:"READY",sessionResults,accountSnapshot:account,independentFakeBrokerAssets:assets,reconciliation,dailyClose,dailyCloseHistory,humanAcceptance:"NOT_RUN",riskState,riskAppliedFillIds,p2RunStatus:"ENGINEERING_PASS_PENDING_WEB_CLI_AND_HUMAN_ACCEPTANCE",p3RunStatus:"ENGINEERING_PASS_PENDING_WEB_CLI_AND_HUMAN_ACCEPTANCE"};
+    return this.container.stageRuns.save({...run,status:"COMPLETED",assertions,evidence});
+  }
+
+  @Post("runs/:testRunId/mandates") @HttpCode(201)
+  async createMandate(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Body() body:Record<string,unknown>) {
+    const ownerId=identity(cookie,testHeader); const run=await this.localRun(testRunId,ownerId);
+    if(Object.keys(body??{}).sort().join(",")!=="mandateId,reason,sessionDate"||typeof body.mandateId!=="string"||!isUuid(body.mandateId)||typeof body.reason!=="string"||!body.reason.trim()||typeof body.sessionDate!=="string") throw new UnprocessableEntityException("mandateId, sessionDate and reason are required");
+    const fixture=await loadV24LocalDailyFixture(); const session=fixture.mandateSchedule.find(item=>item.date===body.sessionDate);
+    if(!session||!["2024-01-04","2024-01-05","2024-01-08","2024-01-09","2024-01-10"].includes(body.sessionDate)) throw new UnprocessableEntityException("sessionDate is outside the frozen C5 evaluation sessions");
+    const accountId=String(run.evidence.accountId??""); if(!isUuid(accountId)) throw new ConflictException("C5 local run account is not initialized");
+    const account=await this.portfolioAccountClient().getAccountSnapshot(accountId,ownerId); if(account.testRunId!==testRunId||account.namespace!==run.namespace||account.market!=="CN_A"||account.environmentMode!=="PAPER"||account.brokerMode!=="FAKE") throw new ForbiddenException("C5 Mandate account is outside this isolated PAPER/FAKE run");
+    const response=await this.autoMandateClient().create({mandateId:body.mandateId,mandateVersion:1,testRunId,accountId,strategyVersion:V24_DAILY_DIRECTION_SHA256,market:"CN_A",currency:"CNY",securityScope:["600000.SH"],maxOrderAmount:"2000.00",maxTotalAmount:"2000.00",maxOrderCount:1,validFrom:session.validFrom,expiresAt:session.expiresAt,reason:body.reason.trim(),now:`${body.sessionDate}T09:29:00+08:00`},ownerId,ownerId);
+    if(response.status===409) throw new ConflictException(response.body); if(response.status===422) throw new UnprocessableEntityException(response.body);
+    if(![200,201].includes(response.status)||!response.body||typeof response.body!=="object") throw new ServiceUnavailableException("Governance Mandate creation failed");
+    const mandate=response.body as Record<string,any>; const mandatesByDate={...((run.evidence.c5MandatesByDate as Record<string,unknown>|undefined)??{}),[String(body.sessionDate)]:{mandateId:body.mandateId,mandateVersion:mandate.mandateVersion,contentHash:mandate.contentHash,status:mandate.status,validFrom:mandate.validFrom,expiresAt:mandate.expiresAt}};
+    await this.container.stageRuns.save({...run,evidence:{...run.evidence,c5MandatesByDate:mandatesByDate}});
+    return mandate;
+  }
+
+  @Post("runs/:testRunId/mandates/:mandateId/activate") @HttpCode(200)
+  async activateMandate(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Param("mandateId") mandateId:string,@Body() body:Record<string,unknown>) {
+    const ownerId=identity(cookie,testHeader); await this.localRun(testRunId,ownerId);
+    if(Object.keys(body??{}).sort().join(",")!=="contentHash,mandateVersion,reason"||!isUuid(mandateId)||!Number.isSafeInteger(body.mandateVersion)||typeof body.contentHash!=="string"||typeof body.reason!=="string"||!body.reason.trim()) throw new UnprocessableEntityException("exact Mandate version, content hash and reason are required");
+    const read=await this.autoMandateClient().read(mandateId,testRunId,ownerId); const mandate=read.body as Record<string,any>|undefined;
+    if(read.status!==200||!mandate||mandate.mandateId!==mandateId||mandate.testRunId!==testRunId||mandate.ownerId!==ownerId||mandate.contentHash!==body.contentHash||mandate.mandateVersion!==body.mandateVersion) throw new ConflictException("Mandate identity or content hash does not match persisted Governance facts");
+    const now=mandate.validFrom; const response=await this.autoMandateClient().activate(mandateId,{mandateVersion:Number(body.mandateVersion),testRunId,contentHash:String(body.contentHash),reason:String(body.reason).trim(),now},ownerId,ownerId);
+    if(response.status===409) throw new ConflictException(response.body); if(response.status===422) throw new UnprocessableEntityException(response.body);
+    if(![200,201].includes(response.status)||!response.body) throw new ServiceUnavailableException("Governance Mandate activation failed");
+    const run=await this.localRun(testRunId,ownerId),mandatesByDate={...((run.evidence.c5MandatesByDate as Record<string,any>|undefined)??{})};
+    for(const [date,value] of Object.entries(mandatesByDate)) if(value.mandateId===mandateId) mandatesByDate[date]={...value,status:"ACTIVE"};
+    await this.container.stageRuns.save({...run,evidence:{...run.evidence,c5MandatesByDate:mandatesByDate}}); return response.body;
+  }
+
+  @Post("runs/:testRunId/mandates/:mandateId/pause") @HttpCode(200)
+  async pauseMandate(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Param("mandateId") mandateId:string,@Body() body:Record<string,unknown>) {
+    const ownerId=identity(cookie,testHeader); await this.localRun(testRunId,ownerId);
+    if(Object.keys(body??{}).sort().join(",")!=="mandateVersion,reason"||!isUuid(mandateId)||!Number.isSafeInteger(body.mandateVersion)||typeof body.reason!=="string"||!body.reason.trim()) throw new UnprocessableEntityException("Mandate version and pause reason are required");
+    const read=await this.autoMandateClient().read(mandateId,testRunId,ownerId); const mandate=read.body as Record<string,any>|undefined;
+    if(read.status!==200||!mandate||mandate.mandateId!==mandateId||mandate.ownerId!==ownerId||mandate.testRunId!==testRunId||mandate.mandateVersion!==body.mandateVersion) throw new NotFoundException("scoped Mandate was not found");
+    const response=await this.autoMandateClient().pause(mandateId,{mandateVersion:Number(body.mandateVersion),testRunId,reason:String(body.reason).trim(),now:mandate.expiresAt},ownerId,ownerId);
+    if(response.status===409) throw new ConflictException(response.body); if(response.status===422) throw new UnprocessableEntityException(response.body); if(![200,201].includes(response.status)||!response.body) throw new ServiceUnavailableException("Governance Mandate pause failed");
+    const run=await this.localRun(testRunId,ownerId),mandatesByDate={...((run.evidence.c5MandatesByDate as Record<string,any>|undefined)??{})}; for(const [date,value] of Object.entries(mandatesByDate)) if(value.mandateId===mandateId) mandatesByDate[date]={...value,status:"PAUSED"};
+    await this.container.stageRuns.save({...run,evidence:{...run.evidence,c5MandatesByDate:mandatesByDate}}); return response.body;
+  }
+
+  @Post("runs/:testRunId/sessions/:sessionDate/authorize") @HttpCode(202)
+  async enqueueSession(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Param("sessionDate") sessionDate:string,@Body() body:Record<string,unknown>) {
+    const ownerId=identity(cookie,testHeader); const run=await this.localRun(testRunId,ownerId);
+    if(Object.keys(body??{}).sort().join(",")!=="mandateId"||typeof body.mandateId!=="string"||!isUuid(body.mandateId)) throw new UnprocessableEntityException("mandateId is required");
+    const fixture=await loadV24LocalDailyFixture(), session=fixture.mandateSchedule.find(item=>item.date===sessionDate); if(!session) throw new NotFoundException("C5 evaluation session was not found");
+    const accountId=String(run.evidence.accountId??""); if(!isUuid(accountId)) throw new ConflictException("C5 local run account is not initialized");
+    const read=await this.autoMandateClient().read(body.mandateId,testRunId,ownerId); const mandate=read.body as Record<string,any>|undefined;
+    if(read.status!==200||!mandate||mandate.status!=="ACTIVE"||mandate.ownerId!==ownerId||mandate.testRunId!==testRunId||mandate.accountId!==accountId||mandate.mandateVersion!==1||mandate.strategyVersion!==V24_DAILY_DIRECTION_SHA256||mandate.market!=="CN_A"||mandate.currency!=="CNY"||mandate.securityScope?.length!==1||mandate.securityScope[0]!=="600000.SH"||Date.parse(mandate.validFrom)!==Date.parse(session.validFrom)||Date.parse(mandate.expiresAt)!==Date.parse(session.expiresAt)||typeof mandate.contentHash!=="string") throw new ConflictException("an exact ACTIVE session-scoped C5 Mandate is required");
+    const input={ownerId,accountId,namespace:run.namespace,testRunId,sessionDate,mandateId:String(body.mandateId),mandateVersion:1,evaluatedAt:`${sessionDate}T09:31:50+08:00`,mandateContentHash:mandate.contentHash};
+    const queued=await this.container.v24LocalAuthorizationJobs.enqueue(input); return {testRunId,sessionDate,job:queued.job,created:queued.created,workerEnabled:process.env.STOCKQUANT_C5_LOCAL_AUTHORIZATION_WORKER_ENABLED==="true"};
+  }
+
+  @Get("runs/:testRunId/sessions/:sessionDate/job")
+  async readSessionJob(@Headers("cookie") cookie:string|undefined,@Headers("x-stockquant-user") testHeader:string|undefined,@Param("testRunId") testRunId:string,@Param("sessionDate") sessionDate:string) {
+    const ownerId=identity(cookie,testHeader); await this.localRun(testRunId,ownerId); return {testRunId,sessionDate,job:await this.container.v24LocalAuthorizationJobs.find(testRunId,ownerId,sessionDate)};
   }
 }
 
@@ -3422,5 +3778,5 @@ export class V33AcceptanceController {
   private queueClient() { return new GeneratedResearchQueueClient(this.container.researchAutomationUrl, this.container.portfolioToken); }
 }
 
-@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, V31AcceptanceController, V31PromotionGateController, V32AcceptanceController, V33AcceptanceController, Dc06AcceptanceController, Dc08AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
+@Module({ controllers: [HealthController, PlatformController, V12AcceptanceController, V13AcceptanceController, V14AcceptanceController, V15AcceptanceController, V21AcceptanceController, V22AcceptanceController, V23AcceptanceController, V24AcceptanceController, V25AcceptanceController, V31AcceptanceController, V31PromotionGateController, V24LocalEvidenceController, V24LocalEngineeringController, V32AcceptanceController, V33AcceptanceController, Dc06AcceptanceController, Dc08AcceptanceController, RealIntegrationController], providers: [PlatformContainer] })
 export class AppModule {}

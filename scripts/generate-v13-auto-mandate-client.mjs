@@ -7,6 +7,8 @@ const readMandate = document.paths?.["/internal/v1/auto-mandates/{mandateId}/run
 if (readMandate?.operationId !== "readV13AutoPolicyMandate" || !readMandate.security?.some((item) => item.ServiceBearer) || !readMandate.parameters?.some((item) => item.name === "x-stockquant-service-id" && item.schema?.const === "platform-api-service")) throw new Error("V1.3 AUTO Mandate read OpenAPI contract is incomplete");
 const readBudget = document.paths?.["/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}/versions/{mandateVersion}/budget"]?.get;
 if (readBudget?.operationId !== "readV13AutoPolicyMandateBudget" || !readBudget.security?.some((item) => item.ServiceBearer) || !readBudget.parameters?.some((item) => item.name === "x-stockquant-service-id" && item.schema?.const === "platform-api-service")) throw new Error("V1.3 AUTO Mandate budget read OpenAPI contract is incomplete");
+const verifyC5Reservation = document.paths?.["/internal/v1/c5-local/orders/reservations/verify"]?.post;
+if (verifyC5Reservation?.operationId !== "verifyV24C5LocalOrderReservation" || !verifyC5Reservation.security?.some((item) => item.ServiceBearer) || !verifyC5Reservation.requestBody?.required || !JSON.stringify(verifyC5Reservation.requestBody).includes("v24-c5-local-reservation-verification-v1.schema.json") || !verifyC5Reservation.parameters?.some((item) => item.name === "x-stockquant-service-id" && item.schema?.const === "trade-execution-service")) throw new Error("V2.4 C5 reservation verification OpenAPI contract is incomplete");
 const operations = [
   ["/internal/v1/auto-mandates", "createV13AutoPolicyMandate", "v13-auto-mandate-command.schema.json", "platform-api-service"],
   ["/internal/v1/auto-mandates/{mandateId}/activate", "activateV13AutoPolicyMandate", "v13-auto-mandate-transition-command.schema.json", "platform-api-service"],
@@ -75,6 +77,11 @@ export class GeneratedTradeV13AutoMandateClient {
     if (!/^https?:\\/\\//u.test(baseUrl)) throw new Error("Decision Governance base URL must be HTTP(S)");
     if (!/^[A-Za-z0-9_-]{32,}$/u.test(bearerToken)) throw new Error("Trade service bearer token is not configured");
     this.baseUrl = baseUrl.replace(/\\/+$/u, "");
+  }
+  async verifyC5LocalReservation(body: Record<string,unknown>, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
+    const response = await this.request(this.baseUrl + "/internal/v1/c5-local/orders/reservations/verify", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "trade-execution-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+    const value = await response.json().catch(() => undefined) as unknown;
+    return { status: response.status, body: value as Record<string,unknown> | undefined };
   }
   async authorizeOrder(mandateId: string, body: Contracts.V13AutoMandateOrderCommand, timeoutMs = 5000): Promise<V13AutoMandateResponse> {
     const path = "/internal/v1/auto-mandates/" + encodeURIComponent(mandateId) + "/orders/authorize";

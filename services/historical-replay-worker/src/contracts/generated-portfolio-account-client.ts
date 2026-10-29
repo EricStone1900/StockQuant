@@ -35,6 +35,11 @@ export class GeneratedPortfolioAccountClient {
     return this.send<{ "settledFillIds": Array<string>; }>("POST", path, body);
   }
 
+  async getAccountSellable(accountId: string, ownerId: string, namespace: string, testRunId: string, security: string, asOf: string): Promise<{ "accountId": string; "ownerId": string; "namespace": string; "testRunId": string; "security": string; "asOf": string; "sellableQuantity": number; }> {
+    const path = `/internal/v1/accounts/${encodeURIComponent(accountId)}/sellable` + "?" + new URLSearchParams({ namespace, testRunId, security, asOf }).toString();
+    return this.send<{ "accountId": string; "ownerId": string; "namespace": string; "testRunId": string; "security": string; "asOf": string; "sellableQuantity": number; }>("GET", path, undefined, { "x-stockquant-owner-id": ownerId });
+  }
+
   async getAccountSnapshot(accountId: string, ownerId: string): Promise<Contracts.AccountSnapshot> {
     const path = `/internal/v1/accounts/${encodeURIComponent(accountId)}/snapshot`;
     return this.send<Contracts.AccountSnapshot>("GET", path, undefined, { "x-stockquant-owner-id": ownerId });

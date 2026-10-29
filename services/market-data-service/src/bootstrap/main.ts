@@ -20,6 +20,8 @@ import { DataVersionConflict, ProjectAccessDenied, assertProjectAccess, exportWi
 import { parseProjectTokenConfig } from "../application/project-token-config.js";
 import { ProjectAccessRepository } from "../adapters/postgres-project-access-repository.js";
 import { migrateDailyBarCloseSchedulerSchema, migrateDailyBarCompletionSchema, migrateMarketDataSchema, migrateMonitorConsumerOutboxSchema } from "../adapters/postgres-schema-migrations.js";
+import { PostgresV24LocalSnapshotBarrierRepository } from "../adapters/postgres-v24-local-snapshot-barrier-repository.js";
+import { V24LocalSnapshotWorker, isV24LocalSnapshotFixture } from "../application/v24-local-snapshot-worker.js";
 import { ProjectAuthenticationError, ProjectQuotaRepositoryError } from "../ports/project-access.js";
 import { ArtifactDeliveryRepository } from "../adapters/postgres-artifact-delivery-repository.js";
 import { ArtifactTaskExecutor } from "../application/artifact-task-executor.js";
@@ -31,7 +33,7 @@ import { EastmoneyDailyBarProvider } from "../adapters/eastmoney-daily-bar-provi
 import { validateDailyBarCompletion } from "../application/v21-daily-bar-completion.js";
 import { isHistoricalResearchSourceAuthorized } from "../application/external-source-authorization.js";
 import { MinuteImportRepository } from "../adapters/postgres-minute-import-repository.js";
-import { withMinuteBarContextDefaults, type MinuteImportBar } from "../domain/minute-import.js";
+import { MinuteImportStorageQuotaExceeded, withMinuteBarContextDefaults, type MinuteImportBar } from "../domain/minute-import.js";
 import { MAX_MINUTE_CSV_PREVIEW_BARS, historicalContextStatus, minuteCsvImportIdentity, minuteCsvImportIdentityFromSha, previewMinuteCsv, previewMinuteCsvStream, type MinuteCsvHistoricalContext, type MinuteCsvMapping } from "../application/minute-csv-import.js";
 import { previewMinuteParquetStream } from "../application/minute-parquet-import.js";
 import { MinuteUploadRepository } from "../adapters/postgres-minute-upload-repository.js";
@@ -108,6 +110,8 @@ const samplingSettingsRepository = databasePool ? new PostgresSamplingSettingsRe
 const samplingPolicyRepository = databasePool ? new PostgresSamplingPolicyRepository(databasePool) : null;
 const newsRevisionRepository = databasePool ? new PostgresNewsRevisionRepository(databasePool) : null;
 const snapshotSamplingRepository = databasePool ? new PostgresSnapshotSamplingRepository(databasePool) : null;
+const localSnapshotBarrier = databasePool ? new PostgresV24LocalSnapshotBarrierRepository(databasePool) : null;
+const localSnapshotWorker = snapshotSamplingRepository && localSnapshotBarrier ? new V24LocalSnapshotWorker(snapshotSamplingRepository, localSnapshotBarrier, root) : null;
 const samplingTaskLifecycleRepository = databasePool ? new PostgresSamplingTaskLifecycleRepository(databasePool) : null;
 const snapshotScheduleRepository = databasePool ? new PostgresSnapshotScheduleRepository(databasePool) : null;
 const snapshotScheduler = snapshotScheduleRepository && samplingSettingsRepository && snapshotSamplingRepository && samplingTaskLifecycleRepository ? new SnapshotSamplingScheduler(
@@ -124,7 +128,10 @@ const snapshotScheduler = snapshotScheduleRepository && samplingSettingsReposito
 const dailyBarCompletionRepository = databasePool ? new PostgresDailyBarCompletionRepository(databasePool) : null;
 const dailyBarFixtures: Record<string, { manifestPath: string; fixturePath: string }> = {
   "v2.1-daily-bars-1": { manifestPath: "fixtures/v2/v2.1-daily-bar-completion/manifest.json", fixturePath: "fixtures/v2/v2.1-daily-bar-completion/bars.json" },
-  "v24-c5-daily-bars-1": { manifestPath: "fixtures/v2/v2.4/c5-daily-bar-completion/manifest.json", fixturePath: "fixtures/v2/v2.4/c5-daily-bar-completion/bars.json" }
+  "v24-c5-daily-bars-1": { manifestPath: "fixtures/v2/v2.4/c5-daily-bar-completion/manifest.json", fixturePath: "fixtures/v2/v2.4/c5-daily-bar-completion/bars.json" },
+  "v24-c5-prior-20261014-1": { manifestPath: "fixtures/v2/v2.4/c5-prior-daily-20261014/manifest.json", fixturePath: "fixtures/v2/v2.4/c5-prior-daily-20261014/bars.json" },
+  "v24-c5-prior-20261015-1": { manifestPath: "fixtures/v2/v2.4/c5-prior-daily-20261015/manifest.json", fixturePath: "fixtures/v2/v2.4/c5-prior-daily-20261015/bars.json" },
+  ...Object.fromEntries(["20240102", "20240103", "20240104", "20240105", "20240108", "20240109", "20240110"].map((date) => [`v24-c5-local-daily-${date}-1`, { manifestPath: `fixtures/v2/v2.4/c5-local-daily-${date}/manifest.json`, fixturePath: `fixtures/v2/v2.4/c5-local-daily-${date}/bars.json` }]))
 };
 async function loadDailyBarFixture(fixtureVersion: string): Promise<{ bytes: Uint8Array; manifestVersion: string; expectedSha256: string }> {
   const source = dailyBarFixtures[fixtureVersion];
@@ -170,6 +177,11 @@ const samplingTaskWorker = samplingTaskLifecycleRepository && snapshotSamplingRe
   { execute: async (run) => {
     const task = await snapshotSamplingRepository.find(run.taskId);
     if (!task) throw new Error("SNAPSHOT_TASK_NOT_FOUND");
+    if (isV24LocalSnapshotFixture(task.fixtureVersion)) {
+      if (!localSnapshotWorker) throw new Error("C5_LOCAL_SNAPSHOT_WORKER_UNAVAILABLE");
+      await localSnapshotWorker.execute(task);
+      return { state: "COMPLETED" };
+    }
     if (task.status === "COMPLETED_FIXTURE") return { state: "COMPLETED" };
     if (task.status === "COMPLETED_REAL") return { state: "COMPLETED" };
     if (task.status === "BLOCKED_SOURCE_AUTHORIZATION") return { state: "BLOCKED_SOURCE_AUTHORIZATION", reason: "OD-008 source authorization is not configured; no provider request was made" };
@@ -205,7 +217,7 @@ const samplingTaskWorker = samplingTaskLifecycleRepository && snapshotSamplingRe
     });
     await snapshotSamplingRepository.completeFixture(task.taskId, result.fixtureVersion, result.fixtureSha256, result.observations);
     return { state: "COMPLETED" };
-  }, failed: async (taskId) => snapshotSamplingRepository.fail(taskId) },
+  }, failed: async (taskId) => { const task = await snapshotSamplingRepository.find(taskId); if (task?.status !== "COMPLETED_FIXTURE" && task?.status !== "COMPLETED_REAL") await snapshotSamplingRepository.fail(taskId); } },
   { now: () => new Date() },
   process.env.STOCKQUANT_SAMPLING_TASK_WORKER_ID ?? `sampling-worker-${process.pid}`,
   Number(process.env.STOCKQUANT_SAMPLING_TASK_LEASE_MS ?? 30_000),
@@ -331,6 +343,67 @@ async function acquireMinuteImportSlot(): Promise<(() => Promise<void>) | null> 
   if (postgresMinuteImportGate) return postgresMinuteImportGate.tryAcquire();
   const release = localMinuteImportGate.tryAcquire();
   return release ? async () => release() : null;
+}
+async function finalizeMinuteUpload(ownerId: string, uploadId: string): Promise<{ status: number; body: unknown }> {
+  if (!minuteUploadRepository || !minuteImportRepository) throw new Error("MINUTE_UPLOAD_PERSISTENCE_UNAVAILABLE");
+  const upload = await minuteUploadRepository.beginFinalization(ownerId, uploadId);
+  if (upload.alreadyCompleted) return { status: 200, body: { ...upload.alreadyCompleted as object, idempotent: true, uploadId, uploadStatus: "COMPLETED" } };
+  const provenance = upload.metadata.provenance;
+  const historicalContext = upload.metadata.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
+  const manifest = { mapping: Object.fromEntries(Object.entries(upload.metadata.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics: { fileFormat: upload.metadata.fileFormat ?? "CSV", market: upload.metadata.market, frequency: upload.metadata.frequency, adjustment: upload.metadata.adjustment, timezone: upload.metadata.timezone, timestampSemantics: upload.metadata.timestampSemantics, volumeUnit: upload.metadata.volumeUnit, amountUnit: upload.metadata.amountUnit }, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED", historicalContext, historicalContextStatus: historicalContextStatus(historicalContext) };
+  try {
+    const imported = await minuteImportRepository.publishStream({
+      expectedSha256: upload.expectedSha256,
+      manifest,
+      importKeyForSha: (sha256) => minuteCsvImportIdentityFromSha(sha256, upload.metadata.mapping, upload.metadata, provenance, historicalContext).importKeySha256,
+      parse: async (writeBarsBatch) => {
+        let persistenceFailed = false;
+        try {
+          const parseInput = { mapping: upload.metadata.mapping, market: "CN_A" as const, frequency: upload.metadata.frequency as "1m" | "5m", adjustment: "RAW" as const, timezone: "Asia/Shanghai" as const, timestampSemantics: upload.metadata.timestampSemantics as "BAR_START" | "BAR_END", volumeUnit: "SHARES" as const, amountUnit: "CNY" as const };
+          const chunks = minuteUploadRepository.readFinalizationChunks(ownerId, uploadId, upload.expectedChunks);
+          const options = { retainBars: false, batchSize: 1_000, onBarsBatch: async (bars: MinuteImportBar[]) => { try { await writeBarsBatch(bars); } catch (error) { persistenceFailed = true; throw error; } } };
+          const parsed = upload.metadata.fileFormat === "PARQUET"
+            ? await previewMinuteParquetStream(parseInput, chunks, upload.metadata.mapping, options)
+            : await previewMinuteCsvStream(parseInput, chunks, options);
+          return { sourceSha256: parsed.sourceSha256, accepted: parsed.preview.acceptedRows, errors: parsed.preview.errors };
+        } catch (error) {
+          if (persistenceFailed) throw error;
+          throw new MinuteCsvFinalizeParseError(error instanceof Error ? error.message : "CSV is invalid");
+        }
+      },
+    });
+    const rejected = imported.record.status === "REJECTED";
+    const result = { ...imported.record, idempotent: imported.idempotent };
+    const progress = await minuteUploadRepository.complete(ownerId, uploadId, result);
+    return { status: imported.idempotent ? 200 : rejected ? 422 : 201, body: { ...result, uploadId, uploadStatus: progress.status } };
+  } catch (error) {
+    await minuteUploadRepository.releaseFinalization(ownerId, uploadId);
+    if (error instanceof Error && error.message === "assembled upload size or SHA-256 does not match declaration") return { status: 409, body: { code: "UPLOAD_HASH_MISMATCH" } };
+    if (error instanceof MinuteCsvFinalizeParseError) return { status: 422, body: { code: upload.metadata.fileFormat === "PARQUET" ? "PARQUET_PARSE_REJECTED" : "CSV_PARSE_REJECTED", message: error.message } };
+    throw error;
+  }
+}
+let minuteUploadWorkerBusy = false;
+async function tickMinuteUploadFinalizationWorker(): Promise<void> {
+  if (!minuteUploadRepository || minuteUploadWorkerBusy || process.env.STOCKQUANT_MINUTE_UPLOAD_WORKER === "0") return;
+  minuteUploadWorkerBusy = true;
+  let release: (() => Promise<void>) | null = null;
+  try {
+    release = await acquireMinuteImportSlot();
+    if (!release) return;
+    const workerId = process.env.STOCKQUANT_MINUTE_UPLOAD_WORKER_ID ?? `minute-upload-${process.pid}`;
+    const task = await minuteUploadRepository.claimFinalization(workerId, Number(process.env.STOCKQUANT_MINUTE_UPLOAD_LEASE_MS ?? 300_000));
+    if (!task) return;
+    const result = await finalizeMinuteUpload(task.ownerId, task.uploadId);
+    const body = result.body as { uploadStatus?: string };
+    if (body?.uploadStatus === "COMPLETED") await minuteUploadRepository.completeFinalizationJob(task.uploadId, workerId, result);
+    else await minuteUploadRepository.failFinalizationJob(task.uploadId, workerId, JSON.stringify(result.body));
+  } catch (error) {
+    console.error("minute upload finalization worker failed", error);
+  } finally {
+    if (release) await release().catch((error) => console.error("minute import slot release failed", error));
+    minuteUploadWorkerBusy = false;
+  }
 }
 function waitForResponseDrain(res: ServerResponse): Promise<void> {
   if (res.writableFinished || res.destroyed) return Promise.resolve();
@@ -580,6 +653,33 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const execution = await samplingTaskLifecycleRepository.enqueue(task.taskId);
       return json(res, { task, execution, decision, intervalMinutes, settingsVersion: setting.version, dataMode: "FIXTURE", acceptanceFixture: body.acceptanceIntervalMinutes !== undefined, externalRequests: 0 });
     }
+    if (pathname === "/v2/sampling/c5-local/plan" && req.method === "POST") {
+      if (!localSnapshotBarrier || !snapshotSamplingRepository || !samplingTaskLifecycleRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const body = JSON.parse(await readBody(req)) as { scope?: SnapshotSamplingScope; sessionDate?: string };
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json(res, { code: "INVALID_C5_LOCAL_SCOPE" }, 422);
+      const scope = body.scope;
+      if (Object.keys(body).sort().join(",") !== "scope,sessionDate" || !scope || Object.keys(scope).sort().join(",") !== "accountId,market,namespace,ownerId,testRunId" || scope.market !== "CN_A" || !scope.ownerId?.trim() || scope.ownerId.length > 128 || !scope.accountId || !isUuid(scope.accountId) || !scope.testRunId || !isUuid(scope.testRunId) || scope.namespace !== `v24-paper-v2-${scope.testRunId}` || !["2024-01-04", "2024-01-05"].includes(body.sessionDate ?? "")) return json(res, { code: "INVALID_C5_LOCAL_SCOPE" }, 422);
+      const localScope = scope as import("../application/v24-local-snapshot-barrier.js").LocalSnapshotScope;
+      try {
+        const { plan, created } = await localSnapshotBarrier.createPlan(localScope, body.sessionDate!);
+        const expected = plan.tasks[0]!; const fixtureVersion = expected.sourceId.slice("fixture:".length);
+        const task = await snapshotSamplingRepository.record({ scheduledAt: expected.scheduledAt, intervalMinutes: 30, settingsVersion: 1, calendarVersion: "c5-local-synthetic-sessions-1", window: "morning", dataMode: "FIXTURE", sourceId: expected.sourceId, scope: localScope, securityIds: ["600000.SH"], status: "QUEUED", fixtureVersion });
+        if (task.taskId !== expected.taskId) throw new Error("C5_LOCAL_SNAPSHOT_TASK_ID_MISMATCH");
+        await samplingTaskLifecycleRepository.enqueue(task.taskId);
+        return json(res, { planId: plan.planId, taskId: task.taskId, created, externalRequests: 0, placeOrders: false });
+      } catch (error) {
+        if (error instanceof Error && (error.message === "C5_LOCAL_SNAPSHOT_PLAN_SCOPE_CONFLICT" || error.name === "SnapshotTaskConflict")) return json(res, { code: "C5_LOCAL_SNAPSHOT_SCOPE_CONFLICT" }, 409);
+        throw error;
+      }
+    }
+    if (pathname === "/v2/sampling/c5-local/selection" && req.method === "GET") {
+      if (!localSnapshotBarrier) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
+      const query = new URL(req.url ?? "/", "http://localhost").searchParams;
+      const keys = [...query.keys()].sort();
+      const ownerId = query.get("ownerId"); const accountId = query.get("accountId"); const testRunId = query.get("testRunId"); const namespace = query.get("namespace"); const sessionDate = query.get("sessionDate"); const evaluatedAt = query.get("evaluatedAt");
+      if (keys.join(",") !== "accountId,evaluatedAt,namespace,ownerId,sessionDate,testRunId" || !ownerId?.trim() || ownerId.length > 128 || !accountId || !isUuid(accountId) || !testRunId || !isUuid(testRunId) || namespace !== `v24-paper-v2-${testRunId}` || !sessionDate || !["2024-01-04", "2024-01-05"].includes(sessionDate) || !evaluatedAt || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(evaluatedAt) || !Number.isFinite(Date.parse(evaluatedAt))) return json(res, { code: "INVALID_C5_LOCAL_SCOPE_OR_CLOCK" }, 422);
+      return json(res, await localSnapshotBarrier.select({ market: "CN_A", ownerId, accountId, namespace, testRunId }, sessionDate, evaluatedAt));
+    }
     if (pathname === "/v2/sampling/tasks/latest" && req.method === "GET") {
       if (!snapshotSamplingRepository) return json(res, { code: "SAMPLING_PERSISTENCE_UNAVAILABLE" }, 503);
       const query = new URL(req.url ?? "/", "http://localhost").searchParams;
@@ -635,6 +735,21 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (!ownerId?.trim() || ownerId.length > 128 || !accountId || !isUuid(accountId) || !namespace?.trim() || namespace.length > 128 || !testRunId || !isUuid(testRunId)) return json(res, { code: "INVALID_DAILY_BAR_SCOPE" }, 422);
       const scope: DailyBarCompletionScope = { market: "CN_A", ownerId, accountId, namespace, testRunId };
       return json(res, await dailyBarCompletionRepository.latest(scope) ?? { task: null, completion: null });
+    }
+    if (pathname === "/v2/daily-bars/completions/sessions" && req.method === "GET") {
+      if (!dailyBarCompletionRepository) return json(res, { code: "DAILY_BAR_COMPLETION_PERSISTENCE_UNAVAILABLE" }, 503);
+      const query = new URL(req.url ?? "/", "http://localhost").searchParams;
+      const ownerId = query.get("ownerId"); const accountId = query.get("accountId"); const namespace = query.get("namespace"); const testRunId = query.get("testRunId");
+      const sessionDates = query.getAll("sessionDate"); const sourceId = query.get("sourceId"); const dataVersion = query.get("dataVersion"); const dataMode = query.get("dataMode"); const asOf = query.get("asOf");
+      if (!ownerId?.trim() || ownerId.length > 128 || !accountId || !isUuid(accountId) || !namespace?.trim() || namespace.length > 128 || !testRunId || !isUuid(testRunId) || sessionDates.length !== 2 || !sourceId || !dataVersion || (dataMode !== "FIXTURE" && dataMode !== "REAL") || !asOf) return json(res, { code: "DAILY_BAR_SESSION_QUERY_INVALID" }, 422);
+      try {
+        const completions = await dailyBarCompletionRepository.findSessions({ scope: { market: "CN_A", ownerId, accountId, namespace, testRunId }, sessionDates: [sessionDates[0], sessionDates[1]], sourceId, dataVersion, dataMode, asOf });
+        return json(res, { completions });
+      } catch (error) {
+        if (error instanceof Error && error.message === "DAILY_BAR_SESSION_QUERY_INVALID") return json(res, { code: error.message }, 422);
+        if (error instanceof Error && error.message === "DAILY_BAR_SESSION_AMBIGUOUS") return json(res, { code: error.message }, 409);
+        throw error;
+      }
     }
     const breakerMatch = req.url?.match(/^\/v2\/sources\/([^/]+)\/(fail|recover)$/);
     if (breakerMatch && req.method === "POST") { const state = sourceState.get(breakerMatch[1]); if (!state) return json(res, { code: "SOURCE_NOT_FOUND" }, 404); if (breakerMatch[2] === "fail") { state.failures += 1; state.status = "OPEN"; } else { state.failures = 0; state.status = "HEALTHY"; } return json(res, { sourceId: breakerMatch[1], circuit: state.status, failures: state.failures }); }
@@ -886,7 +1001,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const result = await minuteUploadRepository.putChunk({ ownerId, uploadId: minuteUploadChunkMatch[2], index: Number(minuteUploadChunkMatch[3]), content, sha256: body.sha256 });
       return json(res, { ...result.progress, idempotent: result.idempotent });
     }
-    const minuteUploadMatch = req.url?.match(/^\/v2\/minute\/(csv|parquet)\/uploads\/([0-9a-f-]+)(?:\/(preview|finalize|cancel))?$/iu);
+    const minuteUploadMatch = req.url?.match(/^\/v2\/minute\/(csv|parquet)\/uploads\/([0-9a-f-]+)(?:\/(preview|finalize|cancel|finalize-queued|finalization))?$/iu);
     if (minuteUploadMatch) {
       if (!minuteUploadRepository) return json(res, { code: "PERSISTENCE_UNAVAILABLE" }, 503);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(minuteUploadMatch[2])) return json(res, { code: "INVALID_UPLOAD_ID" }, 422);
@@ -895,6 +1010,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       const uploadId = minuteUploadMatch[2]; const action = minuteUploadMatch[3];
       if (!action && req.method === "GET") return json(res, await minuteUploadRepository.progress(ownerId, uploadId));
       if (action === "cancel" && req.method === "POST") return json(res, await minuteUploadRepository.cancel(ownerId, uploadId));
+      if (action === "finalize-queued" && req.method === "POST") return json(res, await minuteUploadRepository.enqueueFinalization(ownerId, uploadId), 202);
+      if (action === "finalization" && req.method === "GET") { const job = await minuteUploadRepository.finalizationJob(ownerId, uploadId); return job ? json(res, job) : json(res, { code: "NOT_FOUND" }, 404); }
       if (action === "preview" && req.method === "POST") {
         const upload = await minuteUploadRepository.beginFinalization(ownerId, uploadId);
         if (upload.alreadyCompleted) return json(res, upload.alreadyCompleted);
@@ -912,42 +1029,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         finally { await minuteUploadRepository.releaseFinalization(ownerId, uploadId); }
       }
       if (action === "finalize" && req.method === "POST") {
-        const upload = await minuteUploadRepository.beginFinalization(ownerId, uploadId);
-        if (upload.alreadyCompleted) return json(res, { ...upload.alreadyCompleted, idempotent: true, uploadId }, 200);
-        const provenance = upload.metadata.provenance;
-        const historicalContext = upload.metadata.historicalContext ?? { securityUniverseVersion: null, marketRuleSetVersion: null, corporateActionVersion: null };
-        const manifest = { mapping: Object.fromEntries(Object.entries(upload.metadata.mapping).sort(([a], [b]) => a.localeCompare(b))), semantics: { fileFormat: upload.metadata.fileFormat ?? "CSV", market: upload.metadata.market, frequency: upload.metadata.frequency, adjustment: upload.metadata.adjustment, timezone: upload.metadata.timezone, timestampSemantics: upload.metadata.timestampSemantics, volumeUnit: upload.metadata.volumeUnit, amountUnit: upload.metadata.amountUnit }, provenance, researchUseAllowed: provenance.licenseVerification === "OPERATOR_CONFIRMED", historicalContext, historicalContextStatus: historicalContextStatus(historicalContext) };
-        try {
-          const imported = await minuteImportRepository!.publishStream({
-            expectedSha256: upload.expectedSha256,
-            manifest,
-            importKeyForSha: (sha256) => minuteCsvImportIdentityFromSha(sha256, upload.metadata.mapping, upload.metadata, provenance, historicalContext).importKeySha256,
-            parse: async (writeBarsBatch) => {
-              let persistenceFailed = false;
-              try {
-                const parseInput = { mapping: upload.metadata.mapping, market: "CN_A" as const, frequency: upload.metadata.frequency as "1m" | "5m", adjustment: "RAW" as const, timezone: "Asia/Shanghai" as const, timestampSemantics: upload.metadata.timestampSemantics as "BAR_START" | "BAR_END", volumeUnit: "SHARES" as const, amountUnit: "CNY" as const };
-                const chunks = minuteUploadRepository.readFinalizationChunks(ownerId, uploadId, upload.expectedChunks);
-                const options = { retainBars: false, batchSize: 1_000, onBarsBatch: async (bars: MinuteImportBar[]) => { try { await writeBarsBatch(bars); } catch (error) { persistenceFailed = true; throw error; } } };
-                const parsed = upload.metadata.fileFormat === "PARQUET"
-                  ? await previewMinuteParquetStream(parseInput, chunks, upload.metadata.mapping, options)
-                  : await previewMinuteCsvStream(parseInput, chunks, options);
-                return { sourceSha256: parsed.sourceSha256, accepted: parsed.preview.acceptedRows, errors: parsed.preview.errors };
-              } catch (error) {
-                if (persistenceFailed) throw error;
-                throw new MinuteCsvFinalizeParseError(error instanceof Error ? error.message : "CSV is invalid");
-              }
-            },
-          });
-          const rejected = imported.record.status === "REJECTED";
-          const result = { ...imported.record, idempotent: imported.idempotent };
-          const progress = await minuteUploadRepository.complete(ownerId, uploadId, result);
-          return json(res, { ...result, uploadId, uploadStatus: progress.status }, imported.idempotent ? 200 : rejected ? 422 : 201);
-        } catch (error) {
-          await minuteUploadRepository.releaseFinalization(ownerId, uploadId);
-          if (error instanceof Error && error.message === "assembled upload size or SHA-256 does not match declaration") return json(res, { code: "UPLOAD_HASH_MISMATCH" }, 409);
-          if (error instanceof MinuteCsvFinalizeParseError) return json(res, { code: upload.metadata.fileFormat === "PARQUET" ? "PARQUET_PARSE_REJECTED" : "CSV_PARSE_REJECTED", message: error.message }, 422);
-          throw error;
-        }
+        const result = await finalizeMinuteUpload(ownerId, uploadId);
+        return json(res, result.body, result.status);
       }
       return json(res, { code: "METHOD_NOT_ALLOWED" }, 405);
     }
@@ -1062,7 +1145,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return task ? json(res, task) : json(res, { code: "NOT_FOUND" }, 404);
     }
     return json(res, { code: "NOT_FOUND", message: "route not found" }, 404);
-  } catch (error) { const bodyTooLarge = error instanceof HttpBodyTooLargeError; const unauthenticated = error instanceof ProjectAuthenticationError; const accessDenied = error instanceof ProjectAccessDenied; const quota = error instanceof ProjectQuotaRepositoryError || error instanceof MinuteUploadQuotaExceeded; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict || error instanceof MinuteUploadConflict || (error instanceof Error && error.name === "SnapshotTaskConflict"); return json(res, { code: bodyTooLarge ? "REQUEST_BODY_TOO_LARGE" : unauthenticated ? "UNAUTHENTICATED" : accessDenied ? "PROJECT_ACCESS_DENIED" : quota ? "PROJECT_QUOTA_EXCEEDED" : conflict ? "IDEMPOTENCY_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, bodyTooLarge ? 413 : unauthenticated ? 401 : accessDenied ? 403 : quota ? 429 : conflict ? 409 : 500); }
+  } catch (error) { const bodyTooLarge = error instanceof HttpBodyTooLargeError; const unauthenticated = error instanceof ProjectAuthenticationError; const accessDenied = error instanceof ProjectAccessDenied; const minuteQuota = error instanceof MinuteUploadQuotaExceeded || error instanceof MinuteImportStorageQuotaExceeded; const projectQuota = error instanceof ProjectQuotaRepositoryError; const conflict = error instanceof CollectionRunConflict || error instanceof CollectionScheduleConflict || error instanceof DataVersionConflict || error instanceof MinuteUploadConflict || (error instanceof Error && error.name === "SnapshotTaskConflict"); return json(res, { code: bodyTooLarge ? "REQUEST_BODY_TOO_LARGE" : unauthenticated ? "UNAUTHENTICATED" : accessDenied ? "PROJECT_ACCESS_DENIED" : minuteQuota ? "MINUTE_STORAGE_QUOTA_EXCEEDED" : projectQuota ? "PROJECT_QUOTA_EXCEEDED" : conflict ? "IDEMPOTENCY_CONFLICT" : "INTERNAL", message: error instanceof Error ? error.message : "unknown" }, bodyTooLarge ? 413 : unauthenticated ? 401 : accessDenied ? 403 : minuteQuota || projectQuota ? 429 : conflict ? 409 : 500); }
   finally { if (releaseMinuteImport) { await waitForResponseDrain(res); await releaseMinuteImport(); } }
 });
 async function projectActorForRequest(req: IncomingMessage): Promise<ProjectActor | null> {
@@ -1082,12 +1165,17 @@ type MinuteBar = MinuteImportBar;
 async function parseMinute(path: string): Promise<MinuteBar[]> { const lines = (await readFile(path, "utf8")).trim().split(/\r?\n/).slice(1); return lines.map((line) => { const [securityId, market, frequency, barStart, barEnd, availableAt, open, high, low, close, volume, amount, adjustment] = line.split(","); return withMinuteBarContextDefaults({ securityId: securityId!, market: market!, frequency: frequency as MinuteBar["frequency"], barStart: barStart!, barEnd: barEnd!, availableAt: availableAt!, open: Number(open), high: Number(high), low: Number(low), close: Number(close), volume: Number(volume), amount: Number(amount), adjustment: adjustment as MinuteBar["adjustment"] }); }); }
 function minuteQuality(bars: MinuteBar[]) { const errors: Array<Record<string, unknown>> = []; const seen = new Set<string>(); for (const [index, bar] of bars.entries()) { const key = `${bar.securityId}|${bar.barStart}`; if (seen.has(key)) errors.push({ code: "DUPLICATE_CONFLICT", row: index + 2, key }); seen.add(key); if (!(bar.high >= bar.low && bar.high >= bar.open && bar.high >= bar.close && bar.low <= bar.open && bar.low <= bar.close)) errors.push({ code: "OHLC_INVALID", row: index + 2 }); const time = bar.barStart.slice(11, 16); if ((time >= "11:30" && time < "13:00") || time < "09:30" || time >= "15:00") errors.push({ code: "NON_TRADING_SESSION", row: index + 2, time }); if (bar.volume < 0 || bar.amount < 0) errors.push({ code: "UNIT_INVALID", row: index + 2 }); } return errors; }
 async function start(): Promise<void> {
-  if (databasePool) { await migrateMarketDataSchema(databasePool); await migrateDailyBarCompletionSchema(databasePool); await migrateMonitorConsumerOutboxSchema(databasePool); await migrateDailyBarCloseSchedulerSchema(databasePool); }
+  if (databasePool) { await migrateMarketDataSchema(databasePool); await minuteUploadRepository!.migrate(); await migrateDailyBarCompletionSchema(databasePool); await migrateMonitorConsumerOutboxSchema(databasePool); await migrateDailyBarCloseSchedulerSchema(databasePool); await localSnapshotBarrier!.migrate(); }
   if (artifactTaskExecutor && process.env.STOCKQUANT_ARTIFACT_TASK_EXECUTOR !== "0") artifactTaskExecutor.start(Number(process.env.STOCKQUANT_ARTIFACT_TASK_INTERVAL_MS ?? 250));
   if (projectAccessRepository) {
     for (const project of parseProjectTokenConfig(process.env.STOCKQUANT_PROJECT_TOKENS)) await projectAccessRepository.register(project.projectId, project.token, project.scopes, project.maxConcurrentRuns, project.maxSecurities);
   }
   server.listen(Number(process.env.STOCKQUANT_PORT ?? 3002), process.env.STOCKQUANT_BIND_HOST ?? "127.0.0.1");
+  if (minuteUploadRepository && process.env.STOCKQUANT_MINUTE_UPLOAD_WORKER !== "0") {
+    const interval = setInterval(() => { void tickMinuteUploadFinalizationWorker(); }, Number(process.env.STOCKQUANT_MINUTE_UPLOAD_WORKER_INTERVAL_MS ?? 500));
+    interval.unref?.();
+    void tickMinuteUploadFinalizationWorker();
+  }
   if (persistentSchedulerWorker) persistentSchedulerWorker.start(Number(process.env.STOCKQUANT_SCHEDULER_INTERVAL_MS ?? 60_000));
   if (samplingTaskWorker && process.env.STOCKQUANT_SAMPLING_TASK_WORKER !== "0") samplingTaskWorker.start(Number(process.env.STOCKQUANT_SAMPLING_TASK_WORKER_INTERVAL_MS ?? 1_000));
   if (snapshotScheduler && process.env.STOCKQUANT_SNAPSHOT_SCHEDULER_ENABLED === "true") snapshotScheduler.start();

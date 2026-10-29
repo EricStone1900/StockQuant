@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v24-c5-prior-daily-fixture.schema.json",
+  "title": "V24C5PriorDailyFixture",
+  "type": "object",
+  "required": ["fixtureId", "fixtureVersion", "dataMode", "market", "barType", "adjustment", "sourceId", "dataVersion", "sessionDate", "sessionCloseAt", "completionRequestedAt", "availableAt", "expectedSecurityIds", "bars"],
+  "properties": {
+    "fixtureId": { "enum": ["v24-c5-prior-20261014", "v24-c5-prior-20261015"] },
+    "fixtureVersion": { "enum": ["v24-c5-prior-20261014-1", "v24-c5-prior-20261015-1"] },
+    "dataMode": { "const": "FIXTURE" }, "market": { "const": "CN_A" }, "barType": { "const": "DAILY_BAR" }, "adjustment": { "const": "RAW" },
+    "sourceId": { "const": "fixture:v24-c5-prior-daily-1" }, "dataVersion": { "const": "v24-c5-prior-daily-1" },
+    "sessionDate": { "enum": ["2026-10-14", "2026-10-15"] },
+    "sessionCloseAt": { "type": "string", "format": "date-time" }, "completionRequestedAt": { "type": "string", "format": "date-time" }, "availableAt": { "type": "string", "format": "date-time" },
+    "expectedSecurityIds": { "const": ["600000.SH"] },
+    "bars": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "type": "object", "required": ["securityId", "sessionDate", "open", "high", "low", "close", "volume", "amount"], "properties": { "securityId": { "const": "600000.SH" }, "sessionDate": { "type": "string", "format": "date" }, "open": { "type": "string" }, "high": { "type": "string" }, "low": { "type": "string" }, "close": { "type": "string" }, "volume": { "type": "integer", "minimum": 0 }, "amount": { "type": "string" } }, "additionalProperties": false } }
+  },
+  "additionalProperties": false
+}

@@ -33,6 +33,7 @@ OD-014未知结算日处理（2026-10-12）：schema v3允许应收的`settlemen
 | 端口/基线路由 | 契约行为 |
 |---|---|
 | GET /api/v1/accounts/{id}/snapshot；GET /api/v1/portfolios/{id}/ledger | 返回原币、可用/冻结/未结算、可卖量及ledgerVersion。 |
+| GET /internal/v1/accounts/{accountId}/sellable | 内部仅Platform服务按owner/namespace/Run/证券及注入时钟读取当前可卖量；扣除当日买入和HELD/UNKNOWN卖出预留。账户锁保证读取一致，最终预留须再次校验；不提供历史账本重建，未来Fill存在时拒绝。 |
 | POST /internal/v1/risk-evaluations | 校验全Leg及中间路径，绑定策略/证据/账户版本。 |
 | POST /internal/v1/resource-reservations | 按最新事实预留，输入预计费用/数量及幂等键；释放须有权威执行证据。 |
 | POST /internal/v1/accounts/{accountId}/fills/{externalFillId}/fee-corrections | 仅执行服务可用；按连续revision、previousFee及证据引用校验，以事务追加FEE_CORRECTION现金差额并更新BUY预留捕获额。 |

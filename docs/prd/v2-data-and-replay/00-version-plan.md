@@ -73,11 +73,88 @@ C4批准的Fixture本地学习子范围现为PASS；V2.3整体继续`PARTIALLY_I
 
 ### 当前接续：C5 / V2.4 连续 Paper
 
+**当前执行顺序见§7.4工作包表。** `C5_LOCAL_ENGINEERING_V1`已于2026-10-29完成本地工程范围签收；20日实际观察独立延期，未通过不伪称通过。C6/V2.5本地单源工程范围已完成验收；下一独立包为C7版本收口。C6证据盘点见[当前C6入口复核](../../../evidence/audits/2026-10-29-v25-c6-current-entry-review.md)。以下旧记录保留，不改变C6来源/容量门禁。
+
 2026-10-25至10-26接续增量：所有者已[确认候选A参数用于实现及隔离验证](../../decisions/2026-10-24-c5-candidate-a-parameters.md)。单证券规则现经新冻结日线计算并持久化Fixture目标，原目标/原单身份经治理、快照执行、账本与Web/CLI复验通过；跨日SELL与结算已由隔离Fixture验证。新增冻结`candidate-binding`场景把策略SHA、独立10,000 CNY账户、风险/费用版本写入同一TestRun的持久Governance Mandate，并要求其保持`PENDING`、零预算/订单/成交和停止调度。绑定场景从同scope Portfolio快照只读计算净值、敞口和累计损失；日累计来自Fill，独立FakeBroker资产不存在时双账核对明确为`NOT_AVAILABLE`。正常、恢复和外部差异隔离场景已把实际持久Fill接到Candidate A风险状态：双账`MATCH`后，以交易日和`externalFillId`指纹在行锁事务中幂等写入成交额、敞口和损失；跨日输入和未对账Fill失败关闭。跨日结算验证日累计轮换与受控恢复。Candidate A执行时窗与新鲜度固定为09:31–09:35、60秒与100bps；`candidate-binding` 2.5.0区分陈旧行情、`SNAPSHOT_STATUS_UNKNOWN`、错过窗口及Mandate到期，过期边界输出`PAUSED/MANDATE_INACTIVE`且数量为0。日线后的对账Incident已接入TestRun。日终/恢复修复报告[API/Web/CLI smoke](../../../evidence/audits/2026-10-26-v24-paper-smoke-206840a62ec441ebb42b750fb987f552.json)、未知行情[报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-63e7458b9ade4dc89ca548ac2a4a0794.json)和Mandate到期[报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-e0883d3558da4c0798beb7c861d616c2.json)均`PASS`；后续补齐正式Web Candidate A入口及可见暂停原因摘要后的完整复验见[6场景隔离报告](../../../evidence/audits/2026-10-26-v24-paper-smoke-d9122fc3a66a4e1da9e815f4a8761037.json)：6个API场景、6个Chromium TestRun及同Run CLI均通过，隔离快照导出后临时容器/网络清理，`activeServicesTouched=false`。Portfolio `AccountSnapshot`无独立账户有效期字段；项目所有者已决定账户不设独立有效期、执行有效期由Mandate控制（[决定记录](../../decisions/2026-10-26-c5-account-validity.md)），Fixture已核验Mandate到期边界。上述仅证明确定性Fixture工程子链；活动账户/策略、常驻真实来源与OD-008范围、自动日终调度/通知、真实时钟恢复及20日观察未完成，活动配置仍关闭，C5继续`PENDING`。
 
 2026-10-24 C5入口缺口复核已完成，详见[审计](../../../evidence/audits/2026-10-24-v24-c5-entry-gap-review.md)。隔离Fixture范围已接通持久采样TestRun到Paper快照消费，并补入同scope三证券`DAILY_BAR`完成、任务幂等与对账读取；拒绝零副作用、原单恢复和CLI只读核对均保留。正式来源调度和20日观察仍需OD-008、OD-007及阶段门禁满足后再受控启动。
 
 下列早期C3日志和C4研发历史为当时记录，保留作审计依据；当前C3结论见[本地学习范围决定](../../decisions/2026-10-24-v22-c3-local-learning-closeout-scope.md)。
+
+### 7.2.2 C5本地工程完成与收口计划（2026-10-28）
+
+计划ID：`C5_LOCAL_ENGINEERING_V1`。状态：`PASS（仅本地工程范围，2026-10-29所有者签收）`。依据：[本轮范围决定](../../decisions/2026-10-28-c5-local-engineering-closeout-scope.md)及[P6候选复核与签收记录](../../../evidence/audits/2026-10-29-c5-local-p6-candidate-review.md)。V2.4完整阶段和V2整版仍未通过。
+
+#### 目标与边界
+
+交付可在本地隔离环境使用的完整后台Paper工程链：两日已完成日线→次日目标→独立采样/执行窗口→权威Governance Mandate→持续风险/资金预留→FakeBroker订单/成交→Portfolio账本→日终独立对账与Incident→原Run恢复。A股Candidate A参数继续采用已确认版本，US保留原Fixture兼容，不新增策略、模型或服务。
+
+只完成隔离工程链仍需要实现下列接线；现有强制PAUSED目标、HOLD观察和一次性订单场景不能单独作为整链完成。测试Mandate通过Governance在新隔离Run内创建，不直接修改旧PENDING记录或将环境变量当授权。真实来源、活动账户/策略、常驻Paper及LIVE保持关闭。
+
+20个合格实际交易日从本轮退出条件中移出，单独记为`DEFERRED / NOT_RUN`。历史回放只证明输入范围内的功能，短期进程运行只证明所执行的调度/恢复；均不得增加实际观察日。C5本地工程范围通过不自动使V2.4原完整范围或V2版本门禁通过。
+
+#### 可直接复用的基线
+
+- [既有隔离Web/API/CLI链](../../../evidence/audits/2026-10-28-v24-paper-smoke-47b77fffec7a4e23a07ef86d10fa4396.json)：BUY/SELL/HOLD相关规则、跨日严格结算、独立FakeBroker资产/Portfolio对账、原单恢复及Incident能力按原证据范围复用。
+- [目标任务Web入口](../../../evidence/audits/2026-10-28-v24-c5-fixture-target-web.md)、持久两日日线、默认关闭Worker、租约接管、目标提交后的幂等恢复均复用，不重建队列或再次拆成独立主项目。
+- [采样时钟](../../../evidence/audits/2026-10-28-v24-sampling-clock-boundary.md)和[执行时刻窗口](../../../evidence/audits/2026-10-28-v24-execution-window-evaluation.md)修复已有单测；新增场景需补同Run证据。
+- 先前[Web 502](../../../evidence/audits/2026-10-28-v24-web-502-followup.md)后续完整复验未复现，根因未确认；保留失败和诊断采集，再现且影响本轮必需场景时才作为修复阻塞，不重复无变化的完整套件。
+
+#### 固定执行顺序
+
+| 顺序 | 工作包与主要实现 | 必须交付/退出条件 | 当前状态 |
+|---|---|---|---|
+| P1 | 冻结新候选与场景合同：列出复用/缺项，固定范围ID、策略/风险/费用/数据版本、隔离账户/namespace、注入Clock、正常/拒绝/恢复断言；登记本地范围验证入口及报告合同 | 有可执行任务清单和输入Manifest；明确工程、用户签收、延期观察三个独立结果；新增入口若尚未实现须标未实现 | DONE（合同与Fixture已冻结；整链验证入口NOT_IMPLEMENTED；[记录](../../../evidence/audits/2026-10-28-c5-local-p1-scenario-contract.md)） |
+| P2 | 接通完整后台链：复用现有业务端口，把日线、不可变目标、采样、窗口、Governance、风险预算、FakeBroker及账本纳入同一持久运行；独立调度，不让采样自动多调仓 | 新隔离Run能后台产生实际BUY/SELL/HOLD结果；关闭Web后继续；同输入重放复用身份；客户端不能伪造授权；完成目标任务不自动完成整Run | **DONE（2026-10-28；隔离五服务进程同Run PASS，P3/P4/P5/P6仍待执行；[记录](../../../evidence/audits/2026-10-28-c5-local-p2-progress.md)）** |
+| P3 | 完成日终与恢复：自动读取独立资产/账本、Outbox屏障、更新风险累计和Incident；断网/进程重启/未知原单恢复；到期/暂停/缺日线/陈旧/窗口关闭失败关闭 | 不重复下单/入账/预留；UNKNOWN先查原单；日终差异OPEN、匹配后RESOLVED且重复事件去重；错过窗口不补旧单 | **DONE（2026-10-29；隔离P3 HTTP/Web/CLI smoke PASS，Incident开/去重/同Incident关闭、丢响应原单恢复及风险累计通过；P4–P6仍待执行；[记录](../../../evidence/audits/2026-10-29-c5-local-p3-progress.md)）** |
+| P4 | 在同一新链执行冻结多日输入和一次有界本地运行，运行最小正常/拒绝/恢复矩阵；已有未受改动影响的证据直接复用 | 至少5个连续交易会话的合成回放，另有2个预热日，实际覆盖BUY→SELL→HOLD和卖出款结算；独立预期与账本精确一致。一次30分钟本地进程/实际计时器运行，含关页、一个进程中断和恢复，业务时钟可注入且明确不计实际观察日 | **DONE（2026-10-29；七会话Fixture及30分钟隔离进程/单次中断恢复通过；[P4审计](../../../evidence/audits/2026-10-29-c5-local-p4-progress.md)；首次尝试超时失败保留）** |
+| P5 | 同步正式Web及验收中心：展示Run/目标/窗口/授权/风险/订单/账本/日终/暂停和恢复结果；CLI独立只读核对同Web Run；收敛手册与必要代码检查 | 当前范围正常、拒绝、恢复各至少一个Web Run；CLI同ID复验、刷新/重开、导出可读；`--check-only`前后业务事实不变。新时间边界有当前场景断言；手册按实际命令/URL/Hash执行后才能标VERIFIED_EXECUTABLE | **DONE（2026-10-29；新增专属C5页面正常/拒绝/重开恢复、同Run CLI/导出及隔离完整Smoke通过；[P5审计](../../../evidence/audits/2026-10-29-c5-local-p5-progress.md)）** |
+| P6 | 冻结收口候选，复核本轮全部必需项、保存代码/镜像/依赖/数据指纹、测试结果与限制；交付用户人工验收并修复阻塞 | 工程报告PASS且非空必需断言全通过；当前候选用户明确签收后，记录`PASS（C5_LOCAL_ENGINEERING_V1，本地工程范围）`；延期项独立NOT_RUN，不冒充V2整版通过 | **PASS（2026-10-29；候选指纹复核及所有者明确签收；[P6记录](../../../evidence/audits/2026-10-29-c5-local-p6-candidate-review.md)）** |
+
+顺序为P1→P2→P3→P4→P5→P6；Web随P2/P3开发，P5负责集中验证，不把界面留到全部后端完成后才开始。出现真实影响主链的缺陷在所属包修复；不因每个小修复重启一轮完整验收或新增竞争计划。
+
+#### 数据与最小验证矩阵
+
+首选在现有Fixture基础上建立新版本多日输入：至少5个连续交易会话加2个前序预热日，冻结价格、时间、预期交易/拒绝、费用、结算、故障序列与SHA-256。必须实际覆盖上涨BUY、下跌SELL、持平HOLD及T+结算；不足时调整新合成版本，不篡改旧Fixture或改容差凑PASS。
+
+已有三证券五交易日BaoStock归档仅在用途、留存、覆盖和上下文适用性核对后按允许部分复用，且标明REAL_RECORDED及UNKNOWN事实；不把5分钟Bar伪造成首次合格SNAPSHOT，不把一次性回放许可扩展为新研究/采集。数据不合适时直接采用合成输入；历史真实性补证、扩大股票池/分钟历史和20日输入不阻塞本轮。
+
+| 必需场景 | 最小断言 |
+|---|---|
+| 正常多日链 | 持久日线/目标身份一致；BUY、SELL、HOLD与日累计轮换正确；现金、可卖数量、费用和结算精确；独立双账日终一致 |
+| 拒绝/暂停 | 缺日线、陈旧/未知快照、Mandate未批准/到期、风险上限、09:35或跨日评估拒绝；禁止的请求没有订单、成交及预留副作用 |
+| 重复/恢复 | 重放原Run；关页不影响Worker；进程中断/连接失败后查原单，目标、订单、成交及Outbox不重复；错过窗口留痕且不补单 |
+| 日终差异 | 固定差异能阻塞并开Incident；重复处理不重复告警；匹配恢复后正确关闭并保留历史 |
+| 本地运行/Web/CLI | 固定30分钟进程运行保存起止、实际计时和故障顺序；Web看到后台事实，CLI只读核对同Run且业务计数不变 |
+
+先运行改动相关单元/契约/隔离集成；集中候选验证时运行适用的`pnpm verify:stage -- --stage V2.4 --suite code`及上述跨服务/Web验收。当前隔离烟测入口`node scripts/run-isolated-postgres-command.mjs --admin-env V24_PAPER_SMOKE_ADMIN_DATABASE_URL -- pnpm --filter @stockquant/platform-api-service v24:paper-http-smoke`已执行新增C5专属浏览器场景、同Run CLI核验、导出及只读事实计数检查；本轮通过记录见[P5审计](../../../evidence/audits/2026-10-29-c5-local-p5-progress.md)与[完整Smoke](../../../evidence/audits/2026-10-29-v24-paper-smoke-b95154f8d6aa48b6ae7c90ab1ad5dc38.json)。命令缺失、跳过必需场景、缺前置分别按原退出码合同记录，不通过关闭验证器获得0。
+
+#### 收口判定与明确延期
+
+- P1～P6必需项全部有当前候选证据；P2/P3实际运行同一条后台链，不能拼接不同Run结果代替。
+- 金额/数量、授权/风控、隔离、幂等和恢复不存在未解决阻塞；用户签收独立于自动PASS。
+- 原TestRun、旧失败和历史签署不改写；版本化新场景、新证据与原阶段第2/7/8节、测试计划及验收表对齐。
+- 20个合格实际交易日、正式常驻来源/活动策略与长期稳定性延期；US真实来源、收益/模型质量、Ubuntu、C6容量及V2整版按各自门禁处理，不自动PASS。
+- 本轮收口后可继续C6独立工程项；恢复长期Paper观察需另行冻结部署、源用途/预算、权威Mandate及起止时间。计划或本地范围验收不构成启用许可。
+
+P1–P6已完成，项目所有者已签收[冻结候选复核与签收包](../../../evidence/audits/2026-10-29-c5-local-p6-candidate-review.md)，结论为`PASS（C5_LOCAL_ENGINEERING_V1，本地工程范围）`。20个实际交易日、真实来源和V2.4/V2完整范围维持各自的延期/未通过状态；本次签收不扩展这些门禁。
+
+### 7.2.3 C6单源范围接续（2026-10-29）
+
+状态：**`PASS（C6_LOCAL_SINGLE_SOURCE_ENGINEERING，2026-10-29项目所有者验收）`**。批准的本地单源队列/配额/查询工程切片、定向手册与自动证据均已复核；更广的V2.5容量、来源稳定性、PIT、V2.4实际观察及V2整版仍未通过。所有者批准[备用分钟源延期](../../decisions/2026-10-29-c6-backup-minute-source-deferral.md)：第二分钟源接入及其60个交易日覆盖为`DEFERRED`，停止继续选源/探测，不作为本轮本地单源范围退出条件。当前使用已有冻结BaoStock归档的软件验证证据；来源失效、缺失或语义不满足时明确暂停/拒绝，不自动切源、插值或补造OHLCV。
+
+| 顺序 | 本轮执行项 | 证据/完成条件 |
+|---|---|---|
+| 1 | 复用已完成的导入、查询、版本隔离、取消/恢复与容量基线，核对尚缺环节 | 已有500×60 HTTP→PG、三文件Web同Run、100k容器分页及重启证据；不得因延期决定重跑完整导入/全套。详见[当前C6复核](../../../evidence/audits/2026-10-29-v25-c6-current-entry-review.md) |
+| 2 | 将V2.5正式验收入口接到真实分钟导入/查询业务，并补齐有界发布容量及上传等待/恢复闭环 | **只读导入查询纵切**已通过隔离Web/API/PG/CLI smoke：V2.5可查询已发布版本首屏（最多100 Bar），将Import ID/DataVersion/SHA/来源声明绑定owner-scoped TestRun。同Run CLI检查退出0、异主403；详情见[接线审计](../../../evidence/audits/2026-10-29-v25-minute-import-run-integration.md)。全局已发布容量上限1,440,000根Bar沿用已有500×60容量基线。新增上传持久完成队列、Worker租约接管与重启恢复、owner-scoped状态读取、排队取消；真实服务重启/PG烟测及定向Web E2E通过，详见[分钟上传队列审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。每owner 2个开放上传/128MiB为暂存配额，Collection持久任务仍是另一业务，不可混同 |
+| 3 | 必要的定向验收与手册收口 | 正常、拒绝、取消/重启覆盖实际变更；同一Web testRunId经CLI `--check-only`独立核对与导出；更新阶段第2/7/8节。通过证据不能超出对应样本/资源规模 |
+| 4 | 当前候选交付用户验收 | **PASS（2026-10-29，项目所有者确认并完成独立复核）**；只绑定本地单源工程切片与[候选审计/来源指纹](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。备用源/60日DEFERRED；原全市场分钟、真实长期稳定性、PIT/研究及V2.4观察另列未完成，不凭本签收豁免 |
+
+本节是原C6工作包的执行细化，不新增平行主计划。V2.5 Web到持久分钟导入/查询与同Run CLI纵切、全局发布Bar配额、分钟上传持久等待队列/Worker重启接续及排队取消的定向工程闭环已完成。第8节单源增量拒绝/恢复手册和自动证据已执行，项目所有者已签收本地单源工程切片；排队中的任务可取消，已运行任务当前不支持协作取消，失败任务可显式重试。需要新输入/新的真实用途时只阻塞对应实验，不重复已通过项或静默扩量采集。原完整V2.5/V2门禁继续按§7.6执行。
+
+### 7.2.4 V2本地学习版收口（2026-10-29）
+
+项目所有者同意按[V2本地学习版范围决定](../../decisions/2026-10-29-v2-local-learning-version-scope.md)依次整理已验收C1～C6范围、候选源码/Fixture/证据、必要定向验证和使用/备份恢复说明，再提交精确候选供验收。当前状态：`IN_PROGRESS`，范围批准不等于候选验收。原完整V2及V2.3/2.4/2.5原门禁与历史事实保留；原`verify:version -- --version V2`不因本地范围调整而伪装为PASS。
 
 ### 7.3 完成目标与范围控制
 
@@ -98,9 +175,9 @@ C4批准的Fixture本地学习子范围现为PASS；V2.3整体继续`PARTIALLY_I
 | C2 / V2.1 采样、时间与新闻 | 完成采样/时间质量/日线/新闻修订与Web/CLI验收，策略订单执行仍受OD-007/C5约束 | 自动、真实组件、有界实源小样本及故障恢复通过；项目所有者确认本地学习范围 | **PASS（2026-10-21；C1/C2人工验收）** |
 | C3 / V2.2 分钟导入 | 核对并补齐CSV/Parquet映射、时间/量额单位、RAW/复权、质量校验、分区/流式读写、版本与历史股票池/规则关联；复用续传与已有100k容量证据 | 3～5只、5～10实际交易日冻结输入可在Web导入/查询/比较；同输入幂等、修订新版本；错误行/缺分钟/停牌区别明确；中断续导不重复；数据和规则Hash可查，必要语义缺失阻塞相应用途；不得无证据全选原任务 | **PASS（2026-10-24批准的本地学习范围）；完整历史事实延期且UNKNOWN，C4真实研究另行把关** |
 | C4 / V2.3 研究与回放 | 批准的Fixture本地学习范围：锁版Qlib fit/predict、Artifact追溯、已保存模型预测复算与边界报告；原历史回放/模拟撮合证据保留 | Fixture范围自动检查及用户人工验收完成；模型质量/收益、真实市场/PIT与Ubuntu门禁另行记录，不从Fixture结果推断 | **Fixture本地学习范围 PASS（2026-10-24）；V2.3整体 PARTIALLY_IMPLEMENTED** |
-| C5 / V2.4 连续Paper | 补快照到确定性策略/授权/风控/FakeBroker/账本/日终对账的真实业务接线；陈旧行情阻断、原单查询、关页/重启/错过窗口恢复；建立可审计实际观察记录 | 隔离业务场景先通过；D1/D2及C2～C4适用前置满足后才另行受控启用；原Run恢复不重复下单/入账；完成新链20个合格实际交易日和当前用户验收；旧8/20不直接抵扣 | PENDING；活动启用受D1/D2约束 |
-| C6 / V2.5与DC 数据/容量收口 | 按原阶梯补剩余导入/查询/队列/配额/取消/恢复、研究切分与容量/成本对比；复核20×60及更大归档证据；补主备来源和实际稳定性 | 原阶段必需容量档位、备用分钟源60日覆盖、适用PIT及限制均有可重读结论；DC-08A短期运行和DC-08B数据覆盖各自按原条件验收；不能用总行数代替逐证券逐日覆盖或以合成内存样本证明生产容量 | PENDING；[2026-10-24入口复核](../../../evidence/audits/2026-10-24-v25-c6-entry-gap-review.md)确认现有日线/分区/恢复证据可保留，但分钟级全量、备用分钟源和长期稳定性仍需新输入或OD-008长期用途决定 |
-| C7 / V2 整版收口 | 冻结发布候选；核对五阶段任务、正式Web、运行手册、适用测试/观察、用户签署、证据包与发布说明 | 本节7.6全部满足；`verify:version -- --version V2`退出0且业务门禁真实满足；固定候选获用户确认后标PASS并归档/发布，未完成条件继续明确显示 | PENDING；依赖前述必需项 |
+| C5 / V2.4 连续Paper | 按§7.2.2完成本地隔离后台整链、日终/恢复、多日回放、短期运行及Web/CLI | P1～P6必需证据和当前用户签收完成后，仅标本地工程范围PASS；20日观察独立延期，活动启用仍受D1/D2约束 | **C5_LOCAL_ENGINEERING_V1本地工程范围PASS（2026-10-29）；20日观察独立延期，V2.4完整范围未通过** |
+| C6 / V2.5与DC 数据/容量收口 | 按§7.2.3推进本地单源范围；复用导入/查询/取消/恢复与容量证据，只补真实缺项；备用分钟源延期 | 本轮适用主功能、必要检查、可执行手册及当前候选用户签收完成；第二分钟源及60日覆盖DEFERRED，不阻塞本轮单源范围。其他容量/稳定性/PIT与原V2门禁保留；不以合成内存样本证明生产容量 | **PASS（2026-10-29；C6_LOCAL_SINGLE_SOURCE_ENGINEERING，项目所有者签收）**；持久DataVersion查询→owner-scoped TestRun→同Run CLI/脱敏证据导出、全局Bar配额、持久上传队列/过期租约接管/排队取消及手册均完成。全市场分钟、长期稳定性、PIT与V2.4观察仍未完成，V2.5/V2整版保持PARTIALLY_IMPLEMENTED。见[当前C6复核](../../../evidence/audits/2026-10-29-v25-c6-current-entry-review.md)、[验收审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)与[接线审计](../../../evidence/audits/2026-10-29-v25-minute-import-run-integration.md) |
+| C7 / V2 整版收口 | 先做只读门禁基线；解决证据/阶段缺项；全部门禁满足后冻结发布候选并核对五阶段任务、正式Web、运行手册、适用测试/观察、用户签署、证据包与发布说明 | 本节7.6全部满足；`verify:version -- --version V2`退出0且业务门禁真实满足；固定候选获用户确认后标PASS并归档/发布，未完成条件继续明确显示 | **INCOMPLETE（2026-10-29）**；C5本地Web纵切新Run结构化导出缺项已补；V2.3/2.4/2.5仍PARTIALLY_IMPLEMENTED，版本级清单未满足，不能冻结候选。最新核查见[C7基线审计](../../../evidence/audits/2026-10-29-v2-c7-closeout-baseline.md) |
 
 ### 7.5 外部前置与实际观察的处理
 

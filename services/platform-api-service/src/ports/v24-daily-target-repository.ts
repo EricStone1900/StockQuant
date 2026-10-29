@@ -7,6 +7,7 @@ export type V24DailyTarget = V24DailyTargetScope & {
   strategyVersion: string;
   strategySha256: string;
   fixtureSha256: string;
+  dailyBarProvenance?: { sourceId: string; dataVersion: string; completionIds: [string, string]; calendarVersion: string; asOf: string };
   sessionDate: string;
   evaluationAt: string;
   input: Omit<DailyDirectionInput, "clock">;

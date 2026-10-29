@@ -1,0 +1,116 @@
+{
+  "testRunId": "ff98e407-a887-417c-84f9-23657d1a7223",
+  "stageId": "V2.1",
+  "scenarioId": "recovery",
+  "scenarioVersion": "1.2.0-fixture",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v2-1-recovery-ff98e407-a887-417c-84f9-23657d1a7223",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": [
+        "dailybartask:f8848a7d83c0ba918bcfa5132d343dc8657193d2b14b2eb887eb28adc2e0555e",
+        "dailybartask:f8848a7d83c0ba918bcfa5132d343dc8657193d2b14b2eb887eb28adc2e0555e",
+        "dailybartask:f8848a7d83c0ba918bcfa5132d343dc8657193d2b14b2eb887eb28adc2e0555e"
+      ],
+      "status": "PASS",
+      "expected": "same scoped Fixture task on duplicate submissions",
+      "assertionId": "V2.1-DAILY-BAR-IDEMPOTENCY-001"
+    },
+    {
+      "actual": {
+        "task": {
+          "scope": {
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "5b8f0980-1137-43f1-9624-26141ef058d7",
+            "namespace": "v2-1-recovery-ff98e407-a887-417c-84f9-23657d1a7223",
+            "testRunId": "ff98e407-a887-417c-84f9-23657d1a7223"
+          },
+          "state": "COMPLETED",
+          "taskId": "dailybartask:f8848a7d83c0ba918bcfa5132d343dc8657193d2b14b2eb887eb28adc2e0555e",
+          "attempt": 1,
+          "createdAt": "2026-10-21T13:00:11.235Z",
+          "lastError": null,
+          "updatedAt": "2026-10-21T13:00:11.384Z",
+          "leaseOwner": null,
+          "leaseUntil": null,
+          "maxAttempts": 3,
+          "completionId": "dailybar:0e4e37f9fd2fe9024e39e4731e61252f95de5768283d3fbd3e121fb8c0181d78",
+          "fixtureSha256": "b98309c9be021c2117d9b3b53276b4ddb313de290413f6bfea5b7040361ae6c4",
+          "nextAttemptAt": null,
+          "fixtureVersion": "v2.1-daily-bars-1"
+        },
+        "completion": {
+          "bars": [
+            {
+              "low": "11.90",
+              "high": "12.60",
+              "open": "12.00",
+              "close": "12.34",
+              "amount": "11070.00",
+              "volume": 900,
+              "securityId": "000001.SZ",
+              "sessionDate": "2026-10-16"
+            },
+            {
+              "low": "10.00",
+              "high": "10.50",
+              "open": "10.10",
+              "close": "10.25",
+              "amount": "12240.00",
+              "volume": 1200,
+              "securityId": "600000.SH",
+              "sessionDate": "2026-10-16"
+            }
+          ],
+          "scope": {
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "5b8f0980-1137-43f1-9624-26141ef058d7",
+            "namespace": "v2-1-recovery-ff98e407-a887-417c-84f9-23657d1a7223",
+            "testRunId": "ff98e407-a887-417c-84f9-23657d1a7223"
+          },
+          "reason": null,
+          "status": "COMPLETED_FIXTURE",
+          "dataMode": "FIXTURE",
+          "sourceId": "fixture:v2.1-daily-bars-1",
+          "availableAt": "2026-10-16T07:02:00.000Z",
+          "dataVersion": "daily-bars-cn-2026-10-16-v1",
+          "sessionDate": "2026-10-16",
+          "completionId": "dailybar:0e4e37f9fd2fe9024e39e4731e61252f95de5768283d3fbd3e121fb8c0181d78",
+          "fixtureVersion": "v2.1-daily-bars-1"
+        }
+      },
+      "status": "PASS",
+      "expected": "same task completes and remains readable after retry",
+      "assertionId": "V2.1-DAILY-BAR-RECOVERY-001"
+    }
+  ],
+  "evidence": {
+    "scope": {
+      "market": "CN_A",
+      "ownerId": "acceptance-owner-1",
+      "accountId": "5b8f0980-1137-43f1-9624-26141ef058d7",
+      "namespace": "v2-1-recovery-ff98e407-a887-417c-84f9-23657d1a7223",
+      "testRunId": "ff98e407-a887-417c-84f9-23657d1a7223"
+    },
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE",
+    "businessIds": {
+      "dailyBarTaskId": "dailybartask:f8848a7d83c0ba918bcfa5132d343dc8657193d2b14b2eb887eb28adc2e0555e",
+      "dailyBarCompletionId": "dailybar:0e4e37f9fd2fe9024e39e4731e61252f95de5768283d3fbd3e121fb8c0181d78"
+    },
+    "environmentMode": "PAPER",
+    "fixtureVersions": {
+      "dailyBar": "v2.1-daily-bars-1"
+    },
+    "humanAcceptance": "NOT_RUN",
+    "externalRequests": 0,
+    "businessValidation": "PASS",
+    "authorizedRealSources": "NOT_RUN_IN_THIS_FIXTURE_SCENARIO"
+  },
+  "createdAt": "2026-10-21T13:00:11.230Z",
+  "completedAt": "2026-10-21T13:00:11.447Z"
+}

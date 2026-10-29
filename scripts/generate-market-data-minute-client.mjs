@@ -11,6 +11,7 @@ const uploadOperations = [
   document.paths?.["/v2/minute/{format}/uploads/{uploadId}/chunks/{index}"]?.put,
   document.paths?.["/v2/minute/{format}/uploads/{uploadId}"]?.get,
   document.paths?.["/v2/minute/{format}/uploads/{uploadId}/{action}"]?.post,
+  document.paths?.["/v2/minute/{format}/uploads/{uploadId}/finalization"]?.get,
 ];
 const readOperations = [document.paths?.["/v2/minute/csv/preview"]?.post, document.paths?.["/v2/minute/imports/{version}"]?.get, document.paths?.["/v2/minute/imports/{version}/bars"]?.get, document.paths?.["/v2/minute/imports/{version}/replay-readiness"]?.get, document.paths?.["/v2/minute/coverage"]?.post];
 const contextVersionOperation = document.paths?.["/v2/historical-context/versions"]?.post;
@@ -63,7 +64,11 @@ export class GeneratedMarketDataMinuteClient {
     return this.call<Contracts.MinuteCsvUploadProgress>(\`/v2/minute/\${format}/uploads/\${encodeURIComponent(uploadId)}\`, "GET", undefined, ownerId);
   }
 
-  async actOnMarketDataMinuteUpload(format: "csv" | "parquet", uploadId: string, action: "preview" | "finalize" | "cancel", ownerId: string): Promise<unknown> {
+  async getMarketDataMinuteUploadFinalization(format: "csv" | "parquet", uploadId: string, ownerId: string): Promise<unknown> {
+    return this.call<unknown>(\`/v2/minute/\${format}/uploads/\${encodeURIComponent(uploadId)}/finalization\`, "GET", undefined, ownerId);
+  }
+
+  async actOnMarketDataMinuteUpload(format: "csv" | "parquet", uploadId: string, action: "preview" | "finalize" | "finalize-queued" | "cancel", ownerId: string): Promise<unknown> {
     return this.call<unknown>(\`/v2/minute/\${format}/uploads/\${encodeURIComponent(uploadId)}/\${action}\`, "POST", {}, ownerId);
   }
 

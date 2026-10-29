@@ -15,6 +15,10 @@ export class AccountService {
     return this.repository.snapshot(accountId, ownerId);
   }
 
+  sellable(input: { accountId: string; ownerId: string; namespace: string; testRunId: string; security: string; asOf: string }) {
+    return this.repository.sellable(input);
+  }
+
   accountExists(accountId: string): Promise<boolean> {
     return this.repository.accountExists(accountId);
   }

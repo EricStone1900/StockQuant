@@ -32,6 +32,8 @@ export function authorizeGovernanceRequest(input: { method: string; pathname: st
   if (input.method === "GET" && /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/runs\/[0-9a-f-]{36}$/iu.test(input.pathname)) return caller === "platform-api-service";
   if (input.method === "GET" && /^\/internal\/v1\/auto-mandates\/[0-9a-f-]{36}\/runs\/[0-9a-f-]{36}\/versions\/[1-9][0-9]*\/budget$/iu.test(input.pathname)) return caller === "platform-api-service";
   if (input.method !== "POST") return false;
+  if (input.pathname === "/internal/v1/c5-local/orders/authorize") return caller === "platform-api-service";
+  if (input.pathname === "/internal/v1/c5-local/orders/reservations/verify") return caller === "trade-execution-service";
   if (input.pathname === "/internal/v1/v12/strategy-snapshots") return caller === "platform-api-service";
   if (input.pathname === "/internal/v1/authorizations") return caller === "historical-replay-worker";
   if (/^\/internal\/v1\/proposals\/[0-9a-f-]{36}\/execution-authorizations(?:\/validate)?$/iu.test(input.pathname)) return caller === "trade-execution-service";

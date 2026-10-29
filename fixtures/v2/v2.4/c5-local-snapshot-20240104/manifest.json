@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-c5-local-snapshot-20240104",
+  "fixtureVersion": "v24-c5-local-snapshot-20240104-1",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Synthetic local C5 point snapshot, independent of daily bars; no external market data.",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-28T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.4/c5-local-snapshot-20240104/snapshots.json",
+      "sha256": "e0f6ac31675e0386a485d95077d50f871cd01c3e61fc5b28b9cc183e497f410e",
+      "mediaType": "application/json",
+      "schemaRef": "v21-snapshot-sampling-fixture-v1"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.4-C5-LOCAL-SNAPSHOT-20240104",
+      "description": "One scoped synthetic point observation at the frozen time and price; never a minute bar."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-c5-local-daily-20240104",
+  "fixtureVersion": "v24-c5-local-daily-20240104-1",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Synthetic flat daily OHLCV for one isolated C5 session; independently defined fixture, not derived from sampled quotes or market data.",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-28T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.4/c5-local-daily-20240104/bars.json",
+      "sha256": "c54ba03d03b9185a3beede009137de71e9b37fbeab769de2fe6d63b12b020550",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v24-c5-local-daily-fixture.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.4-C5-LOCAL-DAILY-20240104",
+      "description": "Persist one scoped synthetic daily completion after its frozen close and preserve its identity."
+    }
+  ]
+}

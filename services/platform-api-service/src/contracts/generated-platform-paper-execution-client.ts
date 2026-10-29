@@ -13,6 +13,14 @@ export class GeneratedPlatformPaperExecutionClient {
     return this.request(this.baseUrl + "/internal/v1/v24/paper-orders/execute-snapshot", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify(command), signal: AbortSignal.timeout(timeoutMs) });
   }
 
+  async executeC5LocalPaperOrder(authorization: Contracts.C5LocalFakeBrokerExecutionCommand["authorization"], timeoutMs: number = 20000): Promise<Response> {
+    return this.request(this.baseUrl + "/internal/v1/c5-local/paper-orders/execute", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify({ authorization }), signal: AbortSignal.timeout(timeoutMs) });
+  }
+
+  async settleC5LocalPaperSession(command: Contracts.C5LocalSessionSettlementCommand): Promise<Response> {
+    return this.request(this.baseUrl + "/internal/v1/c5-local/accounts/settlements", { method: "POST", headers: { "content-type": "application/json", "x-stockquant-service-id": "platform-api-service", authorization: "Bearer " + this.bearerToken }, body: JSON.stringify(command), signal: AbortSignal.timeout(15000) });
+  }
+
   async readV24FakeOrderByClientIdentity(namespace: string, clientOrderId: string, timeoutMs: number = 5000): Promise<Response> {
     if (!namespace || !clientOrderId) throw new Error("namespace and clientOrderId are required");
     const query = new URLSearchParams({ namespace, clientOrderId });

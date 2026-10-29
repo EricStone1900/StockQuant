@@ -14,6 +14,7 @@ const command = args[separator + 1];
 const commandArgs = args.slice(separator + 2);
 const urls = [];
 let adminEnv;
+let commandTimeoutMs = 240_000;
 for (let index = 0; index < setupArgs.length; index += 1) {
   const value = setupArgs[index + 1];
   if (setupArgs[index] === "--url-env" && value) {
@@ -24,6 +25,11 @@ for (let index = 0; index < setupArgs.length; index += 1) {
   } else if (setupArgs[index] === "--admin-env" && value) {
     if (!/^[A-Z][A-Z0-9_]*$/u.test(value) || adminEnv) throw new Error(`invalid/duplicate isolated PostgreSQL admin mapping: ${value}`);
     adminEnv = value;
+    index += 1;
+  } else if (setupArgs[index] === "--timeout-ms" && value) {
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed < 1_000 || parsed > 3_600_000) throw new Error(`invalid isolated command timeout: ${value}; expected 1000..3600000 milliseconds`);
+    commandTimeoutMs = parsed;
     index += 1;
   } else throw new Error(`unknown isolated PostgreSQL option: ${setupArgs[index]}`);
 }
@@ -92,7 +98,7 @@ try {
   const childEnv = { ...process.env, STOCKQUANT_ISOLATED_PG_CONTAINER: containerName };
   for (const { name, role, database } of urls) childEnv[name] = `postgresql://${role}@127.0.0.1:${port}/${database}`;
   if (adminEnv) childEnv[adminEnv] = `postgresql://postgres@127.0.0.1:${port}/postgres`;
-  const child = spawnSync(command, commandArgs, { cwd: process.cwd(), env: childEnv, stdio: "inherit", timeout: 240_000, maxBuffer: 1024 * 1024 });
+  const child = spawnSync(command, commandArgs, { cwd: process.cwd(), env: childEnv, stdio: "inherit", timeout: commandTimeoutMs, maxBuffer: 1024 * 1024 });
   exitCode = child.status ?? 1;
   assert.equal(exitCode, 0, "command failed against the disposable PostgreSQL instance");
   evidence = { imageId: container.Image, hostBinding: `127.0.0.1:${port}`, network: networkName, containerName, databaseNames: [...new Set([...urls.map((item) => item.database), ...(adminEnv ? ["postgres"] : [])])] };

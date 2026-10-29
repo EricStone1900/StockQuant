@@ -36,6 +36,8 @@ domain：建议状态、授权范围/有效期、交易次数/失效；applicati
 
 量化只提供目标与策略版本；组合负责风险/现金/证券预留；执行回报是否接受批次；编排负责驱动步骤/重试等待。
 
+C5本地工程价格授权（2026-10-28）：Platform的治理专用只读事实入口串联持久目标/预执行意图与Market Data快照屏障；Governance `POST /internal/v1/c5-local/orders/authorize` 仅接受Platform API独立Bearer，拒绝客户端价格/预算字段，从可信快照推导订单并将激活Mandate身份、限额和该金额提交现有PostgreSQL Mandate行锁事务进行预算授权/预留。该接口不提交FakeBroker订单。双库读取与三库Governance HTTP/原子预留集成测试使用隔离PostgreSQL；Platform和Market Data在测试内由真实控制器/仓储配轻量HTTP边界，Governance运行真实HTTP server。尚未由正式后台Worker调用，也没有FakeBroker提交、Fill/结算、恢复矩阵和Web/CLI同Run证据；V1.3固定Fixture授权价格保持原有范围。
+
 路由标“待冻结”表示架构意图；已有基线路由引用[市场契约](../../docs/prd/03-market-rules-and-contracts.md)。所有扩展在S0生成OpenAPI/AsyncAPI与TS/Python Client，写命令具备Idempotency-Key、expectedVersion、reason/sourceRef和统一错误。
 
 ## 5. 事件与主要流程

@@ -2343,10 +2343,31 @@ test("V2.4 observation history displays preserved prior evidence revisions", asy
 test("V2.5 data scale page shows regression and recovery evidence", async ({ page }) => {
   await page.goto("/acceptance/v2/v2.5");
   await expect(page.getByRole("heading", { name: "V2.5 历史数据扩容与 V2 验收" })).toBeVisible();
-  await page.getByRole("button", { name: "运行扩容与模型验证" }).click();
+  await expect(page.getByRole("heading", { name: "已持久化分钟数据验证" })).toBeVisible();
+  await page.getByRole("button", { name: "运行合成扩容场景" }).click();
   await expect(page.getByTestId("v25-evidence")).toContainText("V2.5-REGRESSION-002");
-  await page.getByRole("button", { name: "运行任务恢复" }).click();
+  await page.getByRole("button", { name: "运行合成任务恢复场景" }).click();
   await expect(page.getByTestId("v25-evidence")).toContainText("V2.5-RECOVERY-001");
+});
+
+test("V2.5 links a persisted Market Data import query to the same durable TestRun", async ({ page }) => {
+  const testRunId = "a49b8f39-a6d5-4ca4-b8a1-9464bad93a39";
+  await page.route("**/api/v1/acceptance/v2/v2.5/runs/from-minute-import", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({ dataVersion: "minute-v1", seed: 20260907 });
+    await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ accepted: true, testRunId, status: "COMPLETED" }) });
+  });
+  await page.route(`**/api/v1/acceptance/v2/v2.5/runs/${testRunId}`, async (route) => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({
+      testRunId, stageId: "V2.5", scenarioId: "minute-import-query", status: "COMPLETED",
+      evidence: { evidenceMode: "PERSISTED_MARKET_DATA_IMPORT_QUERY", import: { dataVersion: "minute-v1", accepted: 120, sha256: "a".repeat(64) }, persistedQuery: { rows: 100, nextCursor: "100" } },
+    }),
+  }));
+  await page.goto("/acceptance/v2/v2.5");
+  await page.getByRole("textbox", { name: "V2.5分钟导入版本" }).fill("minute-v1");
+  await page.getByRole("button", { name: "核验持久导入并创建TestRun" }).click();
+  await expect(page.getByTestId("v25-evidence")).toContainText("PERSISTED_MARKET_DATA_IMPORT_QUERY");
+  await expect(page.getByTestId("v25-evidence")).toContainText(testRunId);
 });
 
 test("V1.3 L04 AUTO_POLICY activates an exact Mandate, executes one FakeBroker order and survives refresh", async ({ page }) => {

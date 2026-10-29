@@ -53,6 +53,7 @@ try {
     { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/reservations`, callers: ["trade-execution-service"] },
     { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/settlements`, callers: ["trade-execution-service"] },
     { method: "POST", path: (accountId) => `/internal/v1/accounts/${accountId}/reservations/${randomUUID()}/resolve`, callers: ["trade-execution-service"] },
+    { method: "GET", path: (accountId) => `/internal/v1/accounts/${accountId}/sellable`, callers: ["platform-api-service"] },
     { method: "GET", path: (accountId) => `/internal/v1/accounts/${accountId}/snapshot`, callers: ["platform-api-service", "historical-replay-worker"] },
     { method: "POST", path: () => "/internal/v1/faults/fill", callers: ["test-harness"] },
   ];
@@ -135,6 +136,14 @@ try {
   if (initialized.status !== 201 && initialized.status !== 200) throw new Error(`valid platform identity could not initialize isolated account: ${initialized.status} ${await initialized.text()}`);
   const result = await initialized.json();
   accountId = result.snapshot.accountId;
+  const sellableQuery = new URLSearchParams({ namespace, testRunId, security: "600000.SH", asOf: "2024-01-05T01:00:00Z" });
+  const sellablePath = `/internal/v1/accounts/${accountId}/sellable?${sellableQuery}`;
+  const sellableRead = await request(sellablePath, "GET", "platform-api-service", tokens.platform, undefined, { "x-stockquant-owner-id": ownerId });
+  const sellableBody = await sellableRead.json();
+  const sellableForeign = await request(sellablePath, "GET", "platform-api-service", tokens.platform, undefined, { "x-stockquant-owner-id": "foreign-owner" });
+  const invalid = await request(`/internal/v1/accounts/${accountId}/sellable?${sellableQuery}&unexpected=1`, "GET", "platform-api-service", tokens.platform, undefined, { "x-stockquant-owner-id": ownerId });
+  if (sellableRead.status !== 200 || sellableBody.sellableQuantity !== 0 || sellableBody.accountId !== accountId || sellableBody.namespace !== namespace || sellableBody.testRunId !== testRunId || sellableForeign.status !== 403 || invalid.status !== 400) throw new Error(`sellable HTTP scope or quantity mismatch: ${JSON.stringify({ status: sellableRead.status, body: sellableBody, foreign: sellableForeign.status, invalid: invalid.status })}`);
+  console.info("[C5 sellable HTTP] scoped zero position, owner isolation and query rejection PASS");
   const settlementAccountResponse = await request("/internal/v1/accounts/initialize", "POST", "platform-api-service", tokens.platform, { ...command, fixtureAccountRef: "settlement-mode-boundary", idempotencyKey: "settlement-mode-boundary-initialize" });
   if (settlementAccountResponse.status !== 201 && settlementAccountResponse.status !== 200) throw new Error(`could not initialize isolated account for due-settlement boundary probe: ${settlementAccountResponse.status} ${await settlementAccountResponse.text()}`);
   settlementAccountId = (await settlementAccountResponse.json()).snapshot.accountId;

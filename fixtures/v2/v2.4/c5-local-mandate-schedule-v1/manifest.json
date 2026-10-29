@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-c5-local-mandate-schedule",
+  "fixtureVersion": "v24-c5-local-mandate-schedule-1",
+  "stageId": "V2.4",
+  "status": "FROZEN",
+  "dataMode": "FIXTURE",
+  "usageEligibility": "SIMULATION_ONLY",
+  "source": {
+    "kind": "SYNTHETIC",
+    "description": "Synthetic per-session mandate lifecycle for isolated C5 engineering runs; no real trading authorization.",
+    "license": "Internal synthetic fixture",
+    "retrievedAt": null
+  },
+  "createdAt": "2026-10-28T00:00:00Z",
+  "files": [
+    {
+      "path": "fixtures/v2/v2.4/c5-local-mandate-schedule-v1/schedule.json",
+      "sha256": "d2bc33ee1d8a7785ab1b6a6285536c8943095e05b3fa610420c01cba56dca500",
+      "mediaType": "application/json",
+      "schemaRef": "fixtures/manifests/v24-c5-local-mandate-schedule.schema.json"
+    }
+  ],
+  "expectedAssertions": [
+    {
+      "assertionId": "V2.4-C5-LOCAL-MANDATE-001",
+      "description": "Every synthetic session uses a distinct scoped mandate within 24 hours; pause the preceding active mandate before creating the next."
+    },
+    {
+      "assertionId": "V2.4-C5-LOCAL-MANDATE-002",
+      "description": "A schedule alone grants no authority: only an exact persisted, activated mandate can permit target evaluation."
+    }
+  ]
+}

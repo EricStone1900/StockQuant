@@ -1,0 +1,160 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "C5 Local Scoped Price Facts",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "ServiceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/internal/v1/c5-local/price-facts": {
+      "get": {
+        "operationId": "getV24LocalPriceFacts",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "const": "decision-governance-service" }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "testRunId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientOrderId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "evaluatedAt",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped immutable local fixture facts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://stockquant.local/contracts/market-data/v24-local-price-facts-v1.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Governance identity rejected"
+          },
+          "404": {
+            "description": "Target or intent unavailable"
+          },
+          "409": {
+            "description": "Snapshot barrier not selected"
+          },
+          "422": {
+            "description": "Invalid scope or clock"
+          }
+        }
+      }
+    },
+    "/internal/v1/c5-local/orders/authorize": {
+      "post": {
+        "operationId": "authorizeV24LocalOrderFromPersistedPriceFacts",
+        "security": [
+          {
+            "ServiceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-stockquant-service-id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "const": "platform-api-service" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://stockquant.local/contracts/market-data/v24-local-price-authorization-request-v1.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Price derived from persisted scoped facts and an atomic Mandate budget reservation"
+          },
+          "403": {
+            "description": "Platform service identity rejected"
+          },
+          "409": {
+            "description": "Price facts unavailable or Mandate rejected the order"
+          },
+          "422": {
+            "description": "Invalid request; caller supplied price and budget fields are forbidden"
+          },
+          "503": {
+            "description": "Price evidence or Mandate repository unavailable"
+          }
+        }
+      }
+    }
+  }
+}

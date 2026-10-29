@@ -22,11 +22,16 @@ assert.equal(isIsolatedPostgresTarget(adminUrl.toString(), process.env.STOCKQUAN
 const admin = new Client({ connectionString: adminUrl.toString() });
 const databases = ["platform", "portfolio", "trade", "governance", "market_data"].map((name) => `sq_v24_paper_${name}_${suffix}`);
 const urls = databases.map((database) => { const url = new URL(adminUrl); url.pathname = `/${database}`; return url.toString(); });
-const tokens = Object.fromEntries(["platform", "trade", "replay", "governance"].map((name) => [name, randomBytes(48).toString("base64url")]));
+const tokens = Object.fromEntries(["platform", "trade", "replay", "governance", "decisionGovernance"].map((name) => [name, randomBytes(48).toString("base64url")]));
 const owner = `v24-paper-${suffix}`;
 let sessionCookie;
 const children = [];
 let dropNextExecutionResponse = false;
+let dropNextC5ExecutionResponse = false;
+let droppedC5ExecutionResponseCount = 0;
+let c5P3Evidence = null;
+let c5P4TimedEvidence = null;
+let c5P4BrowserClosedEvidence = null;
 let failNextClientOrderLookup = false;
 let droppedExecutionResponseCount = 0;
 let webImageTag;
@@ -61,8 +66,17 @@ let pendingFillCancelEvidence = null;
 let databaseSnapshotFiles = [];
 let marketDataProcess;
 let marketDataPool;
+let marketDataProxy;
+let holdFixtureSessions = false;
+let heldFixtureResponse;
+let heldFixtureRequest;
 let alertIntegrationEvidence;
 let dailyReconciliationAlertEvidence;
+let fixtureTargetEvidence;
+let fixtureSetupRecoveryEvidence;
+let fixtureWorkerCrashEvidence;
+let fixtureCommittedTargetCrashEvidence;
+const fixtureFaultClients = [];
 
 async function freePort() {
   const server = createServer();
@@ -153,7 +167,8 @@ try {
   await new Promise((resolveListen, reject) => { portfolioProxy.once("error", reject); portfolioProxy.listen(portfolioProxyPort, "127.0.0.1", resolveListen); });
   const portfolioProxyUrl = `http://127.0.0.1:${portfolioProxyPort}`;
   const governance = start(resolve(repo, "services/decision-governance-service/dist/main.js"), resolve(repo, "services/decision-governance-service"), serviceEnv(urls[3], governancePort, {
-    STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: tokens.trade, STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: tokens.replay
+    STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_TRADE_EXECUTION: tokens.trade, STOCKQUANT_SERVICE_TOKEN_HISTORICAL_REPLAY: tokens.replay,
+    STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: tokens.decisionGovernance, STOCKQUANT_PLATFORM_API_URL: `http://127.0.0.1:${platformPort}`
   }));
   await waitReady(governance, `${governanceUrl}/ready`);
   const governanceProxyPort = await freePort();
@@ -401,6 +416,9 @@ try {
       if (dropNextExecutionResponse && req.method === "POST" && req.url === "/internal/v1/v24/paper-orders/execute-snapshot") {
         dropNextExecutionResponse = false; recoverySawDroppedResponse = true; droppedExecutionResponseCount += 1; event.outcome = "RESPONSE_DROPPED"; event.elapsedMs = Date.now() - event.startedAt; res.destroy(); return;
       }
+      if (dropNextC5ExecutionResponse && upstream.status === 201 && req.method === "POST" && req.url === "/internal/v1/c5-local/paper-orders/execute") {
+        dropNextC5ExecutionResponse = false; droppedC5ExecutionResponseCount += 1; event.outcome = "C5_RESPONSE_DROPPED_AFTER_COMMIT"; event.elapsedMs = Date.now() - event.startedAt; res.destroy(); return;
+      }
       res.writeHead(upstream.status, Object.fromEntries(upstream.headers)); res.end(bytes); event.outcome = "FORWARDED"; event.elapsedMs = Date.now() - event.startedAt;
     } catch (error) { proxyErrors.push(error instanceof Error ? error.stack ?? error.message : String(error)); event.outcome = "ERROR"; event.elapsedMs = Date.now() - event.startedAt; res.destroy(); }
   });
@@ -408,24 +426,38 @@ try {
   const proxyUrl = `http://127.0.0.1:${proxyPortValue}`;
   const marketDataPort = await freePort();
   const marketDataUrl = `http://127.0.0.1:${marketDataPort}`;
-  marketDataProcess = start(resolve(repo, "services/market-data-service/dist/main.js"), resolve(repo, "services/market-data-service"), serviceEnv(urls[4], marketDataPort, {
+  const marketDataEnv = serviceEnv(urls[4], marketDataPort, {
     STOCKQUANT_PROJECT_ROOT: repo,
     STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform,
     STOCKQUANT_COLLECTION_EXECUTOR: "1",
     STOCKQUANT_SCHEDULER_WORKER: "1",
     STOCKQUANT_COLLECTION_SOURCE_USE_AUTHORIZED: "false"
-  }));
+  });
+  marketDataProcess = start(resolve(repo, "services/market-data-service/dist/main.js"), resolve(repo, "services/market-data-service"), marketDataEnv);
   await waitReady(marketDataProcess, `${marketDataUrl}/ready`);
   const marketDataReadiness = await fetch(`${marketDataUrl}/ready`).then((response) => response.json());
   assert.equal(marketDataReadiness.collectionSourceAuthorization, "NOT_AUTHORIZED");
   assert.equal(marketDataReadiness.collectionSchedulerWorker, "DISABLED", "scheduler must fail closed without source authorization");
   assert.equal(marketDataReadiness.collectionExecutor, "DISABLED", "executor must fail closed without source authorization");
-  const platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, serviceEnv(urls[0], platformPort, {
-    STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "false", STOCKQUANT_V24_AUTO_START: "false",
-    STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.governance,
+  const marketProxyPort = await freePort();
+  marketDataProxy = createServer(async (req, res) => {
+    try {
+      const chunks = []; for await (const chunk of req) chunks.push(chunk);
+      if (holdFixtureSessions && req.method === "GET" && req.url?.startsWith("/v2/daily-bars/completions/sessions")) { heldFixtureRequest = { url: req.url, headers: { authorization: req.headers.authorization, "x-stockquant-service-id": req.headers["x-stockquant-service-id"] } }; heldFixtureResponse = res; return; }
+      const body = Buffer.concat(chunks);
+      const headers = Object.fromEntries(["content-type", "authorization", "x-stockquant-service-id", "x-stockquant-owner-id"].flatMap((name) => req.headers[name] ? [[name, req.headers[name]]] : []));
+      const upstream = await fetch(`${marketDataUrl}${req.url}`, { method: req.method, headers, ...(body.length ? { body } : {}), signal: AbortSignal.timeout(15000) });
+      res.writeHead(upstream.status, { "content-type": upstream.headers.get("content-type") ?? "application/json" }); res.end(Buffer.from(await upstream.arrayBuffer()));
+    } catch { res.destroy(); }
+  });
+  await new Promise((resolveListen, reject) => { marketDataProxy.once("error", reject); marketDataProxy.listen(marketProxyPort, "127.0.0.1", resolveListen); });
+  const platformEnv = serviceEnv(urls[0], platformPort, {
+    STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "false", STOCKQUANT_V24_AUTO_START: "false", STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED: "true", STOCKQUANT_C5_LOCAL_AUTHORIZATION_WORKER_ENABLED: "true",
+    STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.governance, STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: tokens.decisionGovernance,
     STOCKQUANT_PORTFOLIO_API_URL: portfolioUrl, STOCKQUANT_GOVERNANCE_URL: governanceUrl, STOCKQUANT_TRADE_EXECUTION_URL: proxyUrl,
-    STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: canaryUrl, STOCKQUANT_MARKET_DATA_URL: marketDataUrl, STOCKQUANT_RESEARCH_AUTOMATION_URL: canaryUrl
-  }));
+    STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: canaryUrl, STOCKQUANT_MARKET_DATA_URL: `http://127.0.0.1:${marketProxyPort}`, STOCKQUANT_RESEARCH_AUTOMATION_URL: canaryUrl
+  });
+  let platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, platformEnv);
   const apiUrl = `http://127.0.0.1:${platformPort}`;
   await waitReady(platform, `${apiUrl}/live`);
   const issuedSession = await fetch(`${apiUrl}/api/v1/session`);
@@ -533,6 +565,76 @@ try {
   const crossdayCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", crossdayCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
   assert.equal(crossdayCli.status, 0, crossdayCli.stderr);
   runs.push({ scenarioId: "crossday-settlement", testRunId: crossdayCreation.body.testRunId, cliExitCode: crossdayCli.status, status: crossdayRun.body.status, assertions: crossdayRun.body.assertions });
+  const c5Created = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/local-engineering/runs", { method: "POST", body: {} });
+  assert.equal(c5Created.status, 202, JSON.stringify(c5Created.body));
+  const c5RunId = c5Created.body.testRunId;
+  const c5Dates = ["2024-01-04", "2024-01-05", "2024-01-08", "2024-01-09", "2024-01-10"];
+  const c5Jobs = [];
+  for (const sessionDate of c5Dates) {
+    const createdMandate = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/mandates`, { method: "POST", body: { mandateId: randomUUID(), sessionDate, reason: "isolated C5 HTTP smoke owner approval" } });
+    assert.equal(createdMandate.status, 201, JSON.stringify(createdMandate.body));
+    const activated = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/mandates/${createdMandate.body.mandateId}/activate`, { method: "POST", body: { mandateVersion: createdMandate.body.mandateVersion, contentHash: createdMandate.body.contentHash, reason: "isolated C5 HTTP smoke explicit activation" } });
+    assert.equal(activated.status, 200, JSON.stringify(activated.body));
+    if (sessionDate === c5Dates[0]) dropNextC5ExecutionResponse = true;
+    if (sessionDate === c5Dates[0]) {
+      const forged = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/sessions/${sessionDate}/authorize`, { method: "POST", body: { mandateId: createdMandate.body.mandateId, price: "0.01", quantity: 999, budget: "1.00" } });
+      assert.equal(forged.status, 422, JSON.stringify(forged.body));
+    }
+    const enqueued = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/sessions/${sessionDate}/authorize`, { method: "POST", body: { mandateId: createdMandate.body.mandateId } });
+    assert.equal(enqueued.status, 202, JSON.stringify(enqueued.body));
+    const replayedEnqueue = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/sessions/${sessionDate}/authorize`, { method: "POST", body: { mandateId: createdMandate.body.mandateId } });
+    assert.equal(replayedEnqueue.status, 202, JSON.stringify(replayedEnqueue.body));
+    assert.equal(replayedEnqueue.body.created, false, "same session input must reuse the original durable authorization job");
+    assert.equal(replayedEnqueue.body.job.jobId, enqueued.body.job.jobId);
+    let job = null;
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      await delay(250);
+      job = (await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/sessions/${sessionDate}/job`)).body.job;
+      if (job?.state === "COMPLETED" || job?.state === "FAILED") break;
+    }
+    assert.equal(job?.state, "COMPLETED", JSON.stringify(job));
+    if (sessionDate === c5Dates[0]) assert.ok(job.attempt >= 2 && droppedC5ExecutionResponseCount === 1, JSON.stringify({ job, droppedC5ExecutionResponseCount }));
+    c5Jobs.push({ sessionDate, state: job.state, result: job.result });
+    if (sessionDate === c5Dates[0]) {
+      const partialRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}`);
+      assert.equal(partialRun.body.status, "WAITING", "finishing one target/job must not finalize the whole multi-session Run");
+    }
+    const paused = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/mandates/${createdMandate.body.mandateId}/pause`, { method: "POST", body: { mandateVersion: createdMandate.body.mandateVersion, reason: "isolated C5 HTTP smoke pause before next session" } });
+    assert.equal(paused.status, 200, JSON.stringify(paused.body));
+    const afterPause = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/sessions/${sessionDate}/authorize`, { method: "POST", body: { mandateId: createdMandate.body.mandateId } });
+    assert.equal(afterPause.status, 409, JSON.stringify(afterPause.body));
+  }
+  const c5External = await internalRequest(proxyUrl, "/internal/v1/fake-broker/external-orders", { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` }, { namespace: `v24-paper-v2-${c5RunId}`, externalOrderId: `p3-c5-mismatch-${c5RunId}`, security: "600000.SH", requestedQuantity: 100, status: "UNKNOWN", evidenceRef: `fixture:p3:${c5RunId}:external-only`, observedAt: "2024-01-10T15:20:00+08:00" });
+  assert.equal(c5External.status, 201, JSON.stringify(c5External));
+  const c5FinalizePath = `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}/finalize`;
+  const c5Discrepancy = await request(apiUrl, c5FinalizePath, { method: "POST", body: {} });
+  assert.equal(c5Discrepancy.status, 409, JSON.stringify(c5Discrepancy.body));
+  assert.equal(c5Discrepancy.body.dailyClose.status, "DISCREPANCY");
+  assert.equal(c5Discrepancy.body.dailyClose.alert.incident.state, "OPEN");
+  assert.equal(c5Discrepancy.body.dailyClose.idempotentReplay.created, false);
+  const c5DiscrepancyReplay = await request(apiUrl, c5FinalizePath, { method: "POST", body: {} });
+  assert.equal(c5DiscrepancyReplay.status, 409);
+  assert.equal(c5DiscrepancyReplay.body.dailyClose.alert.created, false);
+  assert.equal(c5DiscrepancyReplay.body.dailyClose.alert.incident.incidentId, c5Discrepancy.body.dailyClose.alert.incident.incidentId);
+  const c5TradeDb = new Client({ connectionString: urls[2] }); await c5TradeDb.connect();
+  const removedInjectedExternal = await c5TradeDb.query("DELETE FROM fake_broker_external_orders WHERE namespace=$1 AND external_order_id=$2", [`v24-paper-v2-${c5RunId}`, `p3-c5-mismatch-${c5RunId}`]);
+  await c5TradeDb.end(); assert.equal(removedInjectedExternal.rowCount, 1);
+  const c5Finalized = await request(apiUrl, c5FinalizePath, { method: "POST", body: {} });
+  assert.equal(c5Finalized.status, 200, JSON.stringify(c5Finalized.body));
+  assert.equal(c5Finalized.body.status, "COMPLETED");
+  assert.ok(c5Finalized.body.assertions.every((item) => item.status === "PASS"), JSON.stringify(c5Finalized.body.assertions));
+  assert.deepEqual(c5Jobs.map((item) => item.result?.target?.decision?.action), ["BUY", "SELL", "HOLD", "HOLD", "HOLD"]);
+  assert.equal(c5Finalized.body.evidence.dailyClose.status, "MATCH");
+  assert.equal(c5Finalized.body.evidence.dailyClose.alert.incident.state, "RESOLVED");
+  assert.equal(c5Finalized.body.evidence.dailyCloseHistory.length, 3);
+  assert.equal(c5Finalized.body.evidence.riskState.dailyTurnover, "0.0000");
+  assert.equal(c5Finalized.body.evidence.riskState.cumulativeLoss, "35.0000");
+  assert.equal(c5Finalized.body.evidence.riskAppliedFillIds.length, 2);
+  assert.equal(new Set(c5Finalized.body.evidence.riskAppliedFillIds).size, 2);
+  const c5Cli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--scenario", "c5-local-engineering", "--run", c5RunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+  assert.equal(c5Cli.status, 0, c5Cli.stderr);
+  c5P3Evidence = { testRunId: c5RunId, unknownExecutionResponseDroppedAfterCommit: true, droppedResponseCount: droppedC5ExecutionResponseCount, authorizationJobAttempts: c5Jobs[0]?.attempt, noDuplicateOrderOrFill: c5Finalized.body.evidence.reconciliation.order_count === 2 && c5Finalized.body.evidence.reconciliation.fill_count === 2, pausedMandateReauthorizationRejected: true, dailyCloseDiscrepancy: c5Discrepancy.body.dailyClose, repeatedDiscrepancyDeduplicated: c5DiscrepancyReplay.body.dailyClose.alert.created === false, repairedMatchResolvedSameIncident: c5Finalized.body.evidence.dailyClose.alert.incident.incidentId === c5Discrepancy.body.dailyClose.alert.incident.incidentId && c5Finalized.body.evidence.dailyClose.alert.incident.state === "RESOLVED", riskState: c5Finalized.body.evidence.riskState, cleanup: { injectedExternalOrderRemoved: removedInjectedExternal.rowCount === 1 } };
+  runs.push({ scenarioId: "c5-local-engineering", testRunId: c5RunId, cliExitCode: c5Cli.status, status: c5Finalized.body.status, assertions: c5Finalized.body.assertions });
   const candidateBindingCreation = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/runs", { method: "POST", body: { scenarioId: "candidate-binding", seed: 20261025 } });
   assert.equal(candidateBindingCreation.status, 202, JSON.stringify(candidateBindingCreation.body));
   const candidateBindingRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${candidateBindingCreation.body.testRunId}`);
@@ -593,14 +695,14 @@ try {
   assert.equal(portfolioFillResponseDropped, true, "Portfolio must commit this V2.4 Fill before the proxy discards the response");
   const outboxExecution = executionRequests.findLast((item) => item.testRunId === v24OutboxRunCreation.body.testRunId);
   assert.ok(outboxExecution?.namespace);
-  const v24OutboxRunRecord = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${v24OutboxRunCreation.body.testRunId}`);
   await stop(tradeProcess);
+  const v24OutboxRunRecord = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${v24OutboxRunCreation.body.testRunId}`);
   const pendingOutboxDb = new Client({ connectionString: urls[2] }); await pendingOutboxDb.connect();
   const pendingOutbox = await pendingOutboxDb.query(`SELECT o.order_id,o.status,x.event_id,x.status AS outbox_status,x.attempts,x.payload FROM fake_broker_orders o JOIN fake_broker_outbox x USING(order_id) WHERE o.namespace=$1`, [outboxExecution.namespace]);
   await pendingOutboxDb.end();
   assert.equal(pendingOutbox.rowCount, 1);
   assert.equal(pendingOutbox.rows[0].status, "LEDGER_PENDING");
-  assert.equal(pendingOutbox.rows[0].outbox_status, "PENDING");
+  assert.ok(["PENDING", "COMPENSATION_REQUIRED"].includes(pendingOutbox.rows[0].outbox_status), `Outbox must remain retryable or require explicit compensation: ${JSON.stringify(pendingOutbox.rows[0])}`);
   assert.ok(pendingOutbox.rows[0].attempts >= 1);
   const outboxReservationId = pendingOutbox.rows[0].payload.reservation.reservationId;
   const reservationBeforeRestartDb = new Client({ connectionString: urls[1] }); await reservationBeforeRestartDb.connect();
@@ -620,6 +722,11 @@ try {
   tradeProcess = start(resolve(repo, "services/trade-execution-service/dist/main.js"), resolve(repo, "services/trade-execution-service"), tradeEnv);
   await waitReady(tradeProcess, `${tradeUrl}/ready`);
   holdPortfolioFillRetries = false;
+  if (pendingOutbox.rows[0].outbox_status === "COMPENSATION_REQUIRED") {
+    const requeued = await internalRequest(tradeUrl, `/internal/v1/outbox/${pendingOutbox.rows[0].event_id}/compensate`, { "x-stockquant-service-id": "platform-api-service", authorization: `Bearer ${tokens.platform}` });
+    assert.equal(requeued.status, 200, JSON.stringify(requeued));
+    assert.equal(requeued.body.status, "DELIVERED");
+  }
   let deliveredOutbox = null;
   const retryDeadline = Date.now() + 10000;
   while (Date.now() < retryDeadline) {
@@ -737,7 +844,8 @@ try {
     const browserPlatform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, serviceEnv(urls[0], browserApiPort, {
       STOCKQUANT_BIND_HOST: "0.0.0.0",
       STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_TEST_IDENTITY_HEADER_ENABLED: "false", STOCKQUANT_V24_AUTO_START: "false",
-      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.governance,
+      STOCKQUANT_C5_LOCAL_AUTHORIZATION_WORKER_ENABLED: "true", STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED: "true",
+      STOCKQUANT_SERVICE_TOKEN_PLATFORM_API: tokens.platform, STOCKQUANT_SERVICE_TOKEN_RESEARCH_AUTOMATION: tokens.governance, STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE: tokens.decisionGovernance,
       STOCKQUANT_PORTFOLIO_API_URL: portfolioUrl, STOCKQUANT_GOVERNANCE_URL: governanceUrl, STOCKQUANT_TRADE_EXECUTION_URL: proxyUrl,
       STOCKQUANT_HISTORICAL_REPLAY_WORKER_URL: canaryUrl, STOCKQUANT_MARKET_DATA_URL: marketDataUrl, STOCKQUANT_RESEARCH_AUTOMATION_URL: canaryUrl
     }));
@@ -764,7 +872,7 @@ try {
       const inspection = spawnSync("docker", ["inspect", "--format", "{{.State.Status}} {{.State.ExitCode}}", webContainerName], { cwd: repo, encoding: "utf8", timeout: 10000 });
       throw new Error(`${error instanceof Error ? error.message : String(error)}\ncontainer=${inspection.stdout}\n${logs.stdout}\n${logs.stderr}`);
     }
-    const e2eChild = spawn("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "tests/e2e/v24-live-readiness.spec.ts", "tests/e2e/v24-paper-overview.spec.ts"], { cwd: repo, env: { ...process.env, CI: "1", PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}`, STOCKQUANT_PLATFORM_API_URL: browserApiUrl, STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_V24_RECOVERY_FAULT_CONTROL_URL: `http://127.0.0.1:${recoveryControlPort}/arm-next-recovery`, STOCKQUANT_ALERT_INTEGRATION: "true", STOCKQUANT_ALERT_INCIDENT_ID: seededIncidentId }, stdio: ["ignore", "pipe", "pipe"] });
+    const e2eChild = spawn("pnpm", ["--filter", "@stockquant/web", "exec", "playwright", "test", "tests/e2e/v24-live-readiness.spec.ts", "tests/e2e/v24-paper-overview.spec.ts", "tests/e2e/v24-c5-local-engineering.spec.ts"], { cwd: repo, env: { ...process.env, CI: "1", PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}`, STOCKQUANT_PLATFORM_API_URL: browserApiUrl, STOCKQUANT_LOCAL_DEVELOPMENT_USER: owner, STOCKQUANT_V24_RECOVERY_FAULT_CONTROL_URL: `http://127.0.0.1:${recoveryControlPort}/arm-next-recovery`, STOCKQUANT_ALERT_INTEGRATION: "true", STOCKQUANT_ALERT_INCIDENT_ID: seededIncidentId }, stdio: ["ignore", "pipe", "pipe"] });
     let e2eStdout = "";
     let e2eStderr = "";
     e2eChild.stdout.on("data", (chunk) => { e2eStdout = (e2eStdout + chunk.toString()).slice(-30000); });
@@ -777,7 +885,11 @@ try {
     const browserPlatformDb = new Client({ connectionString: urls[0] }); await browserPlatformDb.connect();
     const browserPlatformDiagnosticRuns = await browserPlatformDb.query("SELECT test_run_id::text,scenario_id,status FROM acceptance_stage_runs WHERE owner_id=$1 AND stage_id='V2.4' ORDER BY created_at", [owner]);
     await browserPlatformDb.end();
-    assert.equal(e2e.status, 0, `${e2e.stdout}\n${e2e.stderr}\nproxyEvents=${JSON.stringify(proxyEvents)}\nproxyErrors=${JSON.stringify(proxyErrors)}\nbrowserRuns=${JSON.stringify(browserPlatformDiagnosticRuns.rows)}\nbrowserPlatformLogs=${children.at(-1).output}`);
+    if (e2e.status !== 0) {
+      const webLogs = spawnSync("docker", ["logs", "--tail", "100", webContainerName], { cwd: repo, encoding: "utf8", timeout: 10000 });
+      throw new Error(`Browser verification failed\n${e2e.stdout}\n${e2e.stderr}\nwebContainerLogs=${webLogs.stdout}\n${webLogs.stderr}\nproxyEvents=${JSON.stringify(proxyEvents)}\nproxyErrors=${JSON.stringify(proxyErrors)}\nbrowserRuns=${JSON.stringify(browserPlatformDiagnosticRuns.rows)}\nbrowserPlatformLogs=${browserPlatform.output}`);
+    }
+    c5P4BrowserClosedEvidence = { browserTestProcessExitCode: e2e.status, browserRuns: 2, browserProcessExitedBeforeTimedRun: true };
     const finalAlert = (await alertRepository.activeIncidents()).find((incident) => incident.incidentId === seededIncidentId);
     assert.equal(finalAlert?.state, "ACKNOWLEDGED", "browser acknowledgement must persist through Platform to the isolated Market Data PostgreSQL repository");
     assert.equal(finalAlert?.acknowledgedBy, owner, "acknowledgement actor must come from the authenticated browser session");
@@ -786,10 +898,15 @@ try {
     marketDataPool = undefined;
     assert.equal(droppedExecutionResponseCount, 3, "the accepted API and Web recovery responses plus the temporary-lookup-outage run each drop a persisted-order acceptance response");
     const platformAuditDb = new Client({ connectionString: urls[0] }); await platformAuditDb.connect();
-    const browserRuns = await platformAuditDb.query("SELECT test_run_id::text,scenario_id,status FROM acceptance_stage_runs WHERE owner_id=$1 AND stage_id='V2.4' ORDER BY created_at", [owner]);
+    const browserRuns = await platformAuditDb.query("SELECT test_run_id::text,scenario_id,scenario_version,status FROM acceptance_stage_runs WHERE owner_id=$1 AND stage_id='V2.4' ORDER BY created_at", [owner]);
     await platformAuditDb.end();
-    const browserScenarioRuns = browserRuns.rows.filter((run) => !runs.some((item) => item.testRunId === run.test_run_id) && run.test_run_id !== browserPlatformControlRunId && run.test_run_id !== lookupOutageCreation.body.testRunId && run.test_run_id !== expiryRunCreation.body.testRunId && run.test_run_id !== v24OutboxRunCreation.body.testRunId && !concurrentRunIds.includes(run.test_run_id));
-    assert.equal(browserRuns.rowCount, 18, "six isolated API scenarios, query-outage, post-expiry and V2.4 Outbox runs, two concurrent runs, one direct control and all six browser TestRuns must persist");
+    const browserFixtureRuns = browserRuns.rows.filter((run) => run.scenario_version === "3.0.0");
+    assert.equal(browserFixtureRuns.length, 1); assert.equal(browserFixtureRuns[0].status, "WAITING");
+    const browserC5LocalRuns = browserRuns.rows.filter((run) => run.scenario_id === "c5-local-engineering" && !runs.some((item) => item.testRunId === run.test_run_id));
+    assert.equal(browserC5LocalRuns.length, 1, "C5 local Web acceptance must persist exactly one dedicated TestRun");
+    assert.equal(browserC5LocalRuns[0].status, "COMPLETED");
+    const browserScenarioRuns = browserRuns.rows.filter((run) => run.scenario_version !== "3.0.0" && run.scenario_id !== "c5-local-engineering" && !runs.some((item) => item.testRunId === run.test_run_id) && run.test_run_id !== browserPlatformControlRunId && run.test_run_id !== lookupOutageCreation.body.testRunId && run.test_run_id !== expiryRunCreation.body.testRunId && run.test_run_id !== v24OutboxRunCreation.body.testRunId && !concurrentRunIds.includes(run.test_run_id));
+    assert.equal(browserRuns.rowCount, 21, "API, browser, isolated Fixture target, legacy C5 HTTP and dedicated C5 Web TestRuns must persist");
     assert.deepEqual(browserScenarioRuns.map(({ scenario_id, status }) => ({ scenario_id, status })), [
       { scenario_id: "normal", status: "COMPLETED" },
       { scenario_id: "rejection", status: "COMPLETED" },
@@ -807,10 +924,213 @@ try {
       assert.equal(JSON.parse(webCli.stdout).status, "COMPLETED");
       return { testRunId: browserRun.test_run_id, exitCode: webCli.status };
     });
+    const c5WebCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--scenario", "c5-local-engineering", "--run", browserC5LocalRuns[0].test_run_id, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: browserApiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+    assert.equal(c5WebCli.status, 0, c5WebCli.stderr);
+    assert.equal(JSON.parse(c5WebCli.stdout).testRunId, browserC5LocalRuns[0].test_run_id);
+    assert.equal(JSON.parse(c5WebCli.stdout).status, "COMPLETED");
+    webTestRuns.push({ testRunId: browserC5LocalRuns[0].test_run_id, exitCode: c5WebCli.status, scenarioId: "c5-local-engineering" });
     const afterWebCliChecks = await paperFactCounts();
     assert.deepEqual(afterWebCliChecks, beforeWebCliChecks, "CLI --check-only and browser reloads must not mutate Paper orders, fills, ledger, reservations or Outbox");
     webFactCounts = { beforeWebCliChecks, afterWebCliChecks, unchanged: true };
   }
+  if (process.env.V24_C5_P4_TIMED_RUN === "true") {
+    assert.ok(c5P4BrowserClosedEvidence, "P4 timed run requires the C5 Web browser acceptance to complete and close first");
+    const durationMs = 30 * 60 * 1000;
+    const startedAt = new Date().toISOString();
+    const startedMonotonic = process.hrtime.bigint();
+    const factCountsBefore = await paperFactCounts();
+    const runBefore = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}`);
+    assert.equal(runBefore.status, 200);
+    assert.equal(runBefore.body.status, "COMPLETED");
+    console.log(JSON.stringify({ p4: "TIMED_RUN_STARTED", startedAt, durationMinutes: 30, testRunId: c5RunId, browserClosed: true, platformPid: platform.child.pid }));
+    let interruptedAt;
+    let recoveredAt;
+    let restartPid;
+    while (Number(process.hrtime.bigint() - startedMonotonic) / 1_000_000 < durationMs / 2) await delay(1000);
+    interruptedAt = new Date().toISOString();
+    const stoppedPid = platform.child.pid;
+    assert.equal(platform.child.exitCode, null, "Platform must still be running at the planned interruption point");
+    assert.equal(platform.child.kill("SIGKILL"), true, "P4 must successfully inject exactly one Platform process interruption");
+    await new Promise((resolveExit) => platform.child.once("exit", resolveExit));
+    assert.equal(platform.child.signalCode, "SIGKILL", "P4 must record the bounded Platform process interruption");
+    platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, platformEnv);
+    await waitReady(platform, `${apiUrl}/live`);
+    restartPid = platform.child.pid;
+    recoveredAt = new Date().toISOString();
+    const recoveredSession = await fetch(`${apiUrl}/api/v1/session`);
+    sessionCookie = recoveredSession.headers.get("set-cookie")?.split(";")[0];
+    assert.equal(recoveredSession.status, 200);
+    const recoveredRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}`);
+    assert.equal(recoveredRun.status, 200);
+    assert.equal(recoveredRun.body.status, "COMPLETED");
+    const resumedCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--scenario", "c5-local-engineering", "--run", c5RunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+    assert.equal(resumedCli.status, 0, resumedCli.stderr);
+    assert.equal(JSON.parse(resumedCli.stdout).testRunId, c5RunId);
+    const elapsedAtRecoveryMs = Number(process.hrtime.bigint() - startedMonotonic) / 1_000_000;
+    console.log(JSON.stringify({ p4: "PROCESS_RECOVERED", interruptedAt, recoveredAt, stoppedPid, restartPid, elapsedAtRecoveryMs: Math.round(elapsedAtRecoveryMs), sameTestRunId: c5RunId, cliExitCode: resumedCli.status }));
+    while (Number(process.hrtime.bigint() - startedMonotonic) / 1_000_000 < durationMs) await delay(1000);
+    const endedMonotonic = process.hrtime.bigint();
+    const endedAt = new Date().toISOString();
+    const elapsedMs = Number(endedMonotonic - startedMonotonic) / 1_000_000;
+    const runAfter = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/local-engineering/runs/${c5RunId}`);
+    assert.equal(runAfter.status, 200);
+    assert.equal(runAfter.body.status, "COMPLETED");
+    const factCountsAfter = await paperFactCounts();
+    assert.deepEqual(factCountsAfter, factCountsBefore, "the idle timed observation, process restart and check-only read must not mutate business facts");
+    assert.ok(elapsedMs >= durationMs, `P4 elapsed ${elapsedMs}ms is below the required ${durationMs}ms`);
+    c5P4TimedEvidence = { status: "PASS", testRunId: c5RunId, startedAt, interruptedAt, recoveredAt, endedAt, elapsedMs: Math.round(elapsedMs), requiredElapsedMs: durationMs, interruptedPid: stoppedPid, restartedPid: restartPid, processRestartedOnce: stoppedPid !== restartPid, browserClosed: c5P4BrowserClosedEvidence, runStateBeforeAndAfter: "COMPLETED", sameRunCliExitCode: resumedCli.status, factCountsBefore, factCountsAfter, businessFactsUnchanged: true, clockMode: "INJECTED_BUSINESS_CLOCK_WITH_REAL_MONOTONIC_OBSERVATION", marketDataRequests: 0, liveTrading: false };
+    console.log(JSON.stringify({ p4: "TIMED_RUN_COMPLETED", ...c5P4TimedEvidence }));
+  }
+  const beforeFixtureTarget = await paperFactCounts();
+  const targetCreation = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/fixture-target/runs", { method: "POST" });
+  assert.equal(targetCreation.status, 202, JSON.stringify(targetCreation.body));
+  assert.equal(targetCreation.body.status, "WAITING"); assert.equal(targetCreation.body.workerEnabled, true);
+  let targetJob;
+  for (let i = 0; i < 150; i += 1) {
+    targetJob = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${targetCreation.body.testRunId}/job`);
+    if (targetJob.body?.job?.state === "COMPLETED" || targetJob.body?.job?.state === "FAILED") break;
+    await delay(200);
+  }
+  assert.equal(targetJob.status, 200); assert.equal(targetJob.body.job.state, "COMPLETED", JSON.stringify(targetJob.body));
+  assert.equal(targetJob.body.target.decision.action, "PAUSED"); assert.equal(targetJob.body.target.decision.reason, "MANDATE_INACTIVE"); assert.equal(targetJob.body.target.clientOrderId, null);
+  assert.equal(targetJob.body.target.dailyBarProvenance.completionIds.length, 2);
+  const targetRun = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/runs/${targetCreation.body.testRunId}`);
+  assert.equal(targetRun.body.status, "WAITING");
+  const targetCli = spawnSync(process.execPath, [resolve(repo, "scripts/verify-stage.mjs"), "--stage", "V2.4", "--run", targetCreation.body.testRunId, "--check-only"], { cwd: repo, encoding: "utf8", timeout: 10000, env: { ...process.env, STOCKQUANT_PLATFORM_API_URL: apiUrl, STOCKQUANT_SESSION_COOKIE: sessionCookie } });
+  assert.equal(targetCli.status, 2, `WAITING Fixture work must not claim stage acceptance: ${targetCli.stdout} ${targetCli.stderr}`);
+  const afterFixtureTarget = await paperFactCounts();
+  for (const key of ["brokerOrders", "brokerFills", "portfolioFills", "reservations", "outboxEvents"]) assert.equal(afterFixtureTarget[key], beforeFixtureTarget[key], `${key} must not change in inactive Fixture preparation`);
+  fixtureTargetEvidence = { testRunId: targetCreation.body.testRunId, jobId: targetJob.body.job.jobId, state: targetJob.body.job.state, targetId: targetJob.body.target.targetId, completionIds: targetJob.body.target.dailyBarProvenance.completionIds, targetAction: targetJob.body.target.decision.action, cliExitCode: targetCli.status, stageStatus: targetRun.body.status, dataMode: "FIXTURE", externalRequests: 0 };
+  await stop(marketDataProcess);
+  const interrupted = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/fixture-target/runs", { method: "POST" });
+  assert.equal(interrupted.status, 503, JSON.stringify(interrupted.body));
+  const interruptedRunId = interrupted.body.testRunId;
+  assert.ok(interruptedRunId);
+  const setupHistory = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/fixture-target/runs");
+  assert.equal(setupHistory.status, 200); assert.ok(setupHistory.body.some((run) => run.testRunId === interruptedRunId && run.status === "RUNNING"));
+  const recoveryPortfolio = new Client({ connectionString: urls[1] }); await recoveryPortfolio.connect();
+  const accountBeforeResume = await recoveryPortfolio.query("SELECT account_id FROM accounts WHERE test_run_id=$1 AND owner_id=$2", [interruptedRunId, owner]);
+  assert.equal(accountBeforeResume.rowCount, 1, "account committed before Market Data interruption");
+  assert.equal((await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${interruptedRunId}/resume`, { method: "POST", cookie: "" })).status, 401);
+  marketDataProcess = start(resolve(repo, "services/market-data-service/dist/main.js"), resolve(repo, "services/market-data-service"), marketDataEnv);
+  await waitReady(marketDataProcess, `${marketDataUrl}/ready`);
+  const resumed = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${interruptedRunId}/resume`, { method: "POST" });
+  assert.equal(resumed.status, 202, JSON.stringify(resumed.body));
+  const replayed = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${interruptedRunId}/resume`, { method: "POST" });
+  assert.equal(replayed.status, 202); assert.equal(replayed.body.jobId, resumed.body.jobId);
+  const accountAfterResume = await recoveryPortfolio.query("SELECT account_id FROM accounts WHERE test_run_id=$1 AND owner_id=$2", [interruptedRunId, owner]);
+  await recoveryPortfolio.end();
+  assert.deepEqual(accountAfterResume.rows, accountBeforeResume.rows, "resume must reuse the original account");
+  let recoveredJob;
+  for (let i = 0; i < 150; i += 1) {
+    recoveredJob = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${interruptedRunId}/job`);
+    if (recoveredJob.body?.job?.state === "COMPLETED" || recoveredJob.body?.job?.state === "FAILED") break;
+    await delay(200);
+  }
+  assert.equal(recoveredJob.body.job.state, "COMPLETED", JSON.stringify(recoveredJob.body));
+  assert.equal(recoveredJob.body.target.decision.action, "PAUSED"); assert.equal(recoveredJob.body.target.clientOrderId, null);
+  const afterRecovery = await paperFactCounts();
+  for (const key of ["brokerOrders", "brokerFills", "portfolioFills", "reservations", "outboxEvents"]) assert.equal(afterRecovery[key], beforeFixtureTarget[key]);
+  fixtureSetupRecoveryEvidence = { testRunId: interruptedRunId, interruptedHttpStatus: interrupted.status, marketDataRestarted: true, accountId: accountBeforeResume.rows[0].account_id, accountCount: accountAfterResume.rowCount, resumedJobId: resumed.body.jobId, replayJobId: replayed.body.jobId, jobState: recoveredJob.body.job.state, targetAction: recoveredJob.body.target.decision.action, noOrderSideEffects: true };
+  holdFixtureSessions = true;
+  const crashRun = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/fixture-target/runs", { method: "POST" });
+  assert.equal(crashRun.status, 202, JSON.stringify(crashRun.body));
+  for (let i = 0; i < 100 && !heldFixtureResponse; i += 1) await delay(100);
+  assert.ok(heldFixtureResponse, "worker must reach the held daily session read");
+  const crashDb = new Client({ connectionString: urls[0] }); await crashDb.connect();
+  const claimed = await crashDb.query("SELECT state,attempt,lease_owner,lease_until FROM v24_fixture_target_jobs WHERE test_run_id=$1", [crashRun.body.testRunId]);
+  assert.equal(claimed.rows[0]?.state, "CLAIMED"); assert.equal(claimed.rows[0]?.attempt, 1);
+  const terminated = new Promise((resolveExit) => platform.child.once("exit", (code, signal) => resolveExit({ code, signal })));
+  platform.child.kill("SIGKILL");
+  const crashExit = await terminated; assert.equal(crashExit.signal, "SIGKILL");
+  heldFixtureResponse.destroy(); heldFixtureResponse = null; holdFixtureSessions = false;
+  platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, platformEnv);
+  await waitReady(platform, `${apiUrl}/live`);
+  const restartedSession = await fetch(`${apiUrl}/api/v1/session`); sessionCookie = restartedSession.headers.get("set-cookie")?.split(";")[0]; assert.ok(sessionCookie);
+  let crashJob;
+  for (let i = 0; i < 220; i += 1) {
+    crashJob = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${crashRun.body.testRunId}/job`);
+    if (crashJob.body?.job?.state === "COMPLETED" || crashJob.body?.job?.state === "FAILED") break;
+    await delay(200);
+  }
+  assert.equal(crashJob.body?.job?.state, "COMPLETED", JSON.stringify(crashJob.body));
+  assert.equal(crashJob.body.job.jobId, crashRun.body.jobId); assert.equal(crashJob.body.job.attempt, 2);
+  assert.equal(crashJob.body.target.decision.action, "PAUSED"); assert.equal(crashJob.body.target.clientOrderId, null);
+  const targetCount = await crashDb.query("SELECT count(*)::int AS count FROM v24_fixture_daily_targets WHERE test_run_id=$1", [crashRun.body.testRunId]);
+  await crashDb.end(); assert.equal(targetCount.rows[0].count, 1);
+  const afterCrash = await paperFactCounts();
+  for (const key of ["brokerOrders", "brokerFills", "portfolioFills", "reservations", "outboxEvents"]) assert.equal(afterCrash[key], beforeFixtureTarget[key]);
+  fixtureWorkerCrashEvidence = { testRunId: crashRun.body.testRunId, jobId: crashRun.body.jobId, killSignal: crashExit.signal, firstAttempt: claimed.rows[0].attempt, originalLeaseOwner: claimed.rows[0].lease_owner, leaseUntil: claimed.rows[0].lease_until, recoveredAttempt: crashJob.body.job.attempt, jobState: crashJob.body.job.state, targetCount: targetCount.rows[0].count, targetAction: crashJob.body.target.decision.action, noOrderSideEffects: true };
+  await stop(platform);
+  platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, { ...platformEnv, STOCKQUANT_V24_FIXTURE_TARGET_WORKER_ENABLED: "false" });
+  await waitReady(platform, `${apiUrl}/live`);
+  const preparingSession = await fetch(`${apiUrl}/api/v1/session`); sessionCookie = preparingSession.headers.get("set-cookie")?.split(";")[0]; assert.ok(sessionCookie);
+  const committedRun = await request(apiUrl, "/api/v1/acceptance/v2/v2.4/fixture-target/runs", { method: "POST" });
+  assert.equal(committedRun.status, 202, JSON.stringify(committedRun.body));
+  const marketObserver = new Client({ connectionString: urls[4] }); fixtureFaultClients.push(marketObserver); await marketObserver.connect();
+  let completedDaily;
+  for (let i = 0; i < 150; i += 1) {
+    completedDaily = await marketObserver.query("SELECT count(*)::int AS count FROM market_data_daily_bar_completion_tasks WHERE scope_json->>'testRunId'=$1 AND data_mode='FIXTURE'", [committedRun.body.testRunId]);
+    if (completedDaily.rows[0].count === 2) break;
+    await delay(200);
+  }
+  assert.equal(completedDaily.rows[0].count, 2, "both persisted daily completions must exist before injecting the crash");
+  await stop(platform);
+  holdFixtureSessions = true;
+  platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, platformEnv);
+  await waitReady(platform, `${apiUrl}/live`);
+  for (let i = 0; i < 100 && !heldFixtureResponse; i += 1) await delay(100);
+  assert.ok(heldFixtureResponse && heldFixtureRequest, "worker must pause before reading persisted daily sessions");
+  const blocker = new Client({ connectionString: urls[0] }); fixtureFaultClients.push(blocker); await blocker.connect();
+  const observer = new Client({ connectionString: urls[0] }); fixtureFaultClients.push(observer); await observer.connect();
+  await blocker.query("BEGIN");
+  const lockedJob = await blocker.query("SELECT state,attempt,lease_owner,lease_until FROM v24_fixture_target_jobs WHERE test_run_id=$1 FOR UPDATE", [committedRun.body.testRunId]);
+  assert.equal(lockedJob.rows[0]?.state, "CLAIMED"); assert.ok(lockedJob.rows[0]?.attempt >= 1 && lockedJob.rows[0]?.attempt < 3, "the exact job must remain recoverable before its bounded retry limit");
+  const upstreamSessions = await fetch(`${marketDataUrl}${heldFixtureRequest.url}`, { headers: heldFixtureRequest.headers, signal: AbortSignal.timeout(5000) });
+  assert.equal(upstreamSessions.status, 200);
+  heldFixtureResponse.writeHead(upstreamSessions.status, { "content-type": "application/json" }); heldFixtureResponse.end(Buffer.from(await upstreamSessions.arrayBuffer()));
+  heldFixtureResponse = null; heldFixtureRequest = null; holdFixtureSessions = false;
+  let persistedTarget;
+  for (let i = 0; i < 100; i += 1) {
+    persistedTarget = await observer.query("SELECT target_id,payload FROM v24_fixture_daily_targets WHERE test_run_id=$1", [committedRun.body.testRunId]);
+    if (persistedTarget.rowCount) break;
+    await delay(100);
+  }
+  assert.equal(persistedTarget?.rowCount, 1, "target must commit while job completion is blocked");
+  assert.equal(persistedTarget.rows[0].payload.decision.action, "PAUSED");
+  const stillClaimed = await observer.query("SELECT state,attempt,target_id FROM v24_fixture_target_jobs WHERE test_run_id=$1", [committedRun.body.testRunId]);
+  assert.deepEqual(stillClaimed.rows[0], { state: "CLAIMED", attempt: lockedJob.rows[0].attempt, target_id: null });
+  let pendingCompletion;
+  for (let i = 0; i < 30; i += 1) {
+    pendingCompletion = await observer.query("SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND wait_event_type='Lock' AND query LIKE 'UPDATE v24_fixture_target_jobs SET state=''COMPLETED''%' ");
+    if (pendingCompletion.rowCount === 1) break;
+    await delay(100);
+  }
+  assert.equal(pendingCompletion?.rowCount, 1, "the exact completion statement must be blocked before terminating its test session");
+  const terminatedAfterCommit = new Promise((resolveExit) => platform.child.once("exit", (code, signal) => resolveExit({ code, signal })));
+  platform.child.kill("SIGKILL");
+  const committedCrashExit = await terminatedAfterCommit; assert.equal(committedCrashExit.signal, "SIGKILL");
+  const terminatedBackend = await observer.query("SELECT pg_terminate_backend($1) AS terminated", [pendingCompletion.rows[0].pid]);
+  assert.equal(terminatedBackend.rows[0].terminated, true, "the isolated in-flight database session must be terminated before unlocking");
+  await blocker.query("ROLLBACK");
+  platform = start(resolve(repo, "services/platform-api-service/dist/main.js"), service, platformEnv);
+  await waitReady(platform, `${apiUrl}/live`);
+  const committedSession = await fetch(`${apiUrl}/api/v1/session`); sessionCookie = committedSession.headers.get("set-cookie")?.split(";")[0]; assert.ok(sessionCookie);
+  let committedJob;
+  for (let i = 0; i < 220; i += 1) {
+    committedJob = await request(apiUrl, `/api/v1/acceptance/v2/v2.4/fixture-target/runs/${committedRun.body.testRunId}/job`);
+    if (committedJob.body?.job?.state === "COMPLETED" || committedJob.body?.job?.state === "FAILED") break;
+    await delay(200);
+  }
+  assert.equal(committedJob.body?.job?.state, "COMPLETED", JSON.stringify(committedJob.body));
+  assert.equal(committedJob.body.job.jobId, committedRun.body.jobId); assert.equal(committedJob.body.job.attempt, lockedJob.rows[0].attempt + 1);
+  assert.equal(committedJob.body.target.targetId, persistedTarget.rows[0].target_id);
+  assert.equal(committedJob.body.target.decision.action, "PAUSED"); assert.equal(committedJob.body.target.clientOrderId, null);
+  const committedTargetCount = await observer.query("SELECT count(*)::int AS count FROM v24_fixture_daily_targets WHERE test_run_id=$1", [committedRun.body.testRunId]);
+  assert.equal(committedTargetCount.rows[0].count, 1);
+  const afterCommittedCrash = await paperFactCounts();
+  for (const key of ["brokerOrders", "brokerFills", "portfolioFills", "reservations", "outboxEvents"]) assert.equal(afterCommittedCrash[key], beforeFixtureTarget[key]);
+  fixtureCommittedTargetCrashEvidence = { testRunId: committedRun.body.testRunId, jobId: committedRun.body.jobId, killSignal: committedCrashExit.signal, terminatedBlockedDatabaseSession: true, firstAttempt: lockedJob.rows[0].attempt, leaseUntil: lockedJob.rows[0].lease_until, jobStateAtCrash: stillClaimed.rows[0].state, targetIdBeforeCrash: persistedTarget.rows[0].target_id, targetIdAfterRecovery: committedJob.body.target.targetId, recoveredAttempt: committedJob.body.job.attempt, jobState: committedJob.body.job.state, targetCount: committedTargetCount.rows[0].count, targetAction: committedJob.body.target.decision.action, noOrderSideEffects: true };
   const outboxRestart = spawnSync(process.execPath, [resolve(repo, "services/trade-execution-service/scripts/p5-7-outbox-http-smoke.mjs")], {
     cwd: resolve(repo, "services/trade-execution-service"), encoding: "utf8", timeout: 120000,
     env: { ...process.env, TRADE_EXECUTION_TEST_DATABASE_URL: urls[2], PORTFOLIO_RISK_TEST_DATABASE_URL: urls[1], STOCKQUANT_ALLOW_EPHEMERAL_P57_DB: "true" }
@@ -852,11 +1172,14 @@ try {
   }
   await mkdir(auditDirectory, { recursive: true });
   const auditReport = resolve(auditDirectory, `${new Date().toISOString().slice(0, 10)}-v24-paper-smoke-${suffix}.json`);
-  await writeFile(auditReport, `${JSON.stringify({ status: "PASS", source: "v24:paper-http-smoke", environment: "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution/Market Data processes plus Chromium and containerized Web image/Vite preview", brokerMode: "FAKE", dataMode: "FIXTURE", identityAndLiveReject, snapshotReject, scopeTamperReject, expiredAuthorizationReject, revokedAuthorizationEvidence, consumedAuthorizationRevokeEvidence, authorizedFillAfterExpiryEvidence, v24OutboxRecoveryEvidence, pendingFillCancelEvidence, resourceConcurrencyEvidence, lookupUnavailableRecovery, terminalCancelEvidence, concurrentRunEvidence, tradeExecutionSnapshotIdempotency: idempotencyFacts, tradeRestartEvidence, outboxRestartEvidence, apiScenarios: runs.map(({ scenarioId, testRunId, cliExitCode, status, assertions }) => ({ scenarioId, testRunId, cliExitCode, status, assertions: assertions.map(({ assertionId, status }) => ({ assertionId, status })) })), browserPlatformControlRunId, browserScenarios: webTestRuns, alertIntegrationEvidence, dailyReconciliationAlertEvidence, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, droppedExecutionResponseCount, successfulApiAndWebRecoveryDrops: 2, webRecoveryDroppedResponseConfirmed: droppedExecutionResponseCount >= 2, proxyFaultEvents: proxyEvents.filter((event) => event.outcome === "RESPONSE_DROPPED" || event.outcome === "LOOKUP_UNAVAILABLE"), webCliReadOnlyFactCounts: webFactCounts, temporaryDatabaseExportedBeforeCleanup: databaseSnapshotFiles.length === 5, databaseSnapshotFiles, activeServicesTouched: false, temporaryWebImageTag: webImageTag, temporaryWebImageId: webImageId, temporaryWebContainerName: webContainerName, temporaryWebImageRemovedAfterRun: webImageRemoved, temporaryWebContainerRemovedAfterRun: webContainerRemoved }, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(auditReport, `${JSON.stringify({ status: "PASS", source: "v24:paper-http-smoke", environment: process.env.V24_PAPER_SMOKE_SKIP_WEB === "true" ? "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution/Market Data processes; Web NOT_RUN" : "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution/Market Data processes plus Chromium and containerized Web image/Vite preview", webChecked: process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true", brokerMode: "FAKE", dataMode: "FIXTURE", c5P3Evidence, c5P4TimedEvidence, fixtureTargetEvidence, fixtureSetupRecoveryEvidence, fixtureWorkerCrashEvidence, fixtureCommittedTargetCrashEvidence, identityAndLiveReject, snapshotReject, scopeTamperReject, expiredAuthorizationReject, revokedAuthorizationEvidence, consumedAuthorizationRevokeEvidence, authorizedFillAfterExpiryEvidence, v24OutboxRecoveryEvidence, pendingFillCancelEvidence, resourceConcurrencyEvidence, lookupUnavailableRecovery, terminalCancelEvidence, concurrentRunEvidence, tradeExecutionSnapshotIdempotency: idempotencyFacts, tradeRestartEvidence, outboxRestartEvidence, apiScenarios: runs.map(({ scenarioId, testRunId, cliExitCode, status, assertions }) => ({ scenarioId, testRunId, cliExitCode, status, assertions: assertions.map(({ assertionId, status }) => ({ assertionId, status })) })), browserPlatformControlRunId, browserScenarios: webTestRuns, alertIntegrationEvidence, dailyReconciliationAlertEvidence, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, droppedExecutionResponseCount, droppedC5ExecutionResponseCount, successfulApiAndWebRecoveryDrops: 2, webRecoveryDroppedResponseConfirmed: droppedExecutionResponseCount >= 2, proxyFaultEvents: proxyEvents.filter((event) => event.outcome === "RESPONSE_DROPPED" || event.outcome === "LOOKUP_UNAVAILABLE" || event.outcome === "C5_RESPONSE_DROPPED_AFTER_COMMIT"), webCliReadOnlyFactCounts: webFactCounts, temporaryDatabaseExportedBeforeCleanup: databaseSnapshotFiles.length === 5, databaseSnapshotFiles, activeServicesTouched: false, temporaryWebImageTag: webImageTag, temporaryWebImageId: webImageId, temporaryWebContainerName: webContainerName, temporaryWebImageRemovedAfterRun: webImageRemoved, temporaryWebContainerRemovedAfterRun: webContainerRemoved }, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify({ status: "PASS", auditReport, testRunIds: runs.map((run) => run.testRunId), scenarios: runs, webTestRunId, webTestRuns, lostRecoveryResponseConfirmed: recoverySawDroppedResponse, webApiCliSameRun: process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true", webChecked: process.env.V24_PAPER_SMOKE_SKIP_WEB !== "true", tempDatabases: databases, activeServicesTouched: false }));
 } finally {
+  for (const client of fixtureFaultClients) await client.end().catch(() => undefined);
   for (const entry of [...children].reverse()) await stop(entry);
   portfolioProxy?.closeAllConnections();
+  marketDataProxy?.closeAllConnections();
+  marketDataProxy?.close();
   proxy?.close();
   governanceProxy?.close();
   portfolioProxy?.close();

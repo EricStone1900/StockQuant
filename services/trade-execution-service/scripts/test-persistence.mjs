@@ -4,6 +4,8 @@ import { Pool } from "pg";
 import { PostgresFakeBrokerRepository } from "../dist/adapters/postgres-fake-broker-repository.js";
 import { PostgresSimulationExecutionPolicyRepository } from "../dist/adapters/postgres-simulation-execution-policy-repository.js";
 import { migrateTradeExecutionSchema } from "../dist/adapters/postgres-schema-migrations.js";
+import { C5LocalPaperExecutionService } from "../dist/application/c5-local-paper-execution.js";
+import { FillOutboxDelivery } from "../dist/application/fill-outbox-delivery.js";
 
 const connectionString = process.env.TRADE_EXECUTION_TEST_DATABASE_URL ?? "postgresql://trade_execution_test@127.0.0.1:5433/trade_execution_test";
 const parsed = new URL(connectionString);
@@ -16,6 +18,7 @@ if (databaseName === "trade_execution" || parsed.username === "trade_execution")
 let pool = new Pool({ connectionString });
 let databaseReady = false;
 let namespaceMigrated = false;
+let c5NamespaceForCleanup;
 const namespace = `test-p5-idempotency-${randomUUID()}`;
 const accountId = randomUUID();
 const command = {
@@ -560,6 +563,17 @@ try {
   assert.equal(discrepancy.externalOnlyOrderCount, 1, "independent broker-side order missing locally is reconciled as a discrepancy");
   assert.equal(discrepancy.discrepancies[0].kind, "EXTERNAL_ORDER_MISSING_LOCALLY");
   assert.equal(discrepancy.discrepancies[0].externalOrderId, externalOnly.externalOrderId);
+  const c5RunId=randomUUID(),c5AccountId=randomUUID(),c5OwnerId=`c5-owner-${randomUUID()}`,c5Namespace=`v24-paper-v2-${c5RunId}`,c5ClientOrderId=`v24-fixture-v2-${c5RunId}-20240104`,c5MandateId=randomUUID(),c5MandateReservationId=randomUUID(),c5ResourceReservationId=randomUUID(); c5NamespaceForCleanup=c5Namespace;
+  const c5Auth={mandateId:c5MandateId,mandateVersion:1,ownerId:c5OwnerId,accountId:c5AccountId,namespace:c5Namespace,testRunId:c5RunId,targetId:"c5-target-20240104",clientOrderId:c5ClientOrderId,evaluatedAt:"2024-01-04T09:31:50+08:00",commandHash:"a".repeat(64),reservationId:c5MandateReservationId,proposal:{proposalId:randomUUID(),proposalVersion:1,contentHash:"b".repeat(64),ownerId:c5OwnerId,testRunId:c5RunId,accountId:c5AccountId,strategyVersion:"2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",operation:"REBALANCE",market:"CN_A",currency:"CNY",legs:[{securityId:"600000.SH",side:"BUY",quantity:100,limitPrice:"10.25",estimatedFee:"5.00"}]},priceEvidence:{targetId:"c5-target-20240104",clientOrderId:c5ClientOrderId,snapshotId:"c5-snapshot-20240104",side:"BUY",quantity:100,price:"10.25",fee:"5.00",budgetAmount:"1030.00",quoteAgeSeconds:15,deviationBps:0,observedAt:"2024-01-04T09:31:35+08:00"}};
+  const c5LedgerFills=[];
+  const c5Portfolio={reserveAccountResources:async()=>({reservation:{reservationId:c5ResourceReservationId},replayed:true}),resolveAccountReservation:async()=>({reservationId:c5ResourceReservationId}),recordAccountFill:async(account,fill)=>{c5LedgerFills.push({account,fill});return {replayed:false};}};
+  const c5Mandates={authorizeOrder:async()=>({status:200,body:{decision:{status:"AUTHORIZED",reservedAmount:"1030.00"},reservationId:c5MandateReservationId}}),settleReservation:async(_id,body)=>({status:200,body:{status:body.outcome}})};
+  const c5Service=new C5LocalPaperExecutionService(reopened,c5Portfolio,c5Mandates,new FillOutboxDelivery(reopened,c5Portfolio));
+  const c5First=await c5Service.execute({authorization:c5Auth}),c5Replay=await c5Service.execute({authorization:c5Auth});
+  assert.equal(c5First.status,"FILLED"); assert.equal(c5First.replayed,false); assert.equal(c5Replay.replayed,true); assert.equal(c5First.order.orderId,c5Replay.order.orderId);
+  assert.equal(c5LedgerFills.length,1,"replayed C5 execution must not post the Fill twice"); assert.equal(c5LedgerFills[0].account,c5AccountId);
+  const c5Assets=await reopened.independentAssetSnapshot(c5Namespace,c5AccountId); assert.equal(c5Assets.current_cash,"8970.0000"); assert.deepEqual(c5Assets.positions,[{security:"600000.SH",quantity:100}]);
+  const c5Counts=await pool.query(`SELECT (SELECT count(*)::int FROM fake_broker_orders WHERE namespace=$1) AS orders,(SELECT count(*)::int FROM fake_broker_fills f JOIN fake_broker_orders o ON o.order_id=f.order_id WHERE o.namespace=$1) AS fills,(SELECT count(*)::int FROM fake_broker_outbox x JOIN fake_broker_orders o ON o.order_id=x.order_id WHERE o.namespace=$1) AS outbox`,[c5Namespace]); assert.deepEqual(c5Counts.rows[0],{orders:1,fills:1,outbox:1}); assert.equal(c5Replay.outbox.status,"DELIVERED");
   console.log(JSON.stringify({ concurrentSameKey: "one order/fill/event/outbox", stableFakeBrokerOrderId: { publicField: "orderId", firstResult: first.result.orderId, concurrentRetryResult: concurrentReplay.result.orderId, reconnectRetryResult: replayAfterReconnect.result.orderId, identicalAcrossRetries: first.result.orderId === concurrentReplay.result.orderId && first.result.orderId === replayAfterReconnect.result.orderId }, changedQuantity: "409, no side effect", changedPrice: "409, no side effect", legacyRowWithoutFingerprint: "409, no side effect", outboxReservationBinding: "side/currency/reservation persisted", partialFillCancellation: "duplicate requests idempotent; accepted result closes remainder; rejected result restores PARTIALLY_FILLED; late result ignored; fill/outbox preserved", competingCancelResults: { sameSequenceConflict: true, exactlyOnePayloadAccepted: true, reservationReleaseWaitsForFill: true }, cancellationReservationOutbox: "durable CANCELLED resolution enqueued only after every partial Fill delivery; claim and acknowledgement delivered", fillDuringCancelRace: { laterCancelArrivesBeforeEarlierFill: true, bufferedWithoutStateChange: true, missingSequenceArrivalDrainsInOrder: true, postAckFillFenced: true, cumulativeToIncremental: true, cumulativeRegressionRejected: true, overfillRejected: true, noDeltaReportNoFill: true, idempotentReportReplay: true, reservationReleaseWaitsForAllFills: true }, fillCausalSequence: { testRunId: causalCommand.reservation.testRunId, orderId: causalOrder.result.orderId, sequence2Buffered: true, replayed10Times: true, sequence1DrainsBoth: true, cumulativeFrom100To150: true, incrementalSequence1: 0, incrementalSequence2: 50, authoritativeCashCny: expectedCausalCash, fillFactsAndOutboxExactlyOnce: true }, seededFillCausalMatrix: { runs: seededArrivalMatrix.length, permutations: [...new Set(seededArrivalMatrix.map((run) => run.injectedArrivalSequence.join("")))].sort(), injections: seededArrivalMatrix }, feeCorrection: "sequential revisions, idempotent replay, pending barrier, durable delivery, original Fill immutable", externalOrderReconciliation: "independent durable broker-side observation, replay conflict isolation, missing-local discrepancy surfaced", reconnectReplay: "current CANCELLED state plus original partial Fill", brokerMode: "FAKE" }, null, 2));
 } catch (error) {
   if (!databaseReady) {
@@ -583,6 +597,19 @@ try {
       await pool.query(`DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query(`DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1`, [namespace]);
       await pool.query("DELETE FROM fake_broker_orders WHERE namespace=$1", [namespace]);
+      if(c5NamespaceForCleanup){
+        await pool.query("DELETE FROM fake_broker_external_orders WHERE namespace=$1",[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_outbox x USING fake_broker_orders o WHERE x.order_id=o.order_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_order_events e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query("DELETE FROM fake_broker_sell_receivables WHERE namespace=$1",[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_asset_events e USING fake_broker_orders o WHERE e.namespace=o.namespace AND e.account_id=o.account_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_fills f USING fake_broker_orders o WHERE f.order_id=o.order_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_authoritative_event_inbox e USING fake_broker_orders o WHERE e.order_id=o.order_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query(`DELETE FROM fake_broker_order_event_sequences s USING fake_broker_orders o WHERE s.order_id=o.order_id AND o.namespace=$1`,[c5NamespaceForCleanup]);
+        await pool.query("DELETE FROM fake_broker_orders WHERE namespace=$1",[c5NamespaceForCleanup]);
+        await pool.query("DELETE FROM fake_broker_positions WHERE namespace=$1",[c5NamespaceForCleanup]);
+        await pool.query("DELETE FROM fake_broker_account_assets WHERE namespace=$1",[c5NamespaceForCleanup]);
+      }
     } catch (error) {
       console.error("isolated FakeBroker test namespace cleanup failed", error);
       process.exitCode = 1;

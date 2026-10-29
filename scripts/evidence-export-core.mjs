@@ -13,6 +13,7 @@ export function parseEvidenceExportArgs(args) {
   const stage = value("--stage") ?? "V1.1";
   if (!/^[A-Z][0-9](?:\.[0-9])?$/u.test(stage)) throw new Error("--stage must be a versioned stage identifier such as V2.2 or V3.2");
   const runId = value("--run");
+  const scenario = value("--scenario");
   const promotionRequestId = value("--promotion-request");
   if (args.includes("--run") && args.includes("--promotion-request")) throw new Error("choose exactly one of --run or --promotion-request");
   if (stage === "V3.2") {
@@ -29,10 +30,11 @@ export function parseEvidenceExportArgs(args) {
   }
   if (promotionRequestId) throw new Error("--promotion-request is only supported for V3.2");
   if (!runId || !SAFE_ID.test(runId) || runId === "." || runId === "..") throw new Error("--run requires a safe run identifier");
-  return { stage, runId };
+  if (scenario && !(stage === "V2.4" && scenario === "c5-local-engineering")) throw new Error("--scenario is only supported as c5-local-engineering for V2.4 evidence export");
+  return { stage, runId, ...(scenario ? { scenario } : {}) };
 }
 
-export function evidenceRequest({ stage, runId, promotionRequestId, baseUrl, sessionCookie }) {
+export function evidenceRequest({ stage, runId, promotionRequestId, scenario, baseUrl, sessionCookie }) {
   if (typeof sessionCookie !== "string" || !/(?:^|;\s*)sq_session=[^;\s]+/u.test(sessionCookie) || /[\r\n]/u.test(sessionCookie)) throw new Error("STOCKQUANT_EVIDENCE_SESSION_COOKIE must contain the current local session cookie");
   const v1RunRoutes = { "V1.2": "/api/v1/acceptance/v1/v1.2/runs", "V1.4": "/api/v1/acceptance/v1/v1.4/runs" };
   if (v1RunRoutes[stage]) return {
@@ -65,6 +67,11 @@ export function evidenceRequest({ stage, runId, promotionRequestId, baseUrl, ses
     "V2.4": "/api/v1/acceptance/v2/v2.4/runs",
     "V2.5": "/api/v1/acceptance/v2/v2.5/runs",
   };
+  if (stage === "V2.4" && scenario === "c5-local-engineering") return {
+    url: `${baseUrl}/api/v1/acceptance/v2/v2.4/local-engineering/runs/${encodeURIComponent(runId)}`,
+    headers: { cookie: sessionCookie },
+    outputDirectory: `evidence/local/V2.4/${runId}`,
+  };
   const v31RunRoute = stage === "V3.1" ? "/api/v1/acceptance/v3/v3.1/runs" : null;
   if (v31RunRoute) return {
     url: `${baseUrl}${v31RunRoute}/${encodeURIComponent(runId)}`,
@@ -77,7 +84,7 @@ export function evidenceRequest({ stage, runId, promotionRequestId, baseUrl, ses
   return { url: `${baseUrl}${path}`, headers: { cookie: sessionCookie }, outputDirectory };
 }
 
-export function buildEvidenceBundle({ stage, runId, promotionRequestId, responseBody }) {
+export function buildEvidenceBundle({ stage, runId, promotionRequestId, scenario, responseBody }) {
   if (stage.startsWith("V1.")) {
     const run = responseBody?.run ?? responseBody;
     if (run?.stageId !== stage || run?.testRunId !== runId) throw new Error("V1 TestRun response is not bound to the requested stage and run");
@@ -102,6 +109,11 @@ export function buildEvidenceBundle({ stage, runId, promotionRequestId, response
         || common.sha256 !== ref.sha256 || common.status !== "PUBLISHED" || common.sourceRef !== `platform-api-service:v2.3:${runId}`) throw new Error("V2.3 TestRun common ArtifactRef does not match its Qlib artifact reference");
     }
     return responseBody;
+  }
+  if (stage === "V2.4" && scenario === "c5-local-engineering") {
+    if (!UUID.test(runId ?? "") || responseBody?.testRunId !== runId || responseBody?.stageId !== "V2.4" || responseBody?.scenarioId !== "c5-local-engineering" || responseBody?.scenarioVersion !== "1.0.0") throw new Error("V2.4 C5 local TestRun response is not bound to the requested run and scenario");
+    if (responseBody.status !== "COMPLETED" || responseBody.evidence?.scopeId !== "C5_LOCAL_ENGINEERING_V1" || responseBody.evidence?.humanAcceptance !== "NOT_RUN" || !Array.isArray(responseBody.assertions) || responseBody.assertions.length === 0 || responseBody.assertions.some((item) => item.status !== "PASS")) throw new Error("V2.4 C5 local export requires completed passing assertions and explicit NOT_RUN human acceptance");
+    return { evidenceVersion: "acceptance-export-v2-4-c5-local-1", stageId: "V2.4", testRunId: runId, scenarioId: "c5-local-engineering", status: "COMPLETED", businessValidation: "PASS", humanAcceptance: "NOT_RUN", exportedAt: new Date().toISOString(), run: responseBody };
   }
   if (stage === "V3.2" && runId) {
     if (!UUID.test(runId) || responseBody?.testRunId !== runId || responseBody?.stageId !== "V3.2") throw new Error("V3.2 TestRun response is not bound to the requested run");

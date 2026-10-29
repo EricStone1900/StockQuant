@@ -10,6 +10,10 @@
 
 ## 1. 优先级与适用范围
 
+2026-10-29 C6范围：按[所有者延期决定](../decisions/2026-10-29-c6-backup-minute-source-deferral.md)，第二分钟源及60日覆盖为`DEFERRED`，停止继续选源/探测，不计入本轮单源范围阻塞项。DAT-04/05/10/11及T04/07/09/44的单源导入、质量、版本化查询与恢复继续适用；DAT-10广泛供应商/漂移能力不整行PASS。容量、长期稳定性、PIT及原V2门禁未被豁免，当前C6功能验收与用户签收未完成。
+
+2026-10-28 C5范围：本轮按[V2主计划§7.2.2](./v2-data-and-replay/00-version-plan.md#722-c5本地工程完成与收口计划2026-10-28)执行`C5_LOCAL_ENGINEERING_V1`。后台策略/治理/风控/执行/账本/日终及恢复映射原责任服务和必要测试；20日实际观察独立延期。当前仅制定计划，长期需求整行、原V2.4及V2状态不因本地子范围改变，自动检查与用户签收独立。
+
 2026-10-24 V2.4/C5增量：候选A参数获准用于实现和隔离验证，新增冻结两日日线、不可变日频目标、同Run原订单身份及恢复核对。定向测试见`services/platform-api-service/tests/unit/v24-daily-direction.spec.ts`、`tests/integration/v24-daily-target-postgres.spec.ts`；现有Web/API/CLI场景加入`V2.4-C5-DAILY-TARGET-001`和`V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001`。它只推进确定性Fixture BUY子链，不将连续Paper、真实源、SELL/持续风险或整行长期需求自动标PASS。当前状态以[V2.4阶段](./v2-data-and-replay/04-continuous-paper-trading.md)为准。
 
 2026-10-21 V2.1 C2：DV-05、NEW-01/02/05/06、MON-01/02/04的本地采样/新闻/质量子项已完成实源小样本与真实组件验证；T28/38追加五种实际进程故障，Web四场景及同Run CLI/export通过。独立DAILY_BAR与QUOTE分离，schema v19/生成契约对齐。见[收口审计](../../evidence/audits/2026-10-21-v21-c2-closeout.md)及[阶段手册](./v2-data-and-replay/01-free-data-and-news.md)。C1/C2当前本地学习范围已人工验收PASS（签署见[记录](../../evidence/audits/2026-10-21-v21-c2-closeout/human-acceptance.json)）；长期数据、双市场实源和连续Paper等广泛需求仍按原行状态，不整行自动PASS。

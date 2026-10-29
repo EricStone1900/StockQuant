@@ -16,6 +16,20 @@ const base: DailyBarCompletionRequest = {
 
 describe("V2.1 independent DAILY_BAR completion gate", () => {
   const fixtureGate = { sourceAuthorized: false };
+  it("loads each frozen local C5 daily bar under the same source version and exact session", async () => {
+    const days = ["20240102", "20240103", "20240104", "20240105", "20240108", "20240109", "20240110"];
+    const closes = ["10.0000", "10.2500", "10.0000", "10.0000", "10.0000", "10.0000", "10.0000"];
+    const completions = [];
+    for (const [index, day] of days.entries()) {
+      const folder = resolve(process.cwd(), `../../fixtures/v2/v2.4/c5-local-daily-${day}`);
+      const manifest = JSON.parse(await readFile(resolve(folder, "manifest.json"), "utf8")) as { fixtureVersion: string; files: Array<{ sha256: string }> };
+      const bytes = await readFile(resolve(folder, "bars.json"));
+      const completion = parseV21DailyBarCompletionFixture({ bytes, manifestVersion: manifest.fixtureVersion, expectedSha256: manifest.files[0]!.sha256, scope: base.scope });
+      expect(completion).toMatchObject({ status: "COMPLETED_FIXTURE", sourceId: "fixture:v24-c5-local-daily-1", dataVersion: "v24-c5-local-daily-1", sessionDate: `2024-01-${day.slice(-2)}`, bars: [{ securityId: "600000.SH", close: closes[index] }] });
+      completions.push(completion.completionId);
+    }
+    expect(new Set(completions).size).toBe(7);
+  });
   it("loads and verifies the frozen standalone DAILY_BAR Fixture", async () => {
     const root = resolve(process.cwd(), "../../fixtures/v2/v2.1-daily-bar-completion");
     const manifest = JSON.parse(await readFile(resolve(root, "manifest.json"), "utf8")) as { fixtureVersion: string; files: Array<{ path: string; sha256: string }> };
@@ -34,6 +48,20 @@ describe("V2.1 independent DAILY_BAR completion gate", () => {
     expect(result.status).toBe("COMPLETED_FIXTURE");
     expect(result.fixtureVersion).toBe("v24-c5-daily-bars-1");
     expect(result.bars.map((bar) => bar.securityId)).toEqual(["000001.SZ", "600000.SH", "600519.SH"]);
+  });
+
+  it("loads both frozen C5 prior-session fixtures with the same source and data version", async () => {
+    const results = [];
+    for (const day of ["20261014", "20261015"]) {
+      const root = resolve(process.cwd(), `../../fixtures/v2/v2.4/c5-prior-daily-${day}`);
+      const manifest = JSON.parse(await readFile(resolve(root, "manifest.json"), "utf8")) as { fixtureVersion: string; files: Array<{ path: string; sha256: string }> };
+      const bytes = await readFile(resolve(process.cwd(), "../../", manifest.files[0]!.path));
+      results.push(parseV21DailyBarCompletionFixture({ bytes, manifestVersion: manifest.fixtureVersion, expectedSha256: manifest.files[0]!.sha256, scope: base.scope }));
+    }
+    expect(results.map((result) => result.sessionDate)).toEqual(["2026-10-14", "2026-10-15"]);
+    expect(results.map((result) => result.bars[0]?.close)).toEqual(["10.0000", "10.2500"]);
+    expect(results.every((result) => result.status === "COMPLETED_FIXTURE" && result.sourceId === "fixture:v24-c5-prior-daily-1" && result.dataVersion === "v24-c5-prior-daily-1")).toBe(true);
+    expect(results[0].completionId).not.toBe(results[1].completionId);
   });
 
   it("rejects a Fixture whose bytes or version differ from its frozen manifest", async () => {

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../manifests/v24-c5-local-engineering-input.schema.json",
+  "fixtureVersion": "v24-c5-local-engineering-1",
+  "scopeId": "C5_LOCAL_ENGINEERING_V1",
+  "market": "CN_A", "currency": "CNY", "securityId": "600000.SH", "timezone": "Asia/Shanghai",
+  "calendarVersion": "c5-local-synthetic-sessions-1",
+  "strategyVersion": "c5-daily-direction-v1", "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+  "riskPolicyVersion": "c5-local-risk-v1", "feePolicyVersion": "c5-local-flat-fee-v1",
+  "initialCash": "10000.0000", "feePerFill": "5.0000",
+  "mandate": { "validFrom": "2024-01-03T15:10:00+08:00", "expiresAt": "2024-01-10T15:20:00+08:00", "maxOrderNotional": "2000.0000", "maxDailyTurnover": "2000.0000", "maxGrossExposure": "2000.0000", "cumulativeLossLimit": "200.0000" },
+  "sessions": [
+    { "date": "2024-01-02", "role": "WARMUP", "close": "10.0000", "availableAt": "2024-01-02T15:05:00+08:00", "expected": null },
+    { "date": "2024-01-03", "role": "WARMUP", "close": "10.2500", "availableAt": "2024-01-03T15:05:00+08:00", "expected": null },
+    { "date": "2024-01-04", "role": "EVALUATION", "close": "10.0000", "availableAt": "2024-01-04T15:05:00+08:00", "expected": { "priorDates": ["2024-01-02", "2024-01-03"], "action": "BUY", "quantity": 100, "referencePrice": "10.2500", "snapshot": { "acceptedAt": "2024-01-04T09:31:00+08:00", "observedAt": "2024-01-04T09:31:10+08:00", "ingestedAt": "2024-01-04T09:31:11+08:00", "evaluatedAt": "2024-01-04T09:31:50+08:00", "price": "10.2500" }, "settledCashAfterClose": "8970.0000", "pendingReceivableAfterClose": "0.0000", "heldAfterClose": 100, "settlementDate": null } },
+    { "date": "2024-01-05", "role": "EVALUATION", "close": "10.0000", "availableAt": "2024-01-05T15:05:00+08:00", "expected": { "priorDates": ["2024-01-03", "2024-01-04"], "action": "SELL", "quantity": 100, "referencePrice": "10.0000", "snapshot": { "acceptedAt": "2024-01-05T09:31:00+08:00", "observedAt": "2024-01-05T09:31:10+08:00", "ingestedAt": "2024-01-05T09:31:11+08:00", "evaluatedAt": "2024-01-05T09:31:50+08:00", "price": "10.0000" }, "settledCashAfterClose": "8970.0000", "pendingReceivableAfterClose": "995.0000", "heldAfterClose": 0, "settlementDate": "2024-01-08" } },
+    { "date": "2024-01-08", "role": "EVALUATION", "close": "10.0000", "availableAt": "2024-01-08T15:05:00+08:00", "expected": { "priorDates": ["2024-01-04", "2024-01-05"], "action": "HOLD", "quantity": 0, "referencePrice": "10.0000", "snapshot": null, "settledCashAfterClose": "9965.0000", "pendingReceivableAfterClose": "0.0000", "heldAfterClose": 0, "settlementDate": "2024-01-08" } },
+    { "date": "2024-01-09", "role": "EVALUATION", "close": "10.0000", "availableAt": "2024-01-09T15:05:00+08:00", "expected": { "priorDates": ["2024-01-05", "2024-01-08"], "action": "HOLD", "quantity": 0, "referencePrice": "10.0000", "snapshot": null, "settledCashAfterClose": "9965.0000", "pendingReceivableAfterClose": "0.0000", "heldAfterClose": 0, "settlementDate": null } },
+    { "date": "2024-01-10", "role": "EVALUATION", "close": "10.0000", "availableAt": "2024-01-10T15:05:00+08:00", "expected": { "priorDates": ["2024-01-08", "2024-01-09"], "action": "HOLD", "quantity": 0, "referencePrice": "10.0000", "snapshot": null, "settledCashAfterClose": "9965.0000", "pendingReceivableAfterClose": "0.0000", "heldAfterClose": 0, "settlementDate": null } }
+  ],
+  "faultCases": ["missing-prior-daily-bar", "unknown-snapshot", "stale-snapshot", "expired-mandate", "execution-window-ended", "lost-order-acceptance-response", "worker-termination-after-target-commit", "external-reconciliation-difference"]
+}

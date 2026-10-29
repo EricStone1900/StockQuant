@@ -34,10 +34,43 @@ describe("V2.4 continuous paper scenarios", () => {
     const clock: Clock = { now: () => new Date("2026-09-11T01:00:00.000Z") };
     const scheduler = new ContinuousPaperScheduler(clock);
     expect((await scheduler.start()).status).toBe("RUNNING");
-    expect(scheduler.status().lastSampleAt).toBe("2026-09-11T01:00:00.000Z");
+    expect(scheduler.status().lastSampleAt).toBeNull();
     expect(scheduler.status().tickCount).toBe(1);
     await scheduler.stop();
     expect(scheduler.status().status).toBe("STOPPED");
+  });
+  it("does not let recovery or execution ticks replace the previous scheduled sample", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-25T01:29:00.000Z"));
+      const events: Array<{ kind: string; previousSampleAt: string | null }> = [];
+      const scheduler = new ContinuousPaperScheduler({ now: () => new Date() }, null, { handleTick: async ({ kind, previousSampleAt }) => { events.push({ kind, previousSampleAt }); } });
+      await scheduler.start();
+      expect(scheduler.status().lastSampleAt).toBeNull();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(scheduler.status().lastSampleAt).toBe("2026-09-25T01:30:00.000Z");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await scheduler.tick();
+      expect(scheduler.status().lastSampleAt).toBe("2026-09-25T01:30:00.000Z");
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(events.at(-1)).toEqual({ kind: "EXECUTION_WINDOW", previousSampleAt: "2026-09-25T01:30:00.000Z" });
+      expect(scheduler.status().lastSampleAt).toBe("2026-09-25T01:30:00.000Z");
+      await vi.advanceTimersByTimeAsync(29 * 60_000);
+      expect(events.at(-1)).toEqual({ kind: "SAMPLING_SLOT", previousSampleAt: "2026-09-25T01:30:00.000Z" });
+      expect(scheduler.status().lastSampleAt).toBe("2026-09-25T02:00:00.000Z");
+      await scheduler.stop();
+    } finally { vi.useRealTimers(); }
+  });
+  it("does not let an end-of-day event masquerade as a sampling slot", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-25T07:09:00.000Z"));
+      const scheduler = new ContinuousPaperScheduler({ now: () => new Date() });
+      await scheduler.start();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(scheduler.status()).toMatchObject({ lastSampleAt: null, tickCount: 2 });
+      await scheduler.stop();
+    } finally { vi.useRealTimers(); }
   });
   it("converts a timer that wakes after a missed window into a recovery check", async () => {
     vi.useFakeTimers();
@@ -84,10 +117,11 @@ describe("V2.4 continuous paper scenarios", () => {
   });
   it("does not count an end-of-day observation with unresolved errors", () => {
     const quality: ObservationDayQuality = { samplingIntervalMinutes: 30, samplingEvents: 10, uniqueSamplingWindows: 10, missingSamplingWindows: [], duplicateSamplingEvents: 0, executionEvents: 1, uniqueExecutionWindows: 1, invalidSamplingEvents: 0, invalidExecutionEvents: 0, expectedSecuritySamples: 20, validSecuritySamples: 20, invalidSecuritySamples: 0, errors: [] };
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality })).toBe(true);
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"], quality })).toBe(false);
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality: { ...quality, samplingEvents: 0 } })).toBe(false);
-    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "SAMPLING_SLOT", reconciliationStatus: "PASS", errors: [] })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality, candidateChainConnected: true })).toBe(true);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality, candidateChainConnected: false })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: ["The operation was aborted due to timeout"], quality, candidateChainConnected: true })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "END_OF_DAY", reconciliationStatus: "PASS", errors: [], quality: { ...quality, samplingEvents: 0 }, candidateChainConnected: true })).toBe(false);
+    expect(shouldCountDailyObservation({ actualTradingDay: true, kind: "SAMPLING_SLOT", reconciliationStatus: "PASS", errors: [], candidateChainConnected: true })).toBe(false);
   });
 
   it("counts immutable end-of-day finalizations even when a later recovery event exists", () => {

@@ -20,6 +20,7 @@ const governanceRoutes = [
   { method: "POST", path: "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/execution-authorizations", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/proposals/123e4567-e89b-42d3-a456-426614174000/execution-authorizations/validate", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/auto-mandates/123e4567-e89b-42d3-a456-426614174000/orders/authorize", callers: ["trade-execution-service"] },
+  { method: "POST", path: "/internal/v1/c5-local/orders/authorize", callers: ["platform-api-service"] },
   { method: "POST", path: "/internal/v1/auto-mandates/reservations/123e4567-e89b-42d3-a456-426614174000/settle", callers: ["trade-execution-service"] },
   { method: "POST", path: "/internal/v1/paper-authorizations", callers: ["platform-api-service"] },
   { method: "POST", path: "/internal/v1/paper-authorizations/revoke", callers: ["platform-api-service"] },

@@ -1,0 +1,1362 @@
+{
+  "evidenceVersion": "acceptance-export-v2-4-c5-local-1",
+  "stageId": "V2.4",
+  "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+  "scenarioId": "c5-local-engineering",
+  "status": "COMPLETED",
+  "businessValidation": "PASS",
+  "humanAcceptance": "NOT_RUN",
+  "exportedAt": "2026-10-29T09:01:45.647Z",
+  "run": {
+    "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+    "stageId": "V2.4",
+    "scenarioId": "c5-local-engineering",
+    "scenarioVersion": "1.0.0",
+    "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+    "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+    "status": "COMPLETED",
+    "seed": 20260907,
+    "assertions": [
+      {
+        "actual": {
+          "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+          "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+          "snapshotIds": [
+            "fixture-c5-20240104-600000",
+            "fixture-c5-20240105-600000"
+          ],
+          "dailyCompletionIds": [
+            "dailybar:171d2c2ba2d0e430d2d7d18645706b8c5031621d95f39ba4387c655f292cc8b4",
+            "dailybar:b45305eff27c2fdbe89c7d91146908cbd8ca96dba5eaa52762774efdc0e0bb63",
+            "dailybar:469c1a3efbe099ec87115eed377e597a43d5af553664b2494e324e9f87714528",
+            "dailybar:79b88a406f10e509f22a5b0d8571e13d8ffb61a19081524389cdab478e1b23c6",
+            "dailybar:86b303977e61245688cd35697f22906031fdf0b98566f6bb3730f10e35eaa4af",
+            "dailybar:cb8b15afda216f0af921ee709bbe0cf9900ff686945e262c7251ce2c9962a2dc"
+          ],
+          "evaluationSessions": [
+            "2024-01-04",
+            "2024-01-05",
+            "2024-01-08",
+            "2024-01-09",
+            "2024-01-10"
+          ]
+        },
+        "status": "PASS",
+        "expected": "One owner-scoped PAPER/FAKE account, seven frozen daily sessions and two scoped point-snapshot plans are consumed by this same run",
+        "assertionId": "C5_LOCAL_SETUP"
+      },
+      {
+        "actual": [
+          {
+            "action": "BUY",
+            "status": "AUTHORIZED",
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-02T15:05:00+08:00",
+                    "sessionDate": "2024-01-02"
+                  },
+                  {
+                    "close": "10.2500",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-03T15:05:00+08:00",
+                    "sessionDate": "2024-01-03"
+                  }
+                ],
+                "account": {
+                  "settledCash": "10000.0000",
+                  "heldQuantity": 0,
+                  "sellableQuantity": 0
+                },
+                "mandate": {
+                  "paused": false,
+                  "expiresAt": "2024-01-04T07:20:00.000Z",
+                  "validFrom": "2024-01-04T01:30:00.000Z"
+                },
+                "sessionDate": "2024-01-04",
+                "referencePrice": "10.2500",
+                "expectedPriorSessions": [
+                  "2024-01-02",
+                  "2024-01-03"
+                ]
+              },
+              "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "BUY",
+                "reason": "DAILY_CLOSE_ROSE",
+                "quantity": 100
+              },
+              "targetId": "c5-target-8d16cd3743e3593cc0fb98952dd922785cf277721fbc33e8f770334ecb294cd0",
+              "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+              "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "sessionDate": "2024-01-04",
+              "evaluationAt": "2024-01-04T01:31:00.000Z",
+              "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240104",
+              "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": 100,
+              "strategyVersion": "c5-daily-direction-v1",
+              "dailyBarProvenance": {
+                "asOf": "2024-01-04T09:31:00+08:00",
+                "sourceId": "fixture:v24-c5-local-daily-1",
+                "dataVersion": "v24-c5-local-daily-1",
+                "completionIds": [
+                  "dailybar:171d2c2ba2d0e430d2d7d18645706b8c5031621d95f39ba4387c655f292cc8b4",
+                  "dailybar:b45305eff27c2fdbe89c7d91146908cbd8ca96dba5eaa52762774efdc0e0bb63"
+                ],
+                "calendarVersion": "c5-local-synthetic-sessions-1"
+              }
+            },
+            "quantity": 100,
+            "targetId": "c5-target-8d16cd3743e3593cc0fb98952dd922785cf277721fbc33e8f770334ecb294cd0",
+            "execution": {
+              "order": {
+                "fill": {
+                  "fee": "5.00",
+                  "price": "10.25",
+                  "quantity": 100,
+                  "effectiveAt": "2024-01-04T01:31:10.000Z",
+                  "externalFillId": "b1130ace-d3b5-4155-9c5e-364386378121"
+                },
+                "status": "FILLED",
+                "orderId": "8892c920-6836-435c-9062-9b91c28bba2a",
+                "brokerMode": "FAKE"
+              },
+              "outbox": {
+                "status": "DELIVERED",
+                "attempts": 1,
+                "event_id": "13daf324-d3ab-4bbd-aeb8-3c99999b744e",
+                "created_at": "2026-10-29T09:01:37.451Z",
+                "event_type": "FILL_POST",
+                "last_error": null,
+                "delivered_at": "2026-10-29T09:01:37.483Z"
+              },
+              "status": "FILLED",
+              "replayed": false,
+              "schemaVersion": "c5-local-paper-execution-result-v1",
+              "authorizationId": "075f462f-c3a2-4bf1-a471-adef24ec3d85",
+              "fillLedgerStatus": "DELIVERED",
+              "resourceReservationId": "be0ae08a-8d8e-42e5-b237-fda59b9e1b34",
+              "mandateReservationStatus": "CONSUMED"
+            },
+            "settlement": {
+              "status": "NO_PRIOR_FAKEBROKER_ASSETS",
+              "settledFillIds": []
+            },
+            "snapshotId": "fixture-c5-20240104-600000",
+            "sessionDate": "2024-01-04",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240104"
+          },
+          {
+            "action": "SELL",
+            "status": "AUTHORIZED",
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.2500",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-03T15:05:00+08:00",
+                    "sessionDate": "2024-01-03"
+                  },
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-04T15:05:00+08:00",
+                    "sessionDate": "2024-01-04"
+                  }
+                ],
+                "account": {
+                  "settledCash": "8970.0000",
+                  "heldQuantity": 100,
+                  "sellableQuantity": 100
+                },
+                "mandate": {
+                  "paused": false,
+                  "expiresAt": "2024-01-05T07:20:00.000Z",
+                  "validFrom": "2024-01-05T01:30:00.000Z"
+                },
+                "sessionDate": "2024-01-05",
+                "referencePrice": "10.0000",
+                "expectedPriorSessions": [
+                  "2024-01-03",
+                  "2024-01-04"
+                ]
+              },
+              "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "SELL",
+                "reason": "DAILY_CLOSE_FELL",
+                "quantity": 100
+              },
+              "targetId": "c5-target-39460e83d212058a487ff56764df623a651728efdb64ef49b2048efede774ca3",
+              "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+              "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "sessionDate": "2024-01-05",
+              "evaluationAt": "2024-01-05T01:31:00.000Z",
+              "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240105",
+              "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": 0,
+              "strategyVersion": "c5-daily-direction-v1",
+              "dailyBarProvenance": {
+                "asOf": "2024-01-05T09:31:00+08:00",
+                "sourceId": "fixture:v24-c5-local-daily-1",
+                "dataVersion": "v24-c5-local-daily-1",
+                "completionIds": [
+                  "dailybar:b45305eff27c2fdbe89c7d91146908cbd8ca96dba5eaa52762774efdc0e0bb63",
+                  "dailybar:469c1a3efbe099ec87115eed377e597a43d5af553664b2494e324e9f87714528"
+                ],
+                "calendarVersion": "c5-local-synthetic-sessions-1"
+              }
+            },
+            "quantity": 100,
+            "targetId": "c5-target-39460e83d212058a487ff56764df623a651728efdb64ef49b2048efede774ca3",
+            "execution": {
+              "order": {
+                "fill": {
+                  "fee": "5.00",
+                  "price": "10.00",
+                  "quantity": 100,
+                  "effectiveAt": "2024-01-05T01:31:10.000Z",
+                  "externalFillId": "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+                },
+                "status": "FILLED",
+                "orderId": "14c61bd2-a634-412d-94f5-0f8323a9320b",
+                "brokerMode": "FAKE"
+              },
+              "outbox": {
+                "status": "DELIVERED",
+                "attempts": 1,
+                "event_id": "d525ccce-fd4b-4807-88e1-5018b817f322",
+                "created_at": "2026-10-29T09:01:39.343Z",
+                "event_type": "FILL_POST",
+                "last_error": null,
+                "delivered_at": "2026-10-29T09:01:39.388Z"
+              },
+              "status": "FILLED",
+              "replayed": false,
+              "schemaVersion": "c5-local-paper-execution-result-v1",
+              "authorizationId": "3f324319-3a5d-4bdf-bc42-d7f416d82c3c",
+              "fillLedgerStatus": "DELIVERED",
+              "resourceReservationId": "d70e3869-966d-477c-8775-24482ef37e4b",
+              "mandateReservationStatus": "CONSUMED"
+            },
+            "settlement": {
+              "status": "SETTLED",
+              "settledFillIds": [],
+              "portfolioSettledFillIds": []
+            },
+            "snapshotId": "fixture-c5-20240105-600000",
+            "sessionDate": "2024-01-05",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240105"
+          },
+          {
+            "action": "HOLD",
+            "status": "HOLD",
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-04T15:05:00+08:00",
+                    "sessionDate": "2024-01-04"
+                  },
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-05T15:05:00+08:00",
+                    "sessionDate": "2024-01-05"
+                  }
+                ],
+                "account": {
+                  "settledCash": "9965.0000",
+                  "heldQuantity": 0,
+                  "sellableQuantity": 0
+                },
+                "mandate": {
+                  "paused": false,
+                  "expiresAt": "2024-01-08T07:20:00.000Z",
+                  "validFrom": "2024-01-08T01:30:00.000Z"
+                },
+                "sessionDate": "2024-01-08",
+                "referencePrice": "10.0000",
+                "expectedPriorSessions": [
+                  "2024-01-04",
+                  "2024-01-05"
+                ]
+              },
+              "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "HOLD",
+                "reason": "TARGET_UNCHANGED",
+                "quantity": 0
+              },
+              "targetId": "c5-target-1c61bf3590a2c310dba63dfe5bf6efed32241ddb4dd7198812d3fdbabcca01d1",
+              "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+              "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "sessionDate": "2024-01-08",
+              "evaluationAt": "2024-01-08T01:31:00.000Z",
+              "clientOrderId": null,
+              "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": 0,
+              "strategyVersion": "c5-daily-direction-v1",
+              "dailyBarProvenance": {
+                "asOf": "2024-01-08T09:31:00+08:00",
+                "sourceId": "fixture:v24-c5-local-daily-1",
+                "dataVersion": "v24-c5-local-daily-1",
+                "completionIds": [
+                  "dailybar:469c1a3efbe099ec87115eed377e597a43d5af553664b2494e324e9f87714528",
+                  "dailybar:79b88a406f10e509f22a5b0d8571e13d8ffb61a19081524389cdab478e1b23c6"
+                ],
+                "calendarVersion": "c5-local-synthetic-sessions-1"
+              }
+            },
+            "quantity": 0,
+            "targetId": "c5-target-1c61bf3590a2c310dba63dfe5bf6efed32241ddb4dd7198812d3fdbabcca01d1",
+            "execution": null,
+            "settlement": {
+              "status": "SETTLED",
+              "settledFillIds": [
+                "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+              ],
+              "portfolioSettledFillIds": [
+                "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+              ]
+            },
+            "snapshotId": null,
+            "sessionDate": "2024-01-08",
+            "clientOrderId": null
+          },
+          {
+            "action": "HOLD",
+            "status": "HOLD",
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-05T15:05:00+08:00",
+                    "sessionDate": "2024-01-05"
+                  },
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-08T15:05:00+08:00",
+                    "sessionDate": "2024-01-08"
+                  }
+                ],
+                "account": {
+                  "settledCash": "9965.0000",
+                  "heldQuantity": 0,
+                  "sellableQuantity": 0
+                },
+                "mandate": {
+                  "paused": false,
+                  "expiresAt": "2024-01-09T07:20:00.000Z",
+                  "validFrom": "2024-01-09T01:30:00.000Z"
+                },
+                "sessionDate": "2024-01-09",
+                "referencePrice": "10.0000",
+                "expectedPriorSessions": [
+                  "2024-01-05",
+                  "2024-01-08"
+                ]
+              },
+              "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "HOLD",
+                "reason": "TARGET_UNCHANGED",
+                "quantity": 0
+              },
+              "targetId": "c5-target-671a8c9544e0ded5899ee671a3d0e6cd5711aced542d697235c76626941072b8",
+              "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+              "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "sessionDate": "2024-01-09",
+              "evaluationAt": "2024-01-09T01:31:00.000Z",
+              "clientOrderId": null,
+              "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": 0,
+              "strategyVersion": "c5-daily-direction-v1",
+              "dailyBarProvenance": {
+                "asOf": "2024-01-09T09:31:00+08:00",
+                "sourceId": "fixture:v24-c5-local-daily-1",
+                "dataVersion": "v24-c5-local-daily-1",
+                "completionIds": [
+                  "dailybar:79b88a406f10e509f22a5b0d8571e13d8ffb61a19081524389cdab478e1b23c6",
+                  "dailybar:86b303977e61245688cd35697f22906031fdf0b98566f6bb3730f10e35eaa4af"
+                ],
+                "calendarVersion": "c5-local-synthetic-sessions-1"
+              }
+            },
+            "quantity": 0,
+            "targetId": "c5-target-671a8c9544e0ded5899ee671a3d0e6cd5711aced542d697235c76626941072b8",
+            "execution": null,
+            "settlement": {
+              "status": "SETTLED",
+              "settledFillIds": [],
+              "portfolioSettledFillIds": []
+            },
+            "snapshotId": null,
+            "sessionDate": "2024-01-09",
+            "clientOrderId": null
+          },
+          {
+            "action": "HOLD",
+            "status": "HOLD",
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-08T15:05:00+08:00",
+                    "sessionDate": "2024-01-08"
+                  },
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2024-01-09T15:05:00+08:00",
+                    "sessionDate": "2024-01-09"
+                  }
+                ],
+                "account": {
+                  "settledCash": "9965.0000",
+                  "heldQuantity": 0,
+                  "sellableQuantity": 0
+                },
+                "mandate": {
+                  "paused": false,
+                  "expiresAt": "2024-01-10T07:20:00.000Z",
+                  "validFrom": "2024-01-10T01:30:00.000Z"
+                },
+                "sessionDate": "2024-01-10",
+                "referencePrice": "10.0000",
+                "expectedPriorSessions": [
+                  "2024-01-08",
+                  "2024-01-09"
+                ]
+              },
+              "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "HOLD",
+                "reason": "TARGET_UNCHANGED",
+                "quantity": 0
+              },
+              "targetId": "c5-target-87bf3345ce75ec20d7bbf6b1ac6e81be343648a92cab588525712b1305983d2e",
+              "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+              "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+              "sessionDate": "2024-01-10",
+              "evaluationAt": "2024-01-10T01:31:00.000Z",
+              "clientOrderId": null,
+              "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": 0,
+              "strategyVersion": "c5-daily-direction-v1",
+              "dailyBarProvenance": {
+                "asOf": "2024-01-10T09:31:00+08:00",
+                "sourceId": "fixture:v24-c5-local-daily-1",
+                "dataVersion": "v24-c5-local-daily-1",
+                "completionIds": [
+                  "dailybar:86b303977e61245688cd35697f22906031fdf0b98566f6bb3730f10e35eaa4af",
+                  "dailybar:cb8b15afda216f0af921ee709bbe0cf9900ff686945e262c7251ce2c9962a2dc"
+                ],
+                "calendarVersion": "c5-local-synthetic-sessions-1"
+              }
+            },
+            "quantity": 0,
+            "targetId": "c5-target-87bf3345ce75ec20d7bbf6b1ac6e81be343648a92cab588525712b1305983d2e",
+            "execution": null,
+            "settlement": {
+              "status": "SETTLED",
+              "settledFillIds": [],
+              "portfolioSettledFillIds": []
+            },
+            "snapshotId": null,
+            "sessionDate": "2024-01-10",
+            "clientOrderId": null
+          }
+        ],
+        "status": "PASS",
+        "expected": "One isolated run produces BUY, SELL, HOLD with two unique persisted FakeBroker orders and delivered Fill ledger entries",
+        "assertionId": "V2.4-C5-LOCAL-CHAIN-001"
+      },
+      {
+        "actual": {
+          "settlement": {
+            "status": "SETTLED",
+            "settledFillIds": [
+              "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+            ],
+            "portfolioSettledFillIds": [
+              "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+            ]
+          },
+          "portfolioCash": "9965.0000",
+          "fakeBrokerCash": "9965.0000"
+        },
+        "status": "PASS",
+        "expected": "SELL receivable settles on the next synthetic session; ending settled cash is 9965.0000 CNY",
+        "assertionId": "V2.4-C5-LOCAL-SETTLEMENT-001"
+      },
+      {
+        "actual": {
+          "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+          "brokerMode": "FAKE",
+          "fill_count": 2,
+          "order_count": 2,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        },
+        "status": "PASS",
+        "expected": "Two orders, two fills, no unresolved orders, pending outbox or external-only discrepancy",
+        "assertionId": "V2.4-C5-LOCAL-RECONCILIATION-001"
+      },
+      {
+        "actual": {
+          "riskState": {
+            "reason": null,
+            "status": "ACTIVE",
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "initialCash": "10000.0000",
+            "sessionDate": "2024-01-10",
+            "appliedFills": [],
+            "dailyTurnover": "0.0000",
+            "grossExposure": "0.0000",
+            "mandateStatus": "ACTIVE",
+            "cumulativeLoss": "35.0000",
+            "maxDailyTurnover": "2000.0000",
+            "maxGrossExposure": "2000.0000",
+            "sessionTransitions": [
+              {
+                "approvedAt": null,
+                "approvedBy": null,
+                "toSessionDate": "2024-01-05",
+                "fromSessionDate": "2024-01-04"
+              },
+              {
+                "approvedAt": null,
+                "approvedBy": null,
+                "toSessionDate": "2024-01-08",
+                "fromSessionDate": "2024-01-05"
+              },
+              {
+                "approvedAt": null,
+                "approvedBy": null,
+                "toSessionDate": "2024-01-09",
+                "fromSessionDate": "2024-01-08"
+              },
+              {
+                "approvedAt": null,
+                "approvedBy": null,
+                "toSessionDate": "2024-01-10",
+                "fromSessionDate": "2024-01-09"
+              }
+            ],
+            "cumulativeLossLimit": "200.0000"
+          },
+          "riskAppliedFillIds": [
+            "b1130ace-d3b5-4155-9c5e-364386378121",
+            "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+          ]
+        },
+        "status": "PASS",
+        "expected": "Reconciled FakeBroker fills update persistent run-scoped risk exactly once and subsequent sessions roll daily turnover without losing cumulative loss",
+        "assertionId": "V2.4-C5-LOCAL-RISK-001"
+      },
+      {
+        "actual": {
+          "alert": {
+            "status": "MATCH",
+            "created": false,
+            "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "incident": null
+          },
+          "status": "MATCH",
+          "recordedAt": "2026-10-29T09:01:45.334Z",
+          "reconciliation": {
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "brokerMode": "FAKE",
+            "fill_count": 2,
+            "order_count": 2,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          },
+          "idempotentReplay": {
+            "status": "MATCH",
+            "created": false,
+            "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "incident": null
+          }
+        },
+        "status": "PASS",
+        "expected": "Daily reconciliation resolves any prior scoped Incident, duplicate processing is idempotent, and the matching close remains durable",
+        "assertionId": "V2.4-C5-LOCAL-DAILY-CLOSE-001"
+      }
+    ],
+    "evidence": {
+      "fills": [],
+      "orders": [],
+      "scopeId": "C5_LOCAL_ENGINEERING_V1",
+      "dataMode": "FIXTURE",
+      "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+      "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+      "riskState": {
+        "reason": null,
+        "status": "ACTIVE",
+        "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+        "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+        "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "initialCash": "10000.0000",
+        "sessionDate": "2024-01-10",
+        "appliedFills": [],
+        "dailyTurnover": "0.0000",
+        "grossExposure": "0.0000",
+        "mandateStatus": "ACTIVE",
+        "cumulativeLoss": "35.0000",
+        "maxDailyTurnover": "2000.0000",
+        "maxGrossExposure": "2000.0000",
+        "sessionTransitions": [
+          {
+            "approvedAt": null,
+            "approvedBy": null,
+            "toSessionDate": "2024-01-05",
+            "fromSessionDate": "2024-01-04"
+          },
+          {
+            "approvedAt": null,
+            "approvedBy": null,
+            "toSessionDate": "2024-01-08",
+            "fromSessionDate": "2024-01-05"
+          },
+          {
+            "approvedAt": null,
+            "approvedBy": null,
+            "toSessionDate": "2024-01-09",
+            "fromSessionDate": "2024-01-08"
+          },
+          {
+            "approvedAt": null,
+            "approvedBy": null,
+            "toSessionDate": "2024-01-10",
+            "fromSessionDate": "2024-01-09"
+          }
+        ],
+        "cumulativeLossLimit": "200.0000"
+      },
+      "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+      "brokerMode": "FAKE",
+      "dailyClose": {
+        "alert": {
+          "status": "MATCH",
+          "created": false,
+          "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+          "incident": null
+        },
+        "status": "MATCH",
+        "recordedAt": "2026-10-29T09:01:45.334Z",
+        "reconciliation": {
+          "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+          "brokerMode": "FAKE",
+          "fill_count": 2,
+          "order_count": 2,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        },
+        "idempotentReplay": {
+          "status": "MATCH",
+          "created": false,
+          "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+          "incident": null
+        }
+      },
+      "dailyTasks": [
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:57a4dab75d4a24644a2b0acaac5fca8925477632fd535a2ea2ba5c746d0f3e38",
+          "fixtureVersion": "v24-c5-local-daily-20240102-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:3b80a61e69cd892fe0d825f7179e34e8c153cec2bb95dea303b45cfe93b339ed",
+          "fixtureVersion": "v24-c5-local-daily-20240103-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:2fee6e8521d85e6c114fa691a3b10f656a51f30dd682367331dd06b18695dbcc",
+          "fixtureVersion": "v24-c5-local-daily-20240104-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:6c86d74ef8209ed3b7aff8254bea21cdfdcf2c652f793d91c39b126bc4bc0db4",
+          "fixtureVersion": "v24-c5-local-daily-20240105-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:85be1006d6e31dde7cdd4fe48d18154ad1896339bcd3b802246bda0e03ac5962",
+          "fixtureVersion": "v24-c5-local-daily-20240108-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:30fe0ee7b53372062957703905c1070c3e65ed80b08a2685f1d4c6a50781041a",
+          "fixtureVersion": "v24-c5-local-daily-20240109-1"
+        },
+        {
+          "state": "QUEUED",
+          "taskId": "dailybartask:218d4128eb697c4446184f1066192d1d3a36011a9e4acc7e6faf1da2d3c4ef5f",
+          "fixtureVersion": "v24-c5-local-daily-20240110-1"
+        }
+      ],
+      "setupState": "READY",
+      "p2RunStatus": "ENGINEERING_PASS_PENDING_WEB_CLI_AND_HUMAN_ACCEPTANCE",
+      "p3RunStatus": "ENGINEERING_PASS_PENDING_WEB_CLI_AND_HUMAN_ACCEPTANCE",
+      "schemaVersion": "c5-local-engineering-evidence-v1",
+      "snapshotPlans": [
+        {
+          "planId": "c5-snapshot-plan-31c7649d467637a2c2e475cc7c77086c32447ba7ef5052c23d1cfe1c19cb9efb",
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v24-c5-local-snapshot-20240104-1:1:b24ddeb2bdb07ff615b46b6d21895f3725df2b80a63c56f596b0754931aff789:2024-01-04T01:31:10.000Z",
+          "created": true,
+          "placeOrders": false,
+          "externalRequests": 0
+        },
+        {
+          "planId": "c5-snapshot-plan-dd21377e7027e03da7854dd14a26d0ae3361b14afeeb37a4718b6b21691ca87b",
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v24-c5-local-snapshot-20240105-1:1:b24ddeb2bdb07ff615b46b6d21895f3725df2b80a63c56f596b0754931aff789:2024-01-05T01:31:10.000Z",
+          "created": true,
+          "placeOrders": false,
+          "externalRequests": 0
+        }
+      ],
+      "reconciliation": {
+        "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "brokerMode": "FAKE",
+        "fill_count": 2,
+        "order_count": 2,
+        "discrepancies": [],
+        "pending_outbox_count": 0,
+        "externalOnlyOrderCount": 0,
+        "unresolved_order_count": 0
+      },
+      "sessionResults": [
+        {
+          "action": "BUY",
+          "status": "AUTHORIZED",
+          "target": {
+            "input": {
+              "bars": [
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-02T15:05:00+08:00",
+                  "sessionDate": "2024-01-02"
+                },
+                {
+                  "close": "10.2500",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-03T15:05:00+08:00",
+                  "sessionDate": "2024-01-03"
+                }
+              ],
+              "account": {
+                "settledCash": "10000.0000",
+                "heldQuantity": 0,
+                "sellableQuantity": 0
+              },
+              "mandate": {
+                "paused": false,
+                "expiresAt": "2024-01-04T07:20:00.000Z",
+                "validFrom": "2024-01-04T01:30:00.000Z"
+              },
+              "sessionDate": "2024-01-04",
+              "referencePrice": "10.2500",
+              "expectedPriorSessions": [
+                "2024-01-02",
+                "2024-01-03"
+              ]
+            },
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "dataMode": "FIXTURE",
+            "decision": {
+              "action": "BUY",
+              "reason": "DAILY_CLOSE_ROSE",
+              "quantity": 100
+            },
+            "targetId": "c5-target-8d16cd3743e3593cc0fb98952dd922785cf277721fbc33e8f770334ecb294cd0",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "sessionDate": "2024-01-04",
+            "evaluationAt": "2024-01-04T01:31:00.000Z",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240104",
+            "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+            "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "targetQuantity": 100,
+            "strategyVersion": "c5-daily-direction-v1",
+            "dailyBarProvenance": {
+              "asOf": "2024-01-04T09:31:00+08:00",
+              "sourceId": "fixture:v24-c5-local-daily-1",
+              "dataVersion": "v24-c5-local-daily-1",
+              "completionIds": [
+                "dailybar:171d2c2ba2d0e430d2d7d18645706b8c5031621d95f39ba4387c655f292cc8b4",
+                "dailybar:b45305eff27c2fdbe89c7d91146908cbd8ca96dba5eaa52762774efdc0e0bb63"
+              ],
+              "calendarVersion": "c5-local-synthetic-sessions-1"
+            }
+          },
+          "quantity": 100,
+          "targetId": "c5-target-8d16cd3743e3593cc0fb98952dd922785cf277721fbc33e8f770334ecb294cd0",
+          "execution": {
+            "order": {
+              "fill": {
+                "fee": "5.00",
+                "price": "10.25",
+                "quantity": 100,
+                "effectiveAt": "2024-01-04T01:31:10.000Z",
+                "externalFillId": "b1130ace-d3b5-4155-9c5e-364386378121"
+              },
+              "status": "FILLED",
+              "orderId": "8892c920-6836-435c-9062-9b91c28bba2a",
+              "brokerMode": "FAKE"
+            },
+            "outbox": {
+              "status": "DELIVERED",
+              "attempts": 1,
+              "event_id": "13daf324-d3ab-4bbd-aeb8-3c99999b744e",
+              "created_at": "2026-10-29T09:01:37.451Z",
+              "event_type": "FILL_POST",
+              "last_error": null,
+              "delivered_at": "2026-10-29T09:01:37.483Z"
+            },
+            "status": "FILLED",
+            "replayed": false,
+            "schemaVersion": "c5-local-paper-execution-result-v1",
+            "authorizationId": "075f462f-c3a2-4bf1-a471-adef24ec3d85",
+            "fillLedgerStatus": "DELIVERED",
+            "resourceReservationId": "be0ae08a-8d8e-42e5-b237-fda59b9e1b34",
+            "mandateReservationStatus": "CONSUMED"
+          },
+          "settlement": {
+            "status": "NO_PRIOR_FAKEBROKER_ASSETS",
+            "settledFillIds": []
+          },
+          "snapshotId": "fixture-c5-20240104-600000",
+          "sessionDate": "2024-01-04",
+          "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240104"
+        },
+        {
+          "action": "SELL",
+          "status": "AUTHORIZED",
+          "target": {
+            "input": {
+              "bars": [
+                {
+                  "close": "10.2500",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-03T15:05:00+08:00",
+                  "sessionDate": "2024-01-03"
+                },
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-04T15:05:00+08:00",
+                  "sessionDate": "2024-01-04"
+                }
+              ],
+              "account": {
+                "settledCash": "8970.0000",
+                "heldQuantity": 100,
+                "sellableQuantity": 100
+              },
+              "mandate": {
+                "paused": false,
+                "expiresAt": "2024-01-05T07:20:00.000Z",
+                "validFrom": "2024-01-05T01:30:00.000Z"
+              },
+              "sessionDate": "2024-01-05",
+              "referencePrice": "10.0000",
+              "expectedPriorSessions": [
+                "2024-01-03",
+                "2024-01-04"
+              ]
+            },
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "dataMode": "FIXTURE",
+            "decision": {
+              "action": "SELL",
+              "reason": "DAILY_CLOSE_FELL",
+              "quantity": 100
+            },
+            "targetId": "c5-target-39460e83d212058a487ff56764df623a651728efdb64ef49b2048efede774ca3",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "sessionDate": "2024-01-05",
+            "evaluationAt": "2024-01-05T01:31:00.000Z",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240105",
+            "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+            "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "targetQuantity": 0,
+            "strategyVersion": "c5-daily-direction-v1",
+            "dailyBarProvenance": {
+              "asOf": "2024-01-05T09:31:00+08:00",
+              "sourceId": "fixture:v24-c5-local-daily-1",
+              "dataVersion": "v24-c5-local-daily-1",
+              "completionIds": [
+                "dailybar:b45305eff27c2fdbe89c7d91146908cbd8ca96dba5eaa52762774efdc0e0bb63",
+                "dailybar:469c1a3efbe099ec87115eed377e597a43d5af553664b2494e324e9f87714528"
+              ],
+              "calendarVersion": "c5-local-synthetic-sessions-1"
+            }
+          },
+          "quantity": 100,
+          "targetId": "c5-target-39460e83d212058a487ff56764df623a651728efdb64ef49b2048efede774ca3",
+          "execution": {
+            "order": {
+              "fill": {
+                "fee": "5.00",
+                "price": "10.00",
+                "quantity": 100,
+                "effectiveAt": "2024-01-05T01:31:10.000Z",
+                "externalFillId": "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+              },
+              "status": "FILLED",
+              "orderId": "14c61bd2-a634-412d-94f5-0f8323a9320b",
+              "brokerMode": "FAKE"
+            },
+            "outbox": {
+              "status": "DELIVERED",
+              "attempts": 1,
+              "event_id": "d525ccce-fd4b-4807-88e1-5018b817f322",
+              "created_at": "2026-10-29T09:01:39.343Z",
+              "event_type": "FILL_POST",
+              "last_error": null,
+              "delivered_at": "2026-10-29T09:01:39.388Z"
+            },
+            "status": "FILLED",
+            "replayed": false,
+            "schemaVersion": "c5-local-paper-execution-result-v1",
+            "authorizationId": "3f324319-3a5d-4bdf-bc42-d7f416d82c3c",
+            "fillLedgerStatus": "DELIVERED",
+            "resourceReservationId": "d70e3869-966d-477c-8775-24482ef37e4b",
+            "mandateReservationStatus": "CONSUMED"
+          },
+          "settlement": {
+            "status": "SETTLED",
+            "settledFillIds": [],
+            "portfolioSettledFillIds": []
+          },
+          "snapshotId": "fixture-c5-20240105-600000",
+          "sessionDate": "2024-01-05",
+          "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240105"
+        },
+        {
+          "action": "HOLD",
+          "status": "HOLD",
+          "target": {
+            "input": {
+              "bars": [
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-04T15:05:00+08:00",
+                  "sessionDate": "2024-01-04"
+                },
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-05T15:05:00+08:00",
+                  "sessionDate": "2024-01-05"
+                }
+              ],
+              "account": {
+                "settledCash": "9965.0000",
+                "heldQuantity": 0,
+                "sellableQuantity": 0
+              },
+              "mandate": {
+                "paused": false,
+                "expiresAt": "2024-01-08T07:20:00.000Z",
+                "validFrom": "2024-01-08T01:30:00.000Z"
+              },
+              "sessionDate": "2024-01-08",
+              "referencePrice": "10.0000",
+              "expectedPriorSessions": [
+                "2024-01-04",
+                "2024-01-05"
+              ]
+            },
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "dataMode": "FIXTURE",
+            "decision": {
+              "action": "HOLD",
+              "reason": "TARGET_UNCHANGED",
+              "quantity": 0
+            },
+            "targetId": "c5-target-1c61bf3590a2c310dba63dfe5bf6efed32241ddb4dd7198812d3fdbabcca01d1",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "sessionDate": "2024-01-08",
+            "evaluationAt": "2024-01-08T01:31:00.000Z",
+            "clientOrderId": null,
+            "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+            "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "targetQuantity": 0,
+            "strategyVersion": "c5-daily-direction-v1",
+            "dailyBarProvenance": {
+              "asOf": "2024-01-08T09:31:00+08:00",
+              "sourceId": "fixture:v24-c5-local-daily-1",
+              "dataVersion": "v24-c5-local-daily-1",
+              "completionIds": [
+                "dailybar:469c1a3efbe099ec87115eed377e597a43d5af553664b2494e324e9f87714528",
+                "dailybar:79b88a406f10e509f22a5b0d8571e13d8ffb61a19081524389cdab478e1b23c6"
+              ],
+              "calendarVersion": "c5-local-synthetic-sessions-1"
+            }
+          },
+          "quantity": 0,
+          "targetId": "c5-target-1c61bf3590a2c310dba63dfe5bf6efed32241ddb4dd7198812d3fdbabcca01d1",
+          "execution": null,
+          "settlement": {
+            "status": "SETTLED",
+            "settledFillIds": [
+              "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+            ],
+            "portfolioSettledFillIds": [
+              "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+            ]
+          },
+          "snapshotId": null,
+          "sessionDate": "2024-01-08",
+          "clientOrderId": null
+        },
+        {
+          "action": "HOLD",
+          "status": "HOLD",
+          "target": {
+            "input": {
+              "bars": [
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-05T15:05:00+08:00",
+                  "sessionDate": "2024-01-05"
+                },
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-08T15:05:00+08:00",
+                  "sessionDate": "2024-01-08"
+                }
+              ],
+              "account": {
+                "settledCash": "9965.0000",
+                "heldQuantity": 0,
+                "sellableQuantity": 0
+              },
+              "mandate": {
+                "paused": false,
+                "expiresAt": "2024-01-09T07:20:00.000Z",
+                "validFrom": "2024-01-09T01:30:00.000Z"
+              },
+              "sessionDate": "2024-01-09",
+              "referencePrice": "10.0000",
+              "expectedPriorSessions": [
+                "2024-01-05",
+                "2024-01-08"
+              ]
+            },
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "dataMode": "FIXTURE",
+            "decision": {
+              "action": "HOLD",
+              "reason": "TARGET_UNCHANGED",
+              "quantity": 0
+            },
+            "targetId": "c5-target-671a8c9544e0ded5899ee671a3d0e6cd5711aced542d697235c76626941072b8",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "sessionDate": "2024-01-09",
+            "evaluationAt": "2024-01-09T01:31:00.000Z",
+            "clientOrderId": null,
+            "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+            "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "targetQuantity": 0,
+            "strategyVersion": "c5-daily-direction-v1",
+            "dailyBarProvenance": {
+              "asOf": "2024-01-09T09:31:00+08:00",
+              "sourceId": "fixture:v24-c5-local-daily-1",
+              "dataVersion": "v24-c5-local-daily-1",
+              "completionIds": [
+                "dailybar:79b88a406f10e509f22a5b0d8571e13d8ffb61a19081524389cdab478e1b23c6",
+                "dailybar:86b303977e61245688cd35697f22906031fdf0b98566f6bb3730f10e35eaa4af"
+              ],
+              "calendarVersion": "c5-local-synthetic-sessions-1"
+            }
+          },
+          "quantity": 0,
+          "targetId": "c5-target-671a8c9544e0ded5899ee671a3d0e6cd5711aced542d697235c76626941072b8",
+          "execution": null,
+          "settlement": {
+            "status": "SETTLED",
+            "settledFillIds": [],
+            "portfolioSettledFillIds": []
+          },
+          "snapshotId": null,
+          "sessionDate": "2024-01-09",
+          "clientOrderId": null
+        },
+        {
+          "action": "HOLD",
+          "status": "HOLD",
+          "target": {
+            "input": {
+              "bars": [
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-08T15:05:00+08:00",
+                  "sessionDate": "2024-01-08"
+                },
+                {
+                  "close": "10.0000",
+                  "securityId": "600000.SH",
+                  "availableAt": "2024-01-09T15:05:00+08:00",
+                  "sessionDate": "2024-01-09"
+                }
+              ],
+              "account": {
+                "settledCash": "9965.0000",
+                "heldQuantity": 0,
+                "sellableQuantity": 0
+              },
+              "mandate": {
+                "paused": false,
+                "expiresAt": "2024-01-10T07:20:00.000Z",
+                "validFrom": "2024-01-10T01:30:00.000Z"
+              },
+              "sessionDate": "2024-01-10",
+              "referencePrice": "10.0000",
+              "expectedPriorSessions": [
+                "2024-01-08",
+                "2024-01-09"
+              ]
+            },
+            "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+            "dataMode": "FIXTURE",
+            "decision": {
+              "action": "HOLD",
+              "reason": "TARGET_UNCHANGED",
+              "quantity": 0
+            },
+            "targetId": "c5-target-87bf3345ce75ec20d7bbf6b1ac6e81be343648a92cab588525712b1305983d2e",
+            "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "sessionDate": "2024-01-10",
+            "evaluationAt": "2024-01-10T01:31:00.000Z",
+            "clientOrderId": null,
+            "fixtureSha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea",
+            "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "targetQuantity": 0,
+            "strategyVersion": "c5-daily-direction-v1",
+            "dailyBarProvenance": {
+              "asOf": "2024-01-10T09:31:00+08:00",
+              "sourceId": "fixture:v24-c5-local-daily-1",
+              "dataVersion": "v24-c5-local-daily-1",
+              "completionIds": [
+                "dailybar:86b303977e61245688cd35697f22906031fdf0b98566f6bb3730f10e35eaa4af",
+                "dailybar:cb8b15afda216f0af921ee709bbe0cf9900ff686945e262c7251ce2c9962a2dc"
+              ],
+              "calendarVersion": "c5-local-synthetic-sessions-1"
+            }
+          },
+          "quantity": 0,
+          "targetId": "c5-target-87bf3345ce75ec20d7bbf6b1ac6e81be343648a92cab588525712b1305983d2e",
+          "execution": null,
+          "settlement": {
+            "status": "SETTLED",
+            "settledFillIds": [],
+            "portfolioSettledFillIds": []
+          },
+          "snapshotId": null,
+          "sessionDate": "2024-01-10",
+          "clientOrderId": null
+        }
+      ],
+      "accountSnapshot": {
+        "cash": {
+          "amount": "9965.0000",
+          "currency": "CNY"
+        },
+        "market": "CN_A",
+        "ownerId": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+        "accountId": "acbc30c5-01d4-4b6f-8dc3-a859644a8da4",
+        "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "positions": [],
+        "testRunId": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "brokerMode": "FAKE",
+        "reservations": [
+          {
+            "side": "BUY",
+            "status": "CAPTURED",
+            "cashAmount": "1030.0000",
+            "evidenceRef": "fakebroker-outbox:13daf324-d3ab-4bbd-aeb8-3c99999b744e",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240104",
+            "reservationId": "be0ae08a-8d8e-42e5-b237-fda59b9e1b34",
+            "capturedQuantity": 0,
+            "capturedCashAmount": "1030.0000"
+          },
+          {
+            "side": "SELL",
+            "status": "CAPTURED",
+            "cashAmount": null,
+            "evidenceRef": "fakebroker-outbox:d525ccce-fd4b-4807-88e1-5018b817f322",
+            "clientOrderId": "v24-fixture-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c-20240105",
+            "reservationId": "d70e3869-966d-477c-8775-24482ef37e4b",
+            "capturedQuantity": 100,
+            "capturedCashAmount": "0.0000"
+          }
+        ],
+        "ledgerVersion": 3,
+        "positionCount": 0,
+        "environmentMode": "PAPER",
+        "ledgerEntryCount": 4,
+        "fixtureAccountRef": "c5-local-paper-direction-v1",
+        "unsettledReceivables": [
+          {
+            "amount": "995.0000",
+            "fillId": "fdd54a83-3dc7-4661-ab6c-df3a679ed4be",
+            "status": "SETTLED",
+            "currency": "CNY",
+            "tradeDate": "2024-01-05",
+            "settlementDate": "2024-01-08",
+            "calendarVersion": "v1.4-synthetic-settlement-3",
+            "settlementErrorCode": null
+          }
+        ]
+      },
+      "environmentMode": "PAPER",
+      "humanAcceptance": "NOT_RUN",
+      "c5MandatesByDate": {
+        "2024-01-04": {
+          "status": "PAUSED",
+          "mandateId": "de848049-af04-4aae-bfbd-7b8a9e732ad0",
+          "contentHash": "7198da42c00b7c9e699b01dbe705b72fe73a764696893d0bd3dbfea1517b314c",
+          "mandateVersion": 1
+        },
+        "2024-01-05": {
+          "status": "PAUSED",
+          "mandateId": "dd9e5992-b425-456f-9792-0b094ed73d4d",
+          "contentHash": "5d1c4c26ad558f04caee4b6172c10c7b79878594c92d890f9b60f43e419436f0",
+          "mandateVersion": 1
+        },
+        "2024-01-08": {
+          "status": "PAUSED",
+          "mandateId": "c4b6defe-3597-4599-b228-de5c662e1a24",
+          "contentHash": "c0031a91714ae68522a667163c1d37731b147f1bc1b82d2ff4d8d6a1b793549d",
+          "mandateVersion": 1
+        },
+        "2024-01-09": {
+          "status": "PAUSED",
+          "mandateId": "a6b752cc-223b-404e-90e8-2382cdc499d1",
+          "contentHash": "f0a01c3b658a2b5d15c283c59847e9af1f40dea19fb3aac88d7665bf80bda000",
+          "mandateVersion": 1
+        },
+        "2024-01-10": {
+          "status": "PAUSED",
+          "mandateId": "fdaf894f-39c2-4aed-b997-dc254a904e93",
+          "contentHash": "5fa835063385f1b032f8a2335a7ea402c2bc5d6b1ce5a9cb0b0a4f92c2952c57",
+          "mandateVersion": 1
+        }
+      },
+      "dailyCloseHistory": [
+        {
+          "alert": {
+            "status": "MATCH",
+            "created": false,
+            "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "incident": null
+          },
+          "status": "MATCH",
+          "recordedAt": "2026-10-29T09:01:45.334Z",
+          "reconciliation": {
+            "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "brokerMode": "FAKE",
+            "fill_count": 2,
+            "order_count": 2,
+            "discrepancies": [],
+            "pending_outbox_count": 0,
+            "externalOnlyOrderCount": 0,
+            "unresolved_order_count": 0
+          },
+          "idempotentReplay": {
+            "status": "MATCH",
+            "created": false,
+            "alertKey": "v24-paper-reconciliation:06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+            "incident": null
+          }
+        }
+      ],
+      "riskAppliedFillIds": [
+        "b1130ace-d3b5-4155-9c5e-364386378121",
+        "fdd54a83-3dc7-4661-ab6c-df3a679ed4be"
+      ],
+      "independentFakeBrokerAssets": {
+        "source": "FAKEBROKER_INDEPENDENT_ASSET_LEDGER",
+        "currency": "CNY",
+        "owner_id": "v24-paper-b95154f8d6aa48b6ae7c90ab1ad5dc38",
+        "namespace": "v24-paper-v2-06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "positions": [],
+        "brokerMode": "FAKE",
+        "updated_at": "2026-10-29T09:01:40.418Z",
+        "test_run_id": "06e40938-b6aa-4116-adb6-ab6d8a0eba2c",
+        "current_cash": "9965.0000",
+        "initial_cash": "10000.0000",
+        "fill_event_count": 2,
+        "unsettledReceivables": [
+          {
+            "amount": "995.0000",
+            "fillId": "fdd54a83-3dc7-4661-ab6c-df3a679ed4be",
+            "status": "SETTLED",
+            "currency": "CNY",
+            "tradeDate": "2024-01-05",
+            "settlementDate": "2024-01-08",
+            "calendarVersion": "v1.4-synthetic-settlement-3",
+            "settlementErrorCode": null
+          }
+        ]
+      }
+    },
+    "createdAt": "2026-10-29T09:01:31.747Z",
+    "completedAt": "2026-10-29T09:01:45.352Z"
+  }
+}

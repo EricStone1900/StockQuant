@@ -18,8 +18,13 @@ type DailyFixture = {
 
 const fixtureSpecs: Record<string, { fixtureId: string; sourceId: string }> = {
   "v2.1-daily-bars-1": { fixtureId: "v2.1-daily-bar-completion", sourceId: "fixture:v2.1-daily-bars-1" },
-  "v24-c5-daily-bars-1": { fixtureId: "v24-c5-daily-bar-completion", sourceId: "fixture:v24-c5-daily-bars-1" }
+  "v24-c5-daily-bars-1": { fixtureId: "v24-c5-daily-bar-completion", sourceId: "fixture:v24-c5-daily-bars-1" },
+  "v24-c5-prior-20261014-1": { fixtureId: "v24-c5-prior-20261014", sourceId: "fixture:v24-c5-prior-daily-1" },
+  "v24-c5-prior-20261015-1": { fixtureId: "v24-c5-prior-20261015", sourceId: "fixture:v24-c5-prior-daily-1" }
 };
+for (const date of ["20240102", "20240103", "20240104", "20240105", "20240108", "20240109", "20240110"]) {
+  fixtureSpecs[`v24-c5-local-daily-${date}-1`] = { fixtureId: `v24-c5-local-daily-${date}`, sourceId: "fixture:v24-c5-local-daily-1" };
+}
 
 export function parseV21DailyBarCompletionFixture(input: { bytes: Uint8Array; manifestVersion: string; expectedSha256: string; scope: DailyBarCompletionRequest["scope"] }): DailyBarCompletionResult {
   const spec = fixtureSpecs[input.manifestVersion];

@@ -1,0 +1,1294 @@
+{
+  "status": "PASS",
+  "environment": "isolated local PostgreSQL and Platform/Governance/Portfolio/Trade Execution processes",
+  "brokerMode": "FAKE",
+  "dataMode": "FIXTURE",
+  "scenarios": [
+    {
+      "scenarioId": "normal",
+      "testRunId": "57308b73-3f4b-4a61-94a8-7753a7950e84",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-normal-57308b73-3f4b-4a61-94a8-7753a7950e84.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-C5-SAMPLING-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-SNAPSHOT-CONSUMPTION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-009",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-RISK-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-RECONCILIATION-ALERT-001",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "fixture": {
+          "dataMode": "FIXTURE",
+          "fixtureId": "v24-isolated-snapshot-paper-normal",
+          "fixtureVersion": "2.0.0",
+          "manifestSha256": "713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821",
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "compositionFixtureId": "v24-sampled-paper-composition",
+          "compositionFixtureVersion": "v24-sampled-paper-composition-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "sampling": {
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:4f1603d5471a3524e0ad6155e891cf9c5b338a3ab3e0e52b13277f13576f59fc:2026-10-16T01:50:00.000Z",
+          "accountId": "0dbee00c-de0b-43e9-b0ad-b6fec859941e",
+          "fixtureId": "v24-sampled-paper-composition",
+          "namespace": "v24-paper-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "testRunId": "57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "watchlist": {
+            "max": 100,
+            "count": 3,
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "accepted": true,
+            "holdings": [
+              "600000.SH"
+            ],
+            "accountId": "0dbee00c-de0b-43e9-b0ad-b6fec859941e",
+            "namespace": "v24-paper-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+            "testRunId": "57308b73-3f4b-4a61-94a8-7753a7950e84",
+            "updatedAt": "2026-10-27T14:40:35.605Z",
+            "candidates": [
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "securities": [
+              "600000.SH",
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "requiredCount": 1,
+            "inFlightOrders": [],
+            "omittedCandidates": []
+          },
+          "taskStatus": "COMPLETED_FIXTURE",
+          "observation": {
+            "price": "10.2500",
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-600000-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          },
+          "scheduledAt": "2026-10-16T01:50:00.000Z",
+          "securityIds": [
+            "600000.SH",
+            "000001.SZ",
+            "600519.SH"
+          ],
+          "fixtureVersion": "v24-sampled-paper-composition-1",
+          "duplicateTaskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:4f1603d5471a3524e0ad6155e891cf9c5b338a3ab3e0e52b13277f13576f59fc:2026-10-16T01:50:00.000Z",
+          "intervalMinutes": 20,
+          "duplicateCreated": false,
+          "externalRequests": 0,
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "sourceFixtureSha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c",
+          "sourceFixtureVersion": "v2.1-snapshot-sampling-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "eligibility": {
+          "status": "ELIGIBLE",
+          "dataMode": "FIXTURE",
+          "snapshotId": "fixture-v21-600000-20261016T0950",
+          "policyVersion": "v24-snapshot-eligibility-v1",
+          "executionModel": "SNAPSHOT",
+          "liquidityParticipation": "NOT_VERIFIED"
+        },
+        "order": {
+          "status": "FILLED",
+          "order_id": "dbba05e6-d9c5-49be-a3f9-13070c13b930",
+          "clientOrderId": "v24-fixture-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "rejection_reason": null
+        },
+        "fills": [
+          {
+            "fee": "5.0000",
+            "price": "10.2500",
+            "quantity": 100,
+            "effectiveAt": "2026-10-16T01:50:00.000Z",
+            "externalFillId": "0f89b986-b0f2-4753-8958-7cd2a31b07aa"
+          }
+        ],
+        "resourceReservation": {
+          "side": "BUY",
+          "status": "CAPTURED",
+          "cashAmount": "1030.0000",
+          "evidenceRef": "fakebroker-outbox:3ee50a32-17ef-4ff7-a7ea-137724ae8f57",
+          "clientOrderId": "v24-fixture-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "reservationId": "48d4ba24-3b27-47e8-8d34-445f5b3d6edc",
+          "capturedQuantity": 0,
+          "capturedCashAmount": "1030.0000"
+        },
+        "account": {
+          "cash": {
+            "amount": "8970.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "0dbee00c-de0b-43e9-b0ad-b6fec859941e",
+          "namespace": "v24-paper-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "testRunId": "57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "brokerMode": "FAKE",
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1030.0000",
+              "evidenceRef": "fakebroker-outbox:3ee50a32-17ef-4ff7-a7ea-137724ae8f57",
+              "clientOrderId": "v24-fixture-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+              "reservationId": "48d4ba24-3b27-47e8-8d34-445f5b3d6edc",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1030.0000"
+            }
+          ],
+          "ledgerVersion": 2,
+          "positionCount": 1,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 2,
+          "fixtureAccountRef": "v24-isolated-paper-account-v2",
+          "unsettledReceivables": []
+        },
+        "outbox": {
+          "status": "DELIVERED",
+          "attempts": 1,
+          "event_id": "3ee50a32-17ef-4ff7-a7ea-137724ae8f57",
+          "created_at": "2026-10-27T14:40:36.617Z",
+          "event_type": "FILL_POST",
+          "last_error": null,
+          "delivered_at": "2026-10-27T14:40:36.661Z"
+        },
+        "reconciliation": {
+          "namespace": "v24-paper-v2-57308b73-3f4b-4a61-94a8-7753a7950e84",
+          "brokerMode": "FAKE",
+          "fill_count": 1,
+          "order_count": 1,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        }
+      },
+      "trace": [
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected"
+      ]
+    },
+    {
+      "scenarioId": "rejection",
+      "testRunId": "50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-rejection-50b3b9a3-cfac-4d86-abaa-d5eca7f8e010.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-C5-SAMPLING-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-REJECTION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-REJECTION-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-REJECTION-003",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "fixture": {
+          "fixtureId": "v24-isolated-snapshot-paper-normal",
+          "fixtureVersion": "2.0.0",
+          "manifestSha256": "713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821",
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "compositionFixtureId": "v24-sampled-paper-composition",
+          "compositionFixtureVersion": "v24-sampled-paper-composition-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "sampling": {
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-stale-1:0:d30fcb92fed183221d3b72f35bb8ee811747f971f1f5c352fd22fc7160c8c06b:2026-10-16T01:50:00.000Z",
+          "accountId": "25ba75f4-3fe9-4c2b-b182-ec502f35e59c",
+          "fixtureId": "v24-sampled-paper-composition",
+          "namespace": "v24-paper-v2-50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+          "testRunId": "50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+          "watchlist": {
+            "max": 100,
+            "count": 3,
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "accepted": true,
+            "holdings": [
+              "600000.SH"
+            ],
+            "accountId": "25ba75f4-3fe9-4c2b-b182-ec502f35e59c",
+            "namespace": "v24-paper-v2-50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+            "testRunId": "50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+            "updatedAt": "2026-10-27T14:40:38.311Z",
+            "candidates": [
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "securities": [
+              "600000.SH",
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "requiredCount": 1,
+            "inFlightOrders": [],
+            "omittedCandidates": []
+          },
+          "taskStatus": "COMPLETED_FIXTURE",
+          "observation": {
+            "price": "10.2500",
+            "status": "STALE",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-stale-1",
+            "freshness": "STALE",
+            "ageSeconds": 1860,
+            "ingestedAt": "2026-10-16T02:21:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-stale-600000",
+            "availableAt": "2026-10-16T02:21:00.000Z"
+          },
+          "scheduledAt": "2026-10-16T01:50:00.000Z",
+          "securityIds": [
+            "600000.SH",
+            "000001.SZ",
+            "600519.SH"
+          ],
+          "fixtureVersion": "v24-sampled-paper-composition-1",
+          "duplicateTaskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-stale-1:0:d30fcb92fed183221d3b72f35bb8ee811747f971f1f5c352fd22fc7160c8c06b:2026-10-16T01:50:00.000Z",
+          "intervalMinutes": 20,
+          "duplicateCreated": false,
+          "externalRequests": 0,
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "sourceFixtureSha256": "00fb666501ac866dccb4a29eba85a701cac8ec5ceaa752e7a62bc1b9be4fa040",
+          "sourceFixtureVersion": "v2.1-snapshot-stale-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "governance": {
+          "status": "REJECTED",
+          "httpStatus": 422
+        },
+        "fills": [],
+        "account": {
+          "cash": {
+            "amount": "10000.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "25ba75f4-3fe9-4c2b-b182-ec502f35e59c",
+          "namespace": "v24-paper-v2-50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+          "positions": [],
+          "testRunId": "50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+          "brokerMode": "FAKE",
+          "reservations": [],
+          "ledgerVersion": 1,
+          "positionCount": 0,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 1,
+          "fixtureAccountRef": "v24-isolated-paper-account-v2",
+          "unsettledReceivables": []
+        },
+        "reconciliation": {
+          "namespace": "v24-paper-v2-50b3b9a3-cfac-4d86-abaa-d5eca7f8e010",
+          "brokerMode": "FAKE",
+          "fill_count": 0,
+          "order_count": 0,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        }
+      },
+      "trace": [
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected"
+      ]
+    },
+    {
+      "scenarioId": "recovery",
+      "testRunId": "bbcfd633-a3bb-41de-a56f-cfda517ae332",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-recovery-bbcfd633-a3bb-41de-a56f-cfda517ae332.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-C5-SAMPLING-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-SNAPSHOT-CONSUMPTION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-RISK-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-RECONCILIATION-ALERT-001",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "sampling": {
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3ba2f5a7c503de2b8b72c996f60993e4796d02d256c62f3fb2706b893ebae5c:2026-10-16T01:50:00.000Z",
+          "accountId": "2597b560-d745-4c69-b417-b4fd9df7c3c0",
+          "fixtureId": "v24-sampled-paper-composition",
+          "namespace": "v24-paper-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "testRunId": "bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "watchlist": {
+            "max": 100,
+            "count": 3,
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "accepted": true,
+            "holdings": [
+              "600000.SH"
+            ],
+            "accountId": "2597b560-d745-4c69-b417-b4fd9df7c3c0",
+            "namespace": "v24-paper-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+            "testRunId": "bbcfd633-a3bb-41de-a56f-cfda517ae332",
+            "updatedAt": "2026-10-27T14:40:39.453Z",
+            "candidates": [
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "securities": [
+              "600000.SH",
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "requiredCount": 1,
+            "inFlightOrders": [],
+            "omittedCandidates": []
+          },
+          "taskStatus": "COMPLETED_FIXTURE",
+          "observation": {
+            "price": "10.2500",
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-600000-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          },
+          "scheduledAt": "2026-10-16T01:50:00.000Z",
+          "securityIds": [
+            "600000.SH",
+            "000001.SZ",
+            "600519.SH"
+          ],
+          "fixtureVersion": "v24-sampled-paper-composition-1",
+          "duplicateTaskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:f3ba2f5a7c503de2b8b72c996f60993e4796d02d256c62f3fb2706b893ebae5c:2026-10-16T01:50:00.000Z",
+          "intervalMinutes": 20,
+          "duplicateCreated": false,
+          "externalRequests": 0,
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "sourceFixtureSha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c",
+          "sourceFixtureVersion": "v2.1-snapshot-sampling-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "eligibility": {
+          "status": "ELIGIBLE",
+          "dataMode": "FIXTURE",
+          "snapshotId": "fixture-v21-600000-20261016T0950",
+          "policyVersion": "v24-snapshot-eligibility-v1",
+          "executionModel": "SNAPSHOT",
+          "liquidityParticipation": "NOT_VERIFIED"
+        },
+        "order": {
+          "status": "FILLED",
+          "order_id": "c1802c1f-e10a-4543-ac54-26ed280da09c",
+          "clientOrderId": "v24-fixture-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "rejection_reason": null
+        },
+        "fills": [
+          {
+            "fee": "5.0000",
+            "price": "10.2500",
+            "quantity": 100,
+            "effectiveAt": "2026-10-16T01:50:00.000Z",
+            "externalFillId": "7f0b8f27-989d-43b1-881c-bb6ba672d3fe"
+          }
+        ],
+        "resourceReservation": {
+          "side": "BUY",
+          "status": "CAPTURED",
+          "cashAmount": "1030.0000",
+          "evidenceRef": "fakebroker-outbox:b9802a07-5c21-4a92-918a-89d805a3cd09",
+          "clientOrderId": "v24-fixture-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "reservationId": "af953df4-790e-48de-a4cc-1e75a047355b",
+          "capturedQuantity": 0,
+          "capturedCashAmount": "1030.0000"
+        },
+        "account": {
+          "cash": {
+            "amount": "8970.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "2597b560-d745-4c69-b417-b4fd9df7c3c0",
+          "namespace": "v24-paper-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "testRunId": "bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "brokerMode": "FAKE",
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1030.0000",
+              "evidenceRef": "fakebroker-outbox:b9802a07-5c21-4a92-918a-89d805a3cd09",
+              "clientOrderId": "v24-fixture-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+              "reservationId": "af953df4-790e-48de-a4cc-1e75a047355b",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1030.0000"
+            }
+          ],
+          "ledgerVersion": 2,
+          "positionCount": 1,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 2,
+          "fixtureAccountRef": "v24-isolated-paper-account-v2",
+          "unsettledReceivables": []
+        },
+        "outbox": {
+          "status": "DELIVERED",
+          "attempts": 1,
+          "event_id": "b9802a07-5c21-4a92-918a-89d805a3cd09",
+          "event_type": "FILL_POST",
+          "delivered_at": "2026-10-27T14:40:39.779Z"
+        },
+        "reconciliation": {
+          "namespace": "v24-paper-v2-bbcfd633-a3bb-41de-a56f-cfda517ae332",
+          "brokerMode": "FAKE",
+          "fill_count": 1,
+          "order_count": 1,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        }
+      },
+      "trace": [
+        "arm isolated network proxy to drop actual Trade Execution response",
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected"
+      ]
+    },
+    {
+      "scenarioId": "external-reconciliation",
+      "testRunId": "ffff38fc-d6c5-4870-a303-2d834ad0717e",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-external-reconciliation-ffff38fc-d6c5-4870-a303-2d834ad0717e.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-C5-SAMPLING-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-TARGET-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-SNAPSHOT-CONSUMPTION-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-006",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-007",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-008",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PAPER-009",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-RISK-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-BAR-IDEMPOTENCY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-DAILY-RECONCILIATION-ALERT-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-PF05-001",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "fixture": {
+          "dataMode": "FIXTURE",
+          "fixtureId": "v24-isolated-snapshot-paper-normal",
+          "fixtureVersion": "2.0.0",
+          "manifestSha256": "713d6d152d7499c291a475194a0404c93cafa3a6faa6dbdff7ef87a477432821",
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "compositionFixtureId": "v24-sampled-paper-composition",
+          "compositionFixtureVersion": "v24-sampled-paper-composition-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "sampling": {
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:58ad18dcbd1c8139bf135081a16ca3e934eaa412d79378458ba603fb6d93ab2b:2026-10-16T01:50:00.000Z",
+          "accountId": "47df4618-248c-4a9a-a3d6-c9ec9a9e63c5",
+          "fixtureId": "v24-sampled-paper-composition",
+          "namespace": "v24-paper-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "testRunId": "ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "watchlist": {
+            "max": 100,
+            "count": 3,
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "accepted": true,
+            "holdings": [
+              "600000.SH"
+            ],
+            "accountId": "47df4618-248c-4a9a-a3d6-c9ec9a9e63c5",
+            "namespace": "v24-paper-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+            "testRunId": "ffff38fc-d6c5-4870-a303-2d834ad0717e",
+            "updatedAt": "2026-10-27T14:40:41.720Z",
+            "candidates": [
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "securities": [
+              "600000.SH",
+              "000001.SZ",
+              "600519.SH"
+            ],
+            "requiredCount": 1,
+            "inFlightOrders": [],
+            "omittedCandidates": []
+          },
+          "taskStatus": "COMPLETED_FIXTURE",
+          "observation": {
+            "price": "10.2500",
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-600000-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          },
+          "scheduledAt": "2026-10-16T01:50:00.000Z",
+          "securityIds": [
+            "600000.SH",
+            "000001.SZ",
+            "600519.SH"
+          ],
+          "fixtureVersion": "v24-sampled-paper-composition-1",
+          "duplicateTaskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:58ad18dcbd1c8139bf135081a16ca3e934eaa412d79378458ba603fb6d93ab2b:2026-10-16T01:50:00.000Z",
+          "intervalMinutes": 20,
+          "duplicateCreated": false,
+          "externalRequests": 0,
+          "compositionSha256": "75100066d45a2c8b0f726d7e07c579b6da0a30d763f537749c20f43ece54fbae",
+          "sourceFixtureSha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c",
+          "sourceFixtureVersion": "v2.1-snapshot-sampling-1",
+          "compositionManifestSha256": "5f525ae7da029f5ee92ece141f0df29cabea97f3e5591b594a4402201e4c4ded"
+        },
+        "eligibility": {
+          "status": "ELIGIBLE",
+          "dataMode": "FIXTURE",
+          "snapshotId": "fixture-v21-600000-20261016T0950",
+          "policyVersion": "v24-snapshot-eligibility-v1",
+          "executionModel": "SNAPSHOT",
+          "liquidityParticipation": "NOT_VERIFIED"
+        },
+        "order": {
+          "status": "FILLED",
+          "order_id": "2124f15f-2808-454f-929d-5e4c291bbc21",
+          "clientOrderId": "v24-fixture-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "rejection_reason": null
+        },
+        "fills": [
+          {
+            "fee": "5.0000",
+            "price": "10.2500",
+            "quantity": 100,
+            "effectiveAt": "2026-10-16T01:50:00.000Z",
+            "externalFillId": "b27dbf97-91a6-4fa5-a150-52eb8f106226"
+          }
+        ],
+        "resourceReservation": {
+          "side": "BUY",
+          "status": "CAPTURED",
+          "cashAmount": "1030.0000",
+          "evidenceRef": "fakebroker-outbox:4b4abdb8-f674-49aa-9178-0f9f79859486",
+          "clientOrderId": "v24-fixture-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "reservationId": "e5f66b2b-8b39-4344-bbec-baab28d1c8d8",
+          "capturedQuantity": 0,
+          "capturedCashAmount": "1030.0000"
+        },
+        "account": {
+          "cash": {
+            "amount": "8970.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "47df4618-248c-4a9a-a3d6-c9ec9a9e63c5",
+          "namespace": "v24-paper-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "positions": [
+            {
+              "quantity": 100,
+              "security": "600000.SH"
+            }
+          ],
+          "testRunId": "ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "brokerMode": "FAKE",
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1030.0000",
+              "evidenceRef": "fakebroker-outbox:4b4abdb8-f674-49aa-9178-0f9f79859486",
+              "clientOrderId": "v24-fixture-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+              "reservationId": "e5f66b2b-8b39-4344-bbec-baab28d1c8d8",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1030.0000"
+            }
+          ],
+          "ledgerVersion": 2,
+          "positionCount": 1,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 2,
+          "fixtureAccountRef": "v24-isolated-paper-account-v2",
+          "unsettledReceivables": []
+        },
+        "outbox": {
+          "status": "DELIVERED",
+          "attempts": 1,
+          "event_id": "4b4abdb8-f674-49aa-9178-0f9f79859486",
+          "created_at": "2026-10-27T14:40:42.616Z",
+          "event_type": "FILL_POST",
+          "last_error": null,
+          "delivered_at": "2026-10-27T14:40:42.644Z"
+        },
+        "reconciliation": {
+          "namespace": "v24-paper-v2-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+          "brokerMode": "FAKE",
+          "fill_count": 1,
+          "order_count": 1,
+          "discrepancies": [
+            {
+              "kind": "EXTERNAL_ORDER_MISSING_LOCALLY",
+              "status": "UNKNOWN",
+              "security": "600000.SH",
+              "observedAt": "2026-10-16T01:50:00.000Z",
+              "evidenceRef": "fixture:ffff38fc-d6c5-4870-a303-2d834ad0717e:independent-external-order",
+              "clientOrderId": "fixture-external-client-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+              "externalOrderId": "fixture-external-ffff38fc-d6c5-4870-a303-2d834ad0717e",
+              "requestedQuantity": 100
+            }
+          ],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 1,
+          "unresolved_order_count": 0
+        }
+      },
+      "trace": [
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected"
+      ]
+    },
+    {
+      "scenarioId": "crossday-settlement",
+      "testRunId": "4393ca59-6bc7-4598-9707-ca34dd304621",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-crossday-settlement-4393ca59-6bc7-4598-9707-ca34dd304621.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-CROSSDAY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-CROSSDAY-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-CROSSDAY-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-CROSSDAY-004",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-CROSSDAY-005",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-RISK-CROSSDAY-001",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "fixture": {
+          "fixtureId": "v24-crossday-settlement-v1",
+          "fixtureVersion": "1.0.0",
+          "manifestSha256": "30ca6912d0173e0053b0f841bb0486570d4539b0649495e0938c26d5f7a78fcc"
+        },
+        "fills": [
+          {
+            "fee": "5.0000",
+            "price": "10.0000",
+            "quantity": 100,
+            "effectiveAt": "2024-01-04T09:32:00+08:00",
+            "externalFillId": "9b227c2b-a0b1-4de2-bbd5-2f333a1e09a1"
+          },
+          {
+            "fee": "5.0000",
+            "price": "10.2500",
+            "quantity": 100,
+            "effectiveAt": "2024-01-05T09:32:00+08:00",
+            "externalFillId": "7d6c02e3-8a11-4a40-8c5b-8394cf05c60f"
+          }
+        ],
+        "account": {
+          "cash": {
+            "amount": "10015.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "73344094-e3f1-404f-8b45-47689b9048b0",
+          "namespace": "v24-paper-v2-4393ca59-6bc7-4598-9707-ca34dd304621",
+          "positions": [],
+          "testRunId": "4393ca59-6bc7-4598-9707-ca34dd304621",
+          "brokerMode": "FAKE",
+          "reservations": [
+            {
+              "side": "BUY",
+              "status": "CAPTURED",
+              "cashAmount": "1005.0000",
+              "evidenceRef": "fakebroker-outbox:ff698ceb-2a74-44d4-838d-092aa8c5735d",
+              "clientOrderId": "v24-fixture-v2-4393ca59-6bc7-4598-9707-ca34dd304621-buy",
+              "reservationId": "b829a531-71bb-4dc1-b27b-0450dca3b71b",
+              "capturedQuantity": 0,
+              "capturedCashAmount": "1005.0000"
+            },
+            {
+              "side": "SELL",
+              "status": "CAPTURED",
+              "cashAmount": null,
+              "evidenceRef": "fakebroker-outbox:4876b8ab-e652-4c17-a81b-17b86abf0850",
+              "clientOrderId": "v24-fixture-v2-4393ca59-6bc7-4598-9707-ca34dd304621-sell",
+              "reservationId": "56712c29-c345-4b11-a3fb-bb6539442010",
+              "capturedQuantity": 100,
+              "capturedCashAmount": "0.0000"
+            }
+          ],
+          "ledgerVersion": 3,
+          "positionCount": 0,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 4,
+          "fixtureAccountRef": "v24-crossday-settlement-cny-10000",
+          "unsettledReceivables": [
+            {
+              "amount": "1020.0000",
+              "fillId": "7d6c02e3-8a11-4a40-8c5b-8394cf05c60f",
+              "status": "SETTLED",
+              "currency": "CNY",
+              "tradeDate": "2024-01-05",
+              "settlementDate": "2024-01-08",
+              "calendarVersion": "v1.4-synthetic-settlement-3",
+              "settlementErrorCode": null
+            }
+          ]
+        },
+        "reconciliation": {
+          "namespace": "v24-paper-v2-4393ca59-6bc7-4598-9707-ca34dd304621",
+          "brokerMode": "FAKE",
+          "fill_count": 2,
+          "order_count": 2,
+          "discrepancies": [],
+          "pending_outbox_count": 0,
+          "externalOnlyOrderCount": 0,
+          "unresolved_order_count": 0
+        }
+      },
+      "trace": [
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected"
+      ]
+    },
+    {
+      "scenarioId": "candidate-binding",
+      "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+      "screenshot": "evidence/audits/2026-10-27-v24-paper-web-candidate-binding-f743923f-843b-45e6-bd69-9c3ec7b75940.png",
+      "status": "COMPLETED",
+      "cliCheckOnly": true,
+      "assertions": [
+        {
+          "assertionId": "V2.4-C5-BINDING-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-BINDING-002",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-BINDING-003",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-MANDATE-EXPIRY-001",
+          "status": "PASS"
+        },
+        {
+          "assertionId": "V2.4-C5-CANDIDATE-EXECUTION-001",
+          "status": "PASS"
+        }
+      ],
+      "businessEvidence": {
+        "fixture": {
+          "fixtureId": "v24-candidate-a-binding-v1",
+          "inputSha256": "b71d400c9638f2cf634805e3f3a220ea34ab41fad0577be67969d2b37f7f0fdf",
+          "fixtureVersion": "1.0.0",
+          "manifestSha256": "a4c99d7b32cdfd2e6397b70a95a98c8776d5dddc09f0e52b237aa5dd4ae3946b"
+        },
+        "fills": [],
+        "account": {
+          "cash": {
+            "amount": "10000.0000",
+            "currency": "CNY"
+          },
+          "market": "CN_A",
+          "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+          "accountId": "e9363d7b-14bf-48b7-b4d7-0d2fa0a43003",
+          "namespace": "v24-paper-v2-f743923f-843b-45e6-bd69-9c3ec7b75940",
+          "positions": [],
+          "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+          "brokerMode": "FAKE",
+          "reservations": [],
+          "ledgerVersion": 1,
+          "positionCount": 0,
+          "environmentMode": "PAPER",
+          "ledgerEntryCount": 1,
+          "fixtureAccountRef": "c5-local-paper-direction-v1",
+          "unsettledReceivables": []
+        },
+        "reconciliation": {
+          "status": "NOT_RUN"
+        },
+        "candidateBinding": {
+          "cost": {
+            "version": "c5-local-flat-fee-v1",
+            "fixedFee": "5.0000"
+          },
+          "risk": {
+            "version": "c5-local-risk-v1",
+            "targetQuantity": 100,
+            "maxDailyTurnover": "2000.00",
+            "maxGrossExposure": "2000.00",
+            "maxOrderNotional": "2000.00",
+            "maxDailyOrderCount": 1,
+            "cumulativeLossPause": "200.00"
+          },
+          "budget": {
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "mandateId": "fb4eaf84-6908-427a-b403-ad3a9200b127",
+            "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+            "consumedCount": 0,
+            "releasedCount": 0,
+            "consumedAmount": "0.00",
+            "mandateVersion": 1,
+            "releasedAmount": "0.00",
+            "reservedAmount": "0.00",
+            "reservationCount": 0
+          },
+          "mandate": {
+            "status": "PENDING",
+            "mandateId": "fb4eaf84-6908-427a-b403-ad3a9200b127",
+            "contentHash": "cb3781e91f83fd7f7537fb1a87cb0aeee47aade9b553f5481c20dc8c8b5e69ae",
+            "mandateVersion": 1,
+            "isolatedValidity": {
+              "now": "2026-10-25T09:30:00+08:00",
+              "expiresAt": "2026-10-25T10:30:00+08:00",
+              "validFrom": "2026-10-25T09:31:00+08:00"
+            }
+          },
+          "approval": {
+            "status": "ACCEPTED_FOR_IMPLEMENTATION_AND_ISOLATED_VALIDATION",
+            "activeUse": false,
+            "decisionRecord": "docs/decisions/2026-10-24-c5-candidate-a-parameters.md"
+          },
+          "strategy": {
+            "sha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+            "version": "c5-daily-direction-v1"
+          },
+          "riskState": {
+            "state": {
+              "reason": "MANDATE_INACTIVE",
+              "status": "PAUSED",
+              "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+              "accountId": "e9363d7b-14bf-48b7-b4d7-0d2fa0a43003",
+              "namespace": "v24-paper-v2-f743923f-843b-45e6-bd69-9c3ec7b75940",
+              "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+              "initialCash": "10000.0000",
+              "sessionDate": "2026-10-16",
+              "appliedFills": [],
+              "dailyTurnover": "0.0000",
+              "grossExposure": "0.0000",
+              "mandateStatus": "PENDING",
+              "cumulativeLoss": "0.0000",
+              "maxDailyTurnover": "2000.00",
+              "maxGrossExposure": "2000.00",
+              "sessionTransitions": [],
+              "cumulativeLossLimit": "200.00"
+            },
+            "created": true
+          },
+          "scheduler": {
+            "mode": "PAPER",
+            "status": "STOPPED",
+            "tickCount": 0,
+            "brokerMode": "FAKE",
+            "lastSampleAt": null,
+            "nextSampleAt": null,
+            "executionWindow": "09:31-09:35",
+            "samplingIntervalMinutes": 30
+          },
+          "dailyTarget": {
+            "target": {
+              "input": {
+                "bars": [
+                  {
+                    "close": "10.0000",
+                    "securityId": "600000.SH",
+                    "availableAt": "2026-10-14T15:05:00+08:00",
+                    "sessionDate": "2026-10-14"
+                  },
+                  {
+                    "close": "10.2500",
+                    "securityId": "600000.SH",
+                    "availableAt": "2026-10-15T15:05:00+08:00",
+                    "sessionDate": "2026-10-15"
+                  }
+                ],
+                "account": {
+                  "settledCash": "10000.0000",
+                  "heldQuantity": 0,
+                  "sellableQuantity": 0
+                },
+                "mandate": {
+                  "paused": true,
+                  "expiresAt": "2026-10-17T15:20:00+08:00",
+                  "validFrom": "2026-10-15T15:10:00+08:00"
+                },
+                "sessionDate": "2026-10-16",
+                "referencePrice": "10.2500",
+                "expectedPriorSessions": [
+                  "2026-10-14",
+                  "2026-10-15"
+                ]
+              },
+              "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+              "dataMode": "FIXTURE",
+              "decision": {
+                "action": "PAUSED",
+                "reason": "MANDATE_INACTIVE",
+                "quantity": 0
+              },
+              "targetId": "c5-target-d052860700cbd9ceac930b7dbee44b0608106f57d479fa5715d002a29e8ead58",
+              "accountId": "e9363d7b-14bf-48b7-b4d7-0d2fa0a43003",
+              "namespace": "v24-paper-v2-f743923f-843b-45e6-bd69-9c3ec7b75940",
+              "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+              "sessionDate": "2026-10-16",
+              "evaluationAt": "2026-10-16T01:31:00.000Z",
+              "clientOrderId": null,
+              "fixtureSha256": "b04ca7ed834cbbddca1138905aa3c208574b362c9d44dc15b91a9717c68ae48b",
+              "strategySha256": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8",
+              "targetQuantity": null,
+              "strategyVersion": "c5-daily-direction-v1"
+            },
+            "created": true
+          },
+          "riskProjection": {
+            "netValue": "10000.0000",
+            "dailyTurnover": {
+              "reason": "FILL_FACTS_REQUIRED",
+              "status": "NOT_AVAILABLE"
+            },
+            "grossExposure": "0.0000",
+            "cumulativeLoss": "0.0000",
+            "reconciliation": {
+              "reason": "INDEPENDENT_FAKEBROKER_ASSETS_NOT_CREATED",
+              "status": "NOT_AVAILABLE"
+            },
+            "holdingQuantity": 0,
+            "eligibleForRiskUpdate": false
+          },
+          "executionAdmission": {
+            "stale": {
+              "reason": "SNAPSHOT_STALE",
+              "status": "PAUSED"
+            },
+            "unknown": {
+              "reason": "SNAPSHOT_STATUS_UNKNOWN",
+              "status": "PAUSED"
+            },
+            "eligible": {
+              "status": "ELIGIBLE",
+              "deviationBps": 0,
+              "policyVersion": "c5-candidate-a-execution-v1",
+              "quoteAgeSeconds": 40
+            },
+            "missedWindow": {
+              "reason": "EXECUTION_WINDOW_CLOSED",
+              "status": "PAUSED"
+            }
+          },
+          "persistedRiskFacts": {
+            "reason": "MANDATE_INACTIVE",
+            "status": "PAUSED",
+            "ownerId": "v24-paper-ab011b0145824c24b108e2c01c1602c8",
+            "accountId": "e9363d7b-14bf-48b7-b4d7-0d2fa0a43003",
+            "namespace": "v24-paper-v2-f743923f-843b-45e6-bd69-9c3ec7b75940",
+            "testRunId": "f743923f-843b-45e6-bd69-9c3ec7b75940",
+            "initialCash": "10000.0000",
+            "sessionDate": "2026-10-16",
+            "appliedFills": [],
+            "dailyTurnover": "0.0000",
+            "grossExposure": "0.0000",
+            "mandateStatus": "PENDING",
+            "cumulativeLoss": "0.0000",
+            "maxDailyTurnover": "2000.00",
+            "maxGrossExposure": "2000.00",
+            "sessionTransitions": [],
+            "cumulativeLossLimit": "200.00"
+          },
+          "expiredMandateAdmission": {
+            "action": "PAUSED",
+            "reason": "MANDATE_INACTIVE",
+            "quantity": 0
+          }
+        }
+      },
+      "trace": [
+        "click scenario",
+        "read persisted TestRun",
+        "assert persisted same-run candidate binding or sampling and Paper facts",
+        "CLI --check-only reads same TestRun",
+        "download and verify raw evidence",
+        "anonymous and foreign-owner reads rejected",
+        "expired session displays an error",
+        "restored owner session resumes last TestRun",
+        "close browser page and reopen the route; last TestRun resumes",
+        "read persisted observation summary in WAITING state"
+      ]
+    }
+  ]
+}

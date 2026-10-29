@@ -227,7 +227,7 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value) ?? "undefined";
 }
 
-function samplingScopeKey(scope: SnapshotSamplingScope): string {
+export function samplingScopeKey(scope: SnapshotSamplingScope): string {
   return scope.ownerId === "system" && !scope.accountId && !scope.namespace && !scope.testRunId ? "system" : createHash("sha256").update(stableJson(scope)).digest("hex");
 }
 

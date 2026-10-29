@@ -16,8 +16,8 @@ type JsonServerResponse = ServerResponse<IncomingMessage>;
 const json = (response: JsonServerResponse, status: number, body: unknown) => { response.writeHead(status, { "content-type": "application/json" }); response.end(JSON.stringify(body)); };
 const unavailableRegistry: ApprovedRegistryClient = { async getApprovedPromotionRegistryVersion() { return { status: 503 }; } };
 
-export function createGovernanceServer(input: { repository: ExecutionAuthorizationRepository; proposals?: PostgresProposalRepository; mandates?: PostgresAutoMandateRepository; strategySnapshots?: PostgresStrategySnapshotRepository; tokens: GovernanceTokens; registry?: ApprovedRegistryClient }) {
-  const api = new GovernanceApi(input.repository, input.tokens, input.registry ?? unavailableRegistry, input.proposals, input.mandates, input.strategySnapshots);
+export function createGovernanceServer(input: { repository: ExecutionAuthorizationRepository; proposals?: PostgresProposalRepository; mandates?: PostgresAutoMandateRepository; strategySnapshots?: PostgresStrategySnapshotRepository; tokens: GovernanceTokens; registry?: ApprovedRegistryClient; localPriceFacts?: { platformUrl: string; governanceToken: string } }) {
+  const api = new GovernanceApi(input.repository, input.tokens, input.registry ?? unavailableRegistry, input.proposals, input.mandates, input.strategySnapshots, input.localPriceFacts);
   return createServer(async (request, response) => {
     const pathname = (request.url ?? "").split("?", 1)[0];
     if (request.method === "GET" && pathname === "/ready") {
@@ -33,8 +33,10 @@ export function createGovernanceServer(input: { repository: ExecutionAuthorizati
     let rawBody = "";
     for await (const chunk of request) {
       rawBody += chunk;
-      if (pathname === "/internal/v1/candidate-mandates/readiness" && Buffer.byteLength(rawBody, "utf8") > 16384) {
-        return json(response, 413, { error: "candidate Mandate binding request exceeds 16 KiB" });
+      const maxBodyBytes = pathname === "/internal/v1/candidate-mandates/readiness" || pathname === "/internal/v1/c5-local/orders/authorize" ? 16384 : Number.POSITIVE_INFINITY;
+      if (Buffer.byteLength(rawBody, "utf8") > maxBodyBytes) {
+        const description = pathname === "/internal/v1/c5-local/orders/authorize" ? "C5 local authorization request exceeds 16 KiB" : "candidate Mandate binding request exceeds 16 KiB";
+        return json(response, 413, { error: description });
       }
     }
     const result = await api.handle({
@@ -57,7 +59,7 @@ export async function startGovernanceService(env: NodeJS.ProcessEnv = process.en
     const registry = registryUrl && registryToken && registryToken.length >= 32
       ? new QuantApprovedRegistryAdapter(registryUrl, registryToken)
       : unavailableRegistry;
-    const server = createGovernanceServer({ repository: new PostgresExecutionAuthorizationRepository(pool), proposals: new PostgresProposalRepository(pool), mandates: new PostgresAutoMandateRepository(pool), strategySnapshots: new PostgresStrategySnapshotRepository(pool), tokens: loadGovernanceTokens(env), registry });
+    const server = createGovernanceServer({ repository: new PostgresExecutionAuthorizationRepository(pool), proposals: new PostgresProposalRepository(pool), mandates: new PostgresAutoMandateRepository(pool), strategySnapshots: new PostgresStrategySnapshotRepository(pool), tokens: loadGovernanceTokens(env), registry, localPriceFacts: { platformUrl: env.STOCKQUANT_PLATFORM_API_URL?.trim() || "http://127.0.0.1:3000", governanceToken: env.STOCKQUANT_SERVICE_TOKEN_DECISION_GOVERNANCE?.trim() ?? "" } });
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
       server.listen(Number(env.STOCKQUANT_PORT ?? 3007), env.STOCKQUANT_BIND_HOST ?? "127.0.0.1", resolve);

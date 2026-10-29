@@ -20,6 +20,7 @@ const money = (value: string): bigint | null => {
   return BigInt(whole) * 10_000n + BigInt(fraction.padEnd(4, "0"));
 };
 const shanghaiTime = (value: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(new Date(value));
+const shanghaiDate = (value: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
 
 /**
  * Evaluates one supplied snapshot under Candidate A's exact 09:31–09:35 and
@@ -33,8 +34,10 @@ export function admitV24CandidateExecution(input: {
   const acceptedAt = timestamp(input.acceptedAt); const evaluatedAt = timestamp(input.evaluatedAt);
   const observedAt = timestamp(input.snapshot.observedAt); const ingestedAt = timestamp(input.snapshot.ingestedAt);
   if (![acceptedAt, evaluatedAt].every(Number.isFinite) || evaluatedAt < acceptedAt) return { status: "PAUSED", reason: "SNAPSHOT_INVALID" };
-  const acceptedLocal = shanghaiTime(input.acceptedAt);
-  if (acceptedLocal < V24_CANDIDATE_EXECUTION_POLICY.windowStart || acceptedLocal >= V24_CANDIDATE_EXECUTION_POLICY.windowEndExclusive) return { status: "PAUSED", reason: "EXECUTION_WINDOW_CLOSED" };
+  const acceptedLocal = shanghaiTime(input.acceptedAt); const evaluatedLocal = shanghaiTime(input.evaluatedAt);
+  if (shanghaiDate(input.acceptedAt) !== shanghaiDate(input.evaluatedAt)
+    || acceptedLocal < V24_CANDIDATE_EXECUTION_POLICY.windowStart || acceptedLocal >= V24_CANDIDATE_EXECUTION_POLICY.windowEndExclusive
+    || evaluatedLocal < V24_CANDIDATE_EXECUTION_POLICY.windowStart || evaluatedLocal >= V24_CANDIDATE_EXECUTION_POLICY.windowEndExclusive) return { status: "PAUSED", reason: "EXECUTION_WINDOW_CLOSED" };
   if (input.snapshot.status === "UNKNOWN") return { status: "PAUSED", reason: "SNAPSHOT_STATUS_UNKNOWN" };
   if (![observedAt, ingestedAt].every(Number.isFinite) || ingestedAt < observedAt || ingestedAt > evaluatedAt || input.snapshot.security !== V24_CANDIDATE_EXECUTION_POLICY.security || input.snapshot.market !== V24_CANDIDATE_EXECUTION_POLICY.market || input.snapshot.status !== "READY") return { status: "PAUSED", reason: "SNAPSHOT_INVALID" };
   if (observedAt <= acceptedAt) return { status: "PAUSED", reason: "SNAPSHOT_NOT_AFTER_ACCEPTANCE" };

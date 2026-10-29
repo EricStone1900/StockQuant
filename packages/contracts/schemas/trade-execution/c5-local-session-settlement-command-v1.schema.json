@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/trade-execution/c5-local-session-settlement-command-v1.schema.json",
+  "title": "C5 local session settlement command",
+  "type": "object",
+  "required": ["ownerId", "accountId", "namespace", "testRunId", "asOf"],
+  "properties": {
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "pattern": "^v24-paper-v2-" },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "asOf": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

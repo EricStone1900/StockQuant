@@ -13,14 +13,14 @@ export function arePortfolioServiceCredentialsValid(credentials: PortfolioCreden
 const ACCOUNT_ID = "[^/]+";
 
 function isAllowedRoute(caller: string, method: string, path: string): caller is PortfolioCaller {
-  if (caller === "platform-api-service") return (method === "POST" && path === "/internal/v1/accounts/initialize") || (method === "GET" && new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/snapshot$`, "u").test(path));
+  if (caller === "platform-api-service") return (method === "POST" && path === "/internal/v1/accounts/initialize") || (method === "GET" && new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/(?:snapshot|sellable)$`, "u").test(path));
   if (caller === "trade-execution-service") return method === "POST" && [
     new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/fills$`, "u"),
     new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/fills/[^/]+/fee-corrections$`, "u"),
     new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/reservations$`, "u"),
     new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/settlements$`, "u"),
     new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/reservations/${ACCOUNT_ID}/resolve$`, "u")
-  ].some((route) => route.test(path));
+  ].some((route) => route.test(path)) || (caller === "trade-execution-service" && method === "GET" && new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/snapshot$`, "u").test(path));
   if (caller === "historical-replay-worker") return (method === "POST" && path === "/internal/v1/accounts/initialize") || (method === "GET" && new RegExp(`^/internal/v1/accounts/${ACCOUNT_ID}/snapshot$`, "u").test(path));
   if (caller === "test-harness") return method === "POST" && path === "/internal/v1/faults/fill";
   return false;

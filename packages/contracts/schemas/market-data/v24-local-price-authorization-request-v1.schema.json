@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v24-local-price-authorization-request-v1.schema.json",
+  "title": "V24LocalPriceAuthorizationRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mandateId", "mandateVersion", "ownerId", "accountId", "namespace", "testRunId", "targetId", "clientOrderId", "evaluatedAt"],
+  "properties": {
+    "mandateId": { "type": "string", "format": "uuid" },
+    "mandateVersion": { "type": "integer", "minimum": 1 },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "namespace": { "type": "string", "minLength": 1 },
+    "testRunId": { "type": "string", "format": "uuid" },
+    "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "clientOrderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "evaluatedAt": { "type": "string", "format": "date-time" }
+  }
+}

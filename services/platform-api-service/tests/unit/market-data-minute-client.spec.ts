@@ -57,6 +57,10 @@ describe("OpenAPI-generated Market Data minute-import client", () => {
     expect(request).toHaveBeenLastCalledWith("http://market-data:3002/v2/minute/parquet/uploads/upload-1", expect.objectContaining({ method: "GET", headers: { ...headers, "x-stockquant-owner-id": "owner-2" } }));
     await client.actOnMarketDataMinuteUpload("csv", "upload-1", "finalize", "owner-1");
     expect(request).toHaveBeenLastCalledWith("http://market-data:3002/v2/minute/csv/uploads/upload-1/finalize", expect.objectContaining({ method: "POST", body: "{}" }));
+    await client.actOnMarketDataMinuteUpload("csv", "upload-1", "finalize-queued", "owner-1");
+    expect(request).toHaveBeenLastCalledWith("http://market-data:3002/v2/minute/csv/uploads/upload-1/finalize-queued", expect.objectContaining({ method: "POST", body: "{}", headers: { ...headers, "x-stockquant-owner-id": "owner-1", "content-type": "application/json" } }));
+    await client.getMarketDataMinuteUploadFinalization("parquet", "upload-1", "owner-2");
+    expect(request).toHaveBeenLastCalledWith("http://market-data:3002/v2/minute/parquet/uploads/upload-1/finalization", expect.objectContaining({ method: "GET", headers: { ...headers, "x-stockquant-owner-id": "owner-2" } }));
   });
 
   it("uses generated preview and immutable import read routes with the service identity", async () => {

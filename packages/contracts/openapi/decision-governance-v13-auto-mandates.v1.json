@@ -4,6 +4,16 @@
   "servers": [{ "url": "http://decision-governance-service:3007" }],
   "components": { "securitySchemes": { "ServiceBearer": { "type": "http", "scheme": "bearer" } } },
   "paths": {
+    "/internal/v1/c5-local/orders/reservations/verify": {
+      "post": {
+        "operationId": "verifyV24C5LocalOrderReservation",
+        "summary": "Trade rechecks exact persisted C5 local Mandate reservation before FakeBroker execution",
+        "security": [{ "ServiceBearer": [] }],
+        "parameters": [{ "name": "x-stockquant-service-id", "in": "header", "required": true, "schema": { "const": "trade-execution-service" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "https://stockquant.local/contracts/decision-governance/v24-c5-local-reservation-verification-v1.schema.json" } } } },
+        "responses": { "200": { "description": "Exact persisted reservation verified" }, "409": { "description": "Reservation facts differ" }, "422": { "description": "Invalid identity" }, "503": { "description": "Persistence unavailable" } }
+      }
+    },
     "/internal/v1/auto-mandates/{mandateId}/runs/{testRunId}": {
       "get": {
         "operationId": "readV13AutoPolicyMandate",

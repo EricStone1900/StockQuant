@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { SnapshotSamplingObservation } from "../ports/snapshot-observation.js";
 import { classifyQuoteAge } from "./v21-market-observation.js";
 
-const fixtureVersions = new Set(["v2.1-snapshot-sampling-1", "v2.1-snapshot-stale-1"]);
+const fixtureVersions = new Set(["v2.1-snapshot-sampling-1", "v2.1-snapshot-stale-1", "v24-c5-local-snapshot-20240104-1", "v24-c5-local-snapshot-20240105-1"]);
 type FixtureObservation = Pick<SnapshotSamplingObservation, "snapshotId" | "securityId" | "observedAt" | "price" | "status">;
 
 export function parseV21SnapshotSamplingFixture(input: {

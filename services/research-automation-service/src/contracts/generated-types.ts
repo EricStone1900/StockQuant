@@ -2453,6 +2453,22 @@ export type V32ReadinessRunResult = {
   "evidence": Record<string, unknown>;
 }
 
+export type V24C5LocalReservationVerificationV1 = {
+  "reservationId": string;
+  "mandateId": string;
+  "mandateVersion": number;
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "clientOrderId": string;
+  "commandHash": string;
+  "proposalId": string;
+  "proposalVersion": number;
+  "proposalHash": string;
+  "amount": string;
+}
+
 export type MarketDataAlertAcknowledgeRequest = {
   "actorId": string;
 }
@@ -2548,7 +2564,7 @@ export type MarketDataDailyBarCompletionRequest = {
   "namespace": string;
   "testRunId": string;
 };
-  "fixtureVersion"?: 'v2.1-daily-bars-1' | 'v24-c5-daily-bars-1';
+  "fixtureVersion"?: 'v2.1-daily-bars-1' | 'v24-c5-daily-bars-1' | 'v24-c5-prior-20261014-1' | 'v24-c5-prior-20261015-1' | 'v24-c5-local-daily-20240102-1' | 'v24-c5-local-daily-20240103-1' | 'v24-c5-local-daily-20240104-1' | 'v24-c5-local-daily-20240105-1' | 'v24-c5-local-daily-20240108-1' | 'v24-c5-local-daily-20240109-1' | 'v24-c5-local-daily-20240110-1';
 }
 
 export type MarketDataDailyBarCompletionTaskResult = {
@@ -3253,6 +3269,97 @@ export type V22StageRunRequest = {
   "fileFormat"?: 'CSV' | 'PARQUET';
 } & unknown
 
+export type V24LocalPriceAuthorizationRequestV1 = {
+  "mandateId": string;
+  "mandateVersion": number;
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "targetId": string;
+  "clientOrderId": string;
+  "evaluatedAt": string;
+}
+
+export type V24LocalPriceFactsV1 = {
+  "target": {
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "targetId": string;
+  "clientOrderId": string | null;
+  "dataMode": string;
+  "fixtureSha256": string;
+  "strategySha256": string;
+  "sessionDate": string;
+  "evaluationAt": string;
+  "input": {
+  "referencePrice": string;
+};
+  "decision": {
+  "action": string;
+  "quantity": number;
+};
+  "dailyBarProvenance": {
+  "completionIds": Array<string>;
+};
+};
+  "intent": {
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "clientOrderId": string;
+  "targetId": string;
+  "security": string;
+  "side": string;
+  "quantity": number;
+  "acceptedAt": string;
+  "status": string;
+};
+  "selection": V24LocalSnapshotSelectionResultV1;
+}
+
+export type V24LocalSnapshotEnqueueResultV1 = {
+  "planId": string;
+  "taskId": string;
+  "created": boolean;
+  "externalRequests": 0;
+  "placeOrders": false;
+}
+
+export type V24LocalSnapshotRequestV1 = {
+  "scope": {
+  "market": 'CN_A';
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+};
+  "sessionDate": '2024-01-04' | '2024-01-05';
+}
+
+export type V24LocalSnapshotSelectionResultV1 = {
+  "status": 'WAITING' | 'REJECTED' | 'SELECTED';
+  "reason"?: string;
+  "planId"?: string;
+  "taskId"?: string;
+  "observation"?: {
+  "snapshotId": string;
+  "securityId": string;
+  "sourceId": string;
+  "dataMode": 'FIXTURE' | 'REAL';
+  "observedAt": string | null;
+  "ingestedAt": string | null;
+  "availableAt": string | null;
+  "ageSeconds": number | null;
+  "freshness": 'FRESH' | 'STALE' | 'UNKNOWN';
+  "price": string;
+  "status": 'READY' | 'STALE' | 'UNKNOWN';
+};
+}
+
 export type MarketDataWatchlistUpdate = {
   "securities": Array<string>;
 }
@@ -3379,6 +3486,62 @@ export type V12RDagentProbePreview = {
 };
   "modelCalls": string;
   "reason"?: string;
+}
+
+export type C5LocalFakeBrokerExecutionCommand = {
+  "authorization": {
+  "mandateId": string;
+  "mandateVersion": number;
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "targetId": string;
+  "clientOrderId": string;
+  "evaluatedAt": string;
+  "commandHash": string;
+  "reservationId": string;
+  "proposal": {
+  "proposalId": string;
+  "proposalVersion": number;
+  "contentHash": string;
+  "ownerId": string;
+  "testRunId": string;
+  "accountId": string;
+  "strategyVersion": string;
+  "operation": 'REBALANCE';
+  "market": 'CN_A';
+  "currency": 'CNY';
+  "legs": Array<{
+  "securityId": '600000.SH';
+  "side": 'BUY' | 'SELL';
+  "quantity": 100;
+  "limitPrice": string;
+  "estimatedFee": '5.00';
+}>;
+};
+  "priceEvidence": {
+  "targetId": string;
+  "clientOrderId": string;
+  "snapshotId": string;
+  "side": 'BUY' | 'SELL';
+  "quantity": 100;
+  "price": string;
+  "fee": '5.00';
+  "budgetAmount": string;
+  "quoteAgeSeconds": number;
+  "deviationBps": number;
+  "observedAt": string;
+};
+};
+}
+
+export type C5LocalSessionSettlementCommand = {
+  "ownerId": string;
+  "accountId": string;
+  "namespace": string;
+  "testRunId": string;
+  "asOf": string;
 }
 
 export type FakeBrokerCancellationResult = {

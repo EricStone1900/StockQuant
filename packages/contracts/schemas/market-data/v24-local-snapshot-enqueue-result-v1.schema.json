@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v24-local-snapshot-enqueue-result-v1.schema.json",
+  "title": "V24LocalSnapshotEnqueueResultV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "planId",
+    "taskId",
+    "created",
+    "externalRequests",
+    "placeOrders"
+  ],
+  "properties": {
+    "planId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created": {
+      "type": "boolean"
+    },
+    "externalRequests": {
+      "const": 0
+    },
+    "placeOrders": {
+      "const": false
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { prepareV24FixtureDailyTarget } from "./v24-daily-target.js";
 import type { V24DailyTarget, V24DailyTargetRepository, V24DailyTargetScope } from "../ports/v24-daily-target-repository.js";
 import type { DailyDirectionInput } from "./v24-daily-direction.js";
 
-type Account = { cash?: { amount?: string }; positions?: Array<{ security?: string; quantity?: number }> };
+type Account = { cash?: { amount?: string }; positions?: Array<{ security?: string; quantity?: number; sellableQuantity?: number }> };
 
 /**
  * The C5 target materializer is deliberately TestRun-scoped.  It can be moved
@@ -26,7 +26,9 @@ export class V24FixtureDailyTargetWorker {
     const targetInput = {
       ...fixture.input,
       clock: { now: () => new Date(input.evaluatedAt) },
-      account: { heldQuantity, sellableQuantity: heldQuantity, settledCash: settledCash ?? "" },
+      // AccountSnapshot currently exposes holdings but not a sellable balance.
+      // Unknown availability must not become permission to sell.
+      account: { heldQuantity, sellableQuantity: position?.sellableQuantity ?? 0, settledCash: settledCash ?? "" },
       mandate: { ...fixture.input.mandate, paused: input.mandateStatus !== "ACTIVE" },
     };
     const result = await prepareV24FixtureDailyTarget(this.targets, input.scope, targetInput, fixture.sha256);

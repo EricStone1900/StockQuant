@@ -1,4 +1,58 @@
+2026-10-29 V2本地候选增量证据便携性复核：已将C1/C2及C5 Fixture小型导出按原Manifest保留并更新新引用；干净HEAD已有3,133处历史证据链接缺失，叠加本候选后新增缺失0，但整体干净检出仍不能通过文档检查。候选约322文件、7.1 MB，排除截图/Trace和本地数据；范围审阅和最终精确候选签收仍待完成。详见[候选核对](../evidence/audits/2026-10-29-v2-local-learning-candidate-review.md)。
+
+2026-10-29 V2本地学习版候选便携性核对：工作区文档/契约/Fixture、6包类型和25项导出/验收脚本测试通过；但用HEAD加拟选文件模拟干净检出时，文档有3,136处历史证据引用缺失，原V2版本检查的10组Run与62项证据检查缺失。已补存4组C1/C2合成Fixture导出；C3 RECORDED样本按既有本地使用边界未复制。候选尚未冻结或签收，需先解决证据可获取性并核对拟分享内容；见[候选核对](../evidence/audits/2026-10-29-v2-local-learning-candidate-review.md)。
+
+2026-10-29 项目所有者同意按[V2本地学习版范围](decisions/2026-10-29-v2-local-learning-version-scope.md)顺序收口；当前整理候选和必要证据，`V2_LOCAL_LEARNING_V1`仍为IN_PROGRESS，整版精确候选尚未签收。原V2完整版门禁保留，真实研究/PIT、20日观察、全市场分钟容量和长期稳定性等仍为未完成或延期。
+
+2026-10-29 C7 §7.6版本级清单核对完成：目前证据/文档/TestRun结构检查PASS（519引用、46个活动Manifest、93条目；5阶段结构审计PASS；TestRun关联10个、未解决0），但五阶段全部业务门禁、真实来源/研究、V2.4连续Paper与20个合格实际交易日、V2.5容量/长期稳定性等并未全部满足。`pnpm verify:version -- --version V2`仍退出2、状态INCOMPLETE；未冻结候选。逐项判断及范围边界见[C7 §7.6核对表](../evidence/audits/2026-10-29-v2-c7-closeout-baseline.md)。在原标准下下一步要关闭对应真实业务门禁；若转为本地Fixture版需所有者另行批准精确范围，不改写未完成清单。
+
+2026-10-29 C7顺序核对V2.5：复用已签收的C6_LOCAL_SINGLE_SOURCE_ENGINEERING及当前分钟导入/上传队列Web→持久化→同Run CLI证据，不重跑未受影响容量套件；C6局部范围PASS、备用分钟源与60日覆盖DEFERRED。V2.5整体仍PARTIALLY_IMPLEMENTED，因全市场分钟容量、真实交易时段长期稳定性、PIT与V2.4观察等原门禁未关闭；见[C7基线审计](../evidence/audits/2026-10-29-v2-c7-closeout-baseline.md)。当前V2门禁无法冻结发布候选。
+
+2026-10-29 C7顺序复核V2.3：C4批准的合成Fixture范围在当前代码上定向重跑通过，TestRun `3e0536e2-b156-41ad-b6ed-3ca7482ab7f6`完成真实隔离Web→Platform→Quant→Qlib Worker、24条预测、Artifact持久化/所有者隔离、同Run CLI只读核验及脱敏导出；外部源请求0，临时资源清理PASS。见[复验审计](../evidence/audits/2026-10-29-v23-c4-fixture-rerun-3e0536e2.md)。该结果不新增人工签署、不证明模型质量或真实市场/PIT；V2.3和V2整版门禁仍未通过。
+
+2026-10-28 C5本地范围P2已完成：隔离五服务进程同Run TestRun `88e9be16-73dc-47fc-9dd5-256aa2f85f21`通过后台BUY→SELL→HOLD×3、7项日线完成、两份快照、T+1结算及FakeBroker/Portfolio独立对账；同Run CLI `--check-only`退出0。伪造客户端价格/预算被拒、重复入队复用持久Job，单Job完成不会提前结束整Run。完整隔离报告[2026-10-28 smoke](../evidence/audits/2026-10-28-v24-paper-smoke-04f13ec530b3401688ca5bb02001ea5f.json)，P2审计[进展记录](../evidence/audits/2026-10-28-c5-local-p2-progress.md)。
+
 # 当前项目进度与执行入口
+
+2026-10-29 C6_LOCAL_SINGLE_SOURCE_ENGINEERING本地单源工程范围已由项目所有者验收并经独立复核，结论PASS；V2.5/V2整版继续未完成。项目所有者批准[备用分钟源延期](decisions/2026-10-29-c6-backup-minute-source-deferral.md)：第二源接入及60交易日覆盖DEFERRED，不再寻找/探测或索取TDX/备用源材料。既有100×60/500×60归档、HTTP→PG及100k容器证据复用。V2.5页可对已发布DataVersion执行最多100 Bar的真实持久查询，并将Import ID、SHA及查询摘要绑定到owner-scoped TestRun；真实Market Data/Platform/Web/隔离PG/同Run CLI烟测及同Run脱敏证据导出通过，见[接线审计](../evidence/audits/2026-10-29-v25-minute-import-run-integration.md)和[验收导出审计](../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。分钟导入全局发布上限为1,440,000根Bar（沿用500×60基线）；两条导入路径在数据库事务锁下拒绝超限。分钟上传持久完成队列、租约Worker、重启接续、所有者状态读取、排队取消已通过真实隔离HTTP/PG烟测；V2.2大文件入口与V2.5上传任务页通过定向Web E2E 5/5。单源增量手册和拒绝/恢复自动验证已执行；项目所有者确认验收并经二次复核后，下一计划包为C7版本收口。运行中任务协作取消及跨设备任务检索仍未实现；全市场分钟、长期稳定性、PIT与V2.4实际观察继续未完成，V2仍未完成。
+
+2026-10-29 C7版本门禁基线：`pnpm verify:version -- --version V2`状态`INCOMPLETE`。证据引用和五阶段手册结构审计通过；随后为V2.4/C5本地Web纵切重新运行TestRun `c2c7d74c-1675-43f1-8112-056f72f91334`，6/6断言PASS、同Run CLI与脱敏导出通过，补齐结构化导出关联。V2.3/V2.4/V2.5整阶段门禁和版本总清单仍未完成；当前工作区跨服务有大量未提交内容，故尚未冻结发布候选。按[C7基线审计](../evidence/audits/2026-10-29-v2-c7-closeout-baseline.md)继续处理，不把C5/C6本地签收扩大为V2整版PASS。
+
+2026-10-29 C5 P6候选复核及所有者验收完成：逐项核对P1–P5证据、源码/Fixture/锁文件指纹、Smoke与导出报告，并确认范围限制。项目所有者明确回复“确认验收通过”，故`C5_LOCAL_ENGINEERING_V1`记录为PASS（仅本地工程范围）；P6记录见[候选复核与签收](../evidence/audits/2026-10-29-c5-local-p6-candidate-review.md)。工作区有大量本地变更，候选由记录的差异摘要绑定；Docker复核时不可访问，镜像身份及运行后清理引用已通过Smoke报告。20个实际交易日继续延期，V2.4完整范围和V2整版未通过。
+
+2026-10-29 C5本地范围P1–P6工程及验收完成：P5专属C5页面覆盖正常多日、未激活Mandate拒绝、关闭页面后重开并读取同一持久Job、显式暂停、同Run CLI只读核验及证据导出。完整隔离API/Web/CLI Smoke退出0，业务事实在`--check-only`前后不变，临时数据库/容器/镜像已清理。项目所有者已签收`C5_LOCAL_ENGINEERING_V1`本地范围，C5该范围PASS；20个实际交易日观察独立延期，V2.4完整范围和V2整版未通过。
+
+2026-10-29执行计划更新：`C5_LOCAL_ENGINEERING_V1`已按[V2主计划§7.2.2](./prd/v2-data-and-replay/00-version-plan.md#722-c5本地工程完成与收口计划2026-10-28)完成P1–P6，项目所有者已签收，结论为本地工程范围PASS。20个实际交易日观察独立延期`NOT_RUN`；V2.4原完整范围及V2整版不自动通过。范围见[决定](./decisions/2026-10-28-c5-local-engineering-closeout-scope.md)及[P6签收记录](../evidence/audits/2026-10-29-c5-local-p6-candidate-review.md)。
+
+2026-10-29 C5 P4工程完成：隔离完整Smoke退出0，C5 TestRun `d80d4536-6149-4742-994b-30cf05a5f817`六项断言PASS、同Run CLI退出0。`v24-c5-local-engineering-1`的2个预热日+5个连续评估会话覆盖BUY/SELL/HOLD与T+结算。浏览器测试进程退出后，本地Platform及隔离服务实际单调运行`1,800,927 ms`；中点SIGKILL后约0.532秒恢复，重启前后账本、Fill、订单、预留及Outbox计数一致，真实行情请求0、LIVE关闭。报告哈希`b628ec52f65db1455257ec3a266cd768efdce0b6db530d012c0e11ee41f1999d`，详见[P4审计](../evidence/audits/2026-10-29-c5-local-p4-progress.md)和[机器报告](../evidence/audits/2026-10-29-v24-paper-smoke-e40e870322ae446ba4b9ed6a875e5647.json)。首轮被包装器旧240秒超时中断，失败记录保留；修复为有界可配置超时后复验通过，详见[失败记录](../evidence/audits/2026-10-29-c5-p4-initial-attempt-failed.md)。该短时Fixture进程不计20日实际观察；P5/P6仍未完成，C5保持PENDING。
+
+2026-10-29 C5 P5工程完成：新增专属Web纵切`/acceptance/v2/v2.4/c5-local`的Chromium验收，Web TestRun `06e40938-b6aa-4116-adb6-ab6d8a0eba2c`五个会话BUY→SELL→HOLD×3、六项断言PASS；未激活Mandate授权请求HTTP 409且无订单/Fill。页面关闭后重开通过localStorage恢复原Run并读到持久Job，全部Mandate显式暂停；同Run `verify:stage -- --stage V2.4 --scenario c5-local-engineering --run 06e40938-b6aa-4116-adb6-ab6d8a0eba2c --check-only`退出0，专属证据导出成功，Manifest SHA-256 `8e4232ac3a84331e7d70af32e5e43dadbdedc1fe3b7b3172219816f85701c1cc`。完整隔离API/Web/CLI Smoke报告SHA-256 `0027a5f114e406d01993e55c50700f08774bd997ff74336d94adda8e1102a2aa`；六个既有Web normal/rejection/recovery等场景及同Run CLI通过，检查前后业务计数不变，临时数据库/容器/镜像清理完成。详见[P5审计](../evidence/audits/2026-10-29-c5-local-p5-progress.md)、[完整Smoke](../evidence/audits/2026-10-29-v24-paper-smoke-b95154f8d6aa48b6ae7c90ab1ad5dc38.json)、[Web/CLI场景报告](../evidence/audits/2026-10-29-v24-paper-web-e2e-77769075-660f-4ac4-8b3f-70cc43d1f55c.json)和[导出包](../evidence/audits/2026-10-29-v24-c5-local-export-06e40938/evidence.json)。此为P5完成时的进度截面；P6最终用户签收见上方最新记录。
+
+2026-10-29 C5 P3工程完成：完整隔离Smoke退出0，C5 TestRun `478d5a87-a97d-4c7d-9118-ce5890316e8f`同Run CLI退出0。一次执行响应在FakeBroker提交后丢失，Worker按已持久化Target/Intent恢复，Trade验证原单、Fill、预留及Outbox，没有重复订单或成交；服务授权矩阵仅增加Trade Execution对owner-scoped账户快照的只读访问。日终注入的外部UNKNOWN委托使Incident OPEN，重复处理使用同一Incident，移除精确测试差异后匹配关账将同一Incident置为RESOLVED；实际订单/Fill数均为2，风险结束累计亏损`35.0000`。隔离证据见[P3审计](../evidence/audits/2026-10-29-c5-local-p3-progress.md)和[2026-10-29 Smoke报告](../evidence/audits/2026-10-29-v24-paper-smoke-69351f6b926a42baab7d739f3da314ad.json)。此项不替代P4–P6或当前范围人工签收。
+
+2026-10-28 C5执行窗口修正：Candidate A门禁现在要求接受和评估均在同一上海本地日的09:31–09:35窗口；09:35边界和隔日新鲜快照失败关闭。19项定向测试与类型检查通过；新增边界尚无Web/CLI同Run证据，连续链和C5仍未完成。见[审计](../evidence/audits/2026-10-28-v24-execution-window-evaluation.md)。
+
+2026-10-28 C5采样时钟修正：恢复检查、执行窗口和日终事件不再覆盖`lastSampleAt`，避免以非采样事件掩盖采样缺口；34项定向测试与类型检查通过。旧持久时间因缺少事件类型不能追溯认定为有效采样；连续链和C5仍未完成。见[审计](../evidence/audits/2026-10-28-v24-sampling-clock-boundary.md)。
+
+2026-10-28 C5隔离Fixture目标Web增量：验收页新增创建、列表、查看和原Run恢复；容器Web/Chromium与同Run CLI验证任务COMPLETED、目标暂停、阶段WAITING，刷新找回和重复恢复通过。此为隔离工程子项，真实持续链、20日观察与人工签收仍未完成，C5保持`PENDING`。见[记录](../evidence/audits/2026-10-28-v24-c5-fixture-target-web.md)。
+
+2026-10-28 V2.4浏览器502复核：完整隔离复验的现有六个浏览器场景、各自CLI与关闭重开均通过，502未复现；原失败未保留代理日志，根因仍未确认。烟测现会在后续浏览器失败时采集Web容器日志。新Fixture入口后续增量见上条。见[复核记录](../evidence/audits/2026-10-28-v24-web-502-followup.md)。
+
+2026-10-28 C5目标提交后恢复增量：隔离测试确认目标已提交、任务仍CLAIMED后，终止Platform及被阻塞的数据库会话；租约自然到期后原任务第二次领取，复用唯一暂停目标且无交易副作用。单独终止Platform时已发出的数据库语句可能完成；另一次浏览器复验出现502，后续复核见上条。新入口Web验收与C5仍未完成。见[审计](../evidence/audits/2026-10-28-v24-c5-committed-target-crash.md)。
+
+2026-10-28 C5隔离Worker进程恢复增量：真实隔离Platform在Worker领取并读取日线时被SIGKILL，重启后原租约自然到期，同Run任务第二次领取并完成，唯一目标保持暂停、无交易副作用。目标写入后的后续增量见上条；C5仍`PENDING`。见[审计](../evidence/audits/2026-10-28-v24-c5-fixture-worker-crash.md)。
+
+2026-10-27 C5隔离创建恢复增量：保存原Run后支持所有者查找与重复恢复；隔离故障测试停止并重启Market Data，验证账户已创建后同Run恢复复用唯一账户与目标任务，不产生订单副作用。Worker真实进程接管后续验证见上条。见[审计](../evidence/audits/2026-10-27-v24-c5-fixture-setup-recovery.md)。
+
+2026-10-27 C5隔离目标入口增量：两日冻结合成日线、独立Run创建和所有者任务查询已接入实际服务。隔离多服务验证后台任务完成并生成`PAUSED/MANDATE_INACTIVE`目标，订单、成交及预留未增加；同Run CLI返回2、阶段保持`WAITING`。当时创建中断恢复尚未验证，后续增量见上条。见[审计](../evidence/audits/2026-10-27-v24-c5-fixture-target-entry.md)。
+
+2026-10-27 C5隔离后台目标子项：新增默认关闭的Fixture目标Worker、受限持久任务与生成服务客户端；隔离PG验证租约接管、旧Worker拒绝、最后一次领取后已提交目标恢复及取消不领取。该记录描述当时状态；后续入口增量见上条。详见[审计](../evidence/audits/2026-10-27-v24-c5-fixture-target-worker.md)。
+
+2026-10-27 C5隔离目标协调子项：新增两日持久完成事实→冻结Fixture暂停目标协调器，校验范围、数据可用时间、日历连续性与输入一致性，并保留完成身份；隔离单元和PostgreSQL幂等/重新连接验证通过。尚未接入实际服务客户端、后台定时器或Web/CLI，Mandate保持PENDING。见[审计](../evidence/audits/2026-10-27-v24-c5-fixture-daily-coordinator.md)。
+
+2026-10-27 C5日线输入子项：新增按完整作用域、来源、版本和运行时刻读取两个指定日线完成事实的受保护接口；缺失返回null、重复版本拒绝，隔离PostgreSQL和HTTP重启验证通过。它不判断交易日连续，也尚未连接目标协调器；自动执行链、同Run Web/CLI与20日观察仍未完成。见[日线读取审计](../evidence/audits/2026-10-27-v24-c5-daily-session-read.md)。
+
+2026-10-27 C5运行边界修正：现有连续调度器仍只执行HOLD观察，Candidate A目标、授权、执行与日终对账尚未接成持续后台链。HOLD观察即使采样与对账质量满足旧口径，也不计入新候选链的20日观察，事件记录`CANDIDATE_A_CONTINUOUS_CHAIN_NOT_CONNECTED`；历史记录保留。Fixture目标物化器不再把账户持仓推断成可卖数量，缺少可卖事实时按0处理。相关单测30项、类型和文档检查通过，见[边界审计](../evidence/audits/2026-10-27-v24-c5-observation-boundary.md)。自动目标协调及跨日/重启/断网同Run验收仍待完成，C5保持`PENDING`。
 
 2026-10-25 C5当前切片：所有者已[确认候选A参数用于实现/隔离验证](decisions/2026-10-24-c5-candidate-a-parameters.md)，不再等待重复确认。冻结日线驱动不可变PostgreSQL日频目标及既有Fixture治理/执行/账本链已通过；新增跨日Fixture完整覆盖前日BUY、次日SELL、卖出款待结算、结算日前严格现金预留拒绝（HTTP 409 / `INSUFFICIENT_AVAILABLE_CASH`）、结算日释放和FakeBroker/Portfolio对账。场景版本2.2.0的五个API与五个Chromium场景及各自CLI复验通过，完整隔离报告为[API/Web/CLI smoke](../evidence/audits/2026-10-25-v24-paper-smoke-c232c06585d844a285f9c768162e3293.json)，Web五场景报告为[浏览器验收](../evidence/audits/2026-10-25-v24-paper-web-e2e-23768f56-8e3b-4d28-877a-e08772da42ea.json)，两者均`PASS`且`activeServicesTouched=false`。本轮新增`candidate-binding`隔离场景：Candidate A 的策略SHA、风险/费用版本和10,000 CNY独立账户会写入新的TestRun与Governance持久Mandate；Mandate必须保持`PENDING`，预算、订单与成交均为零，调度保持`STOPPED`。新增可由后台调用的TestRun scoped日频目标物化器；它从持久账户读取事实，并对`PENDING` Mandate 固化`PAUSED/MANDATE_INACTIVE`目标、没有订单身份。候选绑定还会从同scope Portfolio快照投影净值、持仓市值、总敞口和累计损失；没有独立FakeBroker资产和成交事实时，结果明确记录为`NOT_AVAILABLE`/不可更新，绝不把零订单推断成已完成双账核对或日累计。隔离正常、恢复和外部差异场景现会消费实际持久 FakeBroker Fill：先核对Portfolio与独立资产`MATCH`，再在同scope行锁事务中写入日累计1025.0000、敞口1025.0000、亏损5.0000和成交指纹；并发/重连重放不重复累计，变更同一Fill内容或跨日输入会失败关闭。正式Web会展示该风险账，Chromium/API/CLI同Run复验通过。已结算应收款不再重复计入净值。**C5仍PENDING**：活动Mandate/账户、日终自动对账/告警、正式来源和OD-008、真实时钟长期观察及20个合格交易日、当前范围人工签收未完成；正式来源和调度保持关闭。2026-10-25新增的同一隔离跨日场景已验证风险会在下一交易日轮换：1月4日BUY后日累计成交额为1000，1月5日SELL重新从零累计为1025，1月8日结算后敞口与累计损失归零。日限额暂停后的轮换需要记录显式操作员批准；`MANDATE_INACTIVE`不能借此恢复。Candidate A的隔离执行门现固定为09:31–09:35、接受后首个`READY`快照、最多60秒且偏离最多100bps；它只形成TestRun证据，不激活Mandate或调度。以下记录保留历史，以本条为准。
 

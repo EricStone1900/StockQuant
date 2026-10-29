@@ -1,8 +1,14 @@
 # V2.5 历史数据扩容与 V2 验收
 
+2026-10-29 最新范围决定：项目所有者批准[备用分钟源延期](../../decisions/2026-10-29-c6-backup-minute-source-deferral.md)。本轮C6按本地单源范围继续，第二分钟源及60个交易日覆盖标记`DEFERRED`，停止继续选源/探测，不再将缺少TDX路径/备用源账号作为本轮起步条件。现有BaoStock冻结归档仅按既有软件验证边界复用；C6本地单源工程切片已通过验收，完整V2.5/V2继续`PARTIALLY_IMPLEMENTED`，其他缺项保留。当前接续顺序见[主计划§7.2.3](./00-version-plan.md#723-c6单源范围接续2026-10-29)，下文旧日期记录与签署保留为历史。
+
+2026-10-29独立复核补充：V2.5分钟导入查询纵切的同一Run已完成`--check-only`及脱敏证据导出，均退出0；Manifest SHA-256为`bd513afde6fbaa85edba7d7888581b5dc2be322c9cec647ee4c22dd8376dcdd3`，证据包见[导出JSON](../../../evidence/audits/2026-10-29-v25-minute-import-evidence-export-39a256a1/evidence.json)。此项仅补全C6本地单源工程范围的可追溯记录，V2.5/V2整版门禁不变。
+
 2026-09-20 状态同步：Fixture 扩容场景已补分区查询、取消终态、配额边界和 Walk-forward/PIT 纯函数断言；V2.5 页面、normal/rejection/recovery、同 Run 核对、代码套件和 Web E2E 已由用户人工确认通过。分钟级全量、真实交易时段长期稳定性、备用分钟源和 V2.4 观察门禁仍未完成。
 
 状态：PARTIALLY_IMPLEMENTED（20×60 小规模扩容切片、全量日线容量和 V2.5 整体人工验收已完成；分钟级全量、限频稳定性、备用分钟源和 V2.4 观察门禁仍待完成；Ubuntu 实机人工子项已确认通过）。版本入口：[README](./README.md)。共同约束：[三版共同规则](../05-three-version-delivery.md)。
+
+2026-10-29 当前路由：C5本地工程范围已签收PASS；C6_LOCAL_SINGLE_SOURCE_ENGINEERING的队列、配额和查询接线已完成自动验证、所有者签收及独立复核；V2.5整版仍`PARTIALLY_IMPLEMENTED`。第二分钟源/60日覆盖为`DEFERRED`。既有100×60和500×60 BaoStock归档/隔离导入证据见[当前C6入口复核](../../../evidence/audits/2026-10-29-v25-c6-current-entry-review.md)。该数据源许可字段仍`UNCONFIRMED`且研究使用未获准；不得把这些证据扩大为全市场分钟容量、第二来源覆盖或长期稳定性结论。
 
 当前工作区复核边界（2026-10-01）：现有 `V2.5` normal/rejection/recovery 后端场景由 `V25DataScaleEngine` 生成确定性合成内存样本；它们不是 BaoStock 20×60 归档上的生产导入/缓存/任务队列/数据库恢复。旧版引擎曾将多项 expected/actual 直接写为常量，相关TestRun保留作历史，但已被审计标记为不可作为行为证据。修正后的场景从Fixture操作结果动态计算，并明确生产队列、持久恢复、模型训练和真实PIT为`NOT_RUN`。新增复核见[W4动态Fixture场景审计](../../../evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.md)及[Hash](../../../evidence/audits/2026-10-01-w4-v25-dynamic-fixture-scenarios.sha256)。
 
@@ -25,6 +31,11 @@ V2.2/2.3通过；V2.4连续观察可并行累计，完成V2必须具备其证据
 本阶段所有订单、券商资产和成交均来自隔离模拟环境。真实业务数据库、Qlib或RD-Agent在声明“已验证”时必须真正执行；替身需独立标注。
 
 ## 2. 开发任务
+
+- [x] 本轮单源工程切片：复用导入/分区查询/版本隔离证据，补齐分钟上传持久排队、1,440,000 Bar发布额度、Web任务状态/排队取消及服务重启接续；真实隔离HTTP/PG配额429原子拒绝和Worker恢复通过，V2.2/V2.5定向Web E2E 5/5通过。排队可取消、运行中协作取消不支持；项目所有者已于2026-10-29确认当前候选验收，备用源及60日覆盖为DEFERRED。
+
+2026-10-29接续复核及实现：已发布DataVersion只读详情/首屏查询和持久TestRun关联见[接线审计](../../../evidence/audits/2026-10-29-v25-minute-import-run-integration.md)；分钟上传持久完成队列、租约Worker、重启接续、owner隔离和排队取消，以及真实PG容量边界HTTP拒绝见[队列审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。当前浏览器测试用例5/5通过；所有者人工验收仍待确认。
+- 备用分钟源接入及逐证券60交易日覆盖：`DEFERRED`（所有者2026-10-29批准，不计PASS，不阻塞上一项）；以下原任务中的备用源要求作为延期历史保留，其他未完成要求继续适用。
 
 - [ ] 按版本数据阶梯扩容，Fixture 的10～20只约60交易日分钟切片及 BaoStock 真实 20 标的×60 个实际交易日 5 分钟切片已完成（57,600 行、20/20 SHA-256、逐日48窗口与真实归档回放通过）；BaoStock 已筛选出 5,219 个已上市 A 股，并完成 5/100/500/5219 标的 2019～2024 日线分档、Manifest、断点恢复、幂等和逐文件完整性验证。全量日线已归档并在隔离恢复副本校验 5,219/5,219 SHA-256；分钟级全量、长期限频稳定性和可覆盖60日的第二免费分钟源仍待验证，Ubuntu 人工子项已确认通过。
 - [ ] 建立分区查询、增量导入、缓存键、任务排队/取消、并发与存储配额；扩容不改变小样本结果。
@@ -63,6 +74,8 @@ V2.2/2.3通过；V2.4连续观察可并行累计，完成V2必须具备其证据
 
 ## 7. 阶段交付待办（完成后勾选）
 
+当前C6增量：备用源延期决定已登记；本轮单源工程与自动验证已通过，项目所有者于2026-10-29确认候选验收并经独立复核。签收边界见增量审计；不从下述2026-09-20历史V2.5签署推定当前结论。
+
 以下勾选只记录本阶段交付进度，不能代替第2节逐项开发任务或版本验收结论。开发者凭实现/实测证据勾选开发项；“人工验收”仅在用户实际确认后勾选，不预填PASS。
 
 - [x] 契约、数据结构、场景定义和预期结果已冻结（V2.5 场景版本 1.0.0）。
@@ -73,12 +86,38 @@ V2.2/2.3通过；V2.4连续观察可并行累计，完成V2必须具备其证据
 - [x] 重复/恢复验证、监控池档位和 Ubuntu 实机人工子项验证完成；分钟级全量、限频稳定性和 V2.4 观察门禁仍未完成。
 - [x] 用户已通过Web及命令证据完成 V2.5 整体人工验收；Ubuntu 实机子项已于 2026-09-12 确认通过，整体确认时间为 2026-09-20。
 - [x] 操作说明与限制已更新，[本版验收表](./99-acceptance.md)已同步；V2.5 仍因分钟级全量、真实长期稳定性、备用分钟源和 V2.4 观察门禁保持 PARTIALLY_IMPLEMENTED。
+- [x] 2026-10-29单源工程增量：持久分钟上传队列、租约Worker重启恢复、排队取消、owner隔离及全局Bar额度已通过真实隔离HTTP/PG与定向Web验证；见[增量审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。
+- [x] 2026-10-29单源候选人工验收：项目所有者确认通过，独立复核后记录`C6_LOCAL_SINGLE_SOURCE_ENGINEERING` PASS；签收限制见[候选审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。
 
 ## 8. 阶段验收操作手册
 
 ### 8.1 当前可执行性与验收准备
 
-手册状态：VERIFIED_EXECUTABLE（2026-09-11 已完成 S2 小规模切片实测；全量容量、Ubuntu 和人工验收仍待完成）。
+本轮单源范围不执行备用源下载/导入/探针，也不要求TDX文件路径；下列真实源采集与TDX命令仅保留为历史接口说明，不是本次执行指令。准备阶段使用已有冻结归档或明确合成Fixture；任何新增来源调用/研究用途需另行满足原门禁。下述历史`VERIFIED_EXECUTABLE`仅对应2026-09-11旧手册，本轮增量的命令和结果见2026-10-29手册补充及其审计。
+
+#### 2026-10-29 单源增量候选手册（工程证据已执行，所有者已验收）
+
+项目根目录：`/Users/huangbosong/Documents/ChatGPT/StockQuant`。页面：`http://127.0.0.1:8080/acceptance/v2/v2.5` 与 `http://127.0.0.1:8080/acceptance/v2/v2.2`。输入只限本地合成CSV/已有已发布DataVersion；本次机器验收使用16,000行合成CSV（848,055 bytes，SHA-256 `8a1aa25c16e677629955cefc9f691d5282de1782cfe1b97a7a8ee074b68368b8`），不使用Provider。不得把该样本描述为真实行情或真实市场性能数据。
+
+机器执行命令：
+
+```bash
+pnpm --filter @stockquant/market-data-service minute-upload:http-restart-smoke
+pnpm --filter @stockquant/web test:e2e tests/e2e/v22-csv-upload.spec.ts tests/e2e/v25-durable-minute-upload-queue.spec.ts
+pnpm --filter @stockquant/market-data-service test
+pnpm --filter @stockquant/platform-api-service test
+pnpm contracts:check
+pnpm docs:check
+git diff --check
+```
+
+预期：HTTP/PG smoke 输出`status=PASS`、上传队列重启恢复、排队取消、错误owner任务读取404、解析失败无部分发布、已满1,440,000 Bar时导入HTTP返回429且导入记录数不增加；浏览器定向测试5/5通过。此次实际结果见[分钟上传队列审计](../../../evidence/audits/2026-10-29-v25-minute-upload-queue.md)。若排队任务变为`RUNNING`后才执行取消，当前合同返回冲突；只可对仍为`QUEUED`的任务验证取消。失败任务需由所有者显式重新提交Finalize；进程重启后等待租约回收，再由Worker接管。烟测数据库为随机名称并由脚本自动删除，禁止将连接串改指向共享库。
+
+人工页面核对：启动本地V2栈后，在V2.2页通过CSV文件选择和上传完成一个大于700KB的本地合成输入，提交预览/导入并确认队列状态；随后在同一浏览器打开V2.5页，点击“读取持久导入队列状态”确认任务状态及尝试次数，并在任务保持`QUEUED`时验证“取消排队中的导入”。任务开始运行时不测试取消按钮。若无适合的本地测试文件，使用上述机器烟测证据，不下载真实行情文件。读已发布版本时输入DataVersion并点击“核验持久导入并创建TestRun”；页面应展示绑定结果。人工完成后只在[本版验收表](./99-acceptance.md)填写所有者实际确认，不修改历史2026-09-20签署。
+
+手册状态：VERIFIED_EXECUTABLE。历史S2小规模切片实测日期为2026-09-11；本轮单源增量手册已按上文命令实跑并由所有者验收。V2.5原全量容量、长期稳定性、PIT、观察及整版门禁仍未完成。
+
+2026-10-29 C6增量状态：真实分钟导入查询纵切的专用Web/API/隔离PG/同Run CLI烟测已通过，操作命令和范围见[接线审计](../../../evidence/audits/2026-10-29-v25-minute-import-run-integration.md)。本增量不把旧手册升级为整阶段可执行；完整C6手册仍需完成拒绝/取消/重启流程和本轮候选复核。
 
 前置服务：V2数据/回放/模型Worker、队列/缓存/资源监控及目标架构烟测环境。
 
@@ -113,6 +152,14 @@ pnpm dev:web
 ```
 
 预期：安装与stack入口退出0；stack输出本阶段服务、端口、健康/迁移及持久卷状态。依赖不可用应非零并说明原因；不能删除旧业务卷重试。Web服务器持续运行并输出基础URL，尚在运行不要求退出码0。若已使用容器化Web，则填写已验证入口并避免重复占用端口。Ubuntu部署必须补齐实际镜像拉取/启动/迁移命令，不能仅用dev:web代替发布验证。
+
+本轮只读导入查询纵切有已验证的隔离运行入口（从仓库根目录）：
+
+```bash
+pnpm --filter @stockquant/platform-api-service v25:minute-import-run-smoke
+```
+
+命令先构建Market Data、Platform和Web，再经`run-isolated-postgres-command.mjs`创建受限临时PostgreSQL/网络，使用随机端口启动服务并运行Chromium。启动后输出本次Web/API/Market Data动态URL，手工页面路由为`/acceptance/v2/v2.5`。烟测输入是V2.2 `normal`合成Fixture（6条Bar）；Web按钮“核验持久导入并创建TestRun”只对已有DataVersion读元数据和首屏，保存同一TestRun后用CLI `--check-only`复核。预期两项断言PASS、异主读Run为403、CLI退出0，最后临时容器/网络/数据库清理并核验。无需Provider、研究用途授权、券商或活动卷；此纵切不验证队列、总存储额度、取消/重启或历史归档容量。
 
 初始化在验收中心“准备隔离运行”完成；CLI场景入口也负责同样的准备，两者调用同一业务API。准备后记录testRunId、accountId、namespace及Fixture/DataVersion；初始化业务本身是测试对象时不得预先完成被测动作。缺源/凭证/历史数据时显示缺项，不静默换成Fake并报真实场景通过。
 
@@ -161,6 +208,8 @@ pnpm verify:stage -- --stage V2.5 --run "$acceptance_run_id" --check-only
 pnpm evidence:export -- --run "$acceptance_run_id"
  echo $?
 ```
+
+本次复核使用的实际Web TestRun为`39a256a1-0e6f-41d4-a852-1f7f4f649099`，同Run CLI与导出均通过。证据Manifest SHA-256：`bd513afde6fbaa85edba7d7888581b5dc2be322c9cec647ee4c22dd8376dcdd3`。运行仍标记观察门禁`V2.4_20_TRADING_DAYS_PENDING`、`researchUseAllowed=false`。
 
 check-only仅查询此运行后端事实并追加检查证据，不创建新订单、不重放成交或发起模型调用；空ID/错误stage/越权run必须拒绝。导出只含脱敏数据，输出实际目录和Manifest Hash，不自动勾选人工验收。端到端正常/异常/恢复运行产生不同ID，导出时分别保存。
 

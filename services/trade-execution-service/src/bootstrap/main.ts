@@ -18,6 +18,7 @@ import { GeneratedReplayGovernanceClient } from "../contracts/generated-replay-g
 import { GeneratedTradeV13GovernanceClient } from "../contracts/generated-v13-governance-client.js";
 import { V13ManualPaperExecutionError, V13ManualPaperExecutionService, V13AutoPaperExecutionService, type V13ManualExecutionFaults } from "../application/v13-manual-paper-execution.js";
 import { GeneratedTradeV13AutoMandateClient } from "../contracts/generated-v13-auto-mandate-client.js";
+import { C5LocalPaperExecutionError, C5LocalPaperExecutionService } from "../application/c5-local-paper-execution.js";
 
 const port = Number(process.env.STOCKQUANT_PORT ?? 3005);
 const portfolioUrl = process.env.STOCKQUANT_PORTFOLIO_API_URL ?? "http://127.0.0.1:3001";
@@ -72,6 +73,7 @@ const fillOutboxDelivery = new FillOutboxDelivery(broker, portfolioClient, {
     throw new Error("V13_TEST_FEE_CORRECTION_PORTFOLIO_POST_REJECTED_ONCE");
   },
 });
+const c5LocalPaperExecution = new C5LocalPaperExecutionService(broker,portfolioClient,v13AutoMandateClient,fillOutboxDelivery);
 const injectedManualMultiLegRestartFaults = new Set<string>();
 const v13ManualMultiLegFaults: V13ManualExecutionFaults = {
   async afterFirstMultiLegChildCommit(command, childClientOrderId) {
@@ -174,6 +176,20 @@ createServer(async (request, response) => {
     } catch {
       return json(response, 503, { error: "V2.4 readiness policy contracts are unavailable" });
     }
+  }
+  if (request.method === "POST" && pathname === "/internal/v1/c5-local/paper-orders/execute") {
+    let raw=""; for await (const chunk of request) { raw+=chunk; if(Buffer.byteLength(raw,"utf8")>16384) return json(response,413,{error:"C5 local execution command exceeds 16 KiB"}); }
+    let body:unknown; try { body=JSON.parse(raw); } catch { return json(response,422,{error:"valid C5 local execution JSON is required"}); }
+    if(!body||typeof body!=="object"||Array.isArray(body)||Object.keys(body).sort().join(",")!=="authorization") return json(response,422,{error:"exact C5 local authorization result is required"});
+    try { const result=await c5LocalPaperExecution.execute(body as import("../application/c5-local-paper-execution.js").C5LocalExecutionCommand); return json(response,result.replayed?200:201,{schemaVersion:"c5-local-paper-execution-result-v1",...result}); }
+    catch(error) { if(error instanceof C5LocalPaperExecutionError) return json(response,error.statusCode,{error:error.message,detail:error.detail}); return json(response,503,{error:"C5_LOCAL_EXECUTION_UNAVAILABLE",detail:error instanceof Error?error.message:"unknown execution error"}); }
+  }
+  if (request.method === "POST" && pathname === "/internal/v1/c5-local/accounts/settlements") {
+    let raw=""; for await (const chunk of request) { raw+=chunk; if(Buffer.byteLength(raw,"utf8")>8192) return json(response,413,{error:"C5 local settlement command exceeds 8 KiB"}); }
+    let body:unknown; try { body=JSON.parse(raw); } catch { return json(response,422,{error:"valid C5 local settlement JSON is required"}); }
+    if(!body||typeof body!=="object"||Array.isArray(body)||Object.keys(body).sort().join(",")!=="accountId,asOf,namespace,ownerId,testRunId") return json(response,422,{error:"exact C5 local settlement scope is required"});
+    try { const result=await c5LocalPaperExecution.settleSession(body as {ownerId:string;accountId:string;namespace:string;testRunId:string;asOf:string}); return json(response,200,result); }
+    catch(error) { if(error instanceof C5LocalPaperExecutionError) return json(response,error.statusCode,{error:error.message,detail:error.detail}); throw error; }
   }
   if (request.method === "GET" && pathname === "/internal/v1/v13/accounts/assets") {
     const query = new URL(request.url ?? "/", `http://127.0.0.1:${port}`).searchParams;

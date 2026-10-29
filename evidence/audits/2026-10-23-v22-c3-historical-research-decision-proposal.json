@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "source-use-decision-proposal-v1",
+  "decisionId": "OD008-C3-LOCAL-HISTORY-REPLAY-20261023",
+  "status": "PROPOSED_NOT_APPROVED",
+  "purpose": "Allow one local, bounded V2.2/V2.3 historical-context and positive replay verification using only the already collected BaoStock C3 context sample; do not make any new provider request.",
+  "source": {
+    "sourceId": "baostock",
+    "sourceEndpoint": "No network access in this proposal; input was previously collected from public-api.baostock.com:10030 under OD008-C3-LOCAL-HISTORY-20261022.",
+    "authorizationBasis": "Owner decision for personal, local, non-commercial learning with FakeBroker/Paper only. This proposal extends neither provider terms nor the 2026-10-22 one-off probe authorization."
+  },
+  "input": {
+    "localDataset": "data/local/baostock-c3-context-2024-01-02-2024-01-08-v1/",
+    "manifestSha256": "fa5f221aa17888d2b7b888a0f6991e041c2793e8ecb265ec894d910a074c0d73",
+    "securities": ["600000.SH", "600004.SH", "600006.SH"],
+    "tradingDates": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08"],
+    "dataSemantics": "RAW 5m Bars; the sample's provider-reproducible minute/daily amount and one high-price differences remain recorded limitations."
+  },
+  "bounds": {
+    "providerRequests": 0,
+    "retention": "Reuse only until the existing local sample retention deadline of 2026-11-21T13:22:50+08:00; do not extend retention through this decision.",
+    "sharing": "No sharing, publishing, or raw-market-data commit.",
+    "execution": "One isolated TestRun, FakeBroker only, no strategy activation, no order placement, no LIVE broker, no recurring task."
+  },
+  "requiredRuntimeConfigurationIfApproved": {
+    "STOCKQUANT_MARKET_RESEARCH_SOURCE_USE_AUTHORIZED": "true",
+    "STOCKQUANT_MARKET_RESEARCH_SOURCE_AUTHORIZATION_REF": "evidence/audits/2026-10-23-v22-c3-historical-research-decision.json",
+    "STOCKQUANT_MARKET_RESEARCH_DATA_VERSION": "baostock-c3-context-2024-01-02-2024-01-08-v1",
+    "STOCKQUANT_MARKET_RESEARCH_AUTHORIZED_SOURCE_IDS": "baostock"
+  },
+  "knownLimitations": [
+    "The source is not approved for new collection or broad historical research by this proposal.",
+    "Daily trading status does not prove per-minute suspension facts; unresolved values stay UNKNOWN/null.",
+    "Corporate actions and MarketRuleSet evidence are partial and must be registered with their explicit scope before preflight.",
+    "A successful bounded replay proves only the recorded local software path and cannot be presented as strategy profitability or complete historical fact validation."
+  ],
+  "approvalEffect": "Only an explicit owner confirmation may convert this proposal into an approved decision record and enable the listed configuration for the isolated verification."
+}

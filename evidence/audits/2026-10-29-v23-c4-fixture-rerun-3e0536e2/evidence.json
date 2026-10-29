@@ -1,0 +1,99 @@
+{
+  "testRunId": "3e0536e2-b156-41ad-b6ed-3ca7482ab7f6",
+  "stageId": "V2.3",
+  "scenarioId": "qlib-fixture",
+  "scenarioVersion": "1.0.0",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v2-3-qlib-fixture-3e0536e2-b156-41ad-b6ed-3ca7482ab7f6",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": {
+        "errors": [],
+        "finite": true,
+        "modelSha256": "08d29ca3ccefc37e887928d5a4512a9f63d53edef6cc91b4289e1731ec675695",
+        "qlibVersion": "0.9.6",
+        "modelTraining": "PASS",
+        "lightgbmVersion": "4.7.0",
+        "modelValidation": "NOT_RUN",
+        "predictionCount": 24,
+        "temporalValidation": "PASS",
+        "testPredictionsSha256": "09d1563ed1102a87f6e71672e9b1238ce844094aa336cb33efeea6ac995bdbe3"
+      },
+      "status": "PASS",
+      "expected": "real locked Qlib fit/predict, 24 finite test predictions, temporal leakage guard PASS; independent validation NOT_RUN",
+      "assertionId": "V2.3-QLIB-FIXTURE-001"
+    }
+  ],
+  "evidence": {
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE",
+    "codeVersion": "sha256:ea1d4c2755b550a92b5dc0b0efd0cb09f995955ab2dd8f88d7a82c513fbe769e",
+    "qlibFixture": {
+      "rows": 120,
+      "splits": {
+        "test": [
+          96,
+          120
+        ],
+        "train": [
+          0,
+          72
+        ],
+        "valid": [
+          72,
+          96
+        ]
+      },
+      "sourceMode": "FIXTURE",
+      "inputSha256": "813c7d5e26ac521a034c13925d6f9f77b5ef3d0f936b4eb661bbb638bc5aa42a",
+      "modelValidation": "NOT_RUN",
+      "durableArtifactStatus": "PERSISTED"
+    },
+    "crossService": {
+      "research": {
+        "status": "COMPLETED",
+        "adapter": "qlib",
+        "dataMode": "FIXTURE",
+        "modelCalls": "NOT_RUN",
+        "artifactRef": {
+          "url": "/api/v1/acceptance/v2/v2.3/runs/3e0536e2-b156-41ad-b6ed-3ca7482ab7f6/artifacts/24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8",
+          "sha256": "24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8",
+          "mediaType": "application/vnd.stockquant.qlib-fixture-model+json",
+          "artifactId": "24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8"
+        },
+        "inputSha256": "813c7d5e26ac521a034c13925d6f9f77b5ef3d0f936b4eb661bbb638bc5aa42a",
+        "modelSha256": "08d29ca3ccefc37e887928d5a4512a9f63d53edef6cc91b4289e1731ec675695",
+        "qlibVersion": "0.9.6",
+        "modelTraining": "PASS",
+        "lightgbmVersion": "4.7.0",
+        "modelValidation": "NOT_RUN",
+        "profitabilityClaim": "NOT_MADE",
+        "temporalValidation": "PASS",
+        "testPredictionCount": 24,
+        "durableArtifactStatus": "PERSISTED",
+        "testPredictionsFinite": true,
+        "testPredictionsSha256": "09d1563ed1102a87f6e71672e9b1238ce844094aa336cb33efeea6ac995bdbe3",
+        "candidateSourceExecution": "NOT_PERFORMED"
+      }
+    },
+    "environmentMode": "BACKTEST"
+  },
+  "createdAt": "2026-10-29T13:21:49.367Z",
+  "completedAt": "2026-10-29T13:21:50.985Z",
+  "artifactRefs": [
+    {
+      "schemaVersion": "artifact-ref.v1",
+      "artifactId": "24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8",
+      "testRunId": "3e0536e2-b156-41ad-b6ed-3ca7482ab7f6",
+      "ownerId": "acceptance-owner-1",
+      "kind": "MODEL_PREDICTIONS",
+      "namespace": "research/3e0536e2-b156-41ad-b6ed-3ca7482ab7f6/qlib-fixture",
+      "mediaType": "application/vnd.stockquant.qlib-fixture-model+json",
+      "sha256": "24864d22e4016e1419382e380aec504f02607004262696c92b76451cc1dbb6a8",
+      "status": "PUBLISHED",
+      "sourceRef": "platform-api-service:v2.3:3e0536e2-b156-41ad-b6ed-3ca7482ab7f6"
+    }
+  ]
+}

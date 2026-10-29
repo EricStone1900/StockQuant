@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../manifests/fixture-manifest.schema.json",
+  "fixtureId": "v24-c5-local-engineering", "fixtureVersion": "v24-c5-local-engineering-1", "stageId": "V2.4", "status": "FROZEN", "dataMode": "FIXTURE", "usageEligibility": "SIMULATION_ONLY",
+  "source": { "kind": "SYNTHETIC", "description": "Synthetic two warmup and five evaluation session closes and separate synthetic execution snapshots; no external market data.", "license": "Internal synthetic fixture", "retrievedAt": null },
+  "createdAt": "2026-10-28T00:00:00Z",
+  "semantics": { "markets": ["CN_A"], "currencies": ["CNY"], "timezone": "Asia/Shanghai", "prices": "Synthetic unadjusted daily closes are available at 15:05 local; separate point snapshots are available after acceptance and never represent minute OHLCV. Money uses exact four-decimal CNY; fixed fee is charged per Fill. Sell proceeds are unsettled until the next listed synthetic session.", "sessions": { "count": 7, "start": "2024-01-02", "end": "2024-01-10", "calendar": "c5-local-synthetic-sessions-1" }, "securities": { "600000.SH": 7 }, "qualityCases": ["two warmup sessions", "five independent evaluation sessions", "BUY SELL HOLD and next-session cash settlement", "scoped rejection and original-order recovery"] },
+  "files": [{ "path": "fixtures/v2/v2.4/c5-local-engineering-v1/input.json", "sha256": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea", "mediaType": "application/json", "schemaRef": "fixtures/manifests/v24-c5-local-engineering-input.schema.json" }],
+  "expectedAssertions": [
+    { "assertionId": "V2.4-C5-LOCAL-CHAIN-001", "description": "One scoped backend run uses two warmup and five evaluation sessions to generate BUY, SELL and HOLD, with exact fills, ledger and independent reconciliation." },
+    { "assertionId": "V2.4-C5-LOCAL-SETTLEMENT-001", "description": "BUY leaves 8970 CNY; SELL leaves 995 CNY pending; next session settles to 9965 CNY without duplicate ledger entries." },
+    { "assertionId": "V2.4-C5-LOCAL-REJECTION-001", "description": "Missing or invalid inputs, mandate and execution-window failures are paused without orders, fills or reservations." },
+    { "assertionId": "V2.4-C5-LOCAL-RECOVERY-001", "description": "Original identities survive lost responses or worker termination without duplicate target, order, fill, ledger or alert." },
+    { "assertionId": "V2.4-C5-LOCAL-WEB-CLI-001", "description": "Web and read-only CLI check the same persisted Run and expose actual task, decision and reconciliation facts." }
+  ]
+}

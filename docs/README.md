@@ -1,6 +1,8 @@
 # StockQuant 文档入口
 
-先看[当前进度](./progress.md)与[V2.2阶段记录](./prd/v2-data-and-replay/02-minute-data-import.md)。V1批准的Mac本地主要范围已完成，V2.1 C1/C2当前本地学习范围已于2026-10-21人工验收PASS；当前继续[V2原计划§7.2 C3](./prd/v2-data-and-replay/00-version-plan.md#72-当前工作包c3--v22-历史分钟数据导入与校验)。历史上下文目录/回放硬阻断、缺口分类和恢复自动验证已有证据；2026-10-22经所有者批准完成三证券/五日、20次RPC的BaoStock补证，旧新样本字段精确相同，15/15个证券日跨频量额差异在Provider侧复现；已补基本资料/RAW/日级状态及分红/因子返回；样本期5分钟覆盖窗按上交所2023规则部分映射，只支持Bar覆盖分析，不构成完整撮合规则；完整公司行动、个股分钟停牌、许可与正向回放前置仍未满足；历史上下文READY现显式标注为结构检查和所有者声明，来源事实未独立核验。跨频差异按Provider可复现限制保留。V2.2仍PARTIALLY_IMPLEMENTED，正向回放及新范围人工验收未完成。见[来源补证结果](../evidence/audits/2026-10-22-v22-historical-source-probe.md)及[历史上下文映射](../evidence/audits/2026-10-22-v22-historical-context-mapping.md)。V2整版仍未完成，策略/订单留在OD-007/C5。
+当前工作入口（2026-10-29）：先看[当前进度](./progress.md)。C5本地工程范围已签收PASS；C6本轮本地单源范围IN_PROGRESS，所有者已批准[备用分钟源及60日覆盖DEFERRED](./decisions/2026-10-29-c6-backup-minute-source-deferral.md)，停止继续选源/探测。V2.5正式页已接入现存已发布分钟导入/查询并绑定持久TestRun，真实隔离同Run Web/CLI smoke通过；详细见[接线审计](../evidence/audits/2026-10-29-v25-minute-import-run-integration.md)。下一步依[V2主计划§7.2.3](./prd/v2-data-and-replay/00-version-plan.md#723-c6单源范围接续2026-10-29)核清队列/额度/取消恢复的实际职责和未验证缺口，只补必要功能。全市场分钟、真实长期稳定性、PIT及V2.4实际观察仍未完成；本轮范围调整不代表V2整版通过。
+
+先看[当前进度](./progress.md)与[V2.2阶段记录](./prd/v2-data-and-replay/02-minute-data-import.md)。V1批准的Mac本地主要范围已完成，V2.1 C1/C2、V2.2 C3批准范围及V2.3 C4 Fixture本地学习范围已按记录验收。上述C3来源补证和历史上下文说明为历史入口信息，不是当前任务路由；当前接续为C6/V2.5。V2.2完整历史事实/回放、V2.3真实市场/PIT研究仍分别保留未完成边界；V2整版未完成。
 
 | 要回答的问题 | 权威入口 | 更新方式 |
 |---|---|---|

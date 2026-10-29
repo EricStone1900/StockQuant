@@ -1,0 +1,373 @@
+{
+  "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+  "stageId": "V2.1",
+  "scenarioId": "normal",
+  "scenarioVersion": "1.2.0-fixture",
+  "ownerId": "acceptance-owner-1",
+  "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+  "status": "COMPLETED",
+  "seed": 20260907,
+  "assertions": [
+    {
+      "actual": [
+        "600000.SH",
+        "000001.SZ"
+      ],
+      "status": "PASS",
+      "expected": [
+        "600000.SH",
+        "000001.SZ"
+      ],
+      "assertionId": "V2.1-WATCHLIST-001"
+    },
+    {
+      "actual": [
+        {
+          "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:ad3af36368054e4db84554fccdd11c36874328047d2b2202a2e5ecac11fbd505:2026-10-16T01:50:00.000Z",
+          "decision": {
+            "status": "ELIGIBLE",
+            "window": "morning",
+            "localTime": "09:50",
+            "calendarVersion": "sse-cn-a-share-2026-1"
+          },
+          "taskStatus": "COMPLETED_FIXTURE",
+          "intervalMinutes": 20,
+          "taskIntervalMinutes": 20,
+          "configuredIntervalMinutes": 20
+        },
+        {
+          "taskId": null,
+          "decision": {
+            "status": "NOT_SAMPLING_TICK",
+            "window": "morning",
+            "localTime": "09:50",
+            "calendarVersion": "sse-cn-a-share-2026-1"
+          },
+          "taskStatus": null,
+          "intervalMinutes": 30,
+          "taskIntervalMinutes": null,
+          "configuredIntervalMinutes": 30
+        }
+      ],
+      "status": "PASS",
+      "expected": "the fixed 09:50 Fixture tick is admitted and persisted with 20-minute policy, then rejected with 30-minute policy without creating a task",
+      "assertionId": "V2.1-SAMPLING-INTERVAL-MATRIX-001"
+    },
+    {
+      "actual": {
+        "scope": {
+          "market": "CN_A",
+          "ownerId": "acceptance-owner-1",
+          "accountId": "cc26d4c7-b5a0-4c38-adda-d95e04217c09",
+          "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+          "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64"
+        },
+        "status": "COMPLETED_FIXTURE",
+        "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:ad3af36368054e4db84554fccdd11c36874328047d2b2202a2e5ecac11fbd505:2026-10-16T01:50:00.000Z",
+        "window": "morning",
+        "created": false,
+        "dataMode": "FIXTURE",
+        "sourceId": "fixture:v2.1-snapshot-sampling-1",
+        "scheduledAt": "2026-10-16T01:50:00.000Z",
+        "securityIds": [
+          "600000.SH",
+          "000001.SZ"
+        ],
+        "observations": [
+          {
+            "price": "10.2500",
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-600000-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          },
+          {
+            "price": "12.3400",
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "000001.SZ",
+            "snapshotId": "fixture-v21-000001-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          }
+        ],
+        "fixtureSha256": "9898f0b7ed9bf275766df22e26e64109c7ef92c47a0da6e1bffe5194cbaabc6c",
+        "fixtureVersion": "v2.1-snapshot-sampling-1",
+        "calendarVersion": "sse-cn-a-share-2026-1",
+        "intervalMinutes": 20,
+        "settingsVersion": 0
+      },
+      "status": "PASS",
+      "expected": "COMPLETED_FIXTURE scoped to this TestRun",
+      "assertionId": "V2.1-SNAPSHOT-FIXTURE-001"
+    },
+    {
+      "actual": {
+        "scope": {
+          "market": "CN_A",
+          "ownerId": "acceptance-owner-1",
+          "accountId": "cc26d4c7-b5a0-4c38-adda-d95e04217c09",
+          "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+          "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64"
+        },
+        "status": "READY",
+        "taskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:ad3af36368054e4db84554fccdd11c36874328047d2b2202a2e5ecac11fbd505:2026-10-16T01:50:00.000Z",
+        "anomalies": [],
+        "quoteRefs": [
+          {
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "600000.SH",
+            "snapshotId": "fixture-v21-600000-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          },
+          {
+            "status": "READY",
+            "dataMode": "FIXTURE",
+            "sourceId": "fixture:v2.1-snapshot-sampling-1",
+            "freshness": "FRESH",
+            "ageSeconds": 600,
+            "ingestedAt": "2026-10-16T02:00:00.000Z",
+            "observedAt": "2026-10-16T01:50:00.000Z",
+            "securityId": "000001.SZ",
+            "snapshotId": "fixture-v21-000001-20261016T0950",
+            "availableAt": "2026-10-16T02:00:00.000Z"
+          }
+        ],
+        "freshCount": 2,
+        "evaluatedAt": "2026-10-21T13:00:09.414642+00:00",
+        "evaluationId": "quotequality:35a03a3401804375d3eea9b530757af7315270f734e021178163070f182bb144",
+        "coverageRatio": 1,
+        "expectedCount": 2,
+        "maxAgeSeconds": 600
+      },
+      "status": "PASS",
+      "expected": "2/2 FRESH Fixture observations, 100% coverage, READY, and no anomalies",
+      "assertionId": "V2.1-QUALITY-001"
+    },
+    {
+      "actual": {
+        "task": {
+          "scope": {
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "cc26d4c7-b5a0-4c38-adda-d95e04217c09",
+            "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+            "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64"
+          },
+          "state": "COMPLETED",
+          "taskId": "dailybartask:9f63fdfbea8027180087f529c3e539805683d093034d63fd2c22d77a8c4d6f46",
+          "attempt": 1,
+          "createdAt": "2026-10-21T13:00:09.420Z",
+          "lastError": null,
+          "updatedAt": "2026-10-21T13:00:10.382Z",
+          "leaseOwner": null,
+          "leaseUntil": null,
+          "maxAttempts": 3,
+          "completionId": "dailybar:56b2785f50557e69df737eee8137a837deb04a73693c8e397eef3cb9cc8aebe9",
+          "fixtureSha256": "b98309c9be021c2117d9b3b53276b4ddb313de290413f6bfea5b7040361ae6c4",
+          "nextAttemptAt": null,
+          "fixtureVersion": "v2.1-daily-bars-1"
+        },
+        "completion": {
+          "bars": [
+            {
+              "low": "11.90",
+              "high": "12.60",
+              "open": "12.00",
+              "close": "12.34",
+              "amount": "11070.00",
+              "volume": 900,
+              "securityId": "000001.SZ",
+              "sessionDate": "2026-10-16"
+            },
+            {
+              "low": "10.00",
+              "high": "10.50",
+              "open": "10.10",
+              "close": "10.25",
+              "amount": "12240.00",
+              "volume": 1200,
+              "securityId": "600000.SH",
+              "sessionDate": "2026-10-16"
+            }
+          ],
+          "scope": {
+            "market": "CN_A",
+            "ownerId": "acceptance-owner-1",
+            "accountId": "cc26d4c7-b5a0-4c38-adda-d95e04217c09",
+            "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+            "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64"
+          },
+          "reason": null,
+          "status": "COMPLETED_FIXTURE",
+          "dataMode": "FIXTURE",
+          "sourceId": "fixture:v2.1-daily-bars-1",
+          "availableAt": "2026-10-16T07:02:00.000Z",
+          "dataVersion": "daily-bars-cn-2026-10-16-v1",
+          "sessionDate": "2026-10-16",
+          "completionId": "dailybar:56b2785f50557e69df737eee8137a837deb04a73693c8e397eef3cb9cc8aebe9",
+          "fixtureVersion": "v2.1-daily-bars-1"
+        }
+      },
+      "status": "PASS",
+      "expected": "2 completed DAILY_BAR Fixture bars",
+      "assertionId": "V2.1-DAILY-BAR-001"
+    },
+    {
+      "actual": {
+        "copiedNotice": [
+          {
+            "title": "浦发银行发布年度业绩预告(修订)",
+            "symbols": [
+              "600000.SH",
+              "600519.SH"
+            ],
+            "revision": 1,
+            "sourceId": "fixture-news-b",
+            "sourceUrl": "fixture://news-b/notice-copy-017",
+            "ingestedAt": "2026-10-14T02:03:02.000Z",
+            "observedAt": "2026-10-14T02:03:00.000Z",
+            "availableAt": "2026-10-14T02:03:02.000Z",
+            "contentHash": "383f1fcff802c3fbde442ad5e68cee8f0afdd5d68f0ce627c721aa17ee26d0fd",
+            "publishedAt": null,
+            "sourceItemId": "notice-copy-017",
+            "revisionStatus": "VERIFIED_STABLE_SOURCE_ID",
+            "entityMatchStatus": "AMBIGUOUS",
+            "supersedesRevision": null,
+            "publicationTimeStatus": "UNKNOWN"
+          }
+        ],
+        "revisedNotice": [
+          {
+            "title": "浦发银行发布年度业绩预告",
+            "symbols": [
+              "600000.SH"
+            ],
+            "revision": 1,
+            "sourceId": "fixture-news-a",
+            "sourceUrl": "fixture://news-a/notice-001",
+            "ingestedAt": "2026-10-14T01:01:02.000Z",
+            "observedAt": "2026-10-14T01:01:00.000Z",
+            "availableAt": "2026-10-14T01:01:02.000Z",
+            "contentHash": "0d909eac6121ab9f52e47a60eae9bdc3b04439570dcbb18add0eb5df0ac8875e",
+            "publishedAt": "2026-10-14T01:00:00.000Z",
+            "sourceItemId": "notice-001",
+            "revisionStatus": "VERIFIED_STABLE_SOURCE_ID",
+            "entityMatchStatus": "LINKED",
+            "supersedesRevision": null,
+            "publicationTimeStatus": "KNOWN"
+          },
+          {
+            "title": "浦发银行发布年度业绩预告(修订)",
+            "symbols": [
+              "600000.SH"
+            ],
+            "revision": 2,
+            "sourceId": "fixture-news-a",
+            "sourceUrl": "fixture://news-a/notice-001",
+            "ingestedAt": "2026-10-14T02:00:02.000Z",
+            "observedAt": "2026-10-14T02:00:00.000Z",
+            "availableAt": "2026-10-14T02:00:02.000Z",
+            "contentHash": "8a8ff9c8526d853f20e0f8814faa5a2db6b6392994a2607b82917a4ea7d5b334",
+            "publishedAt": "2026-10-14T01:00:00.000Z",
+            "sourceItemId": "notice-001",
+            "revisionStatus": "VERIFIED_STABLE_SOURCE_ID",
+            "entityMatchStatus": "LINKED",
+            "supersedesRevision": 1,
+            "publicationTimeStatus": "KNOWN"
+          }
+        ],
+        "fixtureVersion": "v2.1-news-revisions-1"
+      },
+      "status": "PASS",
+      "expected": "Fixture news-a notice-001 revisions 1→2 with supersession and linked entity; Fixture news-b copy revision 1 with unknown publication time and ambiguous entities",
+      "assertionId": "V2.1-NEWS-FIXTURE-001"
+    },
+    {
+      "actual": {
+        "orderPolicy": {
+          "enabled": false,
+          "trigger": "C5_EXECUTION_WINDOW",
+          "version": 1,
+          "windows": [],
+          "executor": "NOT_IMPLEMENTED",
+          "policyId": "orderExecution",
+          "timezone": "Asia/Shanghai",
+          "updatedAt": "2026-10-21T12:46:12.061Z",
+          "activationGate": "C5_APPROVAL",
+          "intervalMinutes": null
+        },
+        "placeOrders": false,
+        "strategyPolicy": {
+          "enabled": false,
+          "trigger": "ON_DAILY_BAR_READY",
+          "version": 1,
+          "windows": [],
+          "executor": "NOT_IMPLEMENTED",
+          "policyId": "strategyEvaluation",
+          "timezone": "Asia/Shanghai",
+          "updatedAt": "2026-10-21T12:46:12.061Z",
+          "activationGate": "OD007_APPROVAL",
+          "intervalMinutes": null
+        }
+      },
+      "status": "PASS",
+      "expected": "strategy/order remain independently disabled behind OD-007/C5; placeOrders=false",
+      "assertionId": "V2.1-CONSUMER-GATES-001"
+    }
+  ],
+  "evidence": {
+    "scope": {
+      "market": "CN_A",
+      "ownerId": "acceptance-owner-1",
+      "accountId": "cc26d4c7-b5a0-4c38-adda-d95e04217c09",
+      "namespace": "v2-1-normal-aaf9d591-3a40-44a5-9a0f-5f6cf3000a64",
+      "testRunId": "aaf9d591-3a40-44a5-9a0f-5f6cf3000a64"
+    },
+    "dataMode": "FIXTURE",
+    "brokerMode": "FAKE",
+    "businessIds": {
+      "dailyBarTaskId": "dailybartask:9f63fdfbea8027180087f529c3e539805683d093034d63fd2c22d77a8c4d6f46",
+      "snapshotTaskId": "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:ad3af36368054e4db84554fccdd11c36874328047d2b2202a2e5ecac11fbd505:2026-10-16T01:50:00.000Z",
+      "samplingTaskIds": [
+        "CN_A:snapshot:FIXTURE:fixture:v2.1-snapshot-sampling-1:0:ad3af36368054e4db84554fccdd11c36874328047d2b2202a2e5ecac11fbd505:2026-10-16T01:50:00.000Z"
+      ],
+      "watchlistVersion": "2026-10-21T13:00:08.671Z",
+      "dailyBarCompletionId": "dailybar:56b2785f50557e69df737eee8137a837deb04a73693c8e397eef3cb9cc8aebe9",
+      "quoteQualityEvaluationId": "quotequality:35a03a3401804375d3eea9b530757af7315270f734e021178163070f182bb144"
+    },
+    "environmentMode": "PAPER",
+    "fixtureVersions": {
+      "news": "v2.1-news-revisions-1",
+      "dailyBar": "v2.1-daily-bars-1",
+      "snapshot": "v2.1-snapshot-sampling-1"
+    },
+    "humanAcceptance": "NOT_RUN",
+    "quoteFreshCount": 2,
+    "externalRequests": 0,
+    "businessValidation": "PASS",
+    "authorizedRealSources": "NOT_RUN_IN_THIS_FIXTURE_SCENARIO",
+    "samplingIntervalsTested": [
+      20,
+      30
+    ]
+  },
+  "createdAt": "2026-10-21T13:00:08.669Z",
+  "completedAt": "2026-10-21T13:00:10.479Z"
+}

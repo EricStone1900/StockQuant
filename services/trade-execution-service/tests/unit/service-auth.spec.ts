@@ -21,6 +21,8 @@ describe("trade execution service identity and route scopes", () => {
   it("exhaustively scopes every V1 protected write route to its intended caller", () => {
     const routes = [
       ["POST", "/internal/v1/historical-orders/execute", "historical-replay-worker"],
+      ["POST", "/internal/v1/c5-local/paper-orders/execute", "platform-api-service"],
+      ["POST", "/internal/v1/c5-local/accounts/settlements", "platform-api-service"],
       ["POST", "/internal/v1/v13/paper-orders/execute-manual-proposal", "platform-api-service"],
       ["POST", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", "platform-api-service"],
       ["POST", "/internal/v1/v13/paper-orders/execute-auto-proposal", "platform-api-service"],

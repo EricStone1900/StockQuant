@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import type { DailyBarCompletionResult, DailyBarCompletionRequest } from "../application/v21-daily-bar-completion.js";
 import type { DailyBarCompletionScope, DailyBarCompletionTask, DailyBarCompletionTaskState, DailyBarSourceRequest } from "../application/daily-bar-completion-queue.js";
+import { isCalendarDate } from "../application/cn-a-share-calendar.js";
 
 
 function canonical(value: unknown): string {
@@ -188,6 +189,30 @@ export class PostgresDailyBarCompletionRepository {
       FROM market_data_daily_bar_completion_jobs job LEFT JOIN market_data_daily_bar_completion_tasks result ON result.completion_id=job.completion_id
       WHERE job.scope_key=$1 ORDER BY job.created_at DESC,job.task_id DESC LIMIT 1`, [key]);
     return result.rows[0] ? { task: mapTask(result.rows[0]), completion: result.rows[0].result_json } : null;
+  }
+
+  /** Exact, point-in-time reads for a scoped candidate. Never infer missing sessions or choose an arbitrary revision. */
+  async findSessions(input: { scope: DailyBarCompletionScope; sessionDates: [string, string]; sourceId: string; dataVersion: string; dataMode: "FIXTURE" | "REAL"; asOf: string }): Promise<DailyBarCompletionResult[] | null> {
+    const { scope, sessionDates, sourceId, dataVersion, dataMode, asOf } = input;
+    if (scope.market !== "CN_A" || !scope.ownerId?.trim() || !scope.accountId?.trim() || !scope.namespace?.trim() || !scope.testRunId?.trim()
+      || !Array.isArray(sessionDates) || sessionDates.length !== 2 || !sessionDates.every(isCalendarDate) || sessionDates[0] >= sessionDates[1]
+      || !sourceId?.trim() || !dataVersion?.trim() || !["FIXTURE", "REAL"].includes(dataMode)
+      || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(asOf) || !Number.isFinite(Date.parse(asOf))) throw new Error("DAILY_BAR_SESSION_QUERY_INVALID");
+    const result = await this.pool.query<{ result_json: DailyBarCompletionResult }>(`SELECT result_json FROM market_data_daily_bar_completion_tasks
+      WHERE scope_key=$1 AND session_date=ANY($2::date[]) AND source_id=$3 AND data_mode=$4 AND result_json->>'dataVersion'=$5
+      ORDER BY session_date, completion_id`, [scopeKey(scope), sessionDates, sourceId, dataMode, dataVersion]);
+    const available = result.rows.map((row) => row.result_json).filter((completion) => {
+      if (!completion.availableAt || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(completion.availableAt) || !Number.isFinite(Date.parse(completion.availableAt))) throw new Error("DAILY_BAR_COMPLETION_TIMESTAMP_INVALID");
+      if (scopeKey(completion.scope) !== scopeKey(scope) || completion.sourceId !== sourceId || completion.dataVersion !== dataVersion
+        || completion.dataMode !== dataMode || completion.status !== (dataMode === "FIXTURE" ? "COMPLETED_FIXTURE" : "COMPLETED_REAL")
+        || !completion.completionId || !sessionDates.includes(completion.sessionDate)) throw new Error("DAILY_BAR_COMPLETION_IDENTITY_INVALID");
+      return Date.parse(completion.availableAt) <= Date.parse(asOf);
+    });
+    return sessionDates.map((date) => {
+      const matches = available.filter((completion) => completion.sessionDate === date);
+      if (matches.length > 1) throw new Error("DAILY_BAR_SESSION_AMBIGUOUS");
+      return matches[0] ?? null;
+    }).every((value) => value !== null) ? sessionDates.map((date) => available.find((completion) => completion.sessionDate === date)!) : null;
   }
 }
 

@@ -1,4 +1,5 @@
 import type { MinuteBar } from "../contracts/generated-types.js";
+export class MinuteImportStorageQuotaExceeded extends Error { constructor(message: string) { super(message); this.name = "MinuteImportStorageQuotaExceeded"; } }
 export type MinuteBarTradingStatus = MinuteBar["tradingStatus"];
 export type MinuteBarLimitPriceReference = MinuteBar["limitPriceReference"];
 export type MinuteImportBar = MinuteBar;

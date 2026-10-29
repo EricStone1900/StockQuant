@@ -1,5 +1,9 @@
 # V2 免费数据、分钟回放与连续模拟：测试计划
 
+2026-10-29 C6范围调整：依据[所有者决定](../../decisions/2026-10-29-c6-backup-minute-source-deferral.md)，备用分钟源接入及逐证券60交易日覆盖为`DEFERRED`，退出本轮单源范围必测集合，原测试保留且不计PASS。现有BaoStock归档受限软件证据、单源导入/分区查询/版本隔离、持久排队/取消/恢复和资源配额仍逐项核对；主源失败须明确暂停/拒绝，不自动切源。先复用已通过且未受影响的证据，仅对实际缺项增加定向测试及必要Web同Run CLI证据，不重复整档导入或未变全套。全市场分钟、真实长期稳定性、PIT及V2.4观察的原状态不变。
+
+2026-10-29当前C5测试范围为`C5_LOCAL_ENGINEERING_V1`。P1–P5工程项已完成；P5专属C5 Web Run、未激活Mandate拒绝、关页重开恢复、同Run CLI只读核验和导出均通过；完整隔离Smoke前后业务事实计数相同，报告见[P5 Smoke](../../../evidence/audits/2026-10-29-v24-paper-smoke-b95154f8d6aa48b6ae7c90ab1ad5dc38.json)及[P5审计](../../../evidence/audits/2026-10-29-c5-local-p5-progress.md)。P4七会话冻结Fixture、30分钟本地进程、中点单次Platform中断/恢复同样通过，首次计时包装器超时失败保留并由有界40分钟上限复验；详见[P4审计](../../../evidence/audits/2026-10-29-c5-local-p4-progress.md)。P6当前候选用户验收仍待执行；20日实际观察独立延期`NOT_RUN`，不纳入本地范围退出条件。
+
 执行[总体测试](../90-test-plan.md)中本版适用的模拟子项及[共同规则](../05-three-version-delivery.md)。各项状态以最新测试证据为准，未执行或依赖真实交易日/人工确认的子项仍为 `NOT_RUN`。
 
 ## 1. 阶段测试映射

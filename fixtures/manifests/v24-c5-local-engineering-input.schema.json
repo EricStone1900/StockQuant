@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v24-c5-local-engineering-input.schema.json",
+  "title": "C5LocalEngineeringInput",
+  "type": "object", "additionalProperties": false,
+  "required": ["fixtureVersion", "scopeId", "market", "currency", "securityId", "timezone", "calendarVersion", "strategyVersion", "strategySha256", "riskPolicyVersion", "feePolicyVersion", "initialCash", "feePerFill", "mandate", "sessions", "faultCases"],
+  "properties": {
+    "fixtureVersion": { "const": "v24-c5-local-engineering-1" },
+    "scopeId": { "const": "C5_LOCAL_ENGINEERING_V1" },
+    "market": { "const": "CN_A" }, "currency": { "const": "CNY" }, "securityId": { "const": "600000.SH" }, "timezone": { "const": "Asia/Shanghai" },
+    "calendarVersion": { "const": "c5-local-synthetic-sessions-1" },
+    "strategyVersion": { "const": "c5-daily-direction-v1" }, "strategySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "riskPolicyVersion": { "const": "c5-local-risk-v1" }, "feePolicyVersion": { "const": "c5-local-flat-fee-v1" },
+    "initialCash": { "$ref": "#/$defs/money" }, "feePerFill": { "$ref": "#/$defs/money" },
+    "mandate": { "type": "object", "additionalProperties": false, "required": ["validFrom", "expiresAt", "maxOrderNotional", "maxDailyTurnover", "maxGrossExposure", "cumulativeLossLimit"], "properties": { "validFrom": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "maxOrderNotional": { "$ref": "#/$defs/money" }, "maxDailyTurnover": { "$ref": "#/$defs/money" }, "maxGrossExposure": { "$ref": "#/$defs/money" }, "cumulativeLossLimit": { "$ref": "#/$defs/money" } } },
+    "sessions": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "type": "object", "additionalProperties": false, "required": ["date", "role", "close", "availableAt", "expected"], "properties": { "date": { "type": "string", "format": "date" }, "role": { "enum": ["WARMUP", "EVALUATION"] }, "close": { "$ref": "#/$defs/money" }, "availableAt": { "type": "string", "format": "date-time" }, "expected": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["priorDates", "action", "quantity", "referencePrice", "snapshot", "settledCashAfterClose", "pendingReceivableAfterClose", "heldAfterClose", "settlementDate"], "properties": { "priorDates": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string", "format": "date" } }, "action": { "enum": ["BUY", "SELL", "HOLD"] }, "quantity": { "type": "integer", "minimum": 0 }, "referencePrice": { "$ref": "#/$defs/money" }, "snapshot": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["acceptedAt", "observedAt", "ingestedAt", "evaluatedAt", "price"], "properties": { "acceptedAt": { "type": "string", "format": "date-time" }, "observedAt": { "type": "string", "format": "date-time" }, "ingestedAt": { "type": "string", "format": "date-time" }, "evaluatedAt": { "type": "string", "format": "date-time" }, "price": { "$ref": "#/$defs/money" } } }] }, "settledCashAfterClose": { "$ref": "#/$defs/money" }, "pendingReceivableAfterClose": { "$ref": "#/$defs/money" }, "heldAfterClose": { "enum": [0, 100] }, "settlementDate": { "type": ["string", "null"], "format": "date" } } }] } } } },
+    "faultCases": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": { "money": { "type": "string", "pattern": "^[0-9]+\\.[0-9]{4}$" } }
+}

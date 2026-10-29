@@ -27,6 +27,8 @@ export function authorizeTradeExecutionRequest(input: {
   if (input.authorization !== `Bearer ${input.tokens[caller]}`) return false;
   if (input.method === "POST" && input.pathname === "/internal/v1/historical-orders/execute") return caller === "historical-replay-worker";
   if (input.method === "POST" && input.pathname === "/internal/v1/v24/paper-orders/execute-snapshot") return caller === "platform-api-service";
+  if (input.method === "POST" && input.pathname === "/internal/v1/c5-local/paper-orders/execute") return caller === "platform-api-service";
+  if (input.method === "POST" && input.pathname === "/internal/v1/c5-local/accounts/settlements") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v24/paper-orders/probe-reservation") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/paper-orders/execute-manual-proposal") return caller === "platform-api-service";
   if (input.method === "POST" && input.pathname === "/internal/v1/v13/accounts/settlements") return caller === "platform-api-service";

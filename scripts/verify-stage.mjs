@@ -129,13 +129,19 @@ async function runV2Stage() {
     return;
   }
   if (runId && has("--check-only")) {
-    const run = await request(`${route}/${runId}`);
+    const c5Local = stage === "V2.4" && scenario === "c5-local-engineering";
+    const run = await request(`${c5Local ? "/api/v1/acceptance/v2/v2.4/local-engineering/runs" : route}/${runId}`);
     console.log(JSON.stringify({ checkOnly: true, stageId: stage, testRunId: runId, status: run.status, assertions: run.assertions }, null, 2));
     process.exit(runExitCode(run));
   }
-  const allowedScenarios = stage === "V2.2" ? ["normal", "rejection", "recovery", "uploaded-csv"] : stage === "V2.4" ? ["normal", "rejection", "recovery", "external-reconciliation"] : ["normal", "rejection", "recovery"];
+  const allowedScenarios = stage === "V2.2" ? ["normal", "rejection", "recovery", "uploaded-csv"] : stage === "V2.4" ? ["normal", "rejection", "recovery", "external-reconciliation", "c5-local-engineering"] : ["normal", "rejection", "recovery"];
   if (!allowedScenarios.includes(scenario)) {
     console.error(stage === "V2.2" ? "specify --scenario normal|rejection|recovery|uploaded-csv [--upload-id UUID], --suite code, or --run RUN_ID --check-only" : stage === "V2.4" ? "specify --scenario normal|rejection|recovery|external-reconciliation, --suite code, or --run RUN_ID --check-only" : "specify --scenario normal|rejection|recovery, --suite code, or --run RUN_ID --check-only");
+    process.exit(2);
+  }
+  if (stage === "V2.4" && scenario === "c5-local-engineering") {
+    const accepted = await request("/api/v1/acceptance/v2/v2.4/local-engineering/runs", { method: "POST", body: "{}" });
+    console.log(JSON.stringify({ ...accepted, sideEffects: "isolated-run-setup-only; no Mandate activation or authorization" }, null, 2));
     process.exit(2);
   }
   if (scenario === "uploaded-csv" && (!has("--upload-id") || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value("--upload-id") ?? ""))) { console.error("uploaded-csv requires --upload-id UUID"); process.exit(2); }

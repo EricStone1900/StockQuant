@@ -4,6 +4,32 @@
   "servers": [{ "url": "http://platform-api-service:3000" }],
   "security": [{ "localSession": [] }],
   "paths": {
+    "/api/v1/acceptance/v2/v2.4/fixture-target/runs": {
+      "get": { "operationId": "listV24FixtureTargetRuns", "summary": "Find the owner's recent Fixture runs, including runs whose creation response was lost", "security": [{ "localSession": [] }], "responses": { "200": { "description": "Up to 50 owner-scoped Fixture runs" }, "401": { "description": "Local session required" } } },
+      "post": {
+        "operationId": "createV24FixtureTargetRun",
+        "summary": "Create an isolated, inactive two-session Fixture target job",
+        "security": [{ "localSession": [] }],
+        "responses": {
+          "202": { "description": "Fixture setup accepted; job completion and human acceptance remain separate", "content": { "application/json": { "schema": { "type": "object", "required": ["accepted", "testRunId", "status", "jobId", "workerEnabled"], "properties": { "accepted": { "const": true }, "testRunId": { "type": "string", "format": "uuid" }, "status": { "const": "WAITING" }, "jobId": { "type": "string" }, "workerEnabled": { "type": "boolean" } }, "additionalProperties": false } } } },
+          "401": { "description": "Local session required" }, "403": { "description": "Owner not authorized" }, "422": { "description": "Unexpected request body" }, "503": { "description": "Setup interrupted; response contains the persisted testRunId for resumption" }
+        }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.4/fixture-target/runs/{testRunId}/resume": {
+      "post": {
+        "operationId": "resumeV24FixtureTargetRun", "summary": "Resume interrupted isolated Fixture setup using its original owner-scoped TestRun", "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "202": { "description": "Original Fixture job accepted or already present" }, "401": { "description": "Local session required" }, "404": { "description": "Owner-scoped Fixture run not found" }, "409": { "description": "Setup is running or the run is terminal" }, "422": { "description": "Unexpected request body" }, "503": { "description": "Setup remains interrupted; response contains testRunId" } }
+      }
+    },
+    "/api/v1/acceptance/v2/v2.4/fixture-target/runs/{testRunId}/job": {
+      "get": {
+        "operationId": "readV24FixtureTargetJob", "summary": "Read the owner-scoped Fixture job and its paused target", "security": [{ "localSession": [] }],
+        "parameters": [{ "name": "testRunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Job and target, nullable while pending", "content": { "application/json": { "schema": { "type": "object", "required": ["testRunId", "job", "target"], "properties": { "testRunId": { "type": "string", "format": "uuid" }, "job": { "type": ["object", "null"] }, "target": { "type": ["object", "null"] } }, "additionalProperties": false } } } }, "401": { "description": "Local session required" }, "404": { "description": "Owner-scoped run not found" } }
+      }
+    },
     "/api/v1/acceptance/v2/v2.4/paper-readiness": {
       "get": {
         "operationId": "readV24PaperExecutionReadiness",

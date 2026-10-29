@@ -52,6 +52,14 @@ export class PostgresAutoMandateRepository implements AutoMandateRepository {
     const row = result.rows[0];
     return row ? { reservedAmount: row.reserved_amount, consumedAmount: row.consumed_amount, releasedAmount: row.released_amount, reservationCount: Number(row.reservation_count), consumedCount: Number(row.consumed_count), releasedCount: Number(row.released_count) } : null;
   }
+  async readLocalOrderReservation(input: { reservationId: string; mandateId: string; mandateVersion: number; ownerId: string; accountId: string; testRunId: string; clientOrderId: string; commandHash: string; proposalId: string; proposalVersion: number; proposalHash: string; amount: string }) {
+    const result = await this.pool.query<{ reservation_id: string; amount: string; status: "RESERVED" | "CONSUMED" }>(`SELECT r.reservation_id,r.amount::numeric(20,2)::text,r.status
+      FROM auto_policy_budget_reservations r JOIN auto_policy_mandates m ON m.mandate_id=r.mandate_id AND m.mandate_version=r.mandate_version
+      WHERE r.reservation_id=$1 AND r.mandate_id=$2 AND r.mandate_version=$3 AND m.owner_id=$4 AND m.account_id=$5 AND m.test_run_id=$6
+        AND r.client_order_id=$7 AND r.command_hash=$8 AND r.proposal_id=$9 AND r.proposal_version=$10 AND r.proposal_hash=$11 AND r.amount=$12 AND r.status IN ('RESERVED','CONSUMED')`,
+      [input.reservationId,input.mandateId,input.mandateVersion,input.ownerId,input.accountId,input.testRunId,input.clientOrderId,input.commandHash,input.proposalId,input.proposalVersion,input.proposalHash,input.amount]);
+    const row=result.rows[0]; return row ? { reservationId:row.reservation_id,status:row.status,amount:row.amount } : null;
+  }
   async create(input: AutoMandateCreate, actorId: string, reason: string, now: string) {
     const { mandateId, mandateVersion, ownerId, testRunId, accountId, strategyVersion, market, currency, securityScope, maxOrderAmount, maxTotalAmount, maxOrderCount, validFrom, expiresAt } = input;
     const content = { mandateId, mandateVersion, ownerId, testRunId, accountId, strategyVersion, market, currency, securityScope, maxOrderAmount, maxTotalAmount, maxOrderCount, validFrom, expiresAt };

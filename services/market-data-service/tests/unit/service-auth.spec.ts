@@ -23,6 +23,9 @@ describe("Market Data internal minute-upload identity", () => {
     }
     for (const path of ["/v2/collection-scheduler/status", "/v2/collection-scheduler/plan?from=x", "/v2/collection/health?subscriptionId=sub", "/v2/collection-schedules", "/v2/collection-schedules/sub", "/v2/collection-runs", "/v2/collection-runs/run-id", "/v2/minute/gaps/sub", "/v2/minute/backfills", "/v2/minute/backfills/task-id", "/v2/minute/sources"]) expect(isProtectedPlatformApiRequest("GET", path.split("?", 1)[0])).toBe(true);
     expect(isProtectedPlatformApiRequest("GET", "/v2/alerts")).toBe(true);
+    expect(isProtectedPlatformApiRequest("GET", "/v2/daily-bars/completions/sessions")).toBe(true);
+    expect(isProtectedPlatformApiRequest("POST", "/v2/sampling/c5-local/plan")).toBe(true);
+    expect(isProtectedPlatformApiRequest("GET", "/v2/sampling/c5-local/selection")).toBe(true);
     expect(isProtectedPlatformApiRequest("POST", "/v2/alerts/123e4567-e89b-42d3-a456-426614174000/acknowledge")).toBe(true);
     expect(isProtectedPlatformApiRequest("POST", "/v2/alerts/not-a-uuid/acknowledge")).toBe(false);
     expect(isProtectedPlatformApiRequest("GET", "/v2/minute/preview")).toBe(true);

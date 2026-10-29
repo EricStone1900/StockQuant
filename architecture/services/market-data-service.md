@@ -26,6 +26,8 @@ domain：证券、日历、Bar/PIT、质量与发布规则；application：导�
 
 事务/幂等：历史标识按有效区间查询；导入幂等键绑定来源/载荷Hash/run；重复同内容返回原结果、冲突409；发布元数据与Outbox同事务。
 
+C5本地Fixture快照选择采用范围绑定的不可变任务计划：所有计划任务和业务完成时刻必须在评估时刻前可确认，按观察时刻选首个合格结果；缺失或未完成等待，来源、范围、时间与结果冲突失败关闭。当前BUY/SELL两日的固定计划和业务完成凭据已接入采样Worker，通过受Platform服务身份保护的计划提交与只读选择接口访问；凭据可在任务完成后重试恢复，任务与凭据之间的间隙保持等待。现有采样任务的基础设施时间不能冒充历史业务完成时刻，此Fixture范围也不能推广成真实来源水位线。治理消费与整链仍待接入。
+
 每服务独立数据库/User。涉及业务账户与运行的数据按market/account/environmentMode/runId或namespace隔离；命令身份来自可信上下文。不得跨库join获得未授权事实或跨库写入；通过API或事件投影合作。需要事件发布的业务状态与Outbox原子提交，消费者副作用与Inbox同事务。
 
 ## 4. 入站接口与出站依赖
@@ -162,6 +164,8 @@ Snapshot timer scheduling uses an injected Clock, 20/30-minute calendar decision
 News source inventory/circuit/adapter IDs consistently use eastmoney-news and cls-news. Registered same-origin article paths, verification-page rejection and per-source errors apply before revision persistence; process-local caching is not a global durable rate limiter. Unknown publication time stays null/UNKNOWN. Bounded actual-source evidence, deterministic HTTP replacements and actual process faults are separately labelled in the [C2 audit](../../evidence/audits/2026-10-21-v21-c2-closeout.md); engineering readiness does not sign human acceptance.
 
 ## V2.2 minute/daily aggregate comparison (2026-10-23)
+
+2026-10-27 C5 input increment: `GET /v2/daily-bars/completions/sessions` is restricted to the Platform service identity and reads exactly two explicitly named sessions for one complete owner/account/namespace/TestRun scope, source, data version and mode, as of a supplied run clock. It returns null when either session is unavailable and rejects ambiguous available completions. It does not infer a calendar, activate a source or create a target; see [audit](../../evidence/audits/2026-10-27-v24-c5-daily-session-read.md).
 
 Market Data exposes `POST /v2/minute/imports/{version}/daily-aggregate-check` behind the platform service identity. It reads one security and one Shanghai trading date from the immutable RAW minute version, with a 500-Bar bound, and calculates open/maximum high/minimum low/final close/volume sum/amount sum. The caller supplies all six daily reference values plus a source name and source reference; the response retains DataVersion and import SHA-256 and labels the reference as not independently verified. This endpoint compares values only. It does not determine whether the minute window is complete; callers must use the independent coverage report. Invalid date, wrong import frequency/adjustment, duplicate or out-of-scope bars and invalid OHLC values fail closed. A real isolated PostgreSQL + Platform + Market Data + Chromium smoke passed on synthetic input; this is software evidence, not source-fact validation.
 

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/schemas/fixtures/v24-c5-local-mandate-schedule.schema.json",
+  "title": "C5LocalMandateSchedule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixtureVersion",
+    "scopeId",
+    "baseFixtureSha256",
+    "strategySha256",
+    "market",
+    "currency",
+    "securityScope",
+    "maxOrderAmount",
+    "maxTotalAmount",
+    "maxOrderCount",
+    "sessions"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "fixtureVersion": {
+      "const": "v24-c5-local-mandate-schedule-1"
+    },
+    "scopeId": {
+      "const": "C5_LOCAL_ENGINEERING_V1"
+    },
+    "baseFixtureSha256": {
+      "const": "96d1d2d21d4e07eab792dd5210b35f157b712743a9ddb2cb0101067ed89f90ea"
+    },
+    "strategySha256": {
+      "const": "2adb616611aaa26afb0d4206b2f4df0cd8f7e86c66a5b971d5ab55c4c75646c8"
+    },
+    "market": {
+      "const": "CN_A"
+    },
+    "currency": {
+      "const": "CNY"
+    },
+    "securityScope": {
+      "const": [
+        "600000.SH"
+      ]
+    },
+    "maxOrderAmount": {
+      "const": "2000.00"
+    },
+    "maxTotalAmount": {
+      "const": "2000.00"
+    },
+    "maxOrderCount": {
+      "const": 1
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "createAt",
+          "validFrom",
+          "activateAt",
+          "expiresAt",
+          "pauseAt"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "createAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activateAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pauseAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

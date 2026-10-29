@@ -163,6 +163,8 @@ try {
   assert.deepEqual(v13ModeInjectionSideEffects.rows[0], { orders: 0, fills: 0, events: 0, outbox: 0 }, "mode injection must have no FakeBroker order, fill, event, or outbox side effects");
   const writeRouteScopeCases = [
     ["historical execute", "/internal/v1/historical-orders/execute", "historical-replay-worker", "platform-api-service", tokens.platform],
+    ["C5 local FakeBroker execute", "/internal/v1/c5-local/paper-orders/execute", "platform-api-service", "historical-replay-worker", tokens.replay],
+    ["C5 local session settlement", "/internal/v1/c5-local/accounts/settlements", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["snapshot execute", "/internal/v1/v24/paper-orders/execute-snapshot", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["manual proposal execute", "/internal/v1/v13/paper-orders/execute-manual-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
     ["sequenced proposal execute", "/internal/v1/v13/paper-orders/execute-manual-sequenced-proposal", "platform-api-service", "historical-replay-worker", tokens.replay],
@@ -192,7 +194,11 @@ try {
     assert.equal(forgedBearer.status, 403, `${name} must reject ${allowedCaller} with another service's Bearer before parsing its command`);
     v1ProtectedWriteRouteCredentialResults.push({ route: name, missingIdentity: missingIdentity.status, forgedBearer: forgedBearer.status });
   }
-  assert.equal(v1ProtectedWriteRouteCredentialResults.length, 13, "every in-scope V1 Trade write route must have missing-identity and forged-Bearer probes");
+  assert.equal(v1ProtectedWriteRouteCredentialResults.length, 15, "every in-scope Trade write route must have missing-identity and forged-Bearer probes");
+  const c5InvalidContract=await request("/internal/v1/c5-local/paper-orders/execute","POST","platform-api-service",tokens.platform,{authorization:{}});
+  assert.equal(c5InvalidContract.status,422,"C5 local execution must reject incomplete authorization evidence before contacting other services");
+  const c5InvalidSettlement=await request("/internal/v1/c5-local/accounts/settlements","POST","platform-api-service",tokens.platform,{});
+  assert.equal(c5InvalidSettlement.status,422,"C5 local settlement must reject incomplete scope before touching account facts");
   const writeRouteScopeSideEffects = await pool.query(`
     SELECT
       (SELECT count(*)::int FROM fake_broker_orders WHERE namespace=$1) AS orders,

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stockquant.local/contracts/market-data/v24-local-snapshot-selection-result-v1.schema.json",
+  "title": "V24LocalSnapshotSelectionResultV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "WAITING",
+        "REJECTED",
+        "SELECTED"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "taskId": {
+      "type": "string"
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshotId",
+        "securityId",
+        "sourceId",
+        "dataMode",
+        "observedAt",
+        "ingestedAt",
+        "availableAt",
+        "ageSeconds",
+        "freshness",
+        "price",
+        "status"
+      ],
+      "properties": {
+        "snapshotId": {
+          "type": "string"
+        },
+        "securityId": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "dataMode": {
+          "enum": [
+            "FIXTURE",
+            "REAL"
+          ]
+        },
+        "observedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "ingestedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "availableAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "ageSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "freshness": {
+          "enum": [
+            "FRESH",
+            "STALE",
+            "UNKNOWN"
+          ]
+        },
+        "price": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "READY",
+            "STALE",
+            "UNKNOWN"
+          ]
+        }
+      }
+    }
+  }
+}

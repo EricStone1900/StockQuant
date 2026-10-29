@@ -42,7 +42,11 @@ export class GeneratedMarketDataMinuteClient {
     return this.call<Contracts.MinuteCsvUploadProgress>(`/v2/minute/${format}/uploads/${encodeURIComponent(uploadId)}`, "GET", undefined, ownerId);
   }
 
-  async actOnMarketDataMinuteUpload(format: "csv" | "parquet", uploadId: string, action: "preview" | "finalize" | "cancel", ownerId: string): Promise<unknown> {
+  async getMarketDataMinuteUploadFinalization(format: "csv" | "parquet", uploadId: string, ownerId: string): Promise<unknown> {
+    return this.call<unknown>(`/v2/minute/${format}/uploads/${encodeURIComponent(uploadId)}/finalization`, "GET", undefined, ownerId);
+  }
+
+  async actOnMarketDataMinuteUpload(format: "csv" | "parquet", uploadId: string, action: "preview" | "finalize" | "finalize-queued" | "cancel", ownerId: string): Promise<unknown> {
     return this.call<unknown>(`/v2/minute/${format}/uploads/${encodeURIComponent(uploadId)}/${action}`, "POST", {}, ownerId);
   }
 
