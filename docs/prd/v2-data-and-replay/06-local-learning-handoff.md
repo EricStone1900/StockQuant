@@ -1,6 +1,6 @@
 # V2本地学习版：使用与恢复入口
 
-本文件对应[V2本地学习版范围](../../decisions/2026-10-29-v2-local-learning-version-scope.md)，当前为候选准备资料，整版签收未完成。适用Mac本地个人学习和FakeBroker模拟；真实市场PIT/模型质量、正式连续Paper与20日观察、全市场分钟容量及备用源均按决定记录为未完成或延期。
+本文件对应[V2本地学习版范围](../../decisions/2026-10-29-v2-local-learning-version-scope.md)，项目所有者已确认候选 `3bfb14eb` 的本地学习版验收通过，详见[签收记录](../../../evidence/audits/2026-10-29-v2-local-learning-human-acceptance.json)。适用Mac本地个人学习和FakeBroker模拟；真实市场PIT/模型质量、正式连续Paper与20日观察、全市场分钟容量及备用源均按决定记录为未完成或延期。
 
 ## 使用入口
 

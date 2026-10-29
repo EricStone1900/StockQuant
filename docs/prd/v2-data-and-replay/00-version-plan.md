@@ -154,7 +154,7 @@ P1–P6已完成，项目所有者已签收[冻结候选复核与签收包](../.
 
 ### 7.2.4 V2本地学习版收口（2026-10-29）
 
-项目所有者同意按[V2本地学习版范围决定](../../decisions/2026-10-29-v2-local-learning-version-scope.md)依次整理已验收C1～C6范围、候选源码/Fixture/证据、必要定向验证和使用/备份恢复说明，再提交精确候选供验收。当前状态：`IN_PROGRESS`，范围批准不等于候选验收。原完整V2及V2.3/2.4/2.5原门禁与历史事实保留；原`verify:version -- --version V2`不因本地范围调整而伪装为PASS。
+项目所有者同意按[V2本地学习版范围决定](../../decisions/2026-10-29-v2-local-learning-version-scope.md)依次整理已验收C1～C6范围、候选源码/Fixture/证据、必要定向验证和使用/备份恢复说明，再提交精确候选供验收。当前状态：`PASS（V2_LOCAL_LEARNING_V1，2026-10-29项目所有者签收候选 3bfb14eb）`；具体边界与[人工签收](../../../evidence/audits/2026-10-29-v2-local-learning-human-acceptance.json)绑定，原V2完整版门禁独立。原完整V2及V2.3/2.4/2.5原门禁与历史事实保留；原`verify:version -- --version V2`不因本地范围调整而伪装为PASS。
 
 ### 7.3 完成目标与范围控制
 

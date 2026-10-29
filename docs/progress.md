@@ -1,3 +1,5 @@
+2026-10-29 项目所有者确认 `3bfb14eb` 对应 **V2_LOCAL_LEARNING_V1 本地学习版验收PASS**，接受历史证据本地保留和远端历史链接缺失的限制；签收绑定精确候选及最小证据索引，见[人工签收记录](../evidence/audits/2026-10-29-v2-local-learning-human-acceptance.json)。原V2完整版仍INCOMPLETE，真实研究/PIT、20个合格实际交易日、全市场分钟容量及长期稳定性等保持未完成或延期。
+
 2026-10-29 V2本地学习版开发里程碑 `ed5d9964` 已提交并推送 `origin/main`；C1–C6最小证据索引已建立，8个Run共33项断言及原Manifest核对通过，24个可携带文件与2个C3本地文件的SHA清单均通过。C3签收记录描述其候选输入为本地生成合成CSV，先前把RECORDED直接描述为历史行情的措辞已更正；C4/C6后续自动Run不冒充新签收。见[最小证据复核](../evidence/audits/2026-10-29-v2-local-minimum-evidence-review.md)。整版本地学习候选尚未人工签收，原V2完整版仍INCOMPLETE。
 
 2026-10-29 V2本地候选增量证据便携性复核：已将C1/C2及C5 Fixture小型导出按原Manifest保留并更新新引用；干净HEAD已有3,133处历史证据链接缺失，叠加本候选后新增缺失0，但整体干净检出仍不能通过文档检查。候选约322文件、7.1 MB，排除截图/Trace和本地数据；范围审阅和最终精确候选签收仍待完成。详见[候选核对](../evidence/audits/2026-10-29-v2-local-learning-candidate-review.md)。

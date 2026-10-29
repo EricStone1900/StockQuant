@@ -1,3 +1,5 @@
+2026-10-29 项目所有者确认候选 `3bfb14eb` 的 **V2_LOCAL_LEARNING_V1 本地学习版验收PASS**，接受历史证据本机保留及远端历史链接缺失的限制；[人工签收记录](../../../evidence/audits/2026-10-29-v2-local-learning-human-acceptance.json)。签收仅覆盖本地学习范围；原V2完整版与V2.3/2.4/2.5原完整门禁仍未通过。
+
 2026-10-29 本地学习版最小证据核对：C1–C6共8个Run、33项断言和原始Manifest通过；完整C3导出按既定安排保留本机。证据、各自签收的精确范围与校验方式见[复核](../../../evidence/audits/2026-10-29-v2-local-minimum-evidence-review.md)；整版本地候选人工验收仍NOT_RUN，原V2完整版仍INCOMPLETE。
 
 2026-10-29 新的[V2本地学习版收口范围](../../decisions/2026-10-29-v2-local-learning-version-scope.md)已获所有者同意，当前候选准备中；该范围决定不构成精确整版候选人工签收。原完整版V2门禁与本地学习版分别记录，原版继续INCOMPLETE。
