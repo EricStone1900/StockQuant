@@ -1,3 +1,5 @@
+2026-10-29 V2本地学习版开发里程碑 `ed5d9964` 已提交并推送 `origin/main`；C1–C6最小证据索引已建立，8个Run共33项断言及原Manifest核对通过，24个可携带文件与2个C3本地文件的SHA清单均通过。C3签收记录描述其候选输入为本地生成合成CSV，先前把RECORDED直接描述为历史行情的措辞已更正；C4/C6后续自动Run不冒充新签收。见[最小证据复核](../evidence/audits/2026-10-29-v2-local-minimum-evidence-review.md)。整版本地学习候选尚未人工签收，原V2完整版仍INCOMPLETE。
+
 2026-10-29 V2本地候选增量证据便携性复核：已将C1/C2及C5 Fixture小型导出按原Manifest保留并更新新引用；干净HEAD已有3,133处历史证据链接缺失，叠加本候选后新增缺失0，但整体干净检出仍不能通过文档检查。候选约322文件、7.1 MB，排除截图/Trace和本地数据；范围审阅和最终精确候选签收仍待完成。详见[候选核对](../evidence/audits/2026-10-29-v2-local-learning-candidate-review.md)。
 
 2026-10-29 V2本地学习版候选便携性核对：工作区文档/契约/Fixture、6包类型和25项导出/验收脚本测试通过；但用HEAD加拟选文件模拟干净检出时，文档有3,136处历史证据引用缺失，原V2版本检查的10组Run与62项证据检查缺失。已补存4组C1/C2合成Fixture导出；C3 RECORDED样本按既有本地使用边界未复制。候选尚未冻结或签收，需先解决证据可获取性并核对拟分享内容；见[候选核对](../evidence/audits/2026-10-29-v2-local-learning-candidate-review.md)。

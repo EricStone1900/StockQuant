@@ -1,3 +1,5 @@
+2026-10-29 本地学习版最小证据核对：C1–C6共8个Run、33项断言和原始Manifest通过；完整C3导出按既定安排保留本机。证据、各自签收的精确范围与校验方式见[复核](../../../evidence/audits/2026-10-29-v2-local-minimum-evidence-review.md)；整版本地候选人工验收仍NOT_RUN，原V2完整版仍INCOMPLETE。
+
 2026-10-29 新的[V2本地学习版收口范围](../../decisions/2026-10-29-v2-local-learning-version-scope.md)已获所有者同意，当前候选准备中；该范围决定不构成精确整版候选人工签收。原完整版V2门禁与本地学习版分别记录，原版继续INCOMPLETE。
 
 # V2 免费数据、分钟回放与连续模拟：验收清单
